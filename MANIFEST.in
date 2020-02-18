@@ -1,0 +1,2 @@
+recursive-include _fcmaescpp *.txt *.cpp *.sh
+recursive-include fcmaes *.so *.dll *.py

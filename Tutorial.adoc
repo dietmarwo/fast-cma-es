@@ -1,0 +1,392 @@
+:encoding: utf-8
+:imagesdir: img
+
+== How to solve hard optimization problems
+
+There are not many real world optimization problems available as open source, we will focus on four problems implemented
+in the GTOPToolbox:
+- https://www.esa.int/gsp/ACT/projects/gtop/gtoc1.html[GTOC1]
+- https://www.esa.int/gsp/ACT/projects/gtop/cassini1.html[Cassini]
+- https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced.html[Messenger reduced]
+- https://www.esa.int/gsp/ACT/projects/gtop/messenger_full.html[Messenger full]
+which are accessible from Python via https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/astro.py[astro.py] 
+if you are on linux or windows.  
+Otherwise you either can compile the https://www.esa.int/gsp/ACT/doc/INF/Code/globopt/GTOPtoolbox.zip[GTOPToolbox] 
+sources yourself or use their https://www.esa.int/gsp/ACT/projects/gtop/gtop.html[Matlab code] 
+All tutorial code can be found in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/tutorial.py[tutorial.py]
+
+=== GTOC1
+
+Lets suppose we are participating in the https://sophia.estec.esa.int/gtoc_portal/?page_id=13[GTOC1] competition, which
+is a complex space mission task to save the earth from an incoming asteroid impact. The first thing we need to do is to simplify
+the task in a way suitable for optimization such that the optimization result is a useful basis to compute a full solution. 
+We can find such an abstraction here https://www.esa.int/gsp/ACT/projects/gtop/gtoc1.html[ESA-Abstraction] and its
+implementation here https://www.esa.int/gsp/ACT/doc/INF/Code/globopt/GTOPtoolbox.zip[GTOPToolbox].
+Using the ESA-Abstraction we could reach rank 3 
+(https://sophia.estec.esa.int/gtoc_portal/wp-content/uploads/2012/11/ACT-RPT-MAD-GTOC1-ranks.pdf[GTOC1-results]) 
+if we are able to solve the GTOC1 optimization problem.  
+
+The https://www.esa.int/gsp/ACT/projects/gtop/gtoc1.html[ESA-Abstraction] uses a fixed planet sequence and replaces 
+the ion thruster by a regular impulse (rocket) engine. The cost function is accessible as astro.gtoc1Func, 
+it takes an argument vector X and produces a double value as result. The function is only partly defined, 
+but the given bounds make sure we get a valid value. 
+This value represents the competition score which combines the different objectives (weighted sum approach). 
+The maximal thrust constraint is solved indirectly: 
+A good score means only "small" impulse maneuvers are necessary which are easily convertible into a low thrust trajectory.   
+
+=== Single threaded optimization
+
+Lets try scipy.optimize.minimize first:
+
+We call minimize in a loop using different random guesses:
+
+	import time
+	import math
+	from scipy.optimize import minimize, differential_evolution, dual_annealing, shgo
+	from fcmaes.optimizer import dtime, random_x
+	from fcmaes import astro
+	
+	def testScipyMinimize(problem, num):
+	    best = math.inf
+	    t0 = time.perf_counter();
+	    for i in range(num):
+	        guess = random_x(problem.bounds.lb, problem.bounds.ub)
+	        ret = minimize(problem.func, x0=guess, bounds=problem.bounds)
+	        best = min(ret.fun, best)
+        	print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+              .format(i, dtime(t0), best, ret.fun))	
+              
+	if __name__ == '__main__':
+	    problem = astro.Gtoc1()
+	    testScipyMinimize(problem, 1000)
+
+If we run this on a 16 core 3950x output is something like: 
+
+	...
+    1000: time = 13.1 best = -388236.0 f(xmin) = -0.0
+
+Even if we try 100000 times : `testScipyMinimize(problem, 100000)` the result doesn't improve much:
+
+    ...
+    100000: time = 1385.7 best = -638716.4 f(xmin) = -106.1
+
+At least sufficient to beat Glasgow University at rank 7 (-385,000). Maybe shgo performs better ?
+
+	ret = shgo(problem.func, bounds=list(zip(problem.bounds.lb, astro.problem.ub)))
+
+Since shgo is not a stochastic approach, it delivers always the same result:
+
+    1: time = 1.6 best = -75.4 f(xmin) = -75.4
+    2: time = 3.2 best = -75.4 f(xmin) = -75.4
+    3: time = 4.9 best = -75.4 f(xmin) = -75.4
+    4: time = 6.5 best = -75.4 f(xmin) = -75.4
+    5: time = 8.1 best = -75.4 f(xmin) = -75.4
+    ...
+
+Not very convincing, may be we can tweak parameters?
+
+	ret = shgo(problem.func, bounds = list(zip(problem.bounds.lb, astro.problem.ub)), 
+		n = 300, sampling_method = 'sobol')
+
+gives:
+
+	1: time = 120.2 best = -53923.9 f(xmin) = -53923.9
+    ...
+
+Better but only sufficient to beat "Politecnico di Milano" who provided an invalid solution. 
+
+Lets try dual annealing next:
+
+	ret = dual_annealing(problem.func, list(zip(problem.bounds.lb, astro.problem.ub)))
+
+results in:
+
+    ...
+	100: time = 232.5 best = -1323185.1 f(xmin) = -199305.8
+    ...	
+    1000: time = 2321.4 best = -1323185.1 f(xmin) = -657135.2
+
+Much better, this is "Moscow Aviation Institute" territory who reached rank 4. 
+
+But scipy can do even better if we use differential evolution:
+
+	ret = differential_evolution(problem.func, bounds = problem.bounds)
+
+gives:
+
+    ...
+	100: time = 578.5 best = -1471151.7 f(xmin) = -980427.2
+	...
+    1000: time = 6067.5 best = -1569880.2 f(xmin) = -394984.5
+
+
+-1569880.2 is already a reasonable result better than the submission from GMV ranked 3rd.
+
+We conclude: Evolutionary algorithms seems to be the way to go. Lets try CMA-ES, first the "official" 
+distribution by which can be installed by: 
+	
+	pip install cma
+
+In our loop we now have
+
+	import cma
+	from fcmaes.optimizer import typical, scale
+	...
+     for i in range(num):
+        guess = random_x(problem.bounds.lb, problem.bounds.ub)
+        es = cma.CMAEvolutionStrategy(guess, 1.0,  
+                                      {'bounds': [lb, ub], 'popsize': 32, 
+                                        'typical_x': typical(lb, ub),
+                                        'scaling_of_variables': scale(lb, ub),
+                                        'verbose': -1, 'verb_disp': -1})
+        for j in range(100000):
+            X, Y = es.ask_and_eval(problem.func)
+            es.tell(X, Y)
+            if es.stop():
+                break 
+        best = min(es.result.fbest, best)
+        print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+              .format(i+1, dtime(t0), best, es.result.fbest))
+
+which results in:
+
+    ...
+    100: time = 388.5 best = -1250689.8 f(xmin) = -815311.1
+    ...
+    1000: time = 3918.9 best = -1460763.9 f(xmin) = -677716.8
+
+
+without setting the 'typical_x' and 'scaling_of_variables' parameters we would get warnings like:
+       	
+   	geno-pheno transformation introduced based on the
+    current covariance matrix with condition 1.0e+12 -> 1.0e+00,
+    injected solutions become "invalid" in this iteration (class=CMAEvolutionStrategy method=alleviate_conditioning iteration=2850)
+
+The result is worse then that for differential evolution and the algorithm is
+slower than dual annealing, may be CMA-ES is not such a good idea after all? 
+
+Lets first try out the new CMA-ES implementations before we make a final decision. 
+First the python variant:
+
+	from fcmaes import cmaes
+	
+	def test_cma_python(problem, num):
+	    best = math.inf
+	    t0 = time.perf_counter();
+	    for i in range(num):
+	        ret = cmaes.minimize(problem.func, bounds = problem.bounds)
+	        best = min(ret.fun, best)
+	        print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+	              .format(i+1, dtime(t0), best, ret.fun))
+ 
+ We get:
+
+    ...	
+    100: time = 83.0 best = -1425075.5 f(xmin) = -648788.4
+    ...
+    1000: time = 833.0 best = -1454068.1 f(xmin) = -56015.3
+
+This algorithm is way faster than both dual annealing and differential evolution and scores much higher. 
+Slowly but steadily we approach the absolute minimum. If you are using Linux and have
+installed https://arma.sourceforge.net/[Armadillo] you can try the C++ variant:
+
+	from fcmaes import cmaescpp
+	...
+	ret = cmaescpp.minimize(problem.func, bounds = problem.bounds)
+
+which results in:
+	
+    ...
+    100: time = 53.0 best = -1228469.0 f(xmin) = -100089.9
+    ...
+    1000: time = 562.6 best = -1410663.0 f(xmin) = -55979.9
+
+The advantage of the C++ variant is lower for higher dimensional problems, but for GTOC1 we see a 
+significant speed up. 
+
+=== Summary what we know so far:
+
+* Differential evolution is the best method tested for GTOC1 if we use the same number of retries. 
+* CMA-ES achieves good results and is much faster - specially the new implementations - but comes not even
+close to the result achieved by differential evolution.
+* We haven't even solved the ESA abstraction of the problem. To really solve GTOC1 - beat the winner JPL - 
+we need a better abstraction which is out of scope here. But expect this new abstraction to be harder
+to solve than the existing one since it involves more planets.
+
+=== What is on our wish list?
+
+* We want to solve the ESA abstraction, which means we need to be better than differential evolution.
+* We want the solution fast, in a few hundred seconds, which means we need the speed of CMA-ES and have
+to utilize all cores of our processor. 
+
+Is there a way CMA-ES can improve? Without changing anything at the level of the CMA-ES algoritm
+itself? The retries we executed up to now were completely independent. What if these retries could learn
+from each other? In fact this is an old idea, described in 
+http://www.midaco-solver.com/data/pub/Messenger_%28Evostar2017%29.pdf[Midaco Messenger Paper] were it is applied
+to parallel Ant Colony Optimizaition runs. As it turns out, the capability of CMA-ES to configure the
+initial step size separately for each dimension makes CMA-ES even more suitable for this idea. 
+
+First we try to better utilize the many cores our CPU provides. 
+
+=== Parallel retry
+
+	from fcmaes import retry
+
+	def test_retry_python(problem, 5000):
+    	ret = retry.minimize(problem.func, bounds=problem.bounds, num_retries = num, 
+                   max_evaluations = 50000)
+	
+results in:
+
+	...
+	181.45 847490 5030 153777205 -1344822.4648 -254259.03 311400.87 [-1344822.46, -1330924.02, -1317573.31, ...
+
+This means that after three minutes the best solution found after 5030 retries
+scores -1344822. evaluation/sec rate is 847490. 
+Check https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc[README] 
+for a description of all rows in the output. 
+We also can find a list of the best values found so far:
+
+	27.03 ... [-1344822.46, -1330924.02, -1317573.31, -1313861.47, -1302154.01, -1288085.54, -1283177.19, -1282682.76, ...
+
+To switch to the C++ variant we use the `useCpp` parameter:
+
+    ret = retry.minimize(problem.func, bounds=problem.bounds, num_retries = 1000, 
+                   max_evaluations = 50000, useCpp = True)
+
+	...
+	117.16 1275855 5004 149479268 -1567307.2048 -269820.70 320108.00 [-1567307.2, -1512785.36, -1410193.99, ...
+
+
+Now the evaluation/sec rate increased to 1275383. We were lucky and found a solution scored -1567307 after 
+5004 retries.
+
+But there is still room for improvement. Lets try the coordinated parallel retry. This time we deactivate logging
+and do our own output:
+
+	def test_advretry_python(problem):
+	    best = math.inf
+	    t0 = time.perf_counter();    
+	    for i in range(10):
+	        ret = advretry.minimize(problem.func, bounds=problem.bounds, 
+	        	num_retries = 4000, value_limit = -1000000, logger = None)
+	        best = min(ret.fun, best)
+	        print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+	              .format(i, dtime(t0), best, ret.fun))
+
+We get:
+
+    1: time = 86.8 best = -1579084.3 f(xmin) = -1579084.3
+    2: time = 174.8 best = -1579084.3 f(xmin) = -1579084.3
+    3: time = 261.8 best = -1581950.3 f(xmin) = -1581950.3
+    4: time = 348.8 best = -1581950.3 f(xmin) = -1581950.3
+    5: time = 435.9 best = -1581950.3 f(xmin) = -1484730.4
+    6: time = 523.0 best = -1581950.3 f(xmin) = -1579084.4
+    7: time = 609.7 best = -1581950.3 f(xmin) = -1581950.2
+    8: time = 697.8 best = -1581950.3 f(xmin) = -1542602.3
+    9: time = 785.9 best = -1581950.3 f(xmin) = -1542602.3
+    10: time = 874.8 best = -1581950.3 f(xmin) = -1581950.3
+
+which means we fulfilled our wish list, we reached -1581950, the best known solution
+in 261.8 seconds. In https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results] 
+you can see the results for 20 runs with 4000 retries each. Finally we solved this
+GTOC1 abstraction. If you remove "logger = None" you can reactivate the log output. You will notice
+a reduced evaluations/sec rate, which is caused by the much lower evaluation limit per CMA-ES run, 
+specially in the beginning. This limit slowly increases each 100 optimizations by 1000.
+Initial evaluation limit, the maximal limit, its increase and the interval it increases are all
+configurable. 
+
+Using the C++ variant 
+
+    ret = advretry.minimize(problem.func, bounds=problem.bounds, 
+    	num_retries = 4000, value_limit = -1000000, logger = None, useCpp = True)
+
+results in the usual moderate speedup:
+
+    1: time = 59.1 best = -1581950.3 f(xmin) = -1581950.3
+    2: time = 117.4 best = -1581950.3 f(xmin) = -1581950.3
+    3: time = 176.7 best = -1581950.3 f(xmin) = -1567277.6
+    4: time = 235.0 best = -1581950.3 f(xmin) = -1581950.3
+    5: time = 292.7 best = -1581950.3 f(xmin) = -1581950.3
+    6: time = 350.8 best = -1581950.3 f(xmin) = -1581950.3
+    7: time = 409.7 best = -1581950.3 f(xmin) = -1581950.3
+    8: time = 467.1 best = -1581950.3 f(xmin) = -1578081.1
+    9: time = 524.8 best = -1581950.3 f(xmin) = -1581885.8
+    10: time = 582.3 best = -1581950.3 f(xmin) = -1508157.0
+
+CMA-ES is configured exactly the same in both variants. 
+
+=== What is the "secret" behind the coordinated parallel retry?
+
+Actually there is more then one "secret":
+
+- Incrementally increasing the evaluation number limit.
+- Careful initialization of the random generators for each process generating the guesses.
+- Good balance between the creation of fresh solutions and a crossover between existing ones.
+- Both the bounds and the individual initial step size for each dimension are derived in a stochastic 
+  process from the two parents during crossover.
+- Higher probability to choose good solutions for crossover. 
+- Preserving diversity by filtering out solutions which are too similar.
+- Use of shared memory for inter-process communication, avoid serialization. 
+- Using a mutex - multiprocessing.Lock() - to prevent inconsistent access instead of the
+  expensive multiprocessing.Array. 
+
+The crossover operation defines new boundaries and initial step-size parameters for each dimension 
+derived from the result vectors of the CMA-ES runs. There is no "initial step-size in each dimension" 
+for other stochastic algorithms like differential evolution or dual annealing. This is the main reason I
+decided to use CMA-ES runs as population of the retry mechanism - and developed the two 
+new fast CMA-ES implementations.
+
+The resulting optimization performance is achieved by the combination of the novel coordinated parallel retry
+mechanism and the design of both CMA-ES implementations which exploit BLAS - SIMD instructions provided by
+modern processors - as much as possible, 
+
+=== Excercise: The other tree problems
+
+By replacing 
+
+	problem = astro.Gtoc1()
+
+with 
+
+	problem = astro.Cassini1()
+	problem = astro.Messenger()
+	problem = astro.MessFull()
+
+in tutoral.py you can experiment with the three remaining problems. Advanced retry needs a different value limit,
+value_limit = 12.0 works well for all three problems. You can find results for these problems using an AMD 3950x on Linux
+in Results.adoc. Check examples.py and advexamples.py to see how other optimization algorithms can be combined
+with parallel retry and how fcmaes.cmaes supports parallel objective function evaluation.   
+ 
+==== Cassini 1 Problem
+
+The https://www.esa.int/gsp/ACT/projects/gtop/cassini1.html[Cassini 1 Problem] uses the original route
+of the Cassini spacecraft, a fly-by sequence involving Earth, Venus, Venus, Earth, Jupiter and Saturn.
+It is easy to solve, it took only one month after publication back in 2005 the first good solution was published. 
+For this kind of problems the coordinated retry mechanism can be "overkill". But you may be surprised about the
+performance of some well established optimization method. It is an interesting exercise to try out any other 
+optimization algorithms provided by https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy] and compare the results. 
+Or try out https://github.com/topics/optimization-algorithms?l=python&o=asc&s=forks[other methods]. You can do this for
+the other problems too, but try this one first since it is by far the easiest one. 
+
+==== Messenger Reduced Problem
+
+The https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced.html[Messenger reduced] problem represents a rendezvous 
+mission to Mercury modeled as an MGA-1DSM problem. The problem has 18 dimensions and involves deep space maneuvers
+between the planets, which distinguishes it from the first two problems. Since this problems has more dimensions, 
+scaling issues become visible for dual annealing and differential evolution which have a much less evaluation/sec rate 
+for this problem. This is not caused by the time needed to evaluate the function but by the increased overhead of
+the optimization algorithm. Other algorithms like SHGO are even worse regarding scaling to higher dimensions.  
+
+==== Messenger Full Problem
+
+The https://www.esa.int/gsp/ACT/projects/gtop/messenger_full.html[Messenger full] problem is a 26-dimensional planning task for the 
+https://messenger.jhuapl.edu/[Messenger Space Mission]. Good results for this problem resemble more or less the real mission to Mercury 
+which conducted the the first orbital study of our solar system's innermost planet. As an optimization task it is well known for its
+complexity. The Midaco Team dedicated a paper to it 
+http://www.midaco-solver.com/data/pub/Messenger_%28Evostar2017%29.pdf[Midaco Messenger Paper]. As our advanced coordinated retry
+they implemented a parallel algorithm exchanging information between the processes, but used Ant Colony Optimization as basis. 
+https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results] contains a comparison with our CMA-ES based approach.
+For this problem 4000 optimizations per retry is not sufficient, use `num_retries = 50000` with the advanced retry to solve the
+problem. You have to be lucky - or use a 64 core processor - if you want a solution in less than one hour.  
+

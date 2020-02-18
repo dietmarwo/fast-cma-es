@@ -1,0 +1,83 @@
+:encoding: utf-8
+:imagesdir: img
+
+== Q/A:
+
+=== Which hardware is best for CMA-ES?
+Depends on the complexity of the problems you have to solve. 
+BLAS libraries profit from modern SIMD floating point units,
+parallel retry and parallel objective function evaluation scale 
+well with the number of available 
+processor cores. If you are using a cloud provider, choose an instance 
+with many cores. If your problem is less demanding, even your 
+laptop is sufficient. 
+
+=== Can I optimize on Windows?
+To cite http://arma.sourceforge.net/download.html[Armadillo]:
+- "For any high performance scientific/engineering workloads, we strongly recommend using a Linux based operating system."
+Python multiprocessing currently (Python 3.7) cannot transfer function objects between processes on Windows. 
+Parallel function evaluation and both parallel optimization retry mechanisms don't work.
+You can use the Python variant of CMA-ES. Compiling the C++ version requires
+both Armadillo and MKL or OpenBLAS installed, you have to adapt the CMakeLists.txt file
+to your environment. There is a windows-dll for the space flight optimization problem examples
+used in our tutorial so you can use them on Windows for your own experiments.  
+
+=== Can I optimize on Mac-OS?
+The CMA-ES Python variant and parallel retry should work.
+To use the C++ variant you have to install http://arma.sourceforge.net/download.html[Armadillo] and
+adapt the CMakeLists.txt file to your environment before creating the shared library. 
+
+=== Should you implement the cost function multi threaded?
+Short answer: You shouldn't. If the cost function is cheap or easy to optimize there is no reason to 
+improve its performance using multi threading. 
+If the cost function is expensive you achieve better scaling by calling the function in parallel during optimization.
+If the problem is hard to optimize you need a (parallel) retry mechanism. To avoid conflicts with the "outer parallelism" 
+the cost function should be implemented single threaded. Make sure all libraries used are executed single threaded. 
+
+=== What should I do if my problem contains constraints / multiple targets?
+CMA-ES supports boundary constraints. For linear / nonlinear constraints you can try scipy
+non-stochastic optimization methods:
+https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html[scipy.optimize.minimize]
+or 
+https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.shgo.html[scipy.optimize.shgo]
+
+Unfortunately deterministic optimization algorithms often fail with noisy non-smooth partially defined 
+real world cost functions. 
+To use CMA-ES you can add https://en.wikipedia.org/wiki/Penalty_method[penalties] representing the constraints. 
+These penalties should be carefully weighted. 
+Try to chose the minimal weight that solves a constraint to minimize interference with the optimization goals. 
+To achieve smoothness often quadratic penalties are proposed, see
+https://web.stanford.edu/group/sisl/k12/optimization/MO-unit5-pdfs/5.6penaltyfunctions.pdf[Penalty Functions]. 
+But with CMA-ES exact non-smooth linear penalties work well. If you have multiple targets, 
+optimize a weighted sum of your targets. Retries with random initial guess will give you multiple solutions on the 
+Pareto front. You can change your weights or limit one of your objectives if you want to explore the whole Pareto front.
+
+==== Example: 
+You plan a space trajectory using an ion thruster. Your goals are to reach your destination as fast as possible minimizing 
+fuel consumption. You maximal thrust is limited. Beside the maximal thrust constraint "reach your destination" implies two 
+additional equality constraints: One for the target position and one for the target velocity. Since you need an 
+https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.integrate.ode.html[ODE]
+to handle the differential equations describing 
+the space flight dynamics your cost function is expensive. Each constraint can be represented by a penalty function and both goals
+can be represented by a weighted sum. Position and velocity error should be weighted according to dPosition = dVelocity * dTime
+which means the penalty is w * (positionError / dTime + velocityError) for some weight factor w, dTime is the travel time for 
+the transfer. If the transfer has n segments of variable length the problem is at least 
+4*n dimensional, including time and x,y,z-thrust-values for each segment. 
+You have two options: Either use parallel CMA-ES retry or a single CMA-ES execution with parallelized
+cost function execution. Parallel retry is preferable if you have many segments / a high number of dimensions.
+ 
+=== What if you have to consider discrete (decision)- variables?
+There is a commercial solution http://www.midaco-solver.com/ , alternatively you can replace discrete decisions by 
+making your cost function stochastic. You perform the discrete choice based on a random decision associating 
+reasonable probabilities to each choice. Stochastic/noisy cost 
+functions work well with CMA-ES in combination with parallel retry.  
+
+==== Example: 
+The https://sophia.estec.esa.int/gtoc_portal/?page_id=13["save the earth"] task 
+cannot be solved by optimization alone without discrete choice. In https://www.esa.int/gsp/ACT/projects/gtop/gtoc1.html[GTOC1]
+a cost function is defined choosing the locally optimal transfers between the planets. These are usually not globally optimal. 
+For each transfer the number of revolutions around the sun is a discrete variable. The local value of each revolution number 
+can be used to associate a probability to each choice which makes the cost function stochastic. This way it is possible to 
+reproduce the winning solution from JPL and to find an even better one without having to use any search. 
+
+

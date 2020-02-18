@@ -1,0 +1,199 @@
+:encoding: utf-8
+:imagesdir: img
+
+== How to win the optimization battle
+To cite https://www.anandtech.com/show/15483/amd-threadripper-3990x-review/6[Anandtechs 3990x article] :
+"With the right workload you win all battles". 
+To win the optimization battle we have to create the
+"right workload" for modern high core count processors. This means:
+
+- Use stochastic methods. Many parallel retries - up to 128 with the 3990x desktop processor - are essentially for free if time is the constraint.
+- Variation / diversity is more important than reaching consistently good results, we are targeting 
+the global minimum. 
+- We should aim for optimal scaling for high core count and not parallelize single optimization runs.
+- Aim for high single thread performance of a single optimization retry specially for higher dimensions 
+combined with a low memory footprint.
+- The number of objective function evaluations needed should be minimized
+- It should be possible to call very expensive objective function evaluations in parallel, even if not using parallel retry. 
+- Multiple retries should be coordinated. Successful optimization runs should 
+"exchange information" to improve the result. 
+- Make use of SIMD instructions supported by modern processors to speed up optimization.   
+
+We now compare four stochastic optimization methods available for Python users using the criteria above:
+
+- fcmaes CMA-ES Python variant
+- fcmaes CMA-ES C++ variant
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html[scipy dual annealing]
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution[scipy differential evolution] 
+
+applied to four real world optimization problems of different complexity:
+
+- https://www.esa.int/gsp/ACT/projects/gtop/cassini1.html[Cassini]
+- https://www.esa.int/gsp/ACT/projects/gtop/gtoc1.html[GTOC1]
+- https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced.html[Messenger reduced]
+- https://www.esa.int/gsp/ACT/projects/gtop/messenger_full.html[Messenger full]
+
+which are accessible from Python via astro.py if you are on linux or windows.  
+
+If you want to reproduce the results shown here, check 
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/examples.py[examples.py] and 
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/advexamples.py[advexamples.py]
+
+===== Exercise
+Verify that all other scipy algorithms perform worse with these four problems. 
+
+For all these algorithms we test:
+
+- 20 runs each performing 2000 retries each limiting the number of function evaluations to 50000.
+- 20 runs each performing 4000 advanced coordinated retries with increasing number of function evaluations starting
+with 2000, increasing each 100 retries by 1000.
+
+These two methods are sufficient to solve the first three problems, for the last one we need:
+
+- 2 runs each performing 50000 advanced coordinated retries with increasing number of function evaluations starting
+with 2000, increasing each 100 retries by 1000 but with an absolute limit of 50000
+
+The last test is also useful to determine the optimal number of coordinated retries per run, which differs depending 
+on the problem and on the used optimization algorithm. 
+
+These experiments can be reproduced by executing
+
+	import fcmaes.examples
+	import fcmaes.advexamples
+	examples.test_all()
+	advexamples.test_all()
+
+Check optimizer.log for the results. 
+
+==== Cassini1 problem
+
+image::Ct4.png[]
+
+===== Observations
+
+- CMA-ES has a lower optimization algorithm overhead (higher evals/sec rate) as the other algorithms with
+differential evolution being worst. 
+- Dual annealing has highest, differential evolution the lowest number of evaluations per optimization. Note
+that the limit was set to 50000 evaluations, but since Cassini1 is a quite easy task all algorithms need less
+evaluations.
+- Differential evolution, although competitive, is not able to reach the absolute minimum at 4.93. CMA-ES fights
+with a local minimum at 5.3, but reaches the absolute minimum in under a minute in many runs.
+
+image::Co4.png[]
+
+===== Observations
+
+- Coordinating the retries helps dual annealing and differential evolution.
+- For CMA-ES the problem is too easy to gain from advanced retry. But it doesn't harm either, still the absolute 
+minimum is reached in under a minute.
+
+image::Co50.png[]
+
+===== Observations
+
+- 50000 optimizations per advanced retry run is overkill for the Cassini1 problem. 
+- Good values are reached faster if you perform more shorter runs.
+- This holds for all 4 optimization algorithms. 
+
+==== GTOC1 problem
+
+image::Gt4.png[]
+
+===== Observations
+
+- Although the problem has only 8 dimensions, it already quite tough. 
+- CMA-ES uses less evaluations per optimization, upper limit is 50000 for all algorithms.
+- Optimization overhead (evals/sec) is worst for differential evolution
+- CMA-ES is significantly faster overall and achieves superior results. 
+
+image::Go4.png[]
+
+===== Observations
+
+- All four algorithms improve significantly from advanced coordinated retry. 
+- Good values are reached much faster. 
+- CMA-ES now often reaches the global minimum in less than 100 seconds. 
+
+image::Go50.png[]
+
+===== Observations
+
+- Differential evolution and dual annealing improve with longer runs (50000 optimizations)
+but still don't find the global minimum, even if we invest a full hour. 
+- For CMA-ES executing multiple shorter runs is preferable
+
+==== Messenger reduced problem
+
+image::Mt4.png[]
+
+===== Observations
+
+- This problem, although for CMA-ES not harder than GTOC1, is too much for dual annealing and
+differential evolution. Probably because these algorithms don't scale well with higher dimensions.
+- Optimization algorithm overhead (evals/sec) is much higher than for GTOC1 for dual annealing and
+differential evolution, but not for CMA-ES.
+- This debunks the myth that CMA-ES doesn't scale well with the number of dimensions.  
+- CMA-ES is much faster and achieves much better results using the same number of evaluations 
+(max 50000 per retry).
+
+
+image::Mo4.png[]
+
+===== Observations
+
+- All four algorithms improve significantly from advanced coordinated retry. 
+- Differential evolution now finds good local minima. 
+- CMA-ES often solves the problem in less than 100 seconds, but sometimes "hangs" at local minima
+at 8.7 and 8.65. But already with the simple retry CMA-ES could often solve the problem fast.  
+
+image::Mo50.png[]
+
+===== Observations
+
+- Only dual annealing profits from longer retry runs (50000 retries).
+- Both dual annealing and differential evolution still miss the global minimum at 8.63. 
+- For CMA-ES executing multiple shorter runs is preferable
+
+
+==== Messenger full problem
+
+image::Ft4.png[]
+
+===== Observations
+
+- This is the hardest problem tested here, it shows already with the simple retry the clear
+superiority of CMA-ES which is much faster and achieves much better results if using the same
+number of function evaluations (max 50000). 
+- The evals/sec rate for dual annealing and differential evolution shrinks dramatically because
+the problem has 26 dimensions. Both algorithms scale bad for higher dimensions. 
+- Surprisingly dual annealing is both faster and better than differential evolution for this problem
+(if restricted to 50000 function evaluations) 
+- In the literature you can find worse results for CMA-ES for this problem. This is probably because
+here a lower relative initial stepsize - a random value between 0.05 and 0.1 - is used. This
+increases the diversity / variance of the results. 
+
+image::Fo4.png[]
+
+===== Observations
+
+- This time dual annealing and differential evolution gain more than CMA-ES using the advanced retry. 
+- But still CMA-ES is by far the best algorithm here.
+- The advantage for the C++ CMA-ES variant relative to the Python variant shrinks for higher dimensions since 
+the BLAS / MKL calls start to dominate the overall performance.  
+
+image::Fo50.png[]
+
+===== Observations
+
+- Longer retry runs (50000 coordinated advanced retries) only helps CMA-ES
+- CMA-ES is able to find the global minimum in less than 1 hour - which is 
+a bit lucky, sometimes the algorithm gets stuck at local minima at 2.4.
+But keep in mind that the whole science community needed 8 years between 2009 and 2017
+to find a 1.958 km/s solution. A 64 core processor solves the problem about 3 times faster.  
+
+==== Summary
+
+CMA-ES in combination with the advanced coordinated retry creates the
+"right workload" for modern high core count processors, fulfilling all criteria
+listed above. This way we can win the "optimization battle"
+
