@@ -8,8 +8,6 @@ import sys
 from fcmaes.testfun import Wrapper, Rosen, Rastrigin, Eggholder
 from fcmaes import cmaes, cmaescpp, retry, advretry
 
-test_cpp = False # requires Armadillo shared library installed
-
 def test_rastrigin_python():
     popsize = 100
     dim = 3
@@ -58,9 +56,6 @@ def test_rosen_python():
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
 def test_rosen_cpp():
-    # works currently only on linux if Armadillo is installed
-    if not test_cpp:
-        return
     if not sys.platform.startswith('linux'):
         return
     popsize = 32
