@@ -7,7 +7,8 @@ Created on Feb 14, 2020
 import time
 import math
 from scipy.optimize import minimize, differential_evolution, dual_annealing, shgo
-from fcmaes.optimizer import dtime, random_x
+from fcmaes.optimizer import dtime, random_x, typical, scale
+
 from fcmaes import astro
 
 def test_scipy_minimize(problem, num):
@@ -52,10 +53,8 @@ def test_differential_evolution(problem, num):
         print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
               .format(i+1, dtime(t0), best, ret.fun))
 
-import cma
-from fcmaes.optimizer import typical, scale
-
 def test_cma_original(problem, num):
+    import cma
     best = math.inf
     lb = problem.bounds.lb
     ub = problem.bounds.ub
@@ -135,15 +134,15 @@ if __name__ == '__main__':
 #     problem = astro.Cassini1()
 #     problem = astro.Messenger()
 #     problem = astro.MessFull()
-
+ 
 #     test_scipy_minimize(problem, 1000)
 #     test_shgo(problem, 2)
 #     test_dual_annealing(problem, 100)
 #     test_differential_evolution(problem, 100)
 #     test_cma_original(problem, 100)
-#     test_cma_python(problem, 100)
+    test_cma_python(problem, 100)
 #     test_cma_cpp(problem, 100)
-    test_retry_python(problem, 5000)
+#     test_retry_python(problem, 5000)
 #     test_retry_cpp(problem, 5000)
 #     test_advretry_python(problem, -1000000, 10)
 #     test_advretry_cpp(problem, -1000000, 10)

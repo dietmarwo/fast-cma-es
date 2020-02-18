@@ -33,7 +33,9 @@ applied to four real world optimization problems of different complexity:
 - https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced.html[Messenger reduced]
 - https://www.esa.int/gsp/ACT/projects/gtop/messenger_full.html[Messenger full]
 
-which are accessible from Python via astro.py if you are on linux or windows.  
+which are accessible from Python via 
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/astro.py[astro.py] 
+if you are on Linux or Windows.  
 
 If you want to reproduce the results shown here, check 
 https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/examples.py[examples.py] and 
@@ -103,8 +105,8 @@ image::Gt4.png[]
 
 - Although the problem has only 8 dimensions, it already quite tough. 
 - CMA-ES uses less evaluations per optimization, upper limit is 50000 for all algorithms.
-- Optimization overhead (evals/sec) is worst for differential evolution
-- CMA-ES is significantly faster overall and achieves superior results. 
+- Optimization overhead (evaluations/sec) is worst for differential evolution
+- CMA-ES is faster overall and achieves superior results. 
 
 image::Go4.png[]
 
@@ -131,9 +133,9 @@ image::Mt4.png[]
 - This problem, although for CMA-ES not harder than GTOC1, is too much for dual annealing and
 differential evolution. Probably because these algorithms don't scale well with higher dimensions.
 - Optimization algorithm overhead (evals/sec) is much higher than for GTOC1 for dual annealing and
-differential evolution, but not for CMA-ES.
-- This debunks the myth that CMA-ES doesn't scale well with the number of dimensions.  
-- CMA-ES is much faster and achieves much better results using the same number of evaluations 
+differential evolution, but not for CMA-ES which debunks the myth that CMA-ES 
+doesn't scale well with the number of dimensions.  
+- CMA-ES is faster and achieves much better results using the same number of evaluations 
 (max 50000 per retry).
 
 
@@ -164,8 +166,8 @@ image::Ft4.png[]
 - This is the hardest problem tested here, it shows already with the simple retry the clear
 superiority of CMA-ES which is much faster and achieves much better results if using the same
 number of function evaluations (max 50000). 
-- The evals/sec rate for dual annealing and differential evolution shrinks dramatically because
-the problem has 26 dimensions. Both algorithms scale bad for higher dimensions. 
+- The evaluations/sec rate for dual annealing and differential evolution shrinks significantly
+because the problem has 26 dimensions. Both algorithms scale bad for higher dimensions. 
 - Surprisingly dual annealing is both faster and better than differential evolution for this problem
 (if restricted to 50000 function evaluations) 
 - In the literature you can find worse results for CMA-ES for this problem. This is probably because
@@ -177,9 +179,9 @@ image::Fo4.png[]
 ===== Observations
 
 - This time dual annealing and differential evolution gain more than CMA-ES using the advanced retry. 
-- But still CMA-ES is by far the best algorithm here.
-- The advantage for the C++ CMA-ES variant relative to the Python variant shrinks for higher dimensions since 
-the BLAS / MKL calls start to dominate the overall performance.  
+- Still CMA-ES is by far the fastest algorithm delivering the best results here.
+- The advantage for the C++ CMA-ES variant relative to the Python variant shrinks for higher 
+dimensions since the BLAS / MKL calls start to dominate the overall performance.  
 
 image::Fo50.png[]
 
