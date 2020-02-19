@@ -28,10 +28,10 @@ We now compare four stochastic optimization methods available for Python users u
 
 applied to four real world optimization problems of different complexity:
 
-- https://www.esa.int/gsp/ACT/projects/gtop/cassini1.html[Cassini]
-- https://www.esa.int/gsp/ACT/projects/gtop/gtoc1.html[GTOC1]
-- https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced.html[Messenger reduced]
-- https://www.esa.int/gsp/ACT/projects/gtop/messenger_full.html[Messenger full]
+- https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini]
+- https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1]
+- https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/[Messenger reduced]
+- https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full]
 
 which are accessible from Python via 
 https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/astro.py[astro.py] 
