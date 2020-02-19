@@ -32,12 +32,11 @@ and when the budget is large (e.g. 1000 x the dimension)". It seems there is a n
 efficient implementation of the CMA-ES algorithm, not only for reinforcement learning but for general 
 "real world" optimization tasks engineers are faced with. Cost functions associated with these tasks 
 tend to be multi-modal, non-continuous, non-smooth, partially defined and sometimes even non-deterministic
-which makes CMA-ES the natural choice. The new implementations outperforms their stochastic scipy alternatives
+which makes CMA-ES the natural choice. The new implementations outperform their stochastic scipy alternatives
 https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html[differential_evolution]
  and https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html[dual_annealing]
-significantly for higher dimensions, see Results.adoc. 
-In combination with a novel coordinated parallel retry mechanism CMA-ES can overcome many of its shortcomings and solve
-problems which were up to now out of reach for optimization in general. 
+significantly for higher dimensions. In combination with a novel coordinated parallel retry mechanism CMA-ES can 
+overcome many of its shortcomings and solve problems which were up to now out of reach for optimization in general. 
 
 === Documentation
 
