@@ -74,7 +74,7 @@ functions work well with CMA-ES in combination with parallel retry.
 
 ==== Example: 
 The https://sophia.estec.esa.int/gtoc_portal/?page_id=13["save the earth"] task 
-cannot be solved by optimization alone without discrete choice. In https://www.esa.int/gsp/ACT/projects/gtop/gtoc1.html[GTOC1]
+cannot be solved by optimization alone without discrete choice. In https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1]
 a cost function is defined choosing the locally optimal transfers between the planets. These are usually not globally optimal. 
 For each transfer the number of revolutions around the sun is a discrete variable. The local value of each revolution number 
 can be used to associate a probability to each choice which makes the cost function stochastic. This way it is possible to 
