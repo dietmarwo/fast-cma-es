@@ -5,14 +5,14 @@
 
 There are not many real world optimization problems available as open source, we will focus on four problems implemented
 in the GTOPToolbox:
-- https://www.esa.int/gsp/ACT/projects/gtop/gtoc1.html[GTOC1]
-- https://www.esa.int/gsp/ACT/projects/gtop/cassini1.html[Cassini]
-- https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced.html[Messenger reduced]
-- https://www.esa.int/gsp/ACT/projects/gtop/messenger_full.html[Messenger full]
+- https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1]
+- https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini]
+- https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/[Messenger reduced]
+- https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full]
 which are accessible from Python via https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/astro.py[astro.py] 
 if you are on Linux or Windows.  
 Otherwise you either can compile the https://www.esa.int/gsp/ACT/doc/INF/Code/globopt/GTOPtoolbox.zip[GTOPToolbox] 
-sources yourself or use their https://www.esa.int/gsp/ACT/projects/gtop/gtop.html[Matlab code] 
+sources yourself or use their https://www.esa.int/gsp/ACT/projects/gtop/[Matlab code] 
 All tutorial code can be found in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/tutorial.py[tutorial.py]
 
 === GTOC1
@@ -20,13 +20,13 @@ All tutorial code can be found in https://github.com/dietmarwo/fast-cma-es/blob/
 Lets suppose we are participating in the https://sophia.estec.esa.int/gtoc_portal/?page_id=13[GTOC1] competition, which
 is a complex space mission task to save the earth from an incoming asteroid impact. The first thing we need to do is to simplify
 the task in a way suitable for optimization such that the optimization result is a useful basis to compute a full solution. 
-We can find such an abstraction here https://www.esa.int/gsp/ACT/projects/gtop/gtoc1.html[ESA-Abstraction] and its
+We can find such an abstraction here https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[ESA-Abstraction] and its
 implementation here https://www.esa.int/gsp/ACT/doc/INF/Code/globopt/GTOPtoolbox.zip[GTOPToolbox].
 Using the ESA-Abstraction we could reach rank 3 
 (https://sophia.estec.esa.int/gtoc_portal/wp-content/uploads/2012/11/ACT-RPT-MAD-GTOC1-ranks.pdf[GTOC1-results]) 
 if we are able to solve the ESA-Abstraction.  
 
-The https://www.esa.int/gsp/ACT/projects/gtop/gtoc1.html[ESA-Abstraction] uses a fixed planet sequence and replaces 
+The https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[ESA-Abstraction] uses a fixed planet sequence and replaces 
 the ion thruster by a regular impulse (rocket) engine. The cost function is accessible as astro.gtoc1Func, 
 it takes an argument vector X and produces a double value as result. The function is only partly defined, 
 but the given bounds make sure we get a valid value. 
@@ -367,7 +367,7 @@ with parallel retry and how fcmaes.cmaes supports parallel objective function ev
  
 ==== Cassini 1 Problem
 
-The https://www.esa.int/gsp/ACT/projects/gtop/cassini1.html[Cassini 1 Problem] uses the original route
+The https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini 1 Problem] uses the original route
 of the Cassini spacecraft, a fly-by sequence involving Earth, Venus, Venus, Earth, Jupiter and Saturn.
 It is easy to solve, it took only one month after publication back in 2005 the first good solution was published. 
 For this kind of problems the coordinated retry mechanism can be "overkill". But you may be surprised about the
@@ -378,7 +378,7 @@ the other problems too, but try this one first since it is by far the easiest on
 
 ==== Messenger Reduced Problem
 
-The https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced.html[Messenger reduced] problem represents a rendezvous 
+The https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/[Messenger reduced] problem represents a rendezvous 
 mission to Mercury modeled as an MGA-1DSM problem. The problem has 18 dimensions and involves deep space maneuvers
 between the planets, which distinguishes it from the first two problems. Since this problems has more dimensions, 
 scaling issues become visible for dual annealing and differential evolution which have a much less evaluation/sec rate 
@@ -387,7 +387,7 @@ the optimization algorithm. Other algorithms like SHGO are even worse regarding 
 
 ==== Messenger Full Problem
 
-The https://www.esa.int/gsp/ACT/projects/gtop/messenger_full.html[Messenger full] problem is a 26-dimensional planning task for the 
+The https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full] problem is a 26-dimensional planning task for the 
 https://messenger.jhuapl.edu/[Messenger Space Mission]. Good results for this problem resemble more or less the real mission to Mercury 
 which conducted the the first orbital study of our solar system's innermost planet. As an optimization task it is well known for its
 complexity. The Midaco Team dedicated a paper to it 
