@@ -342,7 +342,7 @@ The resulting optimization performance is achieved by the combination of the nov
 mechanism and the design of both CMA-ES implementations which exploit BLAS - SIMD instructions provided by
 modern processors - as much as possible, 
 
-=== Excercise: The other tree problems
+=== Excercise: The other three problems
 
 By replacing 
 
