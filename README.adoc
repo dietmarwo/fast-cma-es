@@ -50,8 +50,7 @@ problems which were up to now out of reach for optimization in general.
 ==== Linux
  
 * `pip install fcmaes`
-* for C++ version: install https://arma.sourceforge.net/[Armadillo]  
-* make sure a fast BLAS implementation is installed, like 
+* for C++ version: make sure a fast BLAS implementation is installed, like 
 https://software.intel.com/en-us/mkl[MKL] or https://www.openblas.net/[OpenBLAS].     
 
 ==== MacOS
