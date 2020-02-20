@@ -1,8 +1,7 @@
-'''
-Created on Feb 9, 2020
-
-@author: Dietmar Wolz
-'''
+# Copyright (c) Dietmar Wolz.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory.
 
 from fcmaes.astro import MessFull, Messenger, Gtoc1, Cassini1
 from fcmaes.optimizer import  Optimizer, logger

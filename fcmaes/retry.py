@@ -1,8 +1,7 @@
-'''
-Created on Jan 10, 2020
-
-@author: Dietmar Wolz
-'''
+# Copyright (c) Dietmar Wolz.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory.
 
 import random
 import time

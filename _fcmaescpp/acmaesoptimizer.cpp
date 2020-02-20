@@ -1,3 +1,8 @@
+// Copyright (c) Dietmar Wolz.
+//
+// This source code is licensed under the MIT license found in the
+// LICENSE file in the root directory.
+
 //#define ARMA_NO_DEBUG
 
 #include <iostream>
