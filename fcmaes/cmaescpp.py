@@ -20,7 +20,7 @@ def is_terminate_false(runid, iterations, val):
 def minimize(fun, 
              bounds=None, 
              x0=None, 
-             input_sigma = 1.0, 
+             input_sigma = 0.3, 
              popsize = 32, 
              max_evaluations = 100000, 
              max_iterations = 100000,  
