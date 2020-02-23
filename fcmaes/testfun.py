@@ -16,7 +16,7 @@ class Wrapper(object):
     def __init__(self, fun, dim):
         self.func = fun   
         self.statMutex = mp.Lock()    
-        self.bestX = mp.RawArray(ct.c_double, dim)
+        self.best_x = mp.RawArray(ct.c_double, dim)
         self.best_y = mp.RawValue(ct.c_double, sys.float_info.max) 
         self.count = mp.RawValue(ct.c_int, 0) 
     
@@ -25,12 +25,12 @@ class Wrapper(object):
         with self.statMutex:
             if y < self.best_y.value:
                 self.best_y.value = y
-                self.bestX[:] = x[:]
+                self.best_x[:] = x[:]
             self.count.value += 1
         return y
     
     def get_best_x(self):
-        return self.bestX[:]
+        return self.best_x[:]
 
     def get_best_y(self):
         return self.best_y.value

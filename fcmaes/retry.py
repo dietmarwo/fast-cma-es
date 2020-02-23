@@ -44,8 +44,7 @@ def minimize(fun,
         is a tuple of the fixed parameters needed to completely
         specify the function.
     bounds : sequence or `Bounds`, optional
-        Bounds on variables for L-BFGS-B, TNC, SLSQP and
-        trust-constr methods. There are two ways to specify the bounds:
+        Bounds on variables. There are two ways to specify the bounds:
             1. Instance of the `scipy.Bounds` class.
             2. Sequence of ``(min, max)`` pairs for each element in `x`. None
                is used to specify no bound.
@@ -188,8 +187,8 @@ class Store(object):
             if y < limit:  
                 self.count_stat_runs.value += 1
                 if y < self.best_y.value:
-                    self.dump()
                     self.best_y.value = y
+                    self.dump()
                 if self.num_stored.value >= self.capacity-1:
                     self.sort()
                 cnt = self.count_stat_runs.value

@@ -79,7 +79,7 @@ https://software.intel.com/en-us/mkl[MKL] or https://www.openblas.net/[OpenBLAS]
 Usage is very similar to https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html[scipy.optimize.minimize].
 
 	from fcmaes import cmaes
-	ret = cmaes.minimize(function, x0, bounds)
+	ret = cmaes.minimize(fun, bounds, x0)
 	print (ret.x, ret.fun, ret.nfev)
 	
 fcmaes.cmaes.minimize cannot handle constraints and derivatives (jac, hess, hessp). If the initial guess x0 is undefined,
@@ -97,19 +97,29 @@ faster and more reliable than scipy minimize. Additional parameters are
 For the C++ variant use instead:
 
 	from fcmaes import cmaescpp
-	ret = cmaescpp.minimize(function, x0, bounds)
+	ret = cmaescpp.minimize(fun, bounds, x0)
 	
 The C++ variant is currently restricted to Linux and requires that https://arma.sourceforge.net/[Armadillo] is installed.
+
+Alternatively there is an ask/tell interface to interact with CMA-ES:
+
+    es = cmaes.Cmaes(bounds, x0)
+    for i in range(iterNum):
+        xs = es.ask()
+        ys = [fun(x) for x in xs]
+        status = es.tell(ys)
+        if status != 0:
+            break 
 
 For simple parallel retry use:
 
 	from fcmaes import retry
-	ret = retry.minimize(function, bounds)
+	ret = retry.minimize(fun, bounds)
 	
 For advanced coordinated parallel retry use:
 
 	from fcmaes import advretry
-	ret = advretry.minimize(function, bounds)
+	ret = advretry.minimize(fun, bounds)
 	
 Parallel retry does not support an initial quess `x0` and initial step size `input_sigma` because it
 uses generated guesses and step size values. It creates a log file and logs to stdout. 

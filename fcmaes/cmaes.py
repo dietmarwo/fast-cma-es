@@ -9,7 +9,7 @@ import math
 import ctypes as ct
 import numpy as np
 from scipy import linalg
-from scipy.optimize import OptimizeResult, Bounds
+from scipy.optimize import OptimizeResult
 from numpy.random import MT19937, Generator
 from multiprocessing import Process
 import multiprocessing as mp
@@ -20,7 +20,7 @@ def minimize(fun,
              bounds=None, 
              x0=None, 
              input_sigma = 0.3, 
-             popsize = 32, 
+             popsize = 31, 
              max_evaluations = 100000, 
              max_iterations = 100000,  
              is_parallel = False,
@@ -40,8 +40,7 @@ def minimize(fun,
         is a tuple of the fixed parameters needed to completely
         specify the function.
     bounds : sequence or `Bounds`, optional
-        Bounds on variables for L-BFGS-B, TNC, SLSQP and
-        trust-constr methods. There are two ways to specify the bounds:
+        Bounds on variables. There are two ways to specify the bounds:
             1. Instance of the `scipy.Bounds` class.
             2. Sequence of ``(min, max)`` pairs for each element in `x`. None
                is used to specify no bound.
@@ -80,35 +79,45 @@ def minimize(fun,
         ``fun`` the best function value, ``nfev`` the number of function evaluations,
         ``nit`` the number of CMA-ES iterations, ``status`` the stopping critera and
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
-    
-    lower, upper, guess = checkBounds(bounds, x0, rg)   
+   
     fun = parallel(fun) if is_parallel else serial(fun)
-    fitfun = Fittness(fun, lower, upper)
-    cmaes = Cmaes(runid, fitfun.encode(guess), rg, accuracy, max_evaluations, max_iterations, popsize, \
-                input_sigma, stop_fittness, is_terminate)
-    x, val, evals, iterations, stop = cmaes.doOptimize(fitfun)
-    return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
-
-def checkBounds(bounds, guess, rg):
-    if bounds is None and guess is None:
-        raise ValueError('either guess or bounds need to be defined')
-    if bounds is None:
-        return None, None, np.asarray(guess)
-    if guess is None:
-        guess = rg.uniform(bounds.lb, bounds.ub)
-    return np.asarray(bounds.lb), np.asarray(bounds.ub), np.asarray(guess)
+    cmaes = Cmaes(bounds, x0, 
+                  input_sigma, popsize, 
+                  max_evaluations, max_iterations, 
+                  accuracy, stop_fittness, 
+                  is_terminate, rg, np.random.randn, runid, fun)
+    x, val, evals, iterations, stop = cmaes.doOptimize()
+    return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, 
+                          success=True)
 
 class Cmaes(object):
-    """manages a single cma-es retry."""
+    """Implements the cma-es ask/tell interactive interface."""
     
-    def __init__(self, runid, guess, rg, accuracy, max_evaluations, max_iterations,  \
-                popsize, input_sigma, stop_fittness, is_terminate):
+    def __init__(self, bounds=None, 
+                        x0=None, 
+                        input_sigma = 0.3, 
+                        popsize = 31, 
+                        max_evaluations = 100000, 
+                        max_iterations = 100000,  
+                        accuracy = 1.0, 
+                        stop_fittness = np.nan, 
+                        is_terminate = None, 
+                        rg = Generator(MT19937()), # used if x0 is undefined
+                        randn = np.random.randn, # used for random offspring 
+                        runid=0, 
+                        fun = None
+                        ):
+                        
     # runid used in is_terminate callback to identify a specific run at different iteration
         self.runid = runid
+    # bounds and guess
+        lower, upper, guess = check_bounds(bounds, x0, rg)   
+        self.fitfun = Fittness(fun, lower, upper)
     # initial guess for the arguments of the fitness function
-        self.guess = guess
-    # random generator    
-        self.rg = rg
+        self.guess = self.fitfun.encode(guess)
+    # random generators    
+        self.rg = rg # used if x0 is undefined
+        self.randn = randn # used for random offspring 
     # accuracy = 1.0 is default, > 1.0 reduces accuracy
         self.accuracy = accuracy
     # callback to check if to terminate
@@ -180,7 +189,7 @@ class Cmaes(object):
 
     # CMA internal values - updated each generation
     # Objective variables.
-        self.xmean = guess
+        self.xmean = self.guess
     # Evolution path.
         self.pc = np.zeros(self.dim)
     # Evolution path for sigma.
@@ -200,106 +209,153 @@ class Cmaes(object):
         self.iterations = 0
     # Size of history queue of best values.
         self.historySize = 10 + int(3. * 10. * self.dim / popsize)    
-    
-    def doOptimize(self, fitfun):
+        
         self.iterations = 0
-        stop = 0
-        bestValue = sys.float_info.max
-        bestX = None    
+        self.stop = 0
+        self.best_value = sys.float_info.max
+        self.best_x = None    
         # History queue of best values.
-        fitness_history = np.full(self.historySize, sys.float_info.max)
-        fitness_history[0] = bestValue        
+        self.fitness_history = np.full(self.historySize, sys.float_info.max)
+        self.fitness_history[0] = self.best_value    
+        self.arz = None
+
+
+    def ask(self):
+        """ask for popsize new argument vectors.
+            
+        Returns
+        -------
+        xs : popsize sized list of dim sized argument lists."""
+
+        self.newArgs()
+        return [self.fitfun.decode(x) for x in self.arx]
+ 
+    def tell(self, ys, xs = None):      
+        """tell function values for the argument lists retrieved by ask().
+    
+        Parameters
+        ----------
+        ys : popsize sized list of function values
+        xs : popsize sized list of dim sized argument lists, optional
+            use only if you want to submit values for arguments not from ask()
+            Needs either to be defined, or ask needs to be called before. 
+ 
+        Returns
+        -------
+        stop : int termination criteria, if != 0 loop should stop."""
+
+        if xs is None:
+            if self.arz is None:
+                raise ValueError('either call ask before or define xs')
+        else:
+            self.arx = np.array([self.fitfun.encode(x) for x in xs])
+            try:
+                self.arz = (linalg.inv(self.BD) @ \
+                            ((self.arx - self.xmean).transpose() / self.sigma)).transpose()   
+            except Exception:
+                if self.arz is None: 
+                    self.arz = self.randn(self.popsize, self.dim)
+        self.fitness = np.asarray(ys)
+        self.iterations += 1
+        self.updateCMA()
+        self.arz = None
+        return self.stop
+            
+    def newArgs(self):
+        self.xmean = self.fitfun.closestFeasible(self.xmean)
+        self.fitness = np.full(self.popsize, math.inf)
+        # generate random offspring
+        self.arz = self.randn(self.popsize, self.dim)    
+        delta = (self.BD @ self.arz.transpose()) * self.sigma
+        self.arx = self.fitfun.closestFeasible(self.xmean + delta.transpose())  
+          
+    def doOptimize(self):
         # -------------------- Generation Loop --------------------------------
         while True:
             if self.iterations > self.max_iterations:
                 break
             self.iterations += 1
-            if fitfun.evaluation_counter > self.max_evaluations:
+            if self.fitfun.evaluation_counter > self.max_evaluations:
                 break
             # Generate and evaluate popsize offspring
-            self.xmean = fitfun.closestFeasible(self.xmean)
-            fitness = np.full(self.popsize, math.inf)
+            self.newArgs()            
+            self.fitness = self.fitfun.values(self.arx)
+            self.updateCMA()
+            if self.stop != 0:
+                break
+        return self.best_x, self.best_value, self.fitfun.evaluation_counter, self.iterations, self.stop 
+        
+    def updateCMA(self):
+        # Stop for Nan / infinite fitness values 
+        if np.isfinite(self.fitness).sum() < self.popsize:
+            return -1
+        # Sort by fitness and compute weighted mean into xmean
+        arindex = self.fitness.argsort()        
+        best_fitness = self.fitness[arindex[0]]
+        worstFitness = self.fitness[arindex[-1]]                        
+        if self.best_value > best_fitness:
+            self.best_value = best_fitness
+            self.best_x = self.fitfun.decode(self.arx[arindex[0]])    
 
-            arz = np.random.randn(self.popsize, self.dim)    
-            arx = np.empty((self.popsize, self.dim))
-
-            # generate random offspring
-            delta = (self.BD @ arz.transpose()) * self.sigma
-            arx = fitfun.closestFeasible(self.xmean + delta.transpose())
-            
-            fitness = fitfun.values(arx)
-            # Stop for Nan / infinite fitness values 
-            if np.isfinite(fitness).sum() < self.popsize:
-                stop = -1
-                break 
-            # Sort by fitness and compute weighted mean into xmean
-            arindex = fitness.argsort()        
-            best_fitness = fitness[arindex[0]]
-            worstFitness = fitness[arindex[-1]]                        
-            if bestValue > best_fitness:
-                bestValue = best_fitness
-                bestX = fitfun.decode(arx[arindex[0]])    
-
-            # Calculate new xmean, this is selection and recombination
-            xold = self.xmean # for speed up of Eq. (2) and (3)
-            bestIndex = arindex[:self.mu] 
-            bestArx = arx[bestIndex]
-            self.xmean = np.transpose(bestArx) @ self.weights
-            bestArz = arz[bestIndex]
-            zmean = np.transpose(bestArz) @ self.weights
-            hsig = self.updateEvolutionPaths(zmean, xold)            
-            negccov = self.updateCovariance(hsig, bestArx, arz, arindex, xold)
-            self.updateBD(negccov)                        
-            # Adapt step size sigma - Eq. (5)
-            self.sigma *= math.exp(min(1.0, (self.normps / self.chiN - 1.) * self.cs / self.damps))            
-            # handle termination criteria
-            if self.stop_fitness != None: # only if stop_fitness is defined
-                if best_fitness < self.stop_fitness:
-                    stop = 1
-                    break
-            sqrtDiagC = np.sqrt(self.diagC)
-            pcCol = self.pc
-            for i in range(self.dim):
-                if self.sigma * max(abs(pcCol[i]), sqrtDiagC[i]) > self.stopTolX:
-                    break
-                if i == self.dim - 1:
-                    stop = 2
-            if stop != 0:
-                break            
-            for i in range(self.dim):
-                if self.sigma * sqrtDiagC[i] > self.stopTolUpX:
-                    stop = 3
-                    break
-            if stop != 0:
+        # Calculate new xmean, this is selection and recombination
+        xold = self.xmean # for speed up of Eq. (2) and (3)
+        bestIndex = arindex[:self.mu] 
+        bestArx = self.arx[bestIndex]
+        self.xmean = np.transpose(bestArx) @ self.weights
+        bestArz = self.arz[bestIndex]
+        zmean = np.transpose(bestArz) @ self.weights
+        hsig = self.updateEvolutionPaths(zmean, xold)            
+        negccov = self.updateCovariance(hsig, bestArx, self.arz, arindex, xold)
+        self.updateBD(negccov)                        
+        # Adapt step size sigma - Eq. (5)
+        self.sigma *= math.exp(min(1.0, (self.normps / self.chiN - 1.) * self.cs / self.damps))            
+        # handle termination criteria
+        if self.stop_fitness != None: # only if stop_fitness is defined
+            if best_fitness < self.stop_fitness:
+                self.stop = 1
+                return
+        sqrtDiagC = np.sqrt(np.abs(self.diagC))
+        pcCol = self.pc
+        for i in range(self.dim):
+            if self.sigma * max(abs(pcCol[i]), sqrtDiagC[i]) > self.stopTolX:
                 break
-            history_best = min(fitness_history)
-            history_worst = max(fitness_history)
-            if self.iterations > 2 and max(history_worst, worstFitness) - min(history_best, best_fitness) < self.stopTolFun:
-                stop = 4
+            if i == self.dim - 1:
+                self.stop = 2
+        if self.stop != 0:
+            return            
+        for i in range(self.dim):
+            if self.sigma * sqrtDiagC[i] > self.stopTolUpX:
+                self.stop = 3
                 break
-            if self.iterations > fitness_history.size and history_worst - history_best < self.stopTolHistFun:
-                stop = 5
-                break
-            # condition number of the covariance matrix exceeds 1e14
-            if min(self.diagD) != 0 and \
-                    max(self.diagD) / min(self.diagD) > 1e7 * 1.0 / math.sqrt(self.accuracy):
-                stop = 6
-                break
-            # compare to other CMA-ES retries and stop of value is bad 
-            if (not self.is_terminate is None) and \
-                       self.is_terminate(self.runid, self.iterations, bestValue):
-                stop = 7
-                break
-            # Adjust step size in case of equal function values (flat fitness)
-            if bestValue == fitness[arindex[int(0.1 + self.popsize / 4.)]]:
-                self.sigma *= math.exp(0.2 + self.cs / self.damps)
-            if self.iterations > 2 and max(history_worst, best_fitness) - min(history_best, best_fitness) == 0:
-                self.sigma *= math.exp(0.2 + self.cs / self.damps)
-            # store best in history
-            fitness_history[1:] = fitness_history[:-1]
-            fitness_history[0] = best_fitness
-
-        return bestX, bestValue, fitfun.evaluation_counter, self.iterations, stop        
+        if self.stop != 0:
+            return 
+        history_best = min(self.fitness_history)
+        history_worst = max(self.fitness_history)
+        if self.iterations > 2 and max(history_worst, worstFitness) - min(history_best, best_fitness) < self.stopTolFun:
+            self.stop = 4
+            return 
+        if self.iterations > self.fitness_history.size and history_worst - history_best < self.stopTolHistFun:
+            self.stop = 5
+            return 
+        # condition number of the covariance matrix exceeds 1e14
+        if min(self.diagD) != 0 and \
+                max(self.diagD) / min(self.diagD) > 1e7 * 1.0 / math.sqrt(self.accuracy):
+            self.stop = 6
+            return 
+        # call callback
+        if (not self.is_terminate is None) and \
+                       self.is_terminate(self.runid, self.iterations, self.best_value):
+            self.stop = 7
+            return 
+        # Adjust step size in case of equal function values (flat fitness)
+        if self.best_value == self.fitness[arindex[int(0.1 + self.popsize / 4.)]]:
+            self.sigma *= math.exp(0.2 + self.cs / self.damps)
+        if self.iterations > 2 and max(history_worst, best_fitness) - min(history_best, best_fitness) == 0:
+            self.sigma *= math.exp(0.2 + self.cs / self.damps)
+        # store best in history
+        self.fitness_history[1:] = self.fitness_history[:-1]
+        self.fitness_history[0] = best_fitness
+        return       
     
     def updateEvolutionPaths(self, zmean, xold):
         """update evolution paths.
@@ -456,6 +512,15 @@ def func_serial(func, num, pid, xs, ys):
     for i in range(pid, len(xs), num):
         ys[i] = func(xs[i])
                        
+def check_bounds(bounds, guess, rg):
+    if bounds is None and guess is None:
+        raise ValueError('either guess or bounds need to be defined')
+    if bounds is None:
+        return None, None, np.asarray(guess)
+    if guess is None:
+        guess = rg.uniform(bounds.lb, bounds.ub)
+    return np.asarray(bounds.lb), np.asarray(bounds.ub), np.asarray(guess)
+
 class Fittness(object):
     """wrapper around the objective function, scales relative to boundaries."""
      
@@ -467,12 +532,12 @@ class Fittness(object):
             self.upper = upper
             self.scale = 0.5 * (upper - lower)
             self.typx = 0.5 * (upper + lower)
-        
+                
     def values(self, Xs): #enables parallel evaluation
         values = self.func([self.decode(X) for X in Xs]);
         self.evaluation_counter += len(Xs)
         return np.array(values)
-        
+
     def closestFeasible(self, X):
         if self.lower is None:
             return X    

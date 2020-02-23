@@ -10,7 +10,7 @@ import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
 
-from fcmaes.cmaes import checkBounds
+from fcmaes.cmaes import check_bounds
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -21,7 +21,7 @@ def minimize(fun,
              bounds=None, 
              x0=None, 
              input_sigma = 0.3, 
-             popsize = 32, 
+             popsize = 31, 
              max_evaluations = 100000, 
              max_iterations = 100000,  
              accuracy = 1.0, 
@@ -41,8 +41,7 @@ def minimize(fun,
         is a tuple of the fixed parameters needed to completely
         specify the function.
     bounds : sequence or `Bounds`, optional
-        Bounds on variables for L-BFGS-B, TNC, SLSQP and
-        trust-constr methods. There are two ways to specify the bounds:
+        Bounds on variables. There are two ways to specify the bounds:
             1. Instance of the `scipy.Bounds` class.
             2. Sequence of ``(min, max)`` pairs for each element in `x`. None
                is used to specify no bound.
@@ -80,7 +79,7 @@ def minimize(fun,
     
     if not sys.platform.startswith('linux'):
         raise Exception("CMAES C++ variant currently only supported on Linux")
-    lower, upper, guess = checkBounds(bounds, x0, rg)   
+    lower, upper, guess = check_bounds(bounds, x0, rg)   
     if lower is None:
         lower = []
         upper = []

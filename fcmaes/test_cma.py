@@ -6,6 +6,7 @@
 import sys
 from fcmaes.testfun import Wrapper, Rosen, Rastrigin, Eggholder
 from fcmaes import cmaes, cmaescpp, retry, advretry
+from scipy.optimize import OptimizeResult
 
 def test_rastrigin_python():
     popsize = 100
@@ -33,7 +34,7 @@ def test_rastrigin_python():
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
 def test_rosen_python():
-    popsize = 32
+    popsize = 31
     dim = 5
     testfun = Rosen(dim)
     sdevs = [1.0]*dim
@@ -54,10 +55,39 @@ def test_rosen_python():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
+def test_rosen_ask_tell():    
+    dim = 5
+    testfun = Rosen(dim)
+    sdevs = [1.0]*dim
+    max_eval = 100000   
+    limit = 0.00001 
+    popsize = 31  
+    for i in range(5):
+        wrapper = Wrapper(testfun.func, dim)
+        es = cmaes.Cmaes(testfun.bounds,
+                popsize = popsize, input_sigma = sdevs)       
+        iters = int(50000/popsize)
+        for j in range(iters):
+            xs = es.ask()
+            ys = [wrapper.eval(x) for x in xs]
+            stop = es.tell(ys)
+            if stop != 0:
+                break 
+        ret = OptimizeResult(x=es.best_x, fun=es.best_value, 
+                             nfev=wrapper.get_count(), 
+                             nit=es.iterations, status=es.stop)
+        if limit > ret.fun:
+            break
+    assert(limit > ret.fun) # optimization target not reached
+    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval / popsize + 2 > ret.nit) # too much iterations
+    assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
+    assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
+
 def test_rosen_cpp():
     if not sys.platform.startswith('linux'):
         return
-    popsize = 32
+    popsize = 31
     dim = 5
     testfun = Rosen(dim)
     sdevs = [1.0]*dim

@@ -8,7 +8,7 @@ import math
 from scipy.optimize import minimize, differential_evolution, dual_annealing, shgo
 from fcmaes.optimizer import dtime, random_x, typical, scale
 
-from fcmaes import astro
+from fcmaes import astro, cmaes
 
 def test_scipy_minimize(problem, num):
     best = math.inf
@@ -60,12 +60,12 @@ def test_cma_original(problem, num):
     t0 = time.perf_counter();
     for i in range(num):
         guess = random_x(problem.bounds.lb, problem.bounds.ub)
-        es = cma.CMAEvolutionStrategy(guess, 1.0,  
-                                      {'bounds': [lb, ub], 'popsize': 32, 
+        es = cma.CMAEvolutionStrategy(guess, 0.1,  
+                                      {'bounds': [lb, ub], 'popsize': 31, 
                                         'typical_x': typical(lb, ub),
                                         'scaling_of_variables': scale(lb, ub),
                                         'verbose': -1, 'verb_disp': -1})
-        for j in range(100000):
+        for j in range(50000):
             X, Y = es.ask_and_eval(problem.fun)
             es.tell(X, Y)
             if es.stop():
@@ -81,6 +81,7 @@ def test_cma_python(problem, num):
     t0 = time.perf_counter();
     for i in range(num):
         ret = cmaes.minimize(problem.fun, bounds = problem.bounds)
+        print(ret.nfev, ret.status)
         best = min(ret.fun, best)
         print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
               .format(i+1, dtime(t0), best, ret.fun))
@@ -127,22 +128,46 @@ def test_advretry_cpp(problem, value_limit, num):
         best = min(ret.fun, best)
         print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
               .format(i+1, dtime(t0), best, ret.fun))
+        
+def test_ask_tell(problem, num):    
+    best = math.inf
+    t0 = time.perf_counter();
+    popsize = 31
+    for i in range(num):
+        es = cmaes.Cmaes(bounds = problem.bounds,
+                popsize = popsize, input_sigma = 0.1)
+        iters = int(50000/popsize)
+        for j in range(iters):
+            xs = es.ask()
+            ys = [problem.fun(x) for x in xs]
+            stop = es.tell(ys)
+            if stop != 0:
+                break 
+        best = min(es.best_value, best)
+        print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+              .format(i+1, dtime(t0), best, es.best_value))
+
 
 if __name__ == '__main__':
-    problem = astro.Gtoc1()
-#     problem = astro.Cassini1()
+    
+    import os
+    os.environ['MKL_NUM_THREADS'] = '1'
+
+#    problem = astro.Gtoc1()
+    problem = astro.Cassini1()
 #     problem = astro.Messenger()
-#     problem = astro.MessFull()
+#    problem = astro.MessFull()
  
 #     test_scipy_minimize(problem, 1000)
 #     test_shgo(problem, 2)
 #     test_dual_annealing(problem, 100)
 #     test_differential_evolution(problem, 100)
-#     test_cma_original(problem, 100)
-    test_cma_python(problem, 100)
-#     test_cma_cpp(problem, 100)
-#     test_retry_python(problem, 5000)
-#     test_retry_cpp(problem, 5000)
+#    test_cma_original(problem, 100)
+#    test_cma_python(problem, 100)
+#    test_cma_cpp(problem, 100)
+#    test_retry_python(problem, 5000)
+#    test_retry_cpp(problem, 5000)
 #     test_advretry_python(problem, -1000000, 10)
 #     test_advretry_cpp(problem, -1000000, 10)
 
+    test_ask_tell(problem, 10000)
