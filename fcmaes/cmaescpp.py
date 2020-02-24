@@ -80,11 +80,11 @@ def minimize(fun,
     if not sys.platform.startswith('linux'):
         raise Exception("CMAES C++ variant currently only supported on Linux")
     lower, upper, guess = check_bounds(bounds, x0, rg)   
-    if lower is None:
-        lower = []
-        upper = []
-    mu = int(popsize/2)
     n = guess.size   
+    if lower is None:
+        lower = [0]*n
+        upper = [0]*n
+    mu = int(popsize/2)
     if np.ndim(input_sigma) == 0:
         input_sigma = [input_sigma] * n
     if stop_fittness is None:

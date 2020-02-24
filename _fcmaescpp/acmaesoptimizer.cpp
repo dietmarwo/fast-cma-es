@@ -1,8 +1,3 @@
-// Copyright (c) Dietmar Wolz.
-//
-// This source code is licensed under the MIT license found in the
-// LICENSE file in the root directory.
-
 //#define ARMA_NO_DEBUG
 
 #include <iostream>
@@ -524,12 +519,19 @@ extern "C" {
         int n = dim;
         double *res = new double[n + 4];
         vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
+        bool useLimit = false;
         for (int i = 0; i < n; i++) {
             guess[i] = init[i];
+            inputSigma[i] = sigma[i];
             lower_limit[i] = lower[i];
             upper_limit[i] = upper[i];
-            inputSigma[i] = sigma[i];
+            useLimit |= (lower[i] != 0);
+            useLimit |= (upper[i] != 0);
         }
+        if (useLimit == false) {
+            lower_limit.resize(0);
+            upper_limit.resize(0);
+        } 
         Fittness fitfun(func, lower_limit, upper_limit);
         AcmaesOptimizer opt(
             runid,
