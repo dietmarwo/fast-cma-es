@@ -122,8 +122,9 @@ For advanced coordinated parallel retry use:
 	ret = advretry.minimize(fun, bounds)
 	
 Parallel retry does not support an initial quess `x0` and initial step size `input_sigma` because it
-uses generated guesses and step size values. It creates a log file and logs to stdout. 
-You can redefine - or disable - logging using parameter `logger`.
+uses generated guesses and step size values. Use parameter `logger` to specify the 
+log output, default is no logging. Use 
+`fcmaes.optimizer import logger` to log both into a file and to stdout. 
 Check the https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial] for more details. 
 You can switch to the C++ variant by setting parameter `useCpp` to True.
 It is possible to use other optimization methods with parallel retry, see
@@ -168,8 +169,7 @@ Both the Python and the C{plus}{plus} variant rely heavily on the configured BLA
 which defaults to Intel MKL if you use https://www.anaconda.com/distribution/[Anaconda] .
 
 === How to read the log output of the parallel retry
-The log output of the parallel retry (optimization.log and stdout) 
-contains the following rows:
+The log output of the parallel retry contains the following rows:
 
 ===== Simple retry
 
@@ -183,7 +183,7 @@ contains the following rows:
 - list of the best 20 function values in the retry store
 - best solution (x-vector) found so far
 
-Mean and stddev would be misleading when using advanced retry, because
+Mean and standard deviation would be misleading when using advanced retry, because
 of the retries initiated by crossover. Therefore the rows of the
 log output differ slightly:
  

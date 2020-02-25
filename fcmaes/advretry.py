@@ -16,7 +16,7 @@ from numpy.random import Generator, MT19937, SeedSequence
 from scipy.optimize import OptimizeResult, Bounds
 
 from fcmaes.retry import convertBounds
-from fcmaes.optimizer import Optimizer, dtime, logger, fitting, seed_random
+from fcmaes.optimizer import Optimizer, dtime, fitting, seed_random
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -26,7 +26,7 @@ def minimize(fun,
              bounds, 
              value_limit = math.inf,
              num_retries = 5000,
-             logger = logger,
+             logger = None,
              workers = mp.cpu_count(),
              popsize = 31, 
              min_evaluations = 2000, 
@@ -148,7 +148,7 @@ class Store(object):
                  evals_step_size = 1000, # increase evaluation number by eval_step_size after sorting
                  check_interval = 100, # sort evaluation store after check_interval iterations
                  capacity = 500, # capacity of the evaluation store
-                 logger = logger # if None logging is switched off
+                 logger = None # if None logging is switched off
                ):
         
         self.lower, self.upper = convertBounds(bounds)

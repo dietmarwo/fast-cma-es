@@ -172,7 +172,8 @@ def test_eggholder_retry():
     limit = -956   
     for i in range(5):
         wrapper = Wrapper(testfun.func, dim)
-        ret = retry.minimize(wrapper.eval, testfun.bounds, num_retries=100, useCpp=False, logger=None)
+        ret = retry.minimize(wrapper.eval, testfun.bounds, 
+                             num_retries=100, useCpp=False, logger=None)
         if limit > ret.fun:
             break
 
@@ -192,7 +193,8 @@ def test_eggholder_advanced_retry():
     limit = -956   
     for i in range(5):
         wrapper = Wrapper(testfun.func, dim)
-        ret = advretry.minimize(wrapper.eval, testfun.bounds, num_retries=300, useCpp=False, logger=None)
+        ret = advretry.minimize(wrapper.eval, testfun.bounds, 
+                                num_retries=300, useCpp=False, logger=None)
         if limit > ret.fun:
             break
 

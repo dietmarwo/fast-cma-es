@@ -234,10 +234,11 @@ First we try to better utilize the many cores our CPU provides.
 === Parallel retry
 
 	from fcmaes import retry
+	from fcmaes.optimizer import logger
 
 	def test_retry_python(problem, 5000):
     	ret = retry.minimize(problem.func, bounds=problem.bounds, num_retries = num, 
-        							max_evaluations = 50000)
+        							max_evaluations = 50000, logger = logger())
 	
 results in:
 
@@ -255,7 +256,7 @@ We also can find a list of the best values found so far:
 To switch to the C++ variant we use the `useCpp` parameter:
 
     ret = retry.minimize(problem.func, bounds=problem.bounds, num_retries = 1000, 
-                   max_evaluations = 50000, useCpp = True)
+                   max_evaluations = 50000, logger = logger(), useCpp = True)
 
 	...
 	117.16 1275855 5004 149479268 -1567307.2048 -269820.70 320108.00 [-1567307.2, -1512785.36, -1410193.99, ...
@@ -267,12 +268,14 @@ Now the evaluation/sec rate increased to 1275383. We were lucky and found a solu
 Finally lets try the coordinated parallel retry. This time we deactivate logging
 and do our own output:
 
+	from fcmaes import advretry
+
 	def test_advretry_python(problem):
 	    best = math.inf
 	    t0 = time.perf_counter();    
 	    for i in range(10):
 	        ret = advretry.minimize(problem.func, bounds=problem.bounds, 
-	        	num_retries = 4000, value_limit = -1000000, logger = None)
+	        	num_retries = 4000, value_limit = -1000000)
 	        best = min(ret.fun, best)
 	        print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
 	              .format(i, dtime(t0), best, ret.fun))
@@ -293,7 +296,7 @@ We get:
 We fulfilled our wish list reaching -1581950, the best known solution
 in 261.8 seconds. In https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results] 
 you can see the results for 20 runs with 4000 retries each. Finally we solved this
-GTOC1 abstraction. If you remove "logger = None" you can reactivate the log output. You will notice
+GTOC1 abstraction. You will notice
 a reduced evaluations/sec rate, which is caused by the much lower evaluation limit per CMA-ES run, 
 specially in the beginning. This limit slowly increases each 100 optimizations by 1000.
 Initial evaluation limit, the maximal limit, its increase and the interval it increases are all
@@ -302,7 +305,7 @@ configurable.
 Using the C++ variant 
 
     ret = advretry.minimize(problem.func, bounds=problem.bounds, 
-    	num_retries = 4000, value_limit = -1000000, logger = None, useCpp = True)
+    	num_retries = 4000, value_limit = -1000000, logger = logger(), useCpp = True)
 
 results in the usual moderate speedup:
 

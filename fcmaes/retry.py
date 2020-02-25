@@ -15,7 +15,7 @@ from scipy.optimize import OptimizeResult, Bounds
 import multiprocessing as mp
 from multiprocessing import Process
 
-from fcmaes.optimizer import Optimizer, dtime, logger, seed_random
+from fcmaes.optimizer import Optimizer, dtime, seed_random
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -25,7 +25,7 @@ def minimize(fun,
              bounds = None, 
              value_limit = math.inf,
              num_retries = 1000,
-             logger = logger,
+             logger = None,
              workers = mp.cpu_count(),
              popsize = 31, 
              max_evaluations = 50000, 
@@ -130,7 +130,7 @@ class Store(object):
                  max_evaluations = 50000, # maximum evaluation count
                  check_interval = 10, # sort evaluation memory after check_interval iterations
                  capacity = 500, # capacity of the evaluation store
-                 logger = logger # if None logging is switched off
+                 logger = None # if None logging is switched off
                 ):    
         self.lower, self.upper = convertBounds(bounds)
         self.logger = logger

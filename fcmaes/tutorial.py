@@ -6,9 +6,8 @@
 import time
 import math
 from scipy.optimize import minimize, differential_evolution, dual_annealing, shgo
-from fcmaes.optimizer import dtime, random_x, typical, scale
-
-from fcmaes import astro, cmaes
+from fcmaes.optimizer import dtime, random_x, typical, scale, logger
+from fcmaes import astro
 
 def test_scipy_minimize(problem, num):
     best = math.inf
@@ -100,12 +99,14 @@ def test_cma_cpp(problem, num):
 from fcmaes import retry
 
 def test_retry_python(problem, num):
-    ret = retry.minimize(problem.fun, bounds = problem.bounds, num_retries = num, 
-                   max_evaluations = 50000)
+    ret = retry.minimize(problem.fun, bounds = problem.bounds, 
+                num_retries = num, max_evaluations = 50000,
+                logger = logger())
 
 def test_retry_cpp(problem, num):
-    ret = retry.minimize(problem.fun, bounds = problem.bounds, num_retries = num, 
-                   max_evaluations = 50000, useCpp = True)
+    ret = retry.minimize(problem.fun, bounds = problem.bounds, 
+                num_retries = num, max_evaluations = 50000, 
+                logger = logger(), useCpp = True)
 
 from fcmaes import advretry
 
@@ -114,7 +115,7 @@ def test_advretry_python(problem, value_limit, num):
     t0 = time.perf_counter();    
     for i in range(num):
         ret = advretry.minimize(problem.fun, bounds = problem.bounds, num_retries = 4000, 
-                   value_limit = value_limit, logger = None)
+                   value_limit = value_limit)
         best = min(ret.fun, best)
         print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
               .format(i+1, dtime(t0), best, ret.fun))
@@ -124,7 +125,7 @@ def test_advretry_cpp(problem, value_limit, num):
     t0 = time.perf_counter();    
     for i in range(num):
         ret = advretry.minimize(problem.fun, bounds = problem.bounds, num_retries = 4000, 
-                   value_limit = value_limit, logger = None, useCpp = True)
+                   value_limit = value_limit, useCpp = True)
         best = min(ret.fun, best)
         print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
               .format(i+1, dtime(t0), best, ret.fun))
@@ -166,8 +167,8 @@ if __name__ == '__main__':
 #    test_cma_python(problem, 100)
 #    test_cma_cpp(problem, 100)
 #    test_retry_python(problem, 5000)
-#    test_retry_cpp(problem, 5000)
-#     test_advretry_python(problem, -1000000, 10)
-#     test_advretry_cpp(problem, -1000000, 10)
+    test_retry_cpp(problem, 5000)
+#    test_advretry_python(problem, 20.0, 10)
+#     test_advretry_cpp(problem, 20.0, 10)
 
-    test_ask_tell(problem, 10000)
+#    test_ask_tell(problem, 10000)

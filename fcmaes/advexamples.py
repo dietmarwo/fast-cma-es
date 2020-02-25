@@ -10,116 +10,117 @@ from fcmaes.advretry import Store, retry, minimize
 def messengerFullLoop():    
     while True:    
         problem = MessFull()
-        logger.info(problem.name + ' cmaes c++')
+        logger().info(problem.name + ' cmaes c++')
         ret = minimize(problem.fun, bounds=problem.bounds, num_retries = 40000, 
-                       max_evaluations = 50000, value_limit = 10.0, useCpp = True)
+            max_evaluations = 50000, value_limit = 10.0, logger = logger(), 
+            useCpp = True)
 
 def test_all(num_retries = 4000, num = 20):
      
     problem = Cassini1()
-    logger.info(problem.name + ' cmaes c++')
+    logger().info(problem.name + ' cmaes c++')
     for i in range(num):
         ret = minimize(problem.fun, bounds=problem.bounds, num_retries = num_retries, 
-                       useCpp = True, value_limit = 12.0)
+                       useCpp = True, logger = logger(), value_limit = 12.0)
  
     problem = Messenger()
-    logger.info(problem.name + ' cmaes c++')
+    logger().info(problem.name + ' cmaes c++')
     for i in range(num):
         ret = minimize(problem.fun, bounds=problem.bounds, num_retries = num_retries, 
-                       useCpp = True, value_limit = 10.0)
+                       useCpp = True, logger = logger(), value_limit = 10.0)
  
     problem = Gtoc1()
-    logger.info(problem.name + ' cmaes c++')
+    logger().info(problem.name + ' cmaes c++')
     for i in range(num):
         ret = minimize(problem.fun, bounds=problem.bounds, num_retries = num_retries, 
-                       useCpp = True, value_limit = -1000000)
+                       useCpp = True, logger = logger(), value_limit = -1000000)
  
     problem = MessFull()
-    logger.info(problem.name + ' cmaes c++')
+    logger().info(problem.name + ' cmaes c++')
     for i in range(num):
         ret = minimize(problem.fun, bounds=problem.bounds, num_retries = num_retries, 
-                       useCpp = True, value_limit = 10.0)
+                       useCpp = True, logger = logger(), value_limit = 10.0)
 
 
     problem = Cassini1()
-    logger.info(problem.name + ' cmaes python')
+    logger().info(problem.name + ' cmaes python')
     for i in range(num):
         ret = minimize(problem.fun, bounds=problem.bounds, num_retries = num_retries, 
-                       useCpp = False, value_limit = 12.0)
+                       useCpp = False, logger = logger(), value_limit = 12.0)
  
     problem = Messenger()
-    logger.info(problem.name + ' cmaes python')
+    logger().info(problem.name + ' cmaes python')
     for i in range(num):
         ret = minimize(problem.fun, bounds=problem.bounds, num_retries = num_retries, 
-                       useCpp = False, value_limit = 10.0)
+                       useCpp = False, logger = logger(), value_limit = 10.0)
 
     problem = Gtoc1()
-    logger.info(problem.name + ' cmaes python')
+    logger().info(problem.name + ' cmaes python')
     for i in range(num):
         ret = minimize(problem.fun, bounds=problem.bounds, num_retries = num_retries, 
-                       useCpp = False, value_limit = -1000000)
+                       useCpp = False, logger = logger(), value_limit = -1000000)
 
     problem = MessFull()
-    logger.info(problem.name + ' cmaes python')
+    logger().info(problem.name + ' cmaes python')
     for i in range(num):
         ret = minimize(problem.fun, bounds=problem.bounds, num_retries = num_retries, 
-                       useCpp = False, value_limit = 10.0)
+                       useCpp = False, logger = logger(), value_limit = 10.0)
         
 
     problem = Cassini1()
-    logger.info(problem.name + ' dual annealing')
+    logger().info(problem.name + ' dual annealing')
     for i in range(num):
-        store = Store(problem.bounds)
+        store = Store(problem.bounds, logger = logger())
         optimizer  = Optimizer(store, 0)
         ret = retry(problem.fun, store, optimizer.dual_annealing, num_retries, 20.0)
 
     problem = Messenger()
-    logger.info(problem.name + ' dual annealing')
+    logger().info(problem.name + ' dual annealing')
     for i in range(num):
-        store = Store(problem.bounds)
+        store = Store(problem.bounds, logger = logger())
         optimizer  = Optimizer(store, 0)
         ret = retry(problem.fun, store, optimizer.dual_annealing, num_retries, 20.0)
 
     problem = Gtoc1()
-    logger.info(problem.name + ' dual annealing')
+    logger().info(problem.name + ' dual annealing')
     for i in range(num):
-        store = Store(problem.bounds)
+        store = Store(problem.bounds, logger = logger())
         optimizer  = Optimizer(store, 0)
         ret = retry(problem.fun, store, optimizer.dual_annealing, num_retries, -200000)
 
     problem = MessFull()
-    logger.info(problem.name + ' dual annealing')
+    logger().info(problem.name + ' dual annealing')
     for i in range(num):
-        store = Store(problem.bounds)
+        store = Store(problem.bounds, logger = logger())
         optimizer  = Optimizer(store, 0)
         ret = retry(problem.fun, store, optimizer.dual_annealing, num_retries, 20.0)
    
         
     problem = Cassini1()
-    logger.info(problem.name + ' differential evolution')
+    logger().info(problem.name + ' differential evolution')
     for i in range(num):
-        store = Store(problem.bounds)
+        store = Store(problem.bounds, logger = logger())
         optimizer  = Optimizer(store, 0)
         ret = retry(problem.fun, store, optimizer.differential_evolution, num_retries, 20.0)
 
     problem = Messenger()
-    logger.info(problem.name + ' differential evolution')
+    logger().info(problem.name + ' differential evolution')
     for i in range(num):
-        store = Store(problem.bounds)
+        store = Store(problem.bounds, logger = logger())
         optimizer  = Optimizer(store, 0)
         ret = retry(problem.fun, store, optimizer.differential_evolution, num_retries, 20.0)
 
     problem = Gtoc1()
-    logger.info(problem.name + ' differential evolution')
+    logger().info(problem.name + ' differential evolution')
     for i in range(num):
-        store = Store(problem.bounds)
+        store = Store(problem.bounds, logger = logger())
         optimizer  = Optimizer(store, 0)
         ret = retry(problem.fun, store, optimizer.differential_evolution, num_retries, -200000)
 
     problem = MessFull()
-    logger.info(problem.name + ' differential evolution')
+    logger().info(problem.name + ' differential evolution')
     for i in range(num):
-        store = Store(problem.bounds)
+        store = Store(problem.bounds, logger = logger())
         optimizer  = Optimizer(store, 0)
         ret = retry(problem.fun, store, optimizer.differential_evolution, num_retries, 20.0)
 
