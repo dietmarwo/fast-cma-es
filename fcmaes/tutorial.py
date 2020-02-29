@@ -166,9 +166,9 @@ if __name__ == '__main__':
 #    test_cma_original(problem, 100)
 #    test_cma_python(problem, 100)
 #    test_cma_cpp(problem, 100)
-#    test_retry_python(problem, 5000)
-    test_retry_cpp(problem, 5000)
+    test_retry_python(problem, 5000)
+#    test_retry_cpp(problem, 5000)
 #    test_advretry_python(problem, 20.0, 10)
-#     test_advretry_cpp(problem, 20.0, 10)
+#    test_advretry_cpp(problem, 20.0, 10)
 
 #    test_ask_tell(problem, 10000)

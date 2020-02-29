@@ -15,7 +15,7 @@ from multiprocessing import Process
 from numpy.random import Generator, MT19937, SeedSequence
 from scipy.optimize import OptimizeResult, Bounds
 
-from fcmaes.retry import convertBounds
+from fcmaes.retry import _convertBounds
 from fcmaes.optimizer import Optimizer, dtime, fitting, seed_random
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
@@ -102,40 +102,13 @@ def minimize(fun,
 def retry(fun, store, optimize, num_retries, value_limit = math.inf, workers=mp.cpu_count()):
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
-    proc=[Process(target=retry_loop,
+    proc=[Process(target=_retry_loop,
             args=(pid, rgs, fun, store, optimize, num_retries, value_limit)) for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
     store.sort()
     store.dump()
     return OptimizeResult(x=store.get_x(0), fun=store.get_y(0), nfev=store.get_count_evals(), success=True)
-
-def retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit):
-    seed_random() # make sure cpp random generator for this process is initialized properly
-    while store.get_count_runs() < num_retries:
-        if crossover(fun, store, optimize, rgs[pid]):
-            continue
-        try:
-            dim = len(store.lower)
-            sol, y, evals = optimize(fun, None, Bounds(store.lower, store.upper), 
-                                     [random.uniform(0.05, 0.1)]*dim, rgs[pid])
-            store.add_result(y, sol, store.lower, store.upper, evals, value_limit)
-        except Exception as ex:
-            continue
- 
-def crossover(fun, store, optimize, rg):
-    if random.random() < 0.5:
-        return False
-    y0, guess, lower, upper, sdev = store.limits()
-    if guess is None:
-        return False
-    guess = fitting(guess, lower, upper) # take X from lower
-    try:       
-        sol, y, evals = optimize(fun, guess, Bounds(lower, upper), sdev, rg)
-        store.add_result(y, sol, lower, upper, evals, y0) # limit to y0  
-    except:
-        return False   
-    return True  
 
 class Store(object):
     """thread safe storage for optimization retry results; 
@@ -151,7 +124,7 @@ class Store(object):
                  logger = None # if None logging is switched off
                ):
         
-        self.lower, self.upper = convertBounds(bounds)
+        self.lower, self.upper = _convertBounds(bounds)
         self.logger = logger        
         self.delta = self.upper - self.lower
         self.capacity = capacity
@@ -327,3 +300,31 @@ class Store(object):
             dt, int(self.count_evals.value / dt), self.count_runs.value, self.count_evals.value, 
             self.best_y.value, self.worst_y.value, self.num_stored.value, vals, self.get_x(0))
         self.logger.info(message)
+
+        
+def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit):
+    seed_random() # make sure cpp random generator for this process is initialized properly
+    while store.get_count_runs() < num_retries:
+        if _crossover(fun, store, optimize, rgs[pid]):
+            continue
+        try:
+            dim = len(store.lower)
+            sol, y, evals = optimize(fun, None, Bounds(store.lower, store.upper), 
+                                     [random.uniform(0.05, 0.1)]*dim, rgs[pid])
+            store.add_result(y, sol, store.lower, store.upper, evals, value_limit)
+        except Exception as ex:
+            continue
+ 
+def _crossover(fun, store, optimize, rg):
+    if random.random() < 0.5:
+        return False
+    y0, guess, lower, upper, sdev = store.limits()
+    if guess is None:
+        return False
+    guess = fitting(guess, lower, upper) # take X from lower
+    try:       
+        sol, y, evals = optimize(fun, guess, Bounds(lower, upper), sdev, rg)
+        store.add_result(y, sol, lower, upper, evals, y0) # limit to y0  
+    except:
+        return False   
+    return True

@@ -111,8 +111,8 @@ class Cmaes(object):
     # runid used in is_terminate callback to identify a specific run at different iteration
         self.runid = runid
     # bounds and guess
-        lower, upper, guess = check_bounds(bounds, x0, rg)   
-        self.fitfun = Fittness(fun, lower, upper)
+        lower, upper, guess = _check_bounds(bounds, x0, rg)   
+        self.fitfun = _Fittness(fun, lower, upper)
     # initial guess for the arguments of the fitness function
         self.guess = self.fitfun.encode(guess)
     # random generators    
@@ -497,22 +497,22 @@ def parallel(func):
         A function mapping a list of lists of float arguments to a list of float values
         by applying the input function using parallel processes. """
  
-    return lambda xs : func_parallel(func, xs)            
+    return lambda xs : _func_parallel(func, xs)            
             
-def func_parallel(func, xs):
+def _func_parallel(func, xs):
     popsize = len(xs)
     num = min(popsize, mp.cpu_count())
     ys = mp.RawArray(ct.c_double, popsize) 
-    proc=[Process(target=func_serial, args=(func, num, pid, xs, ys)) for pid in range(num)]
+    proc=[Process(target=_func_serial, args=(func, num, pid, xs, ys)) for pid in range(num)]
     [p.start() for p in proc]
     [p.join() for p in proc]
     return [y for y in ys]
 
-def func_serial(func, num, pid, xs, ys):
+def _func_serial(func, num, pid, xs, ys):
     for i in range(pid, len(xs), num):
         ys[i] = func(xs[i])
                        
-def check_bounds(bounds, guess, rg):
+def _check_bounds(bounds, guess, rg):
     if bounds is None and guess is None:
         raise ValueError('either guess or bounds need to be defined')
     if bounds is None:
@@ -521,7 +521,7 @@ def check_bounds(bounds, guess, rg):
         guess = rg.uniform(bounds.lb, bounds.ub)
     return np.asarray(bounds.lb), np.asarray(bounds.ub), np.asarray(guess)
 
-class Fittness(object):
+class _Fittness(object):
     """wrapper around the objective function, scales relative to boundaries."""
      
     def __init__(self, fun, lower, upper):

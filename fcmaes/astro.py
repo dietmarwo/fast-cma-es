@@ -22,11 +22,11 @@ class Astrofun(object):
         self.fun_c = fun_c
         self.fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double)] 
         self.fun_c.restype = ct.c_double           
-        self.fun = python_fun(self.fun_c)
+        self.fun = _python_fun(self.fun_c)
         self.bounds = Bounds(lower, upper)
 
 class MessFull(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/messenger_full.html """
+    """ see https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/ """
     def __init__(self):    
         Astrofun.__init__(self, 'messenger full', libgtoplib.messengerfullC, 
                            [1900.0, 3.0,    0.0, 0.0,  100.0, 100.0, 100.0, 100.0, 100.0, 100.0,  0.01, 0.01, 0.01, 0.01, 0.01, 0.01,  1.1, 1.1, 1.05, 1.05, 1.05,  -math.pi, -math.pi, -math.pi, -math.pi, -math.pi],
@@ -34,7 +34,7 @@ class MessFull(object):
         )
      
 class Messenger(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced.html """
+    """ see https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/ """
 
     def __init__(self):    
         Astrofun.__init__(self, 'messenger reduced', libgtoplib.messengerC, 
@@ -43,7 +43,7 @@ class Messenger(object):
         )
     
 class Gtoc1(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/gtoc1.html """
+    """ see https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/ """
     
     def __init__(self):    
         Astrofun.__init__(self, 'GTOC1', libgtoplib.gtoc1C, 
@@ -52,18 +52,36 @@ class Gtoc1(object):
        )
 
 class Cassini1(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini1.html """
+    """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/ """
     
     def __init__(self):    
         Astrofun.__init__(self, 'Cassini1', libgtoplib.cassini1C, 
                            [-1000.,30.,100.,30.,400.,1000.],
                            [0.,400.,470.,400.,2000.,6000.]       
         )
-    
-def python_fun(cfun):
-    return lambda x : call_c(cfun, x)
 
-def call_c(cfun, x):
+class Cassini2(object):
+    """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini2/ """
+    
+    def __init__(self):    
+        Astrofun.__init__(self, 'Cassini2', libgtoplib.cassini2C, 
+            [-1000,3,0,0,100,100,30,400,800,0.01,0.01,0.01,0.01,0.01,1.05,1.05,1.15,1.7, -math.pi, -math.pi, -math.pi, -math.pi],
+            [0,5,1,1,400,500,300,1600,2200,0.9,0.9,0.9,0.9,0.9,6,6,6.5,291,math.pi,  math.pi,  math.pi,  math.pi]
+        )
+
+class Rosetta(object):
+    """ see https://www.esa.int/gsp/ACT/projects/gtop/rosetta/ """
+    
+    def __init__(self):    
+        Astrofun.__init__(self, 'Rosetta', libgtoplib.rosettaC, 
+            [1460,3,0,0,300,150,150,300,700,0.01,0.01,0.01,0.01,0.01,1.05,1.05,1.05,1.05, -math.pi, -math.pi, -math.pi, -math.pi],
+            [1825,5,1,1,500,800,800,800,1850,0.9,0.9,0.9,0.9,0.9,9,9,9,9,math.pi,  math.pi,  math.pi,  math.pi]
+        )
+    
+def _python_fun(cfun):
+    return lambda x : _call_c(cfun, x)
+
+def _call_c(cfun, x):
     n = len(x)
     array_type = ct.c_double * n   
     try:

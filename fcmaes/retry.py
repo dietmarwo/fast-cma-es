@@ -86,7 +86,7 @@ def minimize(fun,
 def retry(fun, store, optimize, num_retries, value_limit = math.inf, workers=mp.cpu_count()):
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
-    proc=[Process(target=retry_loop,
+    proc=[Process(target=_retry_loop,
             args=(pid, rgs, fun, store, optimize, num_retries, value_limit)) for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
@@ -94,34 +94,6 @@ def retry(fun, store, optimize, num_retries, value_limit = math.inf, workers=mp.
     store.dump()
     return OptimizeResult(x=store.get_x(0), fun=store.get_y(0), nfev=store.get_count_evals(), success=True)
  
-def retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit):
-    seed_random() # make sure cpp random generator for this process is initialized properly
-    lower = store.lower
-    while store.get_count_runs_incr() < num_retries:               
-        sol, y, evals = optimize(fun, None, Bounds(store.lower, store.upper), 
-                                 [random.uniform(0.05, 0.1)]*len(lower), rgs[pid])
-        store.add_result(y, sol, evals, value_limit)
-        if pid == 0:
-            store.dump()
-
-def convertBounds(bounds):
-    if bounds is None:
-        raise ValueError('bounds need to be defined')
-    if isinstance(bounds, Bounds):
-        limits = np.array(new_bounds_to_old(bounds.lb,
-                                                 bounds.ub,
-                                                 len(bounds.lb)),
-                               dtype=float).T
-    else:
-        limits = np.array(bounds, dtype='float').T
-    if (np.size(limits, 0) != 2 or not
-            np.all(np.isfinite(limits))):
-        raise ValueError('bounds should be a sequence containing '
-                         'real valued (min, max) pairs for each value'
-                         ' in x')
-    return limits[0], limits[1]
-
-
 class Store(object):
     """thread safe storage for optimization retry results."""
        
@@ -132,7 +104,7 @@ class Store(object):
                  capacity = 500, # capacity of the evaluation store
                  logger = None # if None logging is switched off
                 ):    
-        self.lower, self.upper = convertBounds(bounds)
+        self.lower, self.upper = _convertBounds(bounds)
         self.logger = logger
         self.max_evals = max_evaluations   
         self.capacity = capacity
@@ -252,3 +224,31 @@ class Store(object):
             dt, int(self.count_evals.value / dt), self.count_runs.value, self.count_evals.value, \
                 self.best_y.value, self.get_y_mean(), self.get_y_standard_dev(), vals, self.get_x(0))
         self.logger.info(message)
+
+        
+def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit):
+    seed_random() # make sure cpp random generator for this process is initialized properly
+    lower = store.lower
+    while store.get_count_runs_incr() < num_retries:               
+        sol, y, evals = optimize(fun, None, Bounds(store.lower, store.upper), 
+                                 [random.uniform(0.05, 0.1)]*len(lower), rgs[pid])
+        store.add_result(y, sol, evals, value_limit)
+        if pid == 0:
+            store.dump()
+
+def _convertBounds(bounds):
+    if bounds is None:
+        raise ValueError('bounds need to be defined')
+    if isinstance(bounds, Bounds):
+        limits = np.array(new_bounds_to_old(bounds.lb,
+                                                 bounds.ub,
+                                                 len(bounds.lb)),
+                               dtype=float).T
+    else:
+        limits = np.array(bounds, dtype='float').T
+    if (np.size(limits, 0) != 2 or not
+            np.all(np.isfinite(limits))):
+        raise ValueError('bounds should be a sequence containing '
+                         'real valued (min, max) pairs for each value'
+                         ' in x')
+    return limits[0], limits[1]

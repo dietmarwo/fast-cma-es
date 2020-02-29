@@ -9,13 +9,9 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-
-from fcmaes.cmaes import check_bounds
+from fcmaes.cmaes import _check_bounds
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
-
-def is_terminate_false(runid, iterations, val):
-    return False 
 
 def minimize(fun, 
              bounds=None, 
@@ -79,7 +75,7 @@ def minimize(fun,
     
     if not sys.platform.startswith('linux'):
         raise Exception("CMAES C++ variant currently only supported on Linux")
-    lower, upper, guess = check_bounds(bounds, x0, rg)   
+    lower, upper, guess = _check_bounds(bounds, x0, rg)   
     n = guess.size   
     if lower is None:
         lower = [0]*n
@@ -90,12 +86,12 @@ def minimize(fun,
     if stop_fittness is None:
         stop_fittness = np.nan   
     if is_terminate is None:    
-        is_terminate=is_terminate_false
+        is_terminate=_is_terminate_false
         use_terminate = False 
     else:
         use_terminate = True 
     array_type = ct.c_double * n   
-    c_callback = call_back_type(c_func(fun))
+    c_callback = call_back_type(_c_func(fun))
     c_is_terminate = is_terminate_type(is_terminate)
     try:
         res = optimizeACMA_C(runid, c_callback, n, array_type(*guess), array_type(*lower), array_type(*upper), 
@@ -111,7 +107,10 @@ def minimize(fun,
     except Exception:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
 
-def c_func(fun):
+def _is_terminate_false(runid, iterations, val):
+    return False 
+
+def _c_func(fun):
     """Convert an objective function for serial execution for cmaescpp.
     
     Parameters

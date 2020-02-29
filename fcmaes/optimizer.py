@@ -13,20 +13,24 @@ import random
 from fcmaes import cmaes
 from fcmaes import cmaescpp 
 
+_logger = None
+
 def logger(logfile = 'optimizer.log'):
-    #default logger used by the parallel retry. Logs both to stdout and into a file
-    formatter = logging.Formatter('%(message)s')
-    file_handler = logging.FileHandler(filename=logfile)
-    file_handler.setLevel(logging.INFO)
-    stdout_handler = logging.StreamHandler(sys.stdout)
-    stdout_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
-    stdout_handler.setFormatter(formatter) 
-    logger = logging.getLogger('optimizer')
-    logger.addHandler(file_handler)
-    logger.addHandler(stdout_handler)
-    logger.setLevel(logging.INFO)
-    return logger
+    '''default logger used by the parallel retry. Logs both to stdout and into a file.'''
+    global _logger
+    if _logger is None:
+        formatter = logging.Formatter('%(message)s')
+        file_handler = logging.FileHandler(filename=logfile)
+        file_handler.setLevel(logging.INFO)
+        stdout_handler = logging.StreamHandler(sys.stdout)
+        stdout_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(formatter)
+        stdout_handler.setFormatter(formatter) 
+        _logger = logging.getLogger('optimizer')
+        _logger.addHandler(file_handler)
+        _logger.addHandler(stdout_handler)
+        _logger.setLevel(logging.INFO)
+    return _logger
 
 def eprint(*args, **kwargs):
     """print message to stderr."""
