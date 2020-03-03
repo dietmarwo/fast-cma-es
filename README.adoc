@@ -78,10 +78,13 @@ https://software.intel.com/en-us/mkl[MKL] or https://www.openblas.net/[OpenBLAS]
 
 Usage is very similar to https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html[scipy.optimize.minimize].
 
-	from fcmaes import cmaes
-	ret = cmaes.minimize(fun, bounds, x0)
-	print (ret.x, ret.fun, ret.nfev)
-	
+[source,python]
+----
+from fcmaes import cmaes
+ret = cmaes.minimize(fun, bounds, x0)
+print (ret.x, ret.fun, ret.nfev)
+----
+
 fcmaes.cmaes.minimize cannot handle constraints and derivatives (jac, hess, hessp). If the initial guess x0 is undefined,
 a feasible uniformly distributed random value is automatically generated. It is strongly recommended to define
 bounds, since CMA-ES uses them also for internal scaling. For multi-modal non-smooth objective functions CMA-ES is usually 
@@ -96,31 +99,43 @@ faster and more reliable than scipy minimize. Additional parameters are
   
 For the C++ variant use instead:
 
-	from fcmaes import cmaescpp
-	ret = cmaescpp.minimize(fun, bounds, x0)
-	
+[source,python]
+----
+from fcmaes import cmaescpp
+ret = cmaescpp.minimize(fun, bounds, x0)
+----
+
 The C++ variant is currently restricted to Linux and requires that https://arma.sourceforge.net/[Armadillo] is installed.
 
 Alternatively there is an ask/tell interface to interact with CMA-ES:
 
-    es = cmaes.Cmaes(bounds, x0)
-    for i in range(iterNum):
-        xs = es.ask()
-        ys = [fun(x) for x in xs]
-        status = es.tell(ys)
-        if status != 0:
-            break 
+[source,python]
+----
+es = cmaes.Cmaes(bounds, x0)
+for i in range(iterNum):
+    xs = es.ask()
+    ys = [fun(x) for x in xs]
+    status = es.tell(ys)
+    if status != 0:
+        break 
+----
 
 For simple parallel retry use:
 
-	from fcmaes import retry
-	ret = retry.minimize(fun, bounds)
-	
+[source,python]
+----
+from fcmaes import retry
+ret = retry.minimize(fun, bounds)
+----
+
 For advanced coordinated parallel retry use:
 
-	from fcmaes import advretry
-	ret = advretry.minimize(fun, bounds)
-	
+[source,python]
+----
+from fcmaes import advretry
+ret = advretry.minimize(fun, bounds)
+----
+
 Parallel retry does not support an initial quess `x0` and initial step size `input_sigma` because it
 uses generated guesses and step size values. Use parameter `logger` to specify the 
 log output, default is no logging. Use 
