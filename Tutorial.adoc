@@ -397,7 +397,7 @@ problem = astro.MessFull()
 ----
 
 in 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/tutoral.py[tutoral.py] 
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/tutorial.py[tutorial.py] 
 you can experiment with the three remaining problems. Advanced retry needs a different value limit,
 value_limit = 12.0 works well for all three problems. You can find results for these problems using an AMD 3950x on Linux
 in https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results]. Check
