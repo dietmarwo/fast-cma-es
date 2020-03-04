@@ -90,8 +90,7 @@ a feasible uniformly distributed random value is automatically generated. It is 
 bounds, since CMA-ES uses them also for internal scaling. For multi-modal non-smooth objective functions CMA-ES is usually 
 faster and more reliable than scipy minimize. Additional parameters are
 
-- `popsize` (default 31) - Size of the population used. Instead of increasing this parameter for hard problems, it is often better to use 
-  parallel retry instead.
+- `popsize` (default 31) - Size of the population used. Instead of increasing this parameter for hard problems, it is often better to use parallel retry instead. Reduce popsize for a narrower search if your budget is restricted.
 - `input_sigma` (default 0.3) - The initial step size. Can be defined for each dimension separately. Both parallel retry mechanism
   set this parameter together with the initial guess automatically.   
 - `is_parallel` (default False) - Calls the objective function for the whole population in parallel. Useful for costly 
