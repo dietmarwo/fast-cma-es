@@ -60,10 +60,13 @@ on the problem and on the used optimization algorithm.
 
 These experiments can be reproduced by executing
 
-	import fcmaes.examples
-	import fcmaes.advexamples
-	examples.test_all()
-	advexamples.test_all()
+[source,python]
+----
+import fcmaes.examples
+import fcmaes.advexamples
+examples.test_all()
+advexamples.test_all()
+----
 
 Check optimizer.log for the results. 
 

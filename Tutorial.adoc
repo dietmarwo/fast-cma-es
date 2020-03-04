@@ -42,25 +42,28 @@ first:
 
 We call minimize in a loop using different random guesses:
 
-	import time
-	import math
-	from scipy.optimize import minimize, differential_evolution, dual_annealing, shgo
-	from fcmaes.optimizer import dtime, random_x
-	from fcmaes import astro
-	
-	def testScipyMinimize(problem, num):
-	    best = math.inf
-	    t0 = time.perf_counter();
-	    for i in range(num):
-	        guess = random_x(problem.bounds.lb, problem.bounds.ub)
-	        ret = minimize(problem.func, x0=guess, bounds=problem.bounds)
-	        best = min(ret.fun, best)
-        	print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
-              .format(i, dtime(t0), best, ret.fun))	
-              
-	if __name__ == '__main__':
-	    problem = astro.Gtoc1()
-	    testScipyMinimize(problem, 1000)
+[source,python]
+----
+import time
+import math
+from scipy.optimize import minimize, differential_evolution, dual_annealing, shgo
+from fcmaes.optimizer import dtime, random_x
+from fcmaes import astro
+
+def testScipyMinimize(problem, num):
+    best = math.inf
+    t0 = time.perf_counter();
+    for i in range(num):
+        guess = random_x(problem.bounds.lb, problem.bounds.ub)
+        ret = minimize(problem.func, x0=guess, bounds=problem.bounds)
+        best = min(ret.fun, best)
+        print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+          .format(i, dtime(t0), best, ret.fun))	
+          
+if __name__ == '__main__':
+    problem = astro.Gtoc1()
+    testScipyMinimize(problem, 1000)
+----
 
 If we run this on a 16 core 3950x output is something like: 
 
@@ -74,7 +77,10 @@ Even if we try 100000 times : `testScipyMinimize(problem, 100000)` the result do
 
 At least sufficient to beat Glasgow University at rank 7 (-385,000). Maybe shgo performs better ?
 
-	ret = shgo(problem.func, bounds=list(zip(problem.bounds.lb, astro.problem.ub)))
+[source,python]
+----
+ret = shgo(problem.func, bounds=list(zip(problem.bounds.lb, astro.problem.ub)))
+----
 
 Since shgo is not a stochastic approach, it delivers always the same result:
 
@@ -87,8 +93,11 @@ Since shgo is not a stochastic approach, it delivers always the same result:
 
 Not very convincing, may be we can tweak parameters?
 
-	ret = shgo(problem.func, bounds = list(zip(problem.bounds.lb, astro.problem.ub)), 
-		n = 300, sampling_method = 'sobol')
+[source,python]
+----
+ret = shgo(problem.func, bounds = list(zip(problem.bounds.lb, astro.problem.ub)), 
+    n = 300, sampling_method = 'sobol')
+----
 
 gives:
 
@@ -99,7 +108,10 @@ Better, but only sufficient to beat "Politecnico di Milano" at the last rank.
 
 Lets try dual annealing next:
 
-	ret = dual_annealing(problem.func, list(zip(problem.bounds.lb, astro.problem.ub)))
+[source,python]
+----
+ret = dual_annealing(problem.func, list(zip(problem.bounds.lb, astro.problem.ub)))
+----
 
 results in:
 
@@ -112,7 +124,10 @@ Much better, this is "Moscow Aviation Institute" territory ranked 4th.
 
 But scipy can do even better if we use differential evolution:
 
-	ret = differential_evolution(problem.func, bounds = problem.bounds)
+[source,python]
+----
+ret = differential_evolution(problem.func, bounds = problem.bounds)
+----
 
 gives:
 
@@ -131,24 +146,27 @@ distribution by which can be installed by:
 
 In our loop we now have
 
-	import cma
-	from fcmaes.optimizer import typical, scale
-	...
-     for i in range(num):
-        guess = random_x(problem.bounds.lb, problem.bounds.ub)
-        es = cma.CMAEvolutionStrategy(guess, 1.0,  
-                                      {'bounds': [lb, ub], 'popsize': 32, 
-                                        'typical_x': typical(lb, ub),
-                                        'scaling_of_variables': scale(lb, ub),
-                                        'verbose': -1, 'verb_disp': -1})
-        for j in range(100000):
-            X, Y = es.ask_and_eval(problem.func)
-            es.tell(X, Y)
-            if es.stop():
-                break 
-        best = min(es.result.fbest, best)
-        print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
-              .format(i+1, dtime(t0), best, es.result.fbest))
+[source,python]
+----
+import cma
+from fcmaes.optimizer import typical, scale
+...
+ for i in range(num):
+    guess = random_x(problem.bounds.lb, problem.bounds.ub)
+    es = cma.CMAEvolutionStrategy(guess, 1.0,  
+                                  {'bounds': [lb, ub], 'popsize': 32, 
+                                    'typical_x': typical(lb, ub),
+                                    'scaling_of_variables': scale(lb, ub),
+                                    'verbose': -1, 'verb_disp': -1})
+    for j in range(100000):
+        X, Y = es.ask_and_eval(problem.func)
+        es.tell(X, Y)
+        if es.stop():
+            break 
+    best = min(es.result.fbest, best)
+    print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+          .format(i+1, dtime(t0), best, es.result.fbest))
+----
 
 which results in:
 
@@ -170,17 +188,20 @@ slower than dual annealing, may be CMA-ES is not such a good idea after all?
 Lets try out the new CMA-ES implementations before we make a final decision. 
 First the python variant:
 
-	from fcmaes import cmaes
-	
-	def test_cma_python(problem, num):
-	    best = math.inf
-	    t0 = time.perf_counter();
-	    for i in range(num):
-	        ret = cmaes.minimize(problem.func, bounds = problem.bounds)
-	        best = min(ret.fun, best)
-	        print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
-	              .format(i+1, dtime(t0), best, ret.fun))
- 
+[source,python]
+----
+from fcmaes import cmaes
+
+def test_cma_python(problem, num):
+    best = math.inf
+    t0 = time.perf_counter();
+    for i in range(num):
+        ret = cmaes.minimize(problem.func, bounds = problem.bounds)
+        best = min(ret.fun, best)
+        print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+              .format(i+1, dtime(t0), best, ret.fun))
+----
+
 We get:
 
     ...	
@@ -192,9 +213,12 @@ This algorithm is way faster than both dual annealing and differential evolution
 than original cma. If you are using Linux and have
 installed https://arma.sourceforge.net/[Armadillo] you can try the C++ variant:
 
-	from fcmaes import cmaescpp
-	...
-	ret = cmaescpp.minimize(problem.func, bounds = problem.bounds)
+[source,python]
+----
+from fcmaes import cmaescpp
+...
+ret = cmaescpp.minimize(problem.func, bounds = problem.bounds)
+----
 
 which results in:
 	
@@ -233,13 +257,16 @@ First we try to better utilize the many cores our CPU provides.
 
 === Parallel retry
 
-	from fcmaes import retry
-	from fcmaes.optimizer import logger
+[source,python]
+----
+from fcmaes import retry
+from fcmaes.optimizer import logger
 
-	def test_retry_python(problem, 5000):
-    	ret = retry.minimize(problem.func, bounds=problem.bounds, num_retries = num, 
-        							max_evaluations = 50000, logger = logger())
-	
+def test_retry_python(problem, 5000):
+    ret = retry.minimize(problem.func, bounds=problem.bounds, num_retries = num, 
+                                max_evaluations = 50000, logger = logger())
+----
+
 results in:
 
 	...
@@ -268,17 +295,20 @@ Now the evaluation/sec rate increased to 1275383. We were lucky and found a solu
 Finally lets try the coordinated parallel retry. This time we deactivate logging
 and do our own output:
 
-	from fcmaes import advretry
+[source,python]
+----
+from fcmaes import advretry
 
-	def test_advretry_python(problem):
-	    best = math.inf
-	    t0 = time.perf_counter();    
-	    for i in range(10):
-	        ret = advretry.minimize(problem.func, bounds=problem.bounds, 
-	        	num_retries = 4000, value_limit = -1000000)
-	        best = min(ret.fun, best)
-	        print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
-	              .format(i, dtime(t0), best, ret.fun))
+def test_advretry_python(problem):
+    best = math.inf
+    t0 = time.perf_counter();    
+    for i in range(10):
+        ret = advretry.minimize(problem.func, bounds=problem.bounds, 
+            num_retries = 4000, value_limit = -1000000)
+        best = min(ret.fun, best)
+        print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+              .format(i, dtime(t0), best, ret.fun))
+----
 
 We get:
 
@@ -304,8 +334,11 @@ configurable.
 
 Using the C++ variant 
 
-    ret = advretry.minimize(problem.func, bounds=problem.bounds, 
-    	num_retries = 4000, value_limit = -1000000, logger = logger(), useCpp = True)
+[source,python]
+----
+ret = advretry.minimize(problem.func, bounds=problem.bounds, 
+    num_retries = 4000, value_limit = -1000000, logger = logger(), useCpp = True)
+----
 
 results in the usual moderate speedup:
 
@@ -349,13 +382,19 @@ modern processors - as much as possible,
 
 By replacing 
 
-	problem = astro.Gtoc1()
+[source,python]
+----
+problem = astro.Gtoc1()
+----
 
 with 
 
-	problem = astro.Cassini1()
-	problem = astro.Messenger()
-	problem = astro.MessFull()
+[source,python]
+----
+problem = astro.Cassini1()
+problem = astro.Messenger()
+problem = astro.MessFull()
+----
 
 in 
 https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/tutoral.py[tutoral.py] 
