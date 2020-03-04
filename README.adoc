@@ -90,9 +90,9 @@ a feasible uniformly distributed random value is automatically generated. It is 
 bounds, since CMA-ES uses them also for internal scaling. For multi-modal non-smooth objective functions CMA-ES is usually 
 faster and more reliable than scipy minimize. Additional parameters are
 
-- `popsize` (default 32) - Size of the population used. Instead of increasing this parameter for hard problems, it is often better to use 
+- `popsize` (default 31) - Size of the population used. Instead of increasing this parameter for hard problems, it is often better to use 
   parallel retry instead.
-- `input_sigma` (default 1.0) - The initial step size. Can be defined for each dimension separately. Both parallel retry mechanism
+- `input_sigma` (default 0.3) - The initial step size. Can be defined for each dimension separately. Both parallel retry mechanism
   set this parameter together with the initial guess automatically.   
 - `is_parallel` (default False) - Calls the objective function for the whole population in parallel. Useful for costly 
   objective functions but is switched off when you use parallel retry.    
@@ -124,16 +124,18 @@ For simple parallel retry use:
 
 [source,python]
 ----
+from fcmaes.optimizer import logger
 from fcmaes import retry
-ret = retry.minimize(fun, bounds)
+ret = retry.minimize(fun, bounds, logger=logger())
 ----
 
 For advanced coordinated parallel retry use:
 
 [source,python]
 ----
+from fcmaes.optimizer import logger
 from fcmaes import advretry
-ret = advretry.minimize(fun, bounds)
+ret = advretry.minimize(fun, bounds, logger=logger())
 ----
 
 Parallel retry does not support an initial quess `x0` and initial step size `input_sigma` because it
