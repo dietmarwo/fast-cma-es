@@ -104,7 +104,11 @@ from fcmaes import cmaescpp
 ret = cmaescpp.minimize(fun, bounds, x0)
 ----
 
-The C++ variant is currently restricted to Linux and requires that https://arma.sourceforge.net/[Armadillo] is installed.
+The C++ variant is currently restricted to Linux and requires that 
+a fast BLAS implementation like 
+https://software.intel.com/en-us/mkl[MKL] or https://www.openblas.net/[OpenBLAS] is installed.
+For other operating systems you can compile the C++ source https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[acmaesoptimizer.cpp] yourself and adapt 
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaescpp.py[cmaescpp.py] to load the resulting library.
 
 Alternatively there is an ask/tell interface to interact with CMA-ES:
 
