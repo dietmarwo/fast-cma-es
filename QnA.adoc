@@ -22,6 +22,14 @@ both Armadillo and MKL or OpenBLAS installed, you have to adapt the CMakeLists.t
 to your environment. There is a windows-dll for the space flight optimization problem examples
 used in our tutorial so you can use them on Windows for your own experiments.  
 
+==== Recommended alternative:
+* Linux subsystem for Windows, see
+https://docs.microsoft.com/en-us/windows/wsl/install-win10[Linux subsystem] or
+https://superuser.com/questions/1271682/is-there-a-way-of-installing-ubuntu-windows-subsystem-for-linux-on-win10-v170[Ubuntu subsystem].
+Tested with Ubuntu 18.04, fcmaes performance is about 98% of a native Linux installation. fcmaes 
+C++ variant and both parallel retry mechanism work perfectly. Use an Python-IDE under Windows, start
+an Linux-subsystem shell and execute using the command line - for instance `python tutorial.py`.
+
 === Can I optimize on Mac-OS?
 The CMA-ES Python variant and parallel retry should work.
 To use the C++ variant you have to install http://arma.sourceforge.net/download.html[Armadillo] and

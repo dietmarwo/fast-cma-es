@@ -74,6 +74,13 @@ link against a fast BLAS implementation like
 https://software.intel.com/en-us/mkl[MKL] or https://www.openblas.net/[OpenBLAS]. 
 * parallel retry will not work because function objects cannot be sent to another process. 
 
+===== Recommended alternative:
+* Linux subsystem for Windows, see
+https://docs.microsoft.com/en-us/windows/wsl/install-win10[Linux subsystem] or
+https://superuser.com/questions/1271682/is-there-a-way-of-installing-ubuntu-windows-subsystem-for-linux-on-win10-v170[Ubuntu subsystem].
+Tested with Ubuntu 18.04, fcmaes performance is about 98% of a native Linux installation. C++ variant and
+both parallel retry mechanism work. 
+
 === Usage
 
 Usage is very similar to https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html[scipy.optimize.minimize].
