@@ -4,7 +4,7 @@
 = fcmaes - a Python 3 gradient-free optimization library
 
 fcmaes complements https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy optimize] by providing 
-additional optimization methods, faster C++/Eigen based implementations and a coordinated parallel retry mechanism. 
+additional optimization methods, faster C\++/Eigen based implementations and a coordinated parallel retry mechanism. 
 It supports the multi threaded application of different gradient free optimization algorithms. 
 
 === Documentation
@@ -28,13 +28,13 @@ Although binaries for Windows are provided, we highly recommend using Linux sinc
 
 === Optimization algorithms
 
-- CMA-ES: Implemented both in Python and in C++. The Python version is faster than
-https://github.com/CMA-ES/pycma/tree/master/cma[CMA] but slower than the C++ variant. Only the Python variant provides an ask/tell interface and supports parallel function evaluation. Both CMA variants provide less configurability than https://github.com/CMA-ES/pycma/tree/master/cma[CMA].
+- CMA-ES: Implemented both in Python and in C\++. The Python version is faster than
+https://github.com/CMA-ES/pycma/tree/master/cma[CMA] but slower than the C\++ variant. Only the Python variant provides an ask/tell interface and supports parallel function evaluation. Both CMA variants provide less configurability than https://github.com/CMA-ES/pycma/tree/master/cma[CMA].
 
-- Dual Annealing: Implemented in C++. Use the scipy implementation if you prefer a pure python variant or need more
+- Dual Annealing: Implemented in C\++. Use the scipy implementation if you prefer a pure python variant or need more
 configuration options. 
 
-- Differential Evolution: Implemented in C++. There is no python equivalent, the scipy implementation 
+- Differential Evolution: Implemented in C\++. There is no python equivalent, the scipy implementation 
 works differently. Additional concepts implemented here are 
 https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model[temporal locality] and stochastic reinitialization of individuals based on their age. 
 
@@ -64,7 +64,7 @@ Compile time (binaries for Linux and Windows are included):
 ==== Windows
 
 * `pip install fcmaes`
-* install C++ runtime libraries https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
+* install C\++ runtime libraries https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
 
 ===== Recommended alternative:
 * Linux subsystem for Windows, see
@@ -75,7 +75,7 @@ Tested with Ubuntu 18.04, fcmaes performance is about 98% of a native Linux inst
 ==== MacOS
 
 * `pip install fcmaes`
-* For using the C++ optimization algorithms: 
+* For using the C\++ optimization algorithms: 
 ** adapt https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/CMakeLists.txt[CMakeLists.txt]
 ** compile https://github.com/dietmarwo/fast-cma-es/tree/master/_fcmaescpp[_fcmaescpp] 
 
@@ -100,7 +100,7 @@ bounds, since CMA-ES uses them also for internal scaling. Additional parameters 
 - `is_parallel` (default False) - Calls the objective function for the whole population in parallel. Useful for costly 
   objective functions but is switched off when you use parallel retry.    
   
-For the C++ variant use instead:
+For the C\++ variant use instead:
 
 [source,python]
 ----
