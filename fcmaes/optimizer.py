@@ -11,10 +11,7 @@ import time
 import math
 import logging
 
-from fcmaes import cmaes
-from fcmaes import cmaescpp 
-from fcmaes import decpp 
-from fcmaes import dacpp 
+from fcmaes import cmaes, cmaescpp, decpp, dacpp
 
 _logger = None
 

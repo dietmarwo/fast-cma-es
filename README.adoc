@@ -122,6 +122,12 @@ for i in range(iterNum):
 ----
 
 Differential evolution (fcames.decpp) and Dual Annealing (fcmaes.dacpp) provide similar interfaces. 
+[source,python]
+----
+from fcmaes import decpp, dacpp
+ret = decpp.minimize(fun, bounds)
+ret = dacpp.minimize(fun, bounds, x0)
+----
 
 For simple parallel retry use:
 
@@ -132,7 +138,7 @@ from fcmaes import retry
 ret = retry.minimize(fun, bounds, logger=logger())
 ----
 
-For advanced coordinated parallel retry use:
+For coordinated parallel retry use:
 
 [source,python]
 ----
@@ -141,15 +147,15 @@ from fcmaes import advretry
 ret = advretry.minimize(fun, bounds, logger=logger())
 ----
 
-Parallel retry does not support an initial quess `x0` and initial step size `input_sigma` because it
+Parallel retry does not support initial quess `x0` and initial step size `input_sigma` parameters because it
 uses generated guesses and step size values. Use parameter `logger` to specify the 
 log output, default is no logging. Use 
 `fcmaes.optimizer import logger` to log both into a file and to stdout. 
 Check the https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial] for more details. 
-You can switch to the C++ variant by setting parameter `useCpp` to True.
 It is possible to use other optimization methods with parallel retry, see
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/examples.py[examples.py] and 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/advexamples.py[advexamples.py].
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/examples.py[examples.py],
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/advexamples.py[advexamples.py] and
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/optimizer.py[optimizer.py] 
 
 === Performance
 
