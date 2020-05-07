@@ -153,7 +153,7 @@ class Cmaes(object):
     # Stop if x-changes larger stopTolUpX.
         self.stopTolUpX = 1e3 * self.sigma
     # Stop if x-change smaller stopTolX.
-        self.stopTolX = 1e-11 * self.sigma * accuracy;
+        self.stopTolX = 1e-11 * self.sigma * accuracy
     # Stop if fun-changes smaller stopTolFun.
         self.stopTolFun = 1e-12 * accuracy
     # Stop if back fun-changes smaller stopTolHistFun.
@@ -178,7 +178,7 @@ class Cmaes(object):
         self.damps = (1. + 2. * max(0., math.sqrt((self.mueff - 1.) / (self.dim + 1.)) - 1.)) * \
             max(0.3, 1. - self.dim / (1e-6 + min(self.max_iterations, self.max_evaluations/self.popsize))) + self.cs
     # Learning rate for rank-one update.
-        self.ccov1 = 2. / ((self.dim + 1.3) * (self.dim + 1.3) + self.mueff);
+        self.ccov1 = 2. / ((self.dim + 1.3) * (self.dim + 1.3) + self.mueff)
     # Learning rate for rank-mu update'
         self.ccovmu = min(1. - self.ccov1, 2. * (self.mueff - 2. + 1. / self.mueff) \
                 / ((self.dim + 2.) * (self.dim + 2.) + self.mueff))
@@ -469,12 +469,12 @@ class Cmaes(object):
             
             self.BD = self.B * self.diagD # O(n^2)
 
-def serial(func):
+def serial(fun):
     """Convert an objective function for serial execution for cmaes.minimize.
     
     Parameters
     ----------
-    func : objective function mapping a list of float arguments to a float value
+    fun : objective function mapping a list of float arguments to a float value
 
     Returns
     -------
@@ -482,14 +482,14 @@ def serial(func):
         A function mapping a list of lists of float arguments to a list of float values
         by applying the input function in a loop."""
   
-    return lambda xs : [func(x) for x in xs]
+    return lambda xs : [fun(x) for x in xs]
 
-def parallel(func):
+def parallel(fun):
     """Convert an objective function for parallel execution for cmaes.minimize.
     
     Parameters
     ----------
-    func : objective function mapping a list of float arguments to a float value.
+    fun : objective function mapping a list of float arguments to a float value.
 
     Returns
     -------
@@ -497,7 +497,7 @@ def parallel(func):
         A function mapping a list of lists of float arguments to a list of float values
         by applying the input function using parallel processes. """
  
-    return lambda xs : _func_parallel(func, xs)            
+    return lambda xs : _func_parallel(fun, xs)            
             
 def _func_parallel(func, xs):
     popsize = len(xs)
@@ -525,7 +525,7 @@ class _Fittness(object):
     """wrapper around the objective function, scales relative to boundaries."""
      
     def __init__(self, fun, lower, upper):
-        self.func = fun
+        self.fun = fun
         self.evaluation_counter = 0
         self.lower = lower
         if not lower is None:
@@ -534,7 +534,7 @@ class _Fittness(object):
             self.typx = 0.5 * (upper + lower)
                 
     def values(self, Xs): #enables parallel evaluation
-        values = self.func([self.decode(X) for X in Xs]);
+        values = self.fun([self.decode(X) for X in Xs])
         self.evaluation_counter += len(Xs)
         return np.array(values)
 
