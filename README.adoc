@@ -182,7 +182,7 @@ image::mf3.2000.png[]
 
 image::mf3.1959.png[] 
 
-Using this CMA-ES implementation with parallel retry performs > 800000 messenger_full evaluations per second
+Using fcmaes with parallel retry performs > 800000 messenger_full evaluations per second
 on an AMD 3950x processor. This outperforms both the official
 https://github.com/CMA-ES/pycma[CMA-ES] implementation and scipy differential evolution.
 
