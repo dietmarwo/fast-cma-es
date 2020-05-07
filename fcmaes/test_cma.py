@@ -17,9 +17,9 @@ def test_rastrigin_python():
 
     limit = 0.00001   
     # stochastic optimization may fail the first time
-    for i in range(5):
+    for _ in range(5):
         # use a wrapper to monitor function evaluations
-        wrapper = Wrapper(testfun.func, dim)
+        wrapper = Wrapper(testfun.fun, dim)
         ret = cmaes.minimize(wrapper.eval, testfun.bounds, input_sigma = sdevs, 
                        max_evaluations = max_eval, popsize=popsize)
         if limit > ret.fun:
@@ -41,8 +41,8 @@ def test_rosen_python():
     max_eval = 100000
     
     limit = 0.00001   
-    for i in range(5):
-        wrapper = Wrapper(testfun.func, dim)
+    for _ in range(5):
+        wrapper = Wrapper(testfun.fun, dim)
         ret = cmaes.minimize(wrapper.eval, testfun.bounds, input_sigma = sdevs, 
                        max_evaluations = max_eval, popsize=popsize)
         if limit > ret.fun:
@@ -62,11 +62,11 @@ def test_rosen_ask_tell():
     max_eval = 100000   
     limit = 0.00001 
     popsize = 31  
-    for i in range(5):
-        wrapper = Wrapper(testfun.func, dim)
+    for _ in range(5):
+        wrapper = Wrapper(testfun.fun, dim)
         es = cmaes.Cmaes(testfun.bounds,
                 popsize = popsize, input_sigma = sdevs)       
-        iters = int(50000/popsize)
+        iters = 50000 // popsize
         for j in range(iters):
             xs = es.ask()
             ys = [wrapper.eval(x) for x in xs]
@@ -94,8 +94,8 @@ def test_rosen_cpp():
     max_eval = 100000
     
     limit = 0.00001   
-    for i in range(5):
-        wrapper = Wrapper(testfun.func, dim)
+    for _ in range(5):
+        wrapper = Wrapper(testfun.fun, dim)
         ret = cmaescpp.minimize(wrapper.eval, testfun.bounds, input_sigma = sdevs, 
                    max_evaluations = max_eval, popsize=popsize)
         if limit > ret.fun:
@@ -123,8 +123,8 @@ def test_rosen_parallel():
     max_eval = 10000
     
     limit = 0.00001   
-    for i in range(5):
-        wrapper = Wrapper(testfun.func, dim)
+    for _ in range(5):
+        wrapper = Wrapper(testfun.fun, dim)
         ret = cmaes.minimize(wrapper.eval, testfun.bounds, input_sigma = sdevs, 
                        max_evaluations = max_eval, 
                        popsize=popsize, is_parallel=True)
@@ -133,8 +133,7 @@ def test_rosen_parallel():
        
     assert(limit > ret.fun) # optimization target not reached
     assert(max_eval + popsize > ret.nfev) # too much function calls
-    assert(max_eval / popsize + 2 > ret.nit) # too much iterations
-    assert(ret.status == 4) # wrong cma termination code
+    assert(max_eval // popsize + 2 > ret.nit) # too much iterations
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
@@ -148,8 +147,8 @@ def test_eggholder_python():
     max_eval = 100000
     
     limit = -800   
-    for i in range(5):
-        wrapper = Wrapper(testfun.func, dim)        
+    for _ in range(5):
+        wrapper = Wrapper(testfun.fun, dim)        
         ret = cmaes.minimize(wrapper.eval, testfun.bounds, input_sigma = sdevs, 
                        max_evaluations = max_eval, popsize=popsize)
         if limit > ret.fun:
@@ -170,10 +169,10 @@ def test_eggholder_retry():
     testfun = Eggholder()
 
     limit = -956   
-    for i in range(5):
-        wrapper = Wrapper(testfun.func, dim)
+    for _ in range(5):
+        wrapper = Wrapper(testfun.fun, dim)
         ret = retry.minimize(wrapper.eval, testfun.bounds, 
-                             num_retries=100, useCpp=False, logger=None)
+                             num_retries=100)
         if limit > ret.fun:
             break
 
@@ -191,10 +190,10 @@ def test_eggholder_advanced_retry():
     testfun = Eggholder()
 
     limit = -956   
-    for i in range(5):
-        wrapper = Wrapper(testfun.func, dim)
+    for _ in range(5):
+        wrapper = Wrapper(testfun.fun, dim)
         ret = advretry.minimize(wrapper.eval, testfun.bounds, 
-                                num_retries=300, useCpp=False, logger=None)
+                                num_retries=300)
         if limit > ret.fun:
             break
 

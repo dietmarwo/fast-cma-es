@@ -62,9 +62,9 @@ class RastriginMean(object):
 class _testfun(object):
     def __init__(self, name, fun, lower, upper):    
         self.name = name 
-        self.func = fun
+        self.fun = fun
         self.bounds = Bounds(lower, upper)
-        self.wrapper = Wrapper(self.func, len(lower))   
+        self.wrapper = Wrapper(self.fun, len(lower))   
     
 def _rosen(xs, alpha=1e2):
     """Rosenbrock test objective function."""

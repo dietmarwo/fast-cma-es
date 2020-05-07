@@ -1,18 +1,40 @@
-//#define ARMA_NO_DEBUG
+// Copyright (c) Dietmar Wolz.
+//
+// This source code is licensed under the MIT license found in the
+// LICENSE file in the root directory.
 
+// Eigen based implementation of active CMA-ES
+// derived from http://cma.gforge.inria.fr/cmaes.m which follows
+// https://www.researchgate.net/publication/227050324_The_CMA_Evolution_Strategy_A_Comparing_Review
+// Requires Eigen version >= 3.3.90 because new slicing capabilities are used, see
+// https://eigen.tuxfamily.org/dox-devel/group__TutorialSlicingIndexing.html
+// requires https://github.com/imneme/pcg-cpp
+
+#include <Eigen/Core>
+#include <Eigen/Eigenvalues>
 #include <iostream>
-#include <armadillo>
+#include <random>
 #include <float.h>
 #include <ctime>
+#include "pcg_random.hpp"
 
 using namespace std;
-using namespace arma;
+
+typedef Eigen::Matrix<double, Eigen::Dynamic, 1> vec;
+typedef Eigen::Matrix<int, Eigen::Dynamic, 1> ivec;
+typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> mat;
 
 typedef double (*callback_type)(int, double[]);
 typedef bool (*is_terminate_type)(long, int, double); // runid, iter, value -> isTerminate
 
-static uvec inverse(const uvec& indices) {
-    uvec inverse = uvec(indices.size());
+namespace acmaes {
+
+static vec zeros(int n) {
+	return  Eigen::MatrixXd::Zero(n, 1);
+}
+
+static ivec inverse(const ivec& indices) {
+    ivec inverse = ivec(indices.size());
     for (int i = 0; i < indices.size(); i++)
         inverse(indices(i)) = i;
     return inverse;
@@ -29,14 +51,40 @@ static vec sequence(double start, double end, double step) {
     return d;
 }
 
+struct IndexVal {
+    int index;
+    double val;
+};
+
+static bool compareIndexVal(IndexVal i1, IndexVal i2) {
+    return (i1.val < i2.val);
+}
+
+static ivec sort_index(const vec& x) {
+	int size = x.size();
+	IndexVal ivals[size];
+	for (int i = 0; i < size; i++) {
+		ivals[i].index = i;
+		ivals[i].val = x[i];
+	}
+	std::sort(ivals, ivals+size, compareIndexVal);
+	return Eigen::MatrixXi::NullaryExpr( size, 1, [&ivals](int i){return ivals[i].index;});
+}
+
+static normal_distribution<> gauss_01 = std::normal_distribution<>(0, 1);
+
+static Eigen::MatrixXd normal(int dx, int dy, pcg64& rs) {
+	return Eigen::MatrixXd::NullaryExpr( dx, dy, [&](){return gauss_01(rs);});
+}
+
 // wrapper around the fittness function, scales according to boundaries
 
 class Fittness {
 
 public:
 
-    Fittness(callback_type pfunc, const vec &lower_limit,
-            const vec &upper_limit) {
+    Fittness(callback_type pfunc, const vec& lower_limit,
+            const vec& upper_limit) {
         func = pfunc;
         lower = lower_limit;
         upper = upper_limit;
@@ -47,25 +95,14 @@ public:
         }
     }
 
-    void closestFeasible(vec &X) const { // in place
-        if (lower.size() > 0)
-            X.for_each([](double &val) {
-                val = max(min(val, 1.0), -1.0);
-            });
-    }
-
-    vec getClosestFeasible(const vec &col) const {
+    vec getClosestFeasible(const vec& X) const {
         if (lower.size() > 0) {
-            vec X(col);
-            X.for_each([](double &val) {
-                val = max(min(val, 1.0), -1.0);
-            });
-            return X;
+        	return X.cwiseMin(1.0).cwiseMax(-1.0);
         }
-        return col;
+        return X;
     }
 
-    double eval(const vec &X) {
+    double eval(const vec& X) {
         int n = X.size();
         double parg[n];
         for (int i = 0; i < n; i++)
@@ -75,24 +112,23 @@ public:
         return res;
     }
 
-    double value(const vec &X) {
-        double value;
-        if (lower.size() > 0) {
+    double value(const vec& X) {
+        if (lower.size() > 0)
             return eval(decode(getClosestFeasible(X)));
-        } else
+        else
             return eval(X);
     }
 
-    vec encode(const vec &X) const {
+    vec encode(const vec& X) const {
         if (lower.size() > 0)
-            return (X - typx) / scale;
+        	return (X - typx).array() / scale.array();
         else
             return X;
     }
 
-    vec decode(const vec &X) const {
+    vec decode(const vec& X) const {
         if (lower.size() > 0)
-            return (X % scale) + typx;
+            return (X.array() * scale.array()).matrix() + typx;
         else
             return X;
     }
@@ -114,118 +150,123 @@ class AcmaesOptimizer {
 
 public:
 
-    AcmaesOptimizer(long runid_, Fittness* fitfun_, int popsize_, int mu_, const vec &guess_, const vec &inputSigma_,
-            int maxIterations_, int maxEvaluations_, double accuracy_, double stopfitness_, is_terminate_type isTerminate_) {
-// runid used in isTerminate callback to identify a specific run at different iteration
+    AcmaesOptimizer(long runid_, Fittness* fitfun_, int popsize_, int mu_, const vec& guess_, const vec& inputSigma_,
+            int maxIterations_, int maxEvaluations_, double accuracy_, double stopfitness_, is_terminate_type isTerminate_, long seed) {
+        // runid used in isTerminate callback to identify a specific run at different iteration
         runid = runid_;
-// fitness function to minimize
+        // fitness function to minimize
         fitfun = fitfun_;
-// initial guess for the arguments of the fitness function
+        // initial guess for the arguments of the fitness function
         guess = guess_;
-// accuracy = 1.0 is default, > 1.0 reduces accuracy
+        // accuracy = 1.0 is default, > 1.0 reduces accuracy
         accuracy = accuracy_;
-// callback to check if to terminate
+        // callback to check if to terminate
         isTerminate = isTerminate_;
-// Number of objective variables/problem dimension
+        // number of objective variables/problem dimension
         dim = guess_.size();
-//     Population size, offspring number. The primary strategy parameter to play
-//     with, which can be increased from its default value. Increasing the
-//     population size improves global search properties in exchange to speed.
-//     Speed decreases, as a rule, at most linearly with increasing population
-//     size. It is advisable to begin with the default small population size.
+        // population size, offspring number. The primary strategy parameter to play
+        // with, which can be increased from its default value. Increasing the
+        // population size improves global search properties in exchange to speed.
+        // Speed decreases, as a rule, at most linearly with increasing population
+        // size. It is advisable to begin with the default small population size.
         if (popsize_ > 0)
             popsize = popsize_;
         else
             popsize = 4 + int(3. * log(dim));
-//     Individual sigma values - initial search volume. inputSigma determines
-//     the initial coordinate wise standard deviations for the search. Setting
-//     SIGMA one third of the initial search region is appropriate.
+        // individual sigma values - initial search volume. inputSigma determines
+        // the initial coordinate wise standard deviations for the search. Setting
+        // SIGMA one third of the initial search region is appropriate.
         if (inputSigma_.size() == 1)
-            inputSigma = vec(dim).fill(inputSigma_(0));
+            inputSigma = vec::Constant(dim, inputSigma_[0]);
         else
             inputSigma = inputSigma_;
-// Overall standard deviation - search volume.
-        sigma = max(inputSigma);
-// termination criteria
-// maximal number of evaluations allowed.
+        // overall standard deviation - search volume.
+        sigma = inputSigma.maxCoeff();
+        // termination criteria
+        // maximal number of evaluations allowed.
         maxEvaluations = maxEvaluations_;
-// maximal number of iterations allowed.
+        // maximal number of iterations allowed.
         maxIterations = maxIterations_;
-// Limit for fitness value.
+        // limit for fitness value.
         stopfitness = stopfitness_;
-// Stop if x-changes larger stopTolUpX.
+        // stop if x-changes larger stopTolUpX.
         stopTolUpX = 1e3 * sigma;
-// Stop if x-change smaller stopTolX.
+        // stop if x-change smaller stopTolX.
         stopTolX = 1e-11 * sigma * accuracy;
-// Stop if fun-changes smaller stopTolFun.
+        // stop if fun-changes smaller stopTolFun.
         stopTolFun = 1e-12 * accuracy;
-// Stop if back fun-changes smaller stopTolHistFun.
+        // stop if back fun-changes smaller stopTolHistFun.
         stopTolHistFun = 1e-13 * accuracy;
-// selection strategy parameters
-// Number of parents/points for recombination.
+        // selection strategy parameters
+        // number of parents/points for recombination.
         mu = mu_ > 0 ? mu_ : popsize / 2;
-// Array for weighted recombination.
-        weights = (log(sequence(1, mu, 1)) * -1.) + log(mu + 0.5);
-        double sumw = sum(weights);
-        double sumwq = sum(weights % weights);
+        // array for weighted recombination.
+        weights = (log(sequence(1, mu, 1).array()) * -1.) + log(mu + 0.5);
+        double sumw = weights.sum();
+        double sumwq = weights.squaredNorm();
         weights *= 1. / sumw;
-// Variance-effectiveness of sum w_i x_i.
+        // variance-effectiveness of sum w_i x_i.
         mueff = sumw * sumw / sumwq;
 
-// dynamic strategy parameters and constants
-// Cumulation constant.
+        // dynamic strategy parameters and constants
+        // cumulation constant.
         cc = (4. + mueff / dim) / (dim + 4. + 2. * mueff / dim);
-// Cumulation constant for step-size.
+        // cumulation constant for step-size.
         cs = (mueff + 2.) / (dim + mueff + 3.);
-// Damping for step-size.
-           damps = (1. + 2. * ::max(0., ::sqrt((mueff - 1.)
+        // damping for step-size.
+           damps = (1. + 2. * std::max(0., sqrt((mueff - 1.)
                     / (dim + 1.)) - 1.))
                     * max(0.3, 1.
                             - // modification for short runs
                             dim / (1e-6 + min(maxIterations, maxEvaluations
                                     / popsize))) + cs; // minor increment
-// Learning rate for rank-one update.
+        // learning rate for rank-one update.
         ccov1 = 2. / ((dim + 1.3) * (dim + 1.3) + mueff);
-// Learning rate for rank-mu update'
+        // learning rate for rank-mu update'
         ccovmu = min(1. - ccov1,
                 2. * (mueff - 2. + 1. / mueff)
                         / ((dim + 2.) * (dim + 2.) + mueff));
-// Expectation of ||N(0,I)|| == norm(randn(N,1)).
+        // expectation of ||N(0,I)|| == norm(randn(N,1)).
         chiN = sqrt(dim) * (1. - 1. / (4. * dim) + 1 / (21. * dim * dim));
         ccov1Sep = min(1., ccov1 * (dim + 1.5) / 3.);
         ccovmuSep = min(1. - ccov1, ccovmu * (dim + 1.5) / 3.);
 
-// CMA internal values - updated each generation
-// Objective variables.
+        // CMA internal values - updated each generation
+        // objective variables.
         xmean = fitfun->encode(guess);
-// Evolution path.
-        pc = zeros<vec>(dim);
-// Evolution path for sigma.
-        ps = zeros<vec>(dim);
-// Norm of ps, stored for efficiency.
-        normps = norm(ps);
-// Coordinate system.
-        B = mat(dim,dim).eye();
-// Diagonal of sqrt(D), stored for efficiency.
+        // evolution path.
+        pc = zeros(dim);
+        // evolution path for sigma.
+        ps = zeros(dim);
+        // norm of ps, stored for efficiency.
+        normps = ps.norm();
+        // coordinate system.
+        B = Eigen::MatrixXd::Identity(dim,dim);
+        // diagonal of sqrt(D), stored for efficiency.
         diagD = inputSigma / sigma;
-        diagC = square(diagD);
-// B*D, stored for efficiency.
-        BD = B % repmat(diagD.t(), dim, 1);
-// Covariance matrix.
-        C = B * (mat(dim,dim).eye() * B.t());
-// Number of iterations already performed.
+        diagC = diagD.cwiseProduct(diagD);
+        // B*D, stored for efficiency.
+        BD = B.cwiseProduct(diagD.transpose().replicate(dim, 1));
+        // covariance matrix.
+        C = B * (Eigen::MatrixXd::Identity(dim,dim) * B.transpose());
+        // number of iterations already performed.
         iterations = 0;
-// Size of history queue of best values.
+        // size of history queue of best values.
         historySize = 10 + int(3. * 10. * dim / popsize);
-// stop criteria
+        // stop criteria
         stop = 0;
-// best value so far
+        // best value so far
         bestValue = fitfun->value(xmean);
-// best parameters so far
+        // best parameters so far
         bestX = guess;
-// History queue of best values.
-        fitnessHistory = vec(historySize).fill(DBL_MAX);
+        // history queue of best values.
+        fitnessHistory = vec::Constant(historySize, DBL_MAX);
         fitnessHistory(0) = bestValue;
+        rs = new pcg64(seed);
+    }
+
+    ~AcmaesOptimizer() {
+    	delete rs;
     }
 
     // param zmean weighted row matrix of the gaussian random numbers generating the current offspring
@@ -234,7 +275,7 @@ public:
 
     bool updateEvolutionPaths(const vec& zmean, const vec& xold) {
         ps = ps * (1. - cs) + ((B * zmean) * sqrt(cs * (2. - cs) * mueff));
-        normps = norm(ps);
+        normps = ps.norm();
         bool hsig = normps / sqrt(1. - pow(1. - cs, 2. * iterations)) / chiN < 1.4 + 2. / (dim + 1.);
         pc *= (1. - cc);
         if (hsig)
@@ -249,11 +290,11 @@ public:
     // param xold xmean matrix of the previous generation
 
     double updateCovariance(bool hsig, const mat& bestArx, const mat& arz,
-            const uvec& arindex, const mat& xold) {
+            const ivec& arindex, const mat& xold) {
         double negccov = 0;
         if (ccov1 + ccovmu > 0) {
-            mat arpos = (bestArx - repmat(xold, 1, mu)) * (1. / sigma); // mu difference vectors
-            mat roneu = pc * pc.t() * ccov1;
+            mat arpos = (bestArx - xold.replicate(1, mu)) * (1. / sigma); // mu difference vectors
+            mat roneu = pc * pc.transpose() * ccov1;
             // minor correction if hsig==false
             double oldFac = hsig ? 0 : ccov1 * cc * (2. - cc);
             oldFac += 1. - ccov1 - ccovmu;
@@ -264,26 +305,26 @@ public:
             // keep at least 0.66 in all directions, small popsize are most critical
             double negalphaold = 0.5; // where to make up for the variance loss,
             // prepare vectors, compute negative updating matrix Cneg
-            uvec arReverseIndex = reverse(arindex);
-            mat arzneg = arz.cols(arReverseIndex.head(mu));
-            vec arnorms = sqrt(sum(square(arzneg.t()), 1)); // rowsum
-            uvec idxnorms = sort_index(arnorms);
+            ivec arReverseIndex = arindex.reverse();
+            mat arzneg = arz(Eigen::all, arReverseIndex.head(mu));
+            vec arnorms = arzneg.colwise().norm();
+            ivec idxnorms = sort_index(arnorms);
             vec arnormsSorted = arnorms(idxnorms);
-            uvec idxReverse = reverse(idxnorms);
+            ivec idxReverse = idxnorms.reverse();
             vec arnormsReverse = arnorms(idxReverse);
-            arnorms = arnormsReverse / arnormsSorted;
+            arnorms = arnormsReverse.cwiseQuotient(arnormsSorted);
             vec arnormsInv = arnorms(inverse(idxnorms));
-            mat sqarnw = square(arnormsInv).t() * weights;
+            mat sqarnw = arnormsInv.cwiseProduct(arnormsInv).transpose() * weights;
             double negcovMax = (1. - negminresidualvariance) / sqarnw(0);
             if (negccov > negcovMax)
                 negccov = negcovMax;
-            arzneg = arzneg % repmat(arnormsInv.t(), dim, 1);
+            arzneg = arzneg.cwiseProduct(arnormsInv.transpose().replicate(dim, 1));
             mat artmp = BD * arzneg;
-            mat Cneg = artmp * diagmat(weights) * artmp.t();
+            mat Cneg = artmp * weights.asDiagonal() * artmp.transpose();
             oldFac += negalphaold * negccov;
             C = (C * oldFac) + roneu
                     + ( arpos * (ccovmu + (1. - negalphaold) * negccov) *
-                               (repmat(weights, 1, dim) % arpos.t()))
+                               weights.replicate( 1, dim).cwiseProduct(arpos.transpose()))
                     - (Cneg * negccov);
         }
         return negccov;
@@ -297,32 +338,30 @@ public:
         if (ccov1 + ccovmu + negccov > 0
                 && (std::fmod(iterations, 1. / (ccov1 + ccovmu + negccov) / dim / 10.)) < 1.) {
             // to achieve O(N^2) enforce symmetry to prevent complex numbers
-            C = trimatu(C) + trimatu(C, 1).t();
+        	mat triC = C.triangularView<Eigen::Upper>();
+        	mat triC1 = C.triangularView<Eigen::StrictlyUpper>();
+            C = triC + triC1.transpose();
+            Eigen::SelfAdjointEigenSolver<mat> sades;
+            sades.compute(C);
             // diagD defines the scaling
-            vec eigval;
-            mat eigvec;
-            eig_sym(eigval, eigvec, C);
-
-            diagD = reverse(eigval); // descending order of eigenvalues
-            for (int i = 0; i < dim; i++)
-                B.col(i) = eigvec.col(dim - 1 - i);
-
-            if (diagD.min() <= 0) {
+            diagD = sades.eigenvalues();
+            B = sades.eigenvectors();
+            if (diagD.minCoeff() <= 0) {
                 for (int i = 0; i < dim; i++)
                     if (diagD(i, 0) < 0)
                         diagD(i, 0) = 0.;
-                double tfac = diagD.max() / 1e14;
-                C += mat(dim,dim).eye() * tfac;
-                diagD += ones(dim, 1) * tfac;
+                double tfac = diagD.maxCoeff() / 1e14;
+                C += Eigen::MatrixXd::Identity(dim,dim) * tfac;
+                diagD += vec::Constant(dim, 1.0) * tfac;
             }
-            if (diagD.max() > 1e14 * diagD.min()) {
-                double tfac = diagD.max() / 1e14 - diagD.min();
-                C += mat(dim,dim).eye() * tfac;
-                diagD += ones(dim, 1) * tfac;
+            if (diagD.maxCoeff() > 1e14 * diagD.minCoeff()) {
+                double tfac = diagD.maxCoeff() / 1e14 - diagD.minCoeff();
+                C += Eigen::MatrixXd::Identity(dim,dim) * tfac;
+                diagD += vec::Constant(dim, 1.0) * tfac;
             }
-            diagC = C.diag();
-            diagD = sqrt(diagD); // D contains standard deviations now
-            BD = B % repmat(diagD.t(), dim, 1);
+            diagC = C.diagonal();
+            diagD = diagD.cwiseSqrt(); // D contains standard deviations now
+            BD = B.cwiseProduct(diagD.transpose().replicate(dim, 1));
         }
     }
 
@@ -332,12 +371,12 @@ public:
 
         for (iterations = 1; iterations <= maxIterations &&
                     fitfun->getEvaluations() < maxEvaluations; iterations++) {
-            // Generate and evaluate popsize offspring
-            mat arz = mat(dim, popsize).randn();
+            // generate and evaluate popsize offspring
+            mat arz = normal(dim, popsize, *rs);
             mat arx = mat(dim, popsize);
-            vec fitness = vec(popsize).fill(DBL_MAX);
+            vec fitness = vec::Constant(popsize, DBL_MAX);
             // generate random offspring
-            fitfun->closestFeasible(xmean);
+            xmean = fitfun->getClosestFeasible(xmean);
             for (int k = 0; k < popsize; k++) {
                 vec delta = (BD * arz.col(k)) * sigma;
                 arx.col(k) = fitfun->getClosestFeasible(xmean + delta);
@@ -349,21 +388,19 @@ public:
             }
             if (stop != 0)
                 break;
-            // Sort by fitness and compute weighted mean into xmean
-            uvec arindex = sort_index(fitness);
-
-            // Calculate new xmean, this is selection and recombination
+            // sort by fitness and compute weighted mean into xmean
+            ivec arindex = sort_index(fitness);
+            // calculate new xmean, this is selection and recombination
             vec xold = xmean; // for speed up of Eq. (2) and (3)
-            uvec bestIndex = arindex.head(mu);
-            mat bestArx = arx.cols(bestIndex);
+            ivec bestIndex = arindex.head(mu);
+            mat bestArx = arx(Eigen::all, bestIndex);
             xmean = bestArx * weights;
-            mat bestArz = arz.cols(bestIndex);
+            mat bestArz = arz(Eigen::all, bestIndex);
             mat zmean = bestArz * weights;
-
             bool hsig = updateEvolutionPaths(zmean, xold);
             double negccov = updateCovariance(hsig, bestArx, arz, arindex, xold);
             updateBD(negccov);
-            // Adapt step size sigma - Eq. (5)
+            // adapt step size sigma
             sigma *= exp(min(1.0, (normps / chiN - 1.) * cs / damps));
             double bestFitness = fitness(arindex(0));
             double worstFitness = fitness(arindex(arindex.size()-1));
@@ -371,15 +408,13 @@ public:
                 bestValue = bestFitness;
                 bestX = fitfun->decode(bestArx.col(0));
             }
-
             // handle termination criteria
             if (isfinite(stopfitness) && bestFitness < stopfitness) {
                 stop = 1;
                 break;
             }
-            vec sqrtDiagC = sqrt(diagC);
+            vec sqrtDiagC = diagC.cwiseSqrt();
             vec pcCol = pc;
-
             for (int i = 0; i < dim; i++) {
                 if (sigma * (max(abs(pcCol[i]), sqrtDiagC[i])) > stopTolX)
                     break;
@@ -391,8 +426,8 @@ public:
                     stop = 3;
             if (stop > 0)
                 break;
-            double historyBest = min(fitnessHistory);
-            double historyWorst = max(fitnessHistory);
+            double historyBest = fitnessHistory.minCoeff();
+            double historyWorst = fitnessHistory.maxCoeff();
             if (iterations > 2
                     && max(historyWorst, worstFitness)
                             - min(historyBest, bestFitness) < stopTolFun) {
@@ -405,7 +440,7 @@ public:
                 break;
             }
             // condition number of the covariance matrix exceeds 1e14
-            if ( diagD.max() / diagD.min() > 1e7 * 1.0 / sqrt(accuracy)) {
+            if ( diagD.maxCoeff() / diagD.minCoeff() > 1e7 * 1.0 / sqrt(accuracy)) {
                 stop = 6;
                 break;
             }
@@ -413,13 +448,13 @@ public:
                 stop = 7;
                 break;
             }
-            // Adjust step size in case of equal function values (flat fitness)
+            // adjust step size in case of equal function values (flat fitness)
             if (bestValue == fitness[arindex[(int) (0.1 + popsize / 4.)]]) {
                 sigma *= exp(0.2 + cs / damps);
             }
             if (iterations > 2
                     && max(historyWorst, bestFitness)
-                            - ::min(historyBest, bestFitness) == 0) {
+                            - std::min(historyBest, bestFitness) == 0) {
                 sigma *= ::exp(0.2 + cs / damps);
             }
             // store best in history
@@ -489,33 +524,17 @@ private:
       double bestValue;
       vec bestX;
       int stop;
+      pcg64* rs;
 };
-
-// see https://cvstuff.wordpress.com/2014/11/27/wraping-c-code-with-python-ctypes-memory-and-pointers/
-
-extern "C" {
-    void seed(int s) {
-        arma_rng::set_seed(s);
-    }
 }
 
-extern "C" {
-    void seedRandom() {
-        arma_rng::set_seed_random();
-    }
-}
-
-extern "C" {
-    void free_mem(double* a) {
-        delete[] a;
-    }
-}
+using namespace acmaes;
 
 extern "C" {
     double* optimizeACMA_C(long runid, callback_type func, int dim, double *init,
             double *lower, double *upper, double *sigma, int maxIter, int maxEvals,
             double stopfitness, int mu, int popsize, double accuracy,
-            bool useTerminate, is_terminate_type isTerminate) {
+            bool useTerminate, is_terminate_type isTerminate, long seed) {
         int n = dim;
         double *res = new double[n + 4];
         vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
@@ -544,7 +563,8 @@ extern "C" {
             maxEvals,
             accuracy,
             stopfitness,
-            useTerminate ? isTerminate : NULL);
+            useTerminate ? isTerminate : NULL,
+            seed);
         try {
             opt.doOptimize();
             vec bestX = opt.getBestX();
@@ -560,5 +580,11 @@ extern "C" {
             cout << e.what() << endl;
             return res;
         }
+    }
+}
+
+extern "C" {
+    void free_mem(double* a) {
+        delete[] a;
     }
 }

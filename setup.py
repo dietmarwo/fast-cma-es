@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-import os
 import re
 
 with open("README.md", "r") as fh:
@@ -38,6 +37,6 @@ setup(
       "Environment :: Console",
       "License :: OSI Approved :: MIT License",
       ],
-    keywords=["optimization", "CMA-ES", "cmaes", "fast CMA", "parallel retry", "reinforcement learning", "machine learning"],
+    keywords=["optimization", "CMA-ES", "cmaes", "fast CMA", "stochastic", "differential evolution", "dual annealing", "gradient free", "parallel retry"],
     include_package_data=True,
    )

@@ -1,89 +1,87 @@
 :encoding: utf-8
 :imagesdir: img
 
-= fcmaes
+= fcmaes - a Python 3 gradient-free optimization library
 
-== Fast implementation of the CMA-ES optimization algorithm
-
-=== Introduction
-
-This Repository provides two fast implementations of the active http://cma.gforge.inria.fr/[CMA-ES algorithm] 
-derived from its original http://cma.gforge.inria.fr/cmaes.m[Matlab code]. 
-Costly matrix operations are mapped on efficient BLAS / MKL code.  
-
-There is a native Python implementation based on numpy/scipy and a C{plus}{plus} implementation called 
-via ctypes based on https://arma.sourceforge.net/[Armadillo]. 
-For high dimensional problems (dim >= 100) both implementations perform similar, for low dimensions
-the C++ version is faster. Only the most commonly used CMA-ES parameters are supported to keep both implementations
-clean and simple. The Python version supports parallel evaluation of the cost function. 
-Two parallel retry mechanisms are provided, a simple one to analyze the problem and a
-novel coordinated one for hard optimization problems. For testing and comparison there is an easy to use
-Python API for four of ESAs space mission design optimization problems (
-https://www.esa.int/gsp/ACT/doc/INF/Code/globopt/GTOPtoolbox.zip[GTOPToolbox]).
-
-=== Motivation
-
-Citing https://arxiv.org/pdf/1806.01224.pdf[Challenges in High-dimensional Reinforcement Learning]:  
-"... learning a full covariance matrix introduces non-trivial algorithm internal cost and hence 
-prevents the direct application of CMA-ES to high-dimensional problems". And 
-https://facebookresearch.github.io/nevergrad/optimization.html#choosing-an-optimizer[Nevergrad on CMA]:
-"CMA is excellent for control (e.g. neurocontrol) when the environment is not very noisy (num_workers ~50 ok) 
-and when the budget is large (e.g. 1000 x the dimension)". It seems there is a need for an 
-efficient implementation of the CMA-ES algorithm, not only for reinforcement learning but for general 
-"real world" optimization tasks engineers are faced with. Cost functions associated with these tasks 
-tend to be multi-modal, non-continuous, non-smooth, partially defined and sometimes even non-deterministic
-which makes CMA-ES the natural choice. The new implementations outperform their stochastic scipy alternatives
-https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html[differential_evolution]
- and https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html[dual_annealing]
-significantly for higher dimensions. In combination with a novel coordinated parallel retry mechanism CMA-ES can 
-overcome many of its shortcomings and solve problems which were up to now out of reach for optimization in general. 
+fcmaes complements https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy optimize] by providing 
+additional optimization methods, faster C++/Eigen based implementations and a coordinated parallel retry mechanism. 
+It supports the multi threaded application of different gradient free optimization algorithms. 
 
 === Documentation
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results]
-- https://github.com/dietmarwo/fast-cma-es/blob/master/QnA.adoc[Q/A]
 
+=== Features
+
+- fcmaes is focussed on optimization problems hard to solve.
+- minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
+- parallel coordinated retry of sequences of optimization algorithms
+- parallel function evaluation for CMA-ES
+- new differential evolution variant optimized for usage with parallel coordinated retry and the DE->CMA sequence. 
+- on modern many-core machines global minima can usually be found fast using the default parameters.  
+
+Since fcmaes only supports boxed constraints other constraints have to be mapped to penalty functions. This is much
+easier with gradient free optimization algorithms.
+
+Although binaries for Windows are provided, we highly recommend using Linux since fcmaes Python multithreading is less performant on Windows. But the Linux subsystem for windows works fine if you want to execute optimizations on a Windows machine. 
+
+=== Optimization algorithms
+
+- CMA-ES: Implemented both in Python and in C++. The Python version is faster than
+https://github.com/CMA-ES/pycma/tree/master/cma[CMA] but slower than the C++ variant. Only the Python variant provides an ask/tell interface and supports parallel function evaluation. Both CMA variants provide less configurability than https://github.com/CMA-ES/pycma/tree/master/cma[CMA].
+
+- Dual Annealing: Implemented in C++. Use the scipy implementation if you prefer a pure python variant or need more
+configuration options. 
+
+- Differential Evolution: Implemented in C++. There is no python equivalent, the scipy implementation 
+works differently. Additional concepts implemented here are 
+https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model[temporal locality] and stochastic reinitialization of individuals based on their age. 
+
+- Sequences: It is possible to define sequences of optimization algorithms. Not only the three algorithms above, but also
+many scipy optimization methods and custom algorithms can be used in sequences. Default method for the parallel retry is the sequence DE -> CMA with 80% of the evaluation budget assigned to CMA.
+
+=== Dependencies
+
+Runtime:
+
+- numpy: https://github.com/numpy/numpy
+- scipy: https://github.com/scipy/scipy
+
+Compile time (binaries for Linux and Windows are included):
+
+- Eigen https://gitlab.com/libeigen/eigen (version >= 3.9 is required for CMA).
+- pcg-cpp: https://github.com/imneme/pcg-cpp - used in all c++ optimization algorithms.
+- LBFGSpp: https://github.com/yixuan/LBFGSpp/tree/master/include - used for dual annealing local optimization.
+
+ 
 === Installation
 
 ==== Linux
  
 * `pip install fcmaes`
-* for C++ version: make sure a fast BLAS implementation is installed, like 
-https://software.intel.com/en-us/mkl[MKL] or https://www.openblas.net/[OpenBLAS].     
-
-==== MacOS
-
-* `pip install fcmaes`
-* for C++ version: 
-** install https://arma.sourceforge.net/[Armadillo]     
-** adapt https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/CMakeLists.txt[CMakeLists.txt]
-** compile https://github.com/dietmarwo/fast-cma-es/tree/master/_fcmaescpp[_fcmaescpp] and
-link against a fast BLAS implementation like 
-https://software.intel.com/en-us/mkl[MKL] or https://www.openblas.net/[OpenBLAS]. 
-** compile fast-cma-es/_fcmaescpp
 
 ==== Windows
 
 * `pip install fcmaes`
-* for C++ version: 
-** install https://arma.sourceforge.net/[Armadillo]     
-** adapt https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/CMakeLists.txt[CMakeLists.txt]
-** compile https://github.com/dietmarwo/fast-cma-es/tree/master/_fcmaescpp[_fcmaescpp] and
-link against a fast BLAS implementation like 
-https://software.intel.com/en-us/mkl[MKL] or https://www.openblas.net/[OpenBLAS]. 
-* parallel retry will not work because function objects cannot be sent to another process. 
+* install C++ runtime libraries https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
 
 ===== Recommended alternative:
 * Linux subsystem for Windows, see
 https://docs.microsoft.com/en-us/windows/wsl/install-win10[Linux subsystem] or
 https://superuser.com/questions/1271682/is-there-a-way-of-installing-ubuntu-windows-subsystem-for-linux-on-win10-v170[Ubuntu subsystem].
-Tested with Ubuntu 18.04, fcmaes performance is about 98% of a native Linux installation. C++ variant and
-both parallel retry mechanism work. 
+Tested with Ubuntu 18.04, fcmaes performance is about 98% of a native Linux installation.
+
+==== MacOS
+
+* `pip install fcmaes`
+* For using the C++ optimization algorithms: 
+** adapt https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/CMakeLists.txt[CMakeLists.txt]
+** compile https://github.com/dietmarwo/fast-cma-es/tree/master/_fcmaescpp[_fcmaescpp] 
 
 === Usage
 
-Usage is very similar to https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html[scipy.optimize.minimize].
+Usage is similar to https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html[scipy.optimize.minimize].
 
 [source,python]
 ----
@@ -93,9 +91,8 @@ print (ret.x, ret.fun, ret.nfev)
 ----
 
 fcmaes.cmaes.minimize cannot handle constraints and derivatives (jac, hess, hessp). If the initial guess x0 is undefined,
-a feasible uniformly distributed random value is automatically generated. It is strongly recommended to define
-bounds, since CMA-ES uses them also for internal scaling. For multi-modal non-smooth objective functions CMA-ES is usually 
-faster and more reliable than scipy minimize. Additional parameters are
+a feasible uniformly distributed random value is automatically generated. It is recommended to define
+bounds, since CMA-ES uses them also for internal scaling. Additional parameters are
 
 - `popsize` (default 31) - Size of the population used. Instead of increasing this parameter for hard problems, it is often better to use parallel retry instead. Reduce `popsize` for a narrower search if your budget is restricted.
 - `input_sigma` (default 0.3) - The initial step size. Can be defined for each dimension separately. Both parallel retry mechanism
@@ -111,13 +108,6 @@ from fcmaes import cmaescpp
 ret = cmaescpp.minimize(fun, bounds, x0)
 ----
 
-The C++ variant is currently restricted to Linux and requires that a fast BLAS implementation like 
-https://software.intel.com/en-us/mkl[MKL] or https://www.openblas.net/[OpenBLAS] is installed.
-
-For other operating systems you can compile the C++ source 
-https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[acmaesoptimizer.cpp] yourself and adapt 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaescpp.py[cmaescpp.py] to load the resulting library.
-
 Alternatively there is an ask/tell interface to interact with CMA-ES:
 
 [source,python]
@@ -130,6 +120,8 @@ for i in range(iterNum):
     if status != 0:
         break 
 ----
+
+Differential evolution (fcames.decpp) and Dual Annealing (fcmaes.dacpp) provide similar interfaces. 
 
 For simple parallel retry use:
 
@@ -162,39 +154,23 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/advexamples.py[advex
 === Performance
 
 On a single AMD 3950x CPU using https://repo.anaconda.com/archive/Anaconda3-2019.10-Linux-x86_64.sh[Anaconda 2019.10]
-for Linux the new CMA-ES implementation called by the included parallel coordinated retry mechanism 
+for Linux the parallel coordinated retry mechanism 
 solves ESAs 26-dimensional https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full] problem
-in about 2.5 hours on average. The Messenger full benchmark models a
+in about 2 hours on average. The Messenger full benchmark models a
 multi-gravity assist interplanetary space mission from Earth to Mercury. In 2009 the first good solution (6.9 km/s)
 was submitted. It took more than five years to reach 1.959 km/s and three more years until 2017 to find the optimum 
 http://www.midaco-solver.com/index.php/component/content/article?id=208[1.958 km/s]. The picture below shows the
 progress of the whole science community since 2009:
-
 image::Fsc.png[]  
-
-A 100-CPU cluster and about 20x100 CPU hours were required to find 10 solutions near 2.0 km/s, see 
-http://www.midaco-solver.com/data/pub/Messenger_%28Evostar2017%29.pdf[Midaco]. 
-Now you can solve this problem in Python on a single desktop CPU.
-This means, optimization can be applied to problems
-previously reserved for search algorithms. CMA-ES and the novel coordinated parallel retry algorithm 
-are in no way designed specifically for space mission design but are generally applicable to 
-all hard optimization problems.
-
-The following picture shows 96 successful 
-CMA-ES advanced retry runs out of 273. All 96 runs, more than a third, produced a result better than
-2 km/s, many reached the absolute minimum at 1.958 km/s. 
-
-image::fo_cma2.png[]  
-
-Here are all 273 runs, including the ones reaching local minima at 2.4 and 3.0 km/s.
-
-image::fo_cma.png[] 
-
-Using this CMA-ES implementation with parallel retry performs more than 800000 messenger_full evaluations per second
-on an AMD 3950x processor. About 8-10 times faster than the "official" 
-https://github.com/CMA-ES/pycma[CMA-ES Python implementation].
-Both the Python and the C{plus}{plus} variant rely heavily on the configured BLAS library - 
-which defaults to Intel MKL if you use https://www.anaconda.com/distribution/[Anaconda] .
+The following picture shows 173 retry runs, each about 1 hour. 
+image::mf3.6000.png[]  
+91 out of these 173 runs produced a result better than 2 km/s:
+image::mf3.2000.png[] 
+69, more than a third reached the absolute minimum at 1.958 km/s. 
+image::mf3.1959.png[] 
+Using this CMA-ES implementation with parallel retry performs > 800000 messenger_full evaluations per second
+on an AMD 3950x processor. This outperforms both the official
+https://github.com/CMA-ES/pycma[CMA-ES] implementation and scipy differential evolution.
 
 === How to read the log output of the parallel retry
 The log output of the parallel retry contains the following rows:

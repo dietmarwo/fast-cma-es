@@ -14,8 +14,7 @@ from scipy.optimize._constraints import new_bounds_to_old
 from scipy.optimize import OptimizeResult, Bounds
 import multiprocessing as mp
 from multiprocessing import Process
-
-from fcmaes.optimizer import Optimizer, dtime, seed_random
+from fcmaes.optimizer import de_cma, dtime
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -29,8 +28,8 @@ def minimize(fun,
              workers = mp.cpu_count(),
              popsize = 31, 
              max_evaluations = 50000, 
-             useCpp = False,
              stop_fittness = None,
+             optimizer = None,
              ):   
     """Minimization of a scalar function of one or more variables using parallel 
      CMA-ES retry.
@@ -49,9 +48,9 @@ def minimize(fun,
             2. Sequence of ``(min, max)`` pairs for each element in `x`. None
                is used to specify no bound.
     value_limit : float, optional
-        Upper limit for CMA-ES optimized function values to be stored. 
+        Upper limit for optimized function values to be stored. 
     num_retries : int, optional
-        Number of CMA-ES retries.    
+        Number of optimization retries.    
     logger : logger, optional
         logger for log output of the retry mechanism. If None, logging
         is switched off. Default is a logger which logs both to stdout and
@@ -59,30 +58,31 @@ def minimize(fun,
     workers : int, optional
         number of parallel processes used. Default is mp.cpu_count()
     popsize = int, optional
-        CMA-ES population size used for all CMA-ES runs.
+        CMA-ES population size used for all CMA-ES runs. 
+        Not used for differential evolution. 
+        Ignored if parameter optimizer is defined. 
     max_evaluations : int, optional
-        Forced termination of all CMA-ES runs after ``max_evaluations`` 
-        function evaluations.
-    useCpp : bool, optional
-        Flag indicating use of the C++ CMA-ES implementation. Default is `False` - 
-        use of the Python CMA-ES implementation
+        Forced termination of all optimization runs after ``max_evaluations`` 
+        function evaluations. Only used if optimizer is undefined, otherwise
+        this setting is defined in the optimizer. 
     stop_fittness : float, optional 
-         Limit for fitness value. CMA-ES runs terminate if this value is reached. 
-    
+         Limit for fitness value. optimization runs terminate if this value is reached. 
+    optimizer : optimizer.Optimizer, optional
+        optimizer to use. Default is a sequence of differential evolution and CMA-ES.
+     
     Returns
     -------
     res : scipy.OptimizeResult
         The optimization result is represented as an ``OptimizeResult`` object.
         Important attributes are: ``x`` the solution array, 
         ``fun`` the best function value, ``nfev`` the number of function evaluations,
-        ``nit`` the number of CMA-ES iterations, ``status`` the stopping critera and
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
-    
-    store = Store(bounds, max_evaluations = max_evaluations, logger = logger)
-    optimizer  = Optimizer(store, popsize, stop_fittness)
-    optimize = optimizer.cma_cpp if useCpp else optimizer.cma_python
-    return retry(fun, store, optimize, num_retries, value_limit, workers)
-                
+
+    if optimizer is None:
+        optimizer = de_cma(max_evaluations, popsize, stop_fittness)        
+    store = Store(bounds, logger = logger)
+    return retry(fun, store, optimizer.minimize, num_retries, value_limit, workers)
+                 
 def retry(fun, store, optimize, num_retries, value_limit = math.inf, workers=mp.cpu_count()):
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
@@ -99,14 +99,12 @@ class Store(object):
        
     def __init__(self, 
                  bounds, # bounds of the objective function arguments
-                 max_evaluations = 50000, # maximum evaluation count
                  check_interval = 10, # sort evaluation memory after check_interval iterations
                  capacity = 500, # capacity of the evaluation store
                  logger = None # if None logging is switched off
                 ):    
         self.lower, self.upper = _convertBounds(bounds)
         self.logger = logger
-        self.max_evals = max_evaluations   
         self.capacity = capacity
         self.check_interval = check_interval
         self.dim = len(self.lower)
@@ -128,8 +126,8 @@ class Store(object):
         self.qmean = mp.RawValue(ct.c_double, 0) 
         self.best_y = mp.RawValue(ct.c_double, math.inf) 
     
-    def eval_num(self):
-        return self.max_evals
+    def eval_num(self, max_evals):
+        return max_evals
                                              
     def replace(self, i, y, xs):
         self.set_y(i, y)
@@ -192,19 +190,21 @@ class Store(object):
  
     def get_count_runs(self):
         return self.count_runs.value
-
-    def get_count_runs_incr(self):
-        with self.add_mutex:
-            runs = self.count_runs.value
-            self.count_runs.value += 1
-            return runs
-
+ 
     def set_x(self, pid, xs):
         self.xs[pid*self.dim:(pid+1)*self.dim] = xs[:]
        
     def set_y(self, pid, y):
         self.ys[pid] = y    
-        
+ 
+    def get_runs_compare_incr(self, limit):
+        with self.add_mutex:
+            if self.count_runs.value < limit:
+                self.count_runs.value += 1
+                return True
+            else:
+                return False 
+       
     def incr_count_evals(self, evals):
         if self.count_runs.value % self.check_interval == self.check_interval-1:
             self.sort()
@@ -220,21 +220,20 @@ class Store(object):
             vals.append(round(Ys[i],2))     
         dt = dtime(self.t0)   
                  
-        message = '{0} {1} {2} {3} {4:.4f} {5:.2f} {6:.2f} {7!s} {8!s}'.format(
+        message = '{0} {1} {2} {3} {4:.6f} {5:.2f} {6:.2f} {7!s} {8!s}'.format(
             dt, int(self.count_evals.value / dt), self.count_runs.value, self.count_evals.value, \
                 self.best_y.value, self.get_y_mean(), self.get_y_standard_dev(), vals, self.get_x(0))
         self.logger.info(message)
 
         
 def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit):
-    seed_random() # make sure cpp random generator for this process is initialized properly
     lower = store.lower
-    while store.get_count_runs_incr() < num_retries:               
-        sol, y, evals = optimize(fun, None, Bounds(store.lower, store.upper), 
-                                 [random.uniform(0.05, 0.1)]*len(lower), rgs[pid])
+    while store.get_runs_compare_incr(num_retries):               
+        sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
+                                 [random.uniform(0.05, 0.1)]*len(lower), rgs[pid], store)
         store.add_result(y, sol, evals, value_limit)
-        if pid == 0:
-            store.dump()
+#         if pid == 0:
+#             store.dump()
 
 def _convertBounds(bounds):
     if bounds is None:

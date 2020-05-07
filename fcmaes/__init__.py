@@ -3,13 +3,16 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-__version__ = '0.9.5.8'
+__version__ = '1.0.0'
 
 __all__ = [
     'cmaes',
     'cmaescpp',
+    'dacpp',
+    'decpp',
     'retry',
     'advretry',
     'optimizer',
     'astro',
+    'testfun',
 ]

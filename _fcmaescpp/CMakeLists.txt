@@ -6,11 +6,12 @@ cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 set(CMAKE_CXX_FLAGS_DEBUG          "-g")
 set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG -march=native")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
-set(CMAKE_CXX_COMPILER             "/usr/bin/clang++")
+#set(CMAKE_CXX_COMPILER             "/usr/bin/g++-9")
+#set(CMAKE_CXX_COMPILER             "/usr/bin/g++)
 
-INCLUDE_DIRECTORIES(/pathToArmadillo/armadillo-9.800.3/)
+INCLUDE_DIRECTORIES(/home/xxx/python/fcmaes/_fcmaescpp/include)
 
 #set default build type to Release
 if(NOT CMAKE_BUILD_TYPE)
@@ -21,11 +22,9 @@ endif()
 
 PROJECT(acmalib)
 
-add_library(acmalib SHARED acmaesoptimizer.cpp)
-target_link_libraries(acmalib armadillo mkl_rt)   
+add_library(acmalib SHARED acmaesoptimizer.cpp deoptimizer.cpp daoptimizer.cpp)
 
-set(CMAKE_INSTALL_LIBDIR ${CMAKE_BINARY_DIR}/../fcmaes)
+set(CMAKE_INSTALL_LIBDIR ${CMAKE_BINARY_DIR}/../fcmaes/lib)
 
-install(TARGETS acmalib EXPORT ArmadilloLibraryDepends
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS acmalib LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
  

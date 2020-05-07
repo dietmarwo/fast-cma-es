@@ -12,6 +12,8 @@ from scipy.optimize import Bounds
 basepath = os.path.dirname(os.path.abspath(__file__))
 if sys.platform.startswith('linux'):
     libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.so')    
+elif sys.platform.contains('mac'):
+    libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.dylib')  
 else:
     libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.dll')
 
@@ -86,6 +88,6 @@ def _call_c(cfun, x):
     array_type = ct.c_double * n   
     try:
         val = float(cfun(n, array_type(*x)))
-    except:
+    except Exception as ex:
         val = sys.float_info.max
     return val

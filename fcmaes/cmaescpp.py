@@ -5,6 +5,7 @@
 
 import sys
 import os
+import math
 import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
@@ -73,9 +74,9 @@ def minimize(fun,
         ``nit`` the number of CMA-ES iterations, ``status`` the stopping critera and
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
     
-    if not sys.platform.startswith('linux'):
-        raise Exception("CMAES C++ variant currently only supported on Linux")
-    lower, upper, guess = _check_bounds(bounds, x0, rg)   
+#     if not sys.platform.startswith('linux'):
+#         raise Exception("CMAES C++ variant currently only supported on Linux")
+    lower, upper, guess = _check_bounds(bounds, x0, rg)      
     n = guess.size   
     if lower is None:
         lower = [0]*n
@@ -84,7 +85,7 @@ def minimize(fun,
     if np.ndim(input_sigma) == 0:
         input_sigma = [input_sigma] * n
     if stop_fittness is None:
-        stop_fittness = np.nan   
+        stop_fittness = math.inf   
     if is_terminate is None:    
         is_terminate=_is_terminate_false
         use_terminate = False 
@@ -96,7 +97,8 @@ def minimize(fun,
     try:
         res = optimizeACMA_C(runid, c_callback, n, array_type(*guess), array_type(*lower), array_type(*upper), 
                            array_type(*input_sigma), max_iterations, max_evaluations, stop_fittness, mu, 
-                           popsize, accuracy, use_terminate, c_is_terminate)
+                           popsize, accuracy, use_terminate, c_is_terminate, int(rg.uniform(0, 2**32 - 1)))
+
         x = np.array(np.fromiter(res, dtype=np.float64, count=n))
         val = res[n]
         evals = int(res[n+1])
@@ -104,7 +106,7 @@ def minimize(fun,
         stop = int(res[n+3])
         freemem(res)
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
-    except Exception:
+    except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
 
 def _is_terminate_false(runid, iterations, val):
@@ -124,23 +126,27 @@ def _c_func(fun):
  
     return lambda n, x: fun([x[i] for i in range(n)])
   
+#if sys.platform.startswith('linux'):
+basepath = os.path.dirname(os.path.abspath(__file__))
+
 if sys.platform.startswith('linux'):
-    basepath = os.path.dirname(os.path.abspath(__file__))
-    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.so')    
-    call_back_type = ct.CFUNCTYPE(ct.c_double, ct.c_int, ct.POINTER(ct.c_double))  
-    is_terminate_type = ct.CFUNCTYPE(ct.c_bool, ct.c_long, ct.c_int, ct.c_double)      
-    optimizeACMA_C = libcmalib.optimizeACMA_C
-    optimizeACMA_C.argtypes = [ct.c_long, call_back_type, ct.c_int, \
-                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-                ct.POINTER(ct.c_double), ct.c_int, ct.c_int, ct.c_double, ct.c_int, ct.c_int, \
-                ct.c_double, ct.c_bool, is_terminate_type]
-    
-    optimizeACMA_C.restype = ct.POINTER(ct.c_double)         
-    freemem = libcmalib.free_mem
-    freemem.argtypes = [ct.POINTER(ct.c_double)]
-    seed = libcmalib.seed
-    seed.argtypes = [ct.c_int]
-    seed_random = libcmalib.seedRandom
-    seed_random.argtypes = []
- 
+    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.so')  
+elif sys.platform.contains('mac'):
+    libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
+else:
+    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')  
+
+call_back_type = ct.CFUNCTYPE(ct.c_double, ct.c_int, ct.POINTER(ct.c_double))  
+is_terminate_type = ct.CFUNCTYPE(ct.c_bool, ct.c_long, ct.c_int, ct.c_double)    
+
+optimizeACMA_C = libcmalib.optimizeACMA_C
+optimizeACMA_C.argtypes = [ct.c_long, call_back_type, ct.c_int, \
+            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+            ct.POINTER(ct.c_double), ct.c_int, ct.c_int, ct.c_double, ct.c_int, ct.c_int, \
+            ct.c_double, ct.c_bool, is_terminate_type, ct.c_long]
+
+optimizeACMA_C.restype = ct.POINTER(ct.c_double)         
+
+freemem = libcmalib.free_mem
+freemem.argtypes = [ct.POINTER(ct.c_double)]
 

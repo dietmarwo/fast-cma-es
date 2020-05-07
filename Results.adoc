@@ -1,62 +1,87 @@
 :encoding: utf-8
 :imagesdir: img
 
-== How to win the optimization battle
-To cite https://www.anandtech.com/show/15483/amd-threadripper-3990x-review/6[Anandtechs 3990x article] :
-"With the right workload you win all battles". 
-To win the optimization battle we have to create the
-"right workload" for modern high core count processors. This means:
+== Results
 
-- Use stochastic methods. Many parallel retries - up to 128 with the 3990x desktop processor - are essentially for free if time is the constraint.
-- Variation / diversity is more important than reaching consistently good results, we are targeting 
-the global minimum. 
-- We should aim for optimal scaling for high core count and not parallelize single optimization runs.
-- Aim for high single thread performance of a single optimization retry specially for higher dimensions 
-combined with a low memory footprint.
-- The number of objective function evaluations needed should be minimized
-- It should be possible to call very expensive objective function evaluations in parallel, even if not using parallel retry. 
-- Multiple retries should be coordinated. Successful optimization runs should 
-"exchange information" to improve the result. 
-- Make use of SIMD instructions supported by modern processors to speed up optimization.   
+=== Space Mission Design
 
-We now compare four stochastic optimization methods available for Python users using the criteria above:
+Both parallel retry and coordinated parallel retry were applied on an AMD 3950x processor
+to the following six space mission design benchmarks utilizing all 16 processor cores
+executing 32 retries in parallel:
 
-- fcmaes CMA-ES Python variant
-- fcmaes CMA-ES C++ variant
-- https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html[scipy dual annealing]
-- https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution[scipy differential evolution] 
-
-applied to four real world optimization problems of different complexity:
-
-- https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini]
+- https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1]
+- https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2]
+- https://www.esa.int/gsp/ACT/projects/gtop/rosetta/[Rosetta]
 - https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1]
 - https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/[Messenger reduced]
 - https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full]
 
-which are accessible from Python via 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/astro.py[astro.py] 
-if you are on Linux or Windows.  
+using the following optimization algorithms:
 
+- sequence DE -> CMA, default algorithm
+- CMA - C++ implementation
+- DE - differential evolution, C++ implementation
+- sequence DA -> CMA
+- DA - dual annealing, C++ implementation
+- scipy dual annealing
+- scipy differential evolution 
+
+The coordinated retry mechanism achieves good results even with the scipy python optimization
+algorithms differential evolution and dual annealing. 
+But the sequence DE -> CMA achieves the most consistent results, beside messenger full all
+problems can be solved in under one minute, messenger full needs about 2 hours. 
+These results explain why we choose DE-CMA as the default algorithm. 
 If you want to reproduce the results shown here, check 
 https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/examples.py[examples.py] and 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/advexamples.py[advexamples.py]
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/advexamples.py[advexamples.py].
 
-===== Exercise
-Verify that all other scipy algorithms perform worse with these four problems. 
+image::Cassini1_de_cpp_cma_cpp.png[]
+image::Cassini1_cma_cpp.png[]
+image::Cassini1_de_cpp.png[]
+image::Cassini1_da_cpp_cma_cpp.png[]
+image::Cassini1_da_cpp.png[]
+image::Cassini1_scipy_da.png[]
+image::Cassini1_scipy_de.png[]
 
-For all these algorithms we test:
+image::Cassini2_de_cpp_cma_cpp.png[]
+image::Cassini2_cma_cpp.png[]
+image::Cassini2_de_cpp.png[]
+image::Cassini2_da_cpp_cma_cpp.png[]
+image::Cassini2_da_cpp.png[]
+image::Cassini2_scipy_da.png[]
+image::Cassini2_scipy_de.png[]
 
-- 20 runs each performing 2000 retries each limiting the number of function evaluations to 50000.
-- 20 runs each performing 4000 advanced coordinated retries with increasing number of function evaluations starting
-with 2000, increasing each 100 retries by 1000.
+image::GTOC1_de_cpp_cma_cpp.png[]
+image::GTOC1_cma_cpp.png[]
+image::GTOC1_de_cpp.png[]
+image::GTOC1_da_cpp_cma_cpp.png[]
+image::GTOC1_da_cpp.png[]
+image::GTOC1_scipy_da.png[]
+image::GTOC1_scipy_de.png[]
 
-These two methods are sufficient to solve the first three problems, for the last one we need:
+image::Rosetta_de_cpp_cma_cpp.png[]
+image::Rosetta_cma_cpp.png[]
+image::Rosetta_de_cpp.png[]
+image::Rosetta_da_cpp_cma_cpp.png[]
+image::Rosetta_da_cpp.png[]
+image::Rosetta_scipy_da.png[]
+image::Rosetta_scipy_de.png[]
 
-- 2 runs each performing 50000 advanced coordinated retries with increasing number of function evaluations starting
-with 2000, increasing each 100 retries by 1000 but with an absolute limit of 50000
+image::messenger_reduced_de_cpp_cma_cpp.png[]
+image::messenger_reduced_cma_cpp.png[]
+image::messenger_reduced_de_cpp.png[]
+image::messenger_reduced_da_cpp_cma_cpp.png[]
+image::messenger_reduced_da_cpp.png[]
+image::messenger_reduced_scipy_da.png[]
+image::messenger_reduced_scipy_de.png[]
 
-The last test is also useful to determine the optimal number of coordinated retries per run, which differs depending 
-on the problem and on the used optimization algorithm. 
+image::messenger_full_de_cpp_cma_cpp.png[]
+image::messenger_full_cma_cpp.png[]
+image::messenger_full_de_cpp.png[]
+image::messenger_full_da_cpp_cma_cpp.png[]
+image::messenger_full_da_cpp.png[]
+image::messenger_full_scipy_da.png[]
+image::messenger_full_scipy_de.png[]
 
 These experiments can be reproduced by executing
 
@@ -70,195 +95,85 @@ advexamples.test_all()
 
 Check optimizer.log for the results. 
 
-==== Cassini1 problem
+=== Protein Folding
 
-image::Ct4.png[]
+The AB off-lattice models of protein folding is another interesting real life optimization benchmark. 
+There are two different popular 3D models, see
+https://www.researchgate.net/publication/7839084_Multicanonical_Study_of_Coarse-Grained_Off-Lattice_Models_for_Folding_Heteropolymers[Coarse-Grained_Off-Lattice_Models] for a comparison. 
 
-===== Observations
+The generalization of the 2D AB off-lattice model to 3D is called "AB model I" in the paper, 
+"AB model II" makes the coupling between successive bonds “antibending” which leads to results
+more similar to what we find in nature. Both models can be used to benchmark optimization algorithms. 
 
-- CMA-ES has a lower optimization algorithm overhead (higher evals/sec rate) as the other algorithms with
-differential evolution being worst. 
-- Dual annealing has highest, differential evolution the lowest number of evaluations per optimization. Note
-that the limit was set to 50000 evaluations, but since Cassini1 is a quite easy task all algorithms need less
-evaluations.
-- Differential evolution, although competitive, is not able to reach the absolute minimum at 4.93. CMA-ES fights
-with a local minimum at 5.3, but reaches the absolute minimum in under a minute in many runs.
+Optimization aims at finding a folding of the protein which has the
+lowest energy level as determined by the formula given for the model. This energy can be derived
+by the position of the two types of molecules (denoted 'A' and 'B'). Distance of two consecutive
+molecules is always 1, so the input vector consists of two angles for each successive bond vector - 
+actually we need only one angle for the first one. So the dimension of the problem is 2n-3 where
+n is the length of the AB sequence. Most approaches at optimizing protein folding adapt the optimization
+process to the structure of the problem itself. But there is a generic idea, 
+https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model[temporal locality] for differential evolution developed in this context 
+which is integrated in fcmaes because it has been shown useful in the context of coordinated retry and in an
+optimization sequence with CMA-ES. 
 
-image::Co4.png[]
+Generic optimization cannot solve AB_off-lattice_model tasks for higher dimensions, but if you have
+no alternative you could try a DA->CMA sequence with very high evaluation limit - 10⁷- with 80% of the budget 
+assigned to DA in connection with the normal parallel retry. Takes ages to complete, but for
+the 2EWH sequence of length 98 we found an solution with AB model I energy of -228 - compared to -245 from https://www.sciencedirect.com/science/article/pii/S0020025518303335[Protein folding optimization] using an algorithm optimized for protein folding. 
 
-===== Observations
+The comparison we show here is for the much shorter sequence "BAAAAAABAAAABAABAABB" called "20.1" in 
+https://www.researchgate.net/publication/7839084_Multicanonical_Study_of_Coarse-Grained_Off-Lattice_Models_for_Folding_Heteropolymers[Coarse-Grained_Off-Lattice_Models] and we use the "AB model II" which 
+results in higher energy numbers. 
 
-- Coordinating the retries helps dual annealing and differential evolution.
-- For CMA-ES the problem is too easy to gain from advanced retry. But it doesn't harm either, still the absolute 
-minimum is reached in under a minute.
+As for the space trajectory design benchmarks we limit the maximal number of evaluations to 50000 per run. 
+The reference result from the paper is −58.306, it is not reached by any optimization algorithm tested. 
+For "messenger_full" coordinated retry finally worked when we increased the effort spent on each run to 2 hours,
+for the AB_off-lattice_model this doesn't work. We advise against using the coordinated
+retry for this problem, use the simple retry instead. Increase the maximum evaluation limit and use Dual Annealing - 
+or a DA-CMA sequence. Or adapt the optimization algorithms to the problem. Coordinated retry helps with CMA and DE, 
+but the results are inferior to what you get using Dual Annealing. 
 
-image::Co50.png[]
+We see that Dual Annealing can approach -58 in under one hour if you use the c++ version, the scipy version is about factor 4 slower. The mediocre results for the DA-CMA sequence indicate that the default budged distribution (20/80) should
+be reversed to (80/20) for this problem. It also helps to decrease the popsize for CMA to 13. 
 
-===== Observations
+image::ab_cluster_3d2_de_cpp_cma_cpp.png[]
+image::ab_cluster_3d2_cma_cpp.png[]
+image::ab_cluster_3d2_de_cpp.png[]
+image::ab_cluster_3d2_da_cpp_cma_cpp.png[]
+image::ab_cluster_3d2_da_cpp.png[]
+image::ab_cluster_3d2_scipy_da.png[]
+image::ab_cluster_3d2_scipy_de.png[]
 
-- 50000 optimizations per advanced retry run is overkill for the Cassini1 problem. 
-- Good values are reached faster if you perform more shorter runs.
-- This holds for all 4 optimization algorithms. 
+=== Circle in Square
 
-==== GTOC1 problem
+Suppose, you have to cut circles with a fixed diameter from a square-shaped material.
+How can you minimize the waste? A variation of this problem is that
+you want to maximize the diameter for a given number of circles.  
+You can find optimal solutions for any N < 10000 here 
+http://hydra.nat.uni-magdeburg.de/packing/csq/csq.html[CSQ]
 
-image::Gt4.png[]
+There exists an interesting problem specific algorithm 
+https://books.google.de/books?id=dY9CAAAAQBAJ&printsec=frontcover[Pulsating Disk Shaking]
+far superior to what a generic optimizer can achieve. 
 
-===== Observations
+So you should not use a generic optimization algorithm for this kind of packing problem for
+larger number of objects, but it is still interesting to investigate "how far off" we are here.
+And for a small number of objects (< 50), you get decent results, so applying fcmaes
+can be an option.   
 
-- Although the problem has only 8 dimensions, it already quite tough. 
-- CMA-ES uses less evaluations per optimization, upper limit is 50000 for all algorithms.
-- Optimization overhead (evaluations/sec) is worst for differential evolution
-- CMA-ES is faster overall and achieves superior results. 
+The results are for the "place 100 circles in a square problem" which has an optimal 
+solution allowing for a distance of
+http://hydra.nat.uni-magdeburg.de/packing/csq/csq.html#Overview[0.1145]. None of the
+algorithms tested beats 0.10 - we could pack 128 circles with this distance in a square, 
+so we are wasting 28 circles. It is still interesting to compare the results which show an
+advantage for CMA based approaches. Again there is nothing to gain by applying the 
+coordinated retry - at least not for the best optimizers. 
 
-image::Go4.png[]
-
-===== Observations
-
-- All four algorithms improve significantly from advanced coordinated retry. 
-- Good values are reached much faster. 
-- CMA-ES now often reaches the global minimum in less than 100 seconds. 
-
-image::Go50.png[]
-
-===== Observations
-
-- Differential evolution and dual annealing improve with longer runs (50000 optimizations)
-but still don't find the global minimum, even if we invest a full hour. 
-- For CMA-ES executing multiple shorter runs is preferable
-
-==== Messenger reduced problem
-
-image::Mt4.png[]
-
-===== Observations
-
-- This problem, although for CMA-ES not harder than GTOC1, is too much for dual annealing and
-differential evolution. Probably because these algorithms don't scale well with higher dimensions.
-- Optimization algorithm overhead (evals/sec) is much higher than for GTOC1 for dual annealing and
-differential evolution, but not for CMA-ES which debunks the myth that CMA-ES 
-doesn't scale well with the number of dimensions.  
-- CMA-ES is faster and achieves much better results using the same number of evaluations 
-(max 50000 per retry).
-
-
-image::Mo4.png[]
-
-===== Observations
-
-- All four algorithms improve significantly from advanced coordinated retry. 
-- Differential evolution now finds good local minima. 
-- CMA-ES often solves the problem in less than 100 seconds, but sometimes "hangs" at local minima
-at 8.7 and 8.65. But already with the simple retry CMA-ES could often solve the problem fast.  
-
-image::Mo50.png[]
-
-===== Observations
-
-- Only dual annealing profits from longer retry runs (50000 retries).
-- Both dual annealing and differential evolution still miss the global minimum at 8.63. 
-- For CMA-ES executing multiple shorter runs is preferable
-
-
-==== Messenger full problem
-
-image::Ft4.png[]
-
-===== Observations
-
-- This is the hardest problem tested here, it shows already with the simple retry the clear
-superiority of CMA-ES which is much faster and achieves much better results if using the same
-number of function evaluations (max 50000). 
-- The evaluations/sec rate for dual annealing and differential evolution shrinks significantly
-because the problem has 26 dimensions. Both algorithms scale bad for higher dimensions. 
-- Surprisingly dual annealing is both faster and better than differential evolution for this problem
-(if restricted to 50000 function evaluations) 
-- In the literature you can find worse results for CMA-ES for this problem. This is probably because
-here a lower relative initial stepsize - a random value between 0.05 and 0.1 - is used. This
-increases the diversity / variance of the results. 
-
-image::Fo4.png[]
-
-===== Observations
-
-- This time dual annealing and differential evolution gain more than CMA-ES using the advanced retry. 
-- Still CMA-ES is by far the fastest algorithm delivering the best results here.
-- The advantage for the C++ CMA-ES variant relative to the Python variant shrinks for higher 
-dimensions since the BLAS / MKL calls start to dominate the overall performance.  
-
-image::Fo50.png[]
-
-===== Observations
-
-- Longer retry runs (50000 coordinated advanced retries) only helps CMA-ES
-- CMA-ES is able to find the global minimum in less than 1 hour - which is 
-a bit lucky, sometimes the algorithm gets stuck at local minima at 2.4.
-But keep in mind that the whole science community needed 8 years between 2009 and 2017
-to find a 1.958 km/s solution. A 64 core processor solves the problem about 3 times faster.  
-
-==== Summary
-
-CMA-ES in combination with the advanced coordinated retry creates the
-"right workload" for modern high core count processors, fulfilling all criteria
-listed above. This way we can win the "optimization battle"
-
-=== One more thing: Beyond Messenger full
-Although https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full] is 
-a real challenge for optimization, its getting more interesting when we start
-using optimization in areas where a search algorithm was required before. 
-What do we gain from that?
-
-* Since exhaustive search is almost never possible because of the exponential growth of the
-search tree we have to implement heuristics selecting promising branches.
-This way we may end up in a local optimum and miss the global one.
-* The search algorithm has to be implemented / adapted to the specific problem, optimization is
-easier to apply. 
-
-As example we continue the analysis of the 
-https://sophia.estec.esa.int/gtoc_portal/?page_id=13[GTOC1] competition from our
-https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial]. There we 
-concluded that using the https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[ESA abstraction] 
-we cannot reach the winning score of -1850000 from JPL. Adding more planets to the trajectory
-helps, but there is another issue:
-
-The number of revolutions around the sun is chosen according to the minimal deltaV (delta velocity)
-at departure from a planet. Higher deltaV means we need more fuel. The choice of the
-number of revolutions determines the incoming arc at the next planet 
-and can turn out to be bad if we look at the whole trajectory. To 
-find the optimum we have to perform a search branching over the number of revolutions
-for each planet to planet transfer. The following picture illustrates parts of the
-search tree:
-
-image::revolutions.png[]
-
-We chose the following planet sequence: 
-EVVEVVEESJA (E = Earth, V = Venus, J = Jupiter, S = Saturn, A = incoming asteroid)
-which results in an optimal score of around -1670000 using 
-the old deterministic objective function. 
-
-==== Replacing search by optimization
-
-In most cases the locally optimal number of revolutions is globally optimal. We assign 
-probabilities to the child nodes dependent on the local deltaV. High probabilities are
-assigned to low deltaV (fuel) branches. Then we adapt the objective function to chose
-a number of revolutions according to the assigned probability. This way the objective 
-function becomes noisy / non-deterministic but we avoid the need for a search algorithm. 
-
-Lets check the results. This time another processor is chosen, the 32 core AMD 2990WX, which
-is known to have scaling issues because of its internal design. The coordinated parallel
-retry mechanism scales well even on this processor as the results show:
-
-image::gjo_cma170.png[]
-
-The best solution scores around -1920000. Objective function evaluation takes a bit more time
-since we have ten planet to planet transfers now. We get 970000 evaluations / sec compared 
-to around 600000 on the AMD 3950x we used before. To compute a real GTOC1 solution this 
-impulse based solution has to be converted into a low thrust trajectory. Here is 
-a https://youtu.be/zk75TaJKG_8[video] of a GTOC1 solution using the EVVEVVEESJA sequence
-I computed in 2018 using this method.
- 
-
-
-
-
+image::CircInSquare_de_cpp_cma_cpp.png[]
+image::CircInSquare_cma_cpp.png[]
+image::CircInSquare_de_cpp.png[]
+image::CircInSquare_da_cpp_cma_cpp.png[]
+image::CircInSquare_da_cpp.png[]
+image::CircInSquare_scipy_da.png[]
+image::CircInSquare_scipy_de.png[]
 
