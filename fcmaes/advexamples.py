@@ -72,8 +72,6 @@ def _test_optimizer(opt, problem, num_retries = 4000, num = 1, value_limit = 20.
 
 def main():
     test_all()
-    #_test_optimizer("dual_annealing", Cassini1(), 500, 1) 
-    #_test_problem(Cassini1(), 500, 1) 
     #messengerFullLoop()
 
 if __name__ == '__main__':
