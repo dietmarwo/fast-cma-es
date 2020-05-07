@@ -26,8 +26,6 @@ def minimize(fun,
              rg = Generator(MT19937()),
              runid=0):   
                 
-#     if not sys.platform.startswith('linux'):
-#         raise Exception("DE C++ currently only supported on Linux")
     lower = np.asarray(bounds.lb)
     upper = np.asarray(bounds.ub)
     n = dim  

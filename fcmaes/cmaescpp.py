@@ -74,8 +74,6 @@ def minimize(fun,
         ``nit`` the number of CMA-ES iterations, ``status`` the stopping critera and
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
     
-#     if not sys.platform.startswith('linux'):
-#         raise Exception("CMAES C++ variant currently only supported on Linux")
     lower, upper, guess = _check_bounds(bounds, x0, rg)      
     n = guess.size   
     if lower is None:

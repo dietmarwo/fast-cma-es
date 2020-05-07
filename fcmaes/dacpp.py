@@ -21,8 +21,6 @@ def minimize(fun,
              rg = Generator(MT19937()),
              runid=0):   
                 
-#     if not sys.platform.startswith('linux'):
-#         raise Exception("DE C++ currently only supported on Linux")
     lower, upper, guess = _check_bounds(bounds, x0, rg)   
     n = guess.size   
     if lower is None:
