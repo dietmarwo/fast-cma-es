@@ -3,7 +3,7 @@
 
 == How to use fcmaes
 
-Several real world optimization tasks are made callable via Python in fcmaes: 
+Several real world optimization tasks from the space trajectory design domain are made callable via Python in fcmaes: 
 
 - https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1]
 - https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2]
@@ -13,7 +13,7 @@ Several real world optimization tasks are made callable via Python in fcmaes:
 - https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full]
 
 Its source code can be found here https://www.esa.int/gsp/ACT/doc/INF/Code/globopt/GTOPtoolbox.zip[GTOPToolbox].
-fcames adds a python interface in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/astro.py[astro.py]. 
+fcmaes adds a python interface in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/astro.py[astro.py]. 
 The tutorial code can be found in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/tutorial.py[tutorial.py]. 
 We focus on https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1] and leave the other problems for you to experiment with. 
 
