@@ -121,9 +121,13 @@ no alternative you could try a DA->CMA sequence with very high evaluation limit 
 assigned to DA in connection with the normal parallel retry. Takes ages to complete, but for
 the 2EWH sequence of length 98 we found an solution with AB model I energy of -228 - compared to -245 from https://www.sciencedirect.com/science/article/pii/S0020025518303335[Protein folding optimization] using an algorithm optimized for protein folding. 
 
+image::ABbig.png[]
+
 The comparison we show here is for the much shorter sequence "BAAAAAABAAAABAABAABB" called "20.1" in 
 https://www.researchgate.net/publication/7839084_Multicanonical_Study_of_Coarse-Grained_Off-Lattice_Models_for_Folding_Heteropolymers[Coarse-Grained_Off-Lattice_Models] and we use the "AB model II" which 
 results in higher energy numbers. 
+
+image::ABsmall.png[]
 
 As for the space trajectory design benchmarks we limit the maximal number of evaluations to 50000 per run. 
 The reference result from the paper is −58.306, it is not reached by any optimization algorithm tested. 
@@ -154,7 +158,10 @@ http://hydra.nat.uni-magdeburg.de/packing/csq/csq.html[CSQ]
 
 There exists an interesting problem specific algorithm 
 https://books.google.de/books?id=dY9CAAAAQBAJ&printsec=frontcover[Pulsating Disk Shaking]
-far superior to what a generic optimizer can achieve. 
+far superior to what a generic optimizer can achieve. Here is a nearly optimal 
+solution computed with PDS for N = 287:
+
+image::287.png[]
 
 So you should not use a generic optimization algorithm for this kind of packing problem for
 larger number of objects, but it is still interesting to investigate "how far off" we are here.
