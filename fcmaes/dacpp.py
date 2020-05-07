@@ -57,7 +57,6 @@ def _c_func(fun):
  
     return lambda n, x: fun([x[i] for i in range(n)])
   
-#if sys.platform.startswith('linux'):
 basepath = os.path.dirname(os.path.abspath(__file__))
 
 if sys.platform.startswith('linux'):
