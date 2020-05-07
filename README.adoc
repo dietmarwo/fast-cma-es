@@ -161,13 +161,21 @@ multi-gravity assist interplanetary space mission from Earth to Mercury. In 2009
 was submitted. It took more than five years to reach 1.959 km/s and three more years until 2017 to find the optimum 
 http://www.midaco-solver.com/index.php/component/content/article?id=208[1.958 km/s]. The picture below shows the
 progress of the whole science community since 2009:
+
 image::Fsc.png[]  
+
 The following picture shows 173 retry runs, each about 1 hour. 
+
 image::mf3.6000.png[]  
+
 91 out of these 173 runs produced a result better than 2 km/s:
+
 image::mf3.2000.png[] 
+
 69, more than a third reached the absolute minimum at 1.958 km/s. 
+
 image::mf3.1959.png[] 
+
 Using this CMA-ES implementation with parallel retry performs > 800000 messenger_full evaluations per second
 on an AMD 3950x processor. This outperforms both the official
 https://github.com/CMA-ES/pycma[CMA-ES] implementation and scipy differential evolution.
