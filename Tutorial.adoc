@@ -1,5 +1,6 @@
 :encoding: utf-8
 :imagesdir: img
+:cpp: C++
 
 == How to use fcmaes
 
@@ -112,7 +113,7 @@ increment these limits proportionally. We get:
 ----
 CMA-ES was the default optimizer in earlier versions of fcmaes, we see why it was replaced by a DE->CMA sequence.
 Although not bad, we get only three out of ten "hits". It is slower, but this can be fixed by using 
-`Cma_cpp(2000)`, the C++ variant instead.
+`Cma_cpp(2000)`, the {cpp} variant instead.
 
 ==== Parallel Retry
 
@@ -229,9 +230,9 @@ We get:
 ----
 For 1000 retries we need 818 seconds and get a decent result of -1467685.
 
-==== Serial Loop using CMA C++
+==== Serial Loop using CMA {cpp}
 
-The Python CMA implementation can easily be replaced by the C++ one:
+The Python CMA implementation can easily be replaced by the {cpp} one:
 
 [source,python]
 ----

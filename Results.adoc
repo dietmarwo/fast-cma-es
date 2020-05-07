@@ -1,5 +1,6 @@
 :encoding: utf-8
 :imagesdir: img
+:cpp: C++
 
 == Results
 
@@ -19,10 +20,10 @@ executing 32 retries in parallel:
 using the following optimization algorithms:
 
 - sequence DE -> CMA, default algorithm
-- CMA - C++ implementation
-- DE - differential evolution, C++ implementation
+- CMA - {cpp} implementation
+- DE - differential evolution, {cpp} implementation
 - sequence DA -> CMA
-- DA - dual annealing, C++ implementation
+- DA - dual annealing, {cpp} implementation
 - scipy dual annealing
 - scipy differential evolution 
 
