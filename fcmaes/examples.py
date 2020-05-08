@@ -16,7 +16,6 @@ def test_all(max_evals = 50000, num_retries = 2000, num = 10):
     _test_optimizer(de_cma(max_evaluations=max_evals), Messenger(), num_retries, num) 
     _test_optimizer(de_cma(max_evaluations=max_evals), Gtoc1(), num_retries, num) 
     _test_optimizer(de_cma(max_evaluations=max_evals), MessFull(), num_retries, num) 
-    _test_optimizer(de_cma(max_evaluations=max_evals), MessFull(), num_retries, num) 
   
     _test_optimizer(da_cma(max_evaluations=max_evals), Cassini1(), num_retries, num) 
     _test_optimizer(da_cma(max_evaluations=max_evals), Cassini2(), num_retries, num) 
