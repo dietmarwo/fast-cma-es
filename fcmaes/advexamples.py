@@ -11,61 +11,61 @@ def messengerFullLoop():
     while True:    
         problem = MessFull()
         logger().info(problem.name + ' de + cmaes c++')
-        ret = minimize(problem.fun, bounds=problem.bounds, num_retries = 40000, 
+        ret = minimize(problem.fun, bounds=problem.bounds, num_retries = 60000, 
             value_limit = 10.0, logger = logger())
                
-def test_all(num_retries = 5000, num = 10):
-    
-    _test_optimizer(de_cma(2000), Cassini1(), num_retries, num) 
-    _test_optimizer(de_cma(2000), Cassini2(), num_retries, num) 
-    _test_optimizer(de_cma(2000), Rosetta(), num_retries, num) 
-    _test_optimizer(de_cma(2000), Messenger(), num_retries, num) 
-    _test_optimizer(de_cma(2000), Gtoc1(), num_retries, num) 
-    _test_optimizer(de_cma(2000), MessFull(), num_retries, num) 
-  
-    _test_optimizer(da_cma(2000), Cassini1(), num_retries, num) 
-    _test_optimizer(da_cma(2000), Cassini2(), num_retries, num) 
-    _test_optimizer(da_cma(2000), Rosetta(), num_retries, num) 
-    _test_optimizer(da_cma(2000), Messenger(), num_retries, num) 
-    _test_optimizer(da_cma(2000), Gtoc1(), num_retries, num) 
-    _test_optimizer(da_cma(2000), MessFull(), num_retries, num) 
-  
-    _test_optimizer(Cma_cpp(2000), Cassini1(), num_retries, num) 
-    _test_optimizer(Cma_cpp(2000), Cassini2(), num_retries, num) 
-    _test_optimizer(Cma_cpp(2000), Rosetta(), num_retries, num) 
-    _test_optimizer(Cma_cpp(2000), Messenger(), num_retries, num) 
-    _test_optimizer(Cma_cpp(2000), Gtoc1(), num_retries, num) 
-    _test_optimizer(Cma_cpp(2000), MessFull(), num_retries, num) 
-  
-    _test_optimizer(De_cpp(2000), Cassini1(), num_retries, num) 
-    _test_optimizer(De_cpp(2000), Cassini2(), num_retries, num) 
-    _test_optimizer(De_cpp(2000), Rosetta(), num_retries, num) 
-    _test_optimizer(De_cpp(2000), Messenger(), num_retries, num) 
-    _test_optimizer(De_cpp(2000), Gtoc1(), num_retries, num) 
-    _test_optimizer(De_cpp(2000), MessFull(), num_retries, num) 
+def test_all(min_evals = 1000, num_retries = 10000, num = 10):
 
-    _test_optimizer(Da_cpp(2000), Cassini1(), num_retries, num) 
-    _test_optimizer(Da_cpp(2000), Cassini2(), num_retries, num) 
-    _test_optimizer(Da_cpp(2000), Rosetta(), num_retries, num) 
-    _test_optimizer(Da_cpp(2000), Messenger(), num_retries, num) 
-    _test_optimizer(Da_cpp(2000), Gtoc1(), num_retries, num) 
-    _test_optimizer(Da_cpp(2000), MessFull(), num_retries, num) 
-    
-    _test_optimizer(Dual_annealing(2000), Cassini1(), num_retries, num) 
-    _test_optimizer(Dual_annealing(2000), Cassini2(), num_retries, num) 
-    _test_optimizer(Dual_annealing(2000), Rosetta(), num_retries, num) 
-    _test_optimizer(Dual_annealing(2000), Messenger(), num_retries, num) 
-    _test_optimizer(Dual_annealing(2000), Gtoc1(), num_retries, num) 
-    _test_optimizer(Dual_annealing(2000), MessFull(), num_retries, num) 
-    
-    _test_optimizer(Differential_evolution(2000), Cassini1(), num_retries, num) 
-    _test_optimizer(Differential_evolution(2000), Cassini2(), num_retries, num) 
-    _test_optimizer(Differential_evolution(2000), Rosetta(), num_retries, num) 
-    _test_optimizer(Differential_evolution(2000), Messenger(), num_retries, num) 
-    _test_optimizer(Differential_evolution(2000), Gtoc1(), num_retries, num) 
-    _test_optimizer(Differential_evolution(2000), MessFull(), num_retries, num) 
+    _test_optimizer(de_cma(min_evals), Cassini1(), num_retries, num) 
+    _test_optimizer(de_cma(min_evals), Cassini2(), num_retries, num) 
+    _test_optimizer(de_cma(min_evals), Rosetta(), num_retries, num) 
+    _test_optimizer(de_cma(min_evals), Messenger(), num_retries, num) 
+    _test_optimizer(de_cma(min_evals), Gtoc1(), num_retries, num) 
+    _test_optimizer(de_cma(min_evals), MessFull(), num_retries, num) 
+  
+    _test_optimizer(da_cma(min_evals), Cassini1(), num_retries, num) 
+    _test_optimizer(da_cma(min_evals), Cassini2(), num_retries, num) 
+    _test_optimizer(da_cma(min_evals), Rosetta(), num_retries, num) 
+    _test_optimizer(da_cma(min_evals), Messenger(), num_retries, num) 
+    _test_optimizer(da_cma(min_evals), Gtoc1(), num_retries, num) 
+    _test_optimizer(da_cma(min_evals), MessFull(), num_retries, num) 
+  
+    _test_optimizer(Cma_cpp(min_evals), Cassini1(), num_retries, num) 
+    _test_optimizer(Cma_cpp(min_evals), Cassini2(), num_retries, num) 
+    _test_optimizer(Cma_cpp(min_evals), Rosetta(), num_retries, num) 
+    _test_optimizer(Cma_cpp(min_evals), Messenger(), num_retries, num) 
+    _test_optimizer(Cma_cpp(min_evals), Gtoc1(), num_retries, num) 
+    _test_optimizer(Cma_cpp(min_evals), MessFull(), num_retries, num) 
+  
+    _test_optimizer(De_cpp(min_evals), Cassini1(), num_retries, num) 
+    _test_optimizer(De_cpp(min_evals), Cassini2(), num_retries, num) 
+    _test_optimizer(De_cpp(min_evals), Rosetta(), num_retries, num) 
+    _test_optimizer(De_cpp(min_evals), Messenger(), num_retries, num) 
+    _test_optimizer(De_cpp(min_evals), Gtoc1(), num_retries, num) 
+    _test_optimizer(De_cpp(min_evals), MessFull(), num_retries, num) 
 
-def _test_optimizer(opt, problem, num_retries = 4000, num = 1, value_limit = 20.0, log = logger()):
+    _test_optimizer(Da_cpp(min_evals), Cassini1(), num_retries, num) 
+    _test_optimizer(Da_cpp(min_evals), Cassini2(), num_retries, num) 
+    _test_optimizer(Da_cpp(min_evals), Rosetta(), num_retries, num) 
+    _test_optimizer(Da_cpp(min_evals), Messenger(), num_retries, num) 
+    _test_optimizer(Da_cpp(min_evals), Gtoc1(), num_retries, num) 
+    _test_optimizer(Da_cpp(min_evals), MessFull(), num_retries, num) 
+    
+    _test_optimizer(Dual_annealing(min_evals), Cassini1(), num_retries, num) 
+    _test_optimizer(Dual_annealing(min_evals), Cassini2(), num_retries, num) 
+    _test_optimizer(Dual_annealing(min_evals), Rosetta(), num_retries, num) 
+    _test_optimizer(Dual_annealing(min_evals), Messenger(), num_retries, num) 
+    _test_optimizer(Dual_annealing(min_evals), Gtoc1(), num_retries, num) 
+    _test_optimizer(Dual_annealing(min_evals), MessFull(), num_retries, num) 
+    
+    _test_optimizer(Differential_evolution(min_evals), Cassini1(), num_retries, num) 
+    _test_optimizer(Differential_evolution(min_evals), Cassini2(), num_retries, num) 
+    _test_optimizer(Differential_evolution(min_evals), Rosetta(), num_retries, num) 
+    _test_optimizer(Differential_evolution(min_evals), Messenger(), num_retries, num) 
+    _test_optimizer(Differential_evolution(min_evals), Gtoc1(), num_retries, num) 
+    _test_optimizer(Differential_evolution(min_evals), MessFull(), num_retries, num) 
+
+def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 20.0, log = logger()):
     log.info(problem.name + ' ' + opt.name)
     for i in range(num):
         ret = minimize(problem.fun, problem.bounds, value_limit, num_retries, log, optimizer=opt)

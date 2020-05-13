@@ -248,7 +248,7 @@ class Basin_hopping(Optimizer):
     """scipy basin hopping."""
  
     def __init__(self, max_evaluations=50000, store=None):        
-        Optimizer.__init__(self, max_evaluations, 'scipy de')
+        Optimizer.__init__(self, max_evaluations, 'scipy basin hopping')
          
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
         localevals = 200
