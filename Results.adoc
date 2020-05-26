@@ -7,12 +7,13 @@
 === Space Mission Design
 
 Both parallel retry and coordinated parallel retry were applied on an AMD 3950x processor
-to the following six space mission design benchmarks utilizing all 16 processor cores
+to the following seven space mission design benchmarks utilizing all 16 processor cores
 executing 32 retries in parallel:
 
 - https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1]
 - https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2]
 - https://www.esa.int/gsp/ACT/projects/gtop/rosetta/[Rosetta]
+- https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem]
 - https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1]
 - https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/[Messenger reduced]
 - https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full]
@@ -68,6 +69,14 @@ image::Rosetta_da_cpp.png[]
 image::Rosetta_scipy_da.png[]
 image::Rosetta_scipy_de.png[]
 
+image::Tandem_de_cpp_cma_cpp.png[]
+image::Tandem_cma_cpp.png[]
+image::Tandem_de_cpp.png[]
+image::Tandem_da_cpp_cma_cpp.png[]
+image::Tandem_da_cpp.png[]
+image::Tandem_scipy_da.png[]
+image::Tandem_scipy_de.png[]
+
 image::messenger_reduced_de_cpp_cma_cpp.png[]
 image::messenger_reduced_cma_cpp.png[]
 image::messenger_reduced_de_cpp.png[]
@@ -94,8 +103,8 @@ examples.test_all()
 advexamples.test_all()
 ----
 
-Check optimizer.log for the results. 
-
+Check optimizer.log for the results.
+   
 === Protein Folding
 
 The AB off-lattice models of protein folding is another interesting real life optimization benchmark. 

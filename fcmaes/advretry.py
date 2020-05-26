@@ -29,7 +29,7 @@ def minimize(fun,
              logger = None,
              workers = mp.cpu_count(),
              popsize = 31, 
-             min_evaluations = 1000, 
+             min_evaluations = 1500, 
              max_eval_fac = 50, 
              check_interval = 100,
              stop_fittness = None,
@@ -210,15 +210,15 @@ class Store(object):
         ys = np.asarray(self.ys[:ns])
         yi = ys.argsort()
         sortRuns = []
-        yprev = None
-        xprev = None
+        yprev = xprev = yprev2 = xprev2 = None
         for i in range(len(yi)):
             y = ys[yi[i]]
             x = self.get_x(yi[i])
-            if i == 0 or self.distance(yprev, y, xprev, x) > 0.15:
+            if (yprev is None or (self.distance(yprev, y, xprev, x) > 0.15) and 
+                (yprev2 is None or self.distance(yprev2, y, xprev2, x) > 0.15)):
                 sortRuns.append((y, x, self.get_lower(yi[i]), self.get_upper(yi[i])))
-                yprev = y
-                xprev = x
+                yprev2, xprev2 = yprev, xprev
+                yprev, xprev = y, x
         numStored = min(len(sortRuns),int(0.9*self.capacity)) # keep 90% best 
         for i in range(numStored):
             self.replace(i, sortRuns[i][0], sortRuns[i][1], sortRuns[i][2], sortRuns[i][3])

@@ -1,0 +1,442 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+== Solving the PYKEP trajopt/gym Reference Problems
+
+PYKEP provides a number of https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[reference problems] for testing optimization methods, many of them replacing the old problems described in https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results]
+The new implementations have many advantages:
+- Implemented in Python so they can easily be adapted.
+- Provide pretty prints and plots of the computed trajectories. 
+- Based on a modern C++-backend, for instance the used Lambert solver is much more flexible.
+
+The new problems are about factor 5 slower to evaluate than the old C++ based implementations. 
+This means that it is now more important to reduce the number of objective function calls than to optimize the
+efficiency of the optimization algorithm itself.    
+
+Another disadvantage is that there are no reference solutions yet you can compare to. 
+These problems are implemented as PAGMO-UDPs (see https://esa.github.io/pagmo2/docs/cpp/problem.html[Problem/UDP]), so solving them with PYGMO/PAGMO seems natural. Unfortunately no hints are given how to optimally configure the topology of a https://esa.github.io/pagmo2/docs/cpp/archipelago.html[PAGMO-Archipelago] for these problems. 
+https://esa.github.io/pykep/examples/ex13.html[Example 13] shows how to apply PAGMO algorithms single threaded to these problems, 
+but not how to parallelize the optimization. 
+
+Since these problems are single objective and unconstrained - or can be made so by using https://esa.github.io/pagmo2/docs/cpp/problems/unconstrain.html[unconstrain] - we can at least show what fcmaes can do:
+
+=== Applying fcmaes coordinated retry to PYKEP trajopt/gym
+See https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[trajopt/gym] for complete list of the problems. 
+
+==== Tandem
+
+https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_tandem.py[Tandem] is a rendezvous mission to Saturn modeled as an MGA-1DSM transfer. Mission parameters are inspired by the TandEM mission. A launcher model (i.e. Atlas 501) is also used, so that the final mass delivered at Saturn is the main objective of this optimization problem.
+
+The problem includes several planet sequences, here we choose the 6th one '[earth, venus, earth, earth, saturn]'
+which leads to the best solution.
+
+First we need to wrap the PAGMO problem for fcmaes.
+
+[source,python]
+----
+import pygmo as pg
+import pykep as pk
+from fcmaes import advretry
+from fcmaes.optimizer import logger, de_cma
+from scipy.optimize import Bounds
+
+class fcmaes_problem:
+      
+    def __init__(self, pagmo_prob):
+        self.pagmo_prob = pagmo_prob
+        self.name = pagmo_prob.get_name() 
+        self.fun = self.fitness
+        lb, ub = pagmo_prob.get_bounds()
+        self.bounds = Bounds(lb, ub)
+         
+    def fitness(self,X):
+        try:
+            val = self.pagmo_prob.fitness(X)
+        except Exception as ex:
+            return 1E12
+        return val[0]
+
+def test_problem(opt, problem, num_retries = 10000, num = 3, value_limit = math.inf, log = logger()):
+    log.info(problem.name + ' ' + opt.name)
+    for _ in range(num):
+        _ = advretry.minimize(problem.fun, problem.bounds, value_limit, num_retries, log, optimizer=opt)
+---- 
+Sometimes these problems throw nasty exceptions even when called with feasible arguments, so we have to catch them.
+'test_problem' calls the coordinated retry 'num' times, each executing 'num_retries' optimization runs. 
+
+Now we are ready to apply the fcmaes default optimizer 'de_cma', a sequence of differential evolution and CMA-ES, to the
+Tandem problem:
+
+[source,python]
+----
+tandem = pk.trajopt.gym.tandem(6)
+uda = pg.unconstrain(tandem, method = "weighted", weights=[10]*tandem.get_nic())
+opt = de_cma(de_max_evals = 750, cma_max_evals = 750)
+test_problem(opt, fcmaes_problem(pg.problem(uda)), num_retries = 20000, value_limit = 0)
+----
+We assign both to DE and CMA-ES 750 function evaluations per optimization run. This number will increase each 100 runs
+up to factor 50. Tandem is a difficult problem, so we increase the number of retries to 20000. 'value_limit = 0'
+means bad runs/values will not be stored and used as basis for new runs. For easier problems this can be left at the default.    
+
+After about three hours on an AMD 3950X sixteen core machine we get:
+----
+solution = [7985.2005463509195, 0.9030011694679589, 0.3590118628421891, 3319.4873498469165, 0.013884406331823213, 169.39189888962179, -1.151661383078681, 1.050000000000008, 0.11740075310407928, 338.512464914102, -1.6796842963039957, 1.1003653467864567, 0.6019983639984013, 1178.9023407204934, -2.0265823052439456, 1.05000000000032, 0.05055146337411492, 1762.610851218632]
+
+fitness = -7.30677225
+First Leg: earth to venus
+Departure: 2021-Nov-11 04:48:47.204719 (7985.2005463509195 mjd2000) 
+Duration: 169.39189888962179days
+VINF: 3.3194873498469164 km/sec
+DSM after 2.351905953502622 days
+DSM magnitude: 8.139343635357746e-09m/s
+
+leg no. 2: venus to earth
+Duration: 338.512464914102days
+Fly-by epoch: 2022-Apr-29 14:13:07.268783 (8154.592445240542 mjd2000) 
+Fly-by radius: 1.050000000000008 planetary radii
+DSM after 39.74161831603379 days
+DSM magnitude: 1.513243010013376e-09m/s
+
+leg no. 3: earth to earth
+Duration: 1178.9023407204934days
+Fly-by epoch: 2023-Apr-03 02:31:04.237361 (8493.104910154643 mjd2000) 
+Fly-by radius: 1.1003653467864567 planetary radii
+DSM after 709.6972804276229 days
+DSM magnitude: 177.02562259814547m/s
+
+leg no. 4: earth to saturn
+Duration: 1762.610851218632days
+Fly-by epoch: 2026-Jun-25 00:10:26.475612 (9672.007250875136 mjd2000) 
+Fly-by radius: 1.05000000000032 planetary radii
+DSM after 89.10255788819619 days
+DSM magnitude: 3.035843180184029e-09m/s
+
+Arrival at saturn
+Arrival epoch: 2031-Apr-22 14:50:04.020902 (11434.61810209377 mjd2000) 
+Arrival Vinf: 6017.457155646168m/s
+Insertion DV: 696.6382951176456m/s
+Total mission time: 9.443990570137847 years (3449.417555742849 days)
+
+Initial mass: [2092.76404805]
+Final mass: [1490.35891505]
+Declination: 28.49999999999617
+----
+image::tandem1.png[]
+
+Eventually a second retry run is necessary. 
+
+==== Messenger
+https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_messenger.py[Messenger] represents a mission to Mercury modeled as an MGA-1DSM transfer. The selected fly-by sequence, E-VVMeMeMe-Me, and other parameters are inspired to the Messenger mission.
+As the corresponding GTOP benchmark already described in Readme.adoc this is a hard problem requiring a higher number of optimization retries to solve it:
+
+[source,python]
+----
+prob = fcmaes_problem(pg.problem(pk.trajopt.gym.messenger))
+opt = de_cma(de_max_evals = 500, cma_max_evals = 500)
+test_problem(opt, prob, num_retries = 100000, value_limit = 12000)
+----
+Lowering the number of evaluations per retry and increasing the number of retries makes the optimization slower but widens the search to avoid getting stuck at local minima. Because of different possible resonances at Mercury Messenger has nasty local minima around fitness = 2400 which are hard to overcome, something the PAGMO team already recognized back in https://www.researchgate.net/publication/45913344_A_Global_Optimisation_Toolbox_for_Massively_Parallel_Engineering_Optimisation[2010] with the GTOP-variant of the problem. 
+
+After at least five hours on an AMD 3950X sixteen core machine (often it needs longer) we get:
+----
+solution = [2038.4736860390676, 0.6642050463374125, 0.634423807704011, 4049.999077261127, 0.4341666447516408, 451.63078577199883, -3.5111183225692955, 1.6980994436626364, 0.18066690678458555, 224.70119538674018, 1.5700355377783735, 1.1000011238527514, 0.695576590101669, 221.31897889904195, -3.6723464846600904, 1.0500107554228542, 0.7420710057520162, 265.99675406363514, -4.649955978159977, 1.0501275981581841, 0.8290240018499924, 357.96269678842157, 1.5807055451082577, 1.0503396683797719, 0.9029577050599082, 534.1293657177227]
+
+fitness = 1962.7194499524037
+
+First Leg: earth to venus
+Departure: 2005-Jul-31 11:22:06.473775 (2038.4736860390676 mjd2000) 
+Duration: 451.63078577199883days
+VINF: 4.049999077261127 km/sec
+DSM after 196.0830229251758 days
+DSM magnitude: 0.004660230945606301m/s
+
+leg no. 2: venus to venus
+Duration: 224.70119538674018days
+Fly-by epoch: 2006-Oct-26 02:30:26.364476 (2490.1044718110666 mjd2000) 
+Fly-by radius: 1.6980994436626364 planetary radii
+DSM after 40.59606992132113 days
+DSM magnitude: 0.06026467291201602m/s
+
+leg no. 3: venus to mercury
+Duration: 221.31897889904195days
+Fly-by epoch: 2007-Jun-07 19:20:09.645890 (2714.8056671978065 mjd2000) 
+Fly-by radius: 1.1000011238527514 planetary radii
+DSM after 153.94430066737883 days
+DSM magnitude: 602.3225699674765m/s
+
+leg no. 4: mercury to mercury
+Duration: 265.99675406363514days
+Fly-by epoch: 2008-Jan-15 02:59:29.422768 (2936.1246460968487 mjd2000) 
+Fly-by radius: 1.0500107554228542 planetary radii
+DSM after 197.38847881477344 days
+DSM magnitude: 74.95713577573513m/s
+
+leg no. 5: mercury to mercury
+Duration: 357.96269678842157days
+Fly-by epoch: 2008-Oct-07 02:54:48.973866 (3202.121400160484 mjd2000) 
+Fly-by radius: 1.0501275981581841 planetary radii
+DSM after 296.75966740455266 days
+DSM magnitude: 204.77715962193437m/s
+
+leg no. 6: mercury to mercury
+Duration: 534.1293657177227days
+Fly-by epoch: 2009-Sep-30 02:01:05.976385 (3560.0840969489054 mjd2000) 
+Fly-by radius: 1.0503396683797719 planetary radii
+DSM after 482.29622627357935 days
+DSM magnitude: 172.40605634839977m/s
+
+Arrival at mercury
+Arrival epoch: 2011-Mar-18 05:07:23.174397 (4094.2134626666284 mjd2000) 
+Arrival Vinf: 2281.269371304558m/s
+Insertion DV: 908.1916033350003m/s
+Total mission time: 5.628308765578537 years (2055.739776627561 days)
+----
+image::messenger1.png[]
+
+The rest of the problems are easy and can be solved in a single loop:
+
+[source,python]
+----
+udas=[pk.trajopt.gym.cassini2, 
+          pk.trajopt.gym.eve_mga1dsm, 
+          pk.trajopt.gym.rosetta, 
+          pk.trajopt.gym.juice, 
+          pk.trajopt.gym.em5imp, 
+          pk.trajopt.gym.em7imp]
+
+opt = de_cma(de_max_evals = 750, cma_max_evals = 750)
+
+for uda in udas:
+	test_problem(opt, fcmaes_problem(pg.problem(uda)), num_retries = 10000, value_limit = 100000)
+----
+We expect a 'hit' already at the first try here where 'Messenger' eventually needs a second or even a third try to succeed. 
+
+==== Juice
+https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_juice.py[Juice] represents rendezvous mission to Jupiter modelled as an MGA-1DSM transfer. The selected fly-by sequence, E-EVEME-J, and other parameters are inspired to the ESA Juice mission. A launcher model is included, namely an Ariane5
+launch from Kourou. JUICE - JUpiter ICy moons Explorer - is the first large-class mission in ESA's Cosmic Vision 2015-2025 programme.
+Planned for launch in 2022 and arrival at Jupiter in 2029, it will spend at least three years making detailed
+observations of the giant gaseous planet Jupiter and three of its largest moons, Ganymede, Callisto and Europa.
+
+Juice is a very easy optimization problem, it takes about three minutes to surpass -7.99 (on a 16 core machine) and about 12 minutes to reach the solution below. 
+In fact it is so easy, that the coordinated retry is only required to find a "nearly optimal" solution. Using the DE->CMA-ES sequence with a fixed 50000 evaluation limit
+you will usually find a solution better than -7.99 using < 64 retries, which needs about 13 to 26 sec. But you will never find a solution < -7.9994 this way. 
+So when you are checking planet sequences to select one for the final optimization, the regular retry (fcmaes.retry) could be the fastest way to go. In one hour you 
+could check about 150 sequences. But be careful when there are many resonances as for the Messenger problem above. You could try other algorithms from
+https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO] which can easily be wrapped for usage with fcmaes.retry, but some of them are not easy to configure. 
+----
+solution = [8108.340864247543, 0.14265429780355834, 0.33964213005840077, 1000.0000080132397, 0.35092639600144443, 436.4274930596665, -4.052861631438546, 3.675356452528689, 0.10741066029466867, 149.0438085981111, -2.1631291025507076, 2.490048280168779, 0.010425812895849209, 315.36502811323714, 4.323135321315694, 1.3233114321446018, 0.03535422310799622, 164.26715796380074, 0.5490453386771064, 1.3808119312886746, 0.23609744554327003, 651.2673270168585, -1.346307881836456, 1.5235742458893275, 0.11717130589660309, 1107.410033856678]
+
+fitness = -7.999414363029065
+First Leg: earth to earth
+Departure: 2022-Mar-14 08:10:50.670988 (8108.340864247543 mjd2000) 
+Duration: 436.4274930596665days
+VINF: 1.0000000080132396 km/sec
+DSM after 153.15392725537419 days
+DSM magnitude: 858.1954903986241m/s
+
+leg no. 2: earth to venus
+Duration: 149.0438085981111days
+Fly-by epoch: 2023-May-24 18:26:26.071343 (8544.76835730721 mjd2000) 
+Fly-by radius: 3.675356452528689 planetary radii
+DSM after 16.008893894355328 days
+DSM magnitude: 1.1778007011370638e-06m/s
+
+leg no. 3: venus to earth
+Duration: 315.36502811323714days
+Fly-by epoch: 2023-Oct-20 19:29:31.134220 (8693.812165905321 mjd2000) 
+Fly-by radius: 2.490048280168779 planetary radii
+DSM after 3.287936777002836 days
+DSM magnitude: 3.1286927338502165e-06m/s
+
+leg no. 4: earth to mars
+Duration: 164.26715796380074days
+Fly-by epoch: 2024-Aug-31 04:15:09.563203 (9009.177194018557 mjd2000) 
+Fly-by radius: 1.3233114321446018 planetary radii
+DSM after 5.8075377519686695 days
+DSM magnitude: 4.437463434131599e-06m/s
+
+leg no. 5: mars to earth
+Duration: 651.2673270168585days
+Fly-by epoch: 2025-Feb-11 10:39:52.011276 (9173.444351982358 mjd2000) 
+Fly-by radius: 1.3808119312886746 planetary radii
+DSM after 153.7625522744738 days
+DSM magnitude: 2.233524200245386e-06m/s
+
+leg no. 6: earth to jupiter
+Duration: 1107.410033856678days
+Fly-by epoch: 2026-Nov-24 17:04:49.065532 (9824.711678999218 mjd2000) 
+Fly-by radius: 1.5235742458893275 planetary radii
+DSM after 129.7566798299884 days
+DSM magnitude: 1.6416885164011999e-06m/s
+
+Arrival at jupiter
+Arrival epoch: 2029-Dec-06 02:55:15.990750 (10932.121712855896 mjd2000) 
+Arrival Vinf: 5584.689535619848m/s
+Insertion DV: 1038.8238384424221m/s
+Total mission time: 7.7310906190509305 years (2823.7808486083522 days)
+
+Initial mass: [6058.99999482]
+Final mass: [2979.21273893]
+Declination: -5.8308136937633926e-08
+----
+image::juice.png[]
+
+==== Cassini2
+https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_cassini2.py[Cassini2] is a MGA-1DSM mission to reach Saturn and to be captured by its gravity.
+The planetary fly-by sequence considered is Earth, Venus, Venus, Earth, Jupiter, Saturn (as the one used by Cassini spacecraft).
+A score < 730 is usually reached after three minutes. But unlike Juice, the coordinated retry is required for this. 
+----
+solution = [-798.1255840834085, 0.9640536574861399, 0.3842218637483862, 4999.999999998122, 0.054074087669290435, 200.6367375026563, 4.499361877566994, 1.8874938091428237, 0.4971735916709705, 410.34433523595055, -1.9594016768524416, 1.0500000000006968, 0.1669972234371695, 53.27314941868789, 4.727848530339341, 1.3063321404420816, 0.8999999999402388, 588.1308355706944, 4.769745501055804, 70.0, 0.015517225867226283, 2199.999999999682]
+
+fitness = 729.0073774509763
+
+First Leg: earth to venus
+Departure: 1997-Oct-24 20:59:09.535193 (-798.1255840834085 mjd2000) 
+Duration: 200.6367375026563days
+VINF: 4.9999999999981215 km/sec
+DSM after 10.849248533399049 days
+DSM magnitude: 4.038300502236277e-10m/s
+
+leg no. 2: venus to venus
+Duration: 410.34433523595055days
+Fly-by epoch: 1998-May-13 12:16:03.655423 (-597.4888465807522 mjd2000) 
+Fly-by radius: 1.8874938091428237 planetary radii
+DSM after 204.01236697109434 days
+DSM magnitude: 238.54041795196787m/s
+
+leg no. 3: venus to earth
+Duration: 53.27314941868789days
+Fly-by epoch: 1999-Jun-27 20:31:54.219809 (-187.14451134480169 mjd2000) 
+Fly-by radius: 1.0500000000006968 planetary radii
+DSM after 8.896468036674339 days
+DSM magnitude: 8.213846331383754e-10m/s
+
+leg no. 4: earth to jupiter
+Duration: 588.1308355706944days
+Fly-by epoch: 1999-Aug-20 03:05:14.329584 (-133.87136192611376 mjd2000) 
+Fly-by radius: 1.3063321404420816 planetary radii
+DSM after 529.3177519784776 days
+DSM magnitude: 16.41400147219909m/s
+
+leg no. 5: jupiter to saturn
+Duration: 2199.999999999682days
+Fly-by epoch: 2001-Mar-30 06:13:38.522892 (454.25947364458057 mjd2000) 
+Fly-by radius: 70.0 planetary radii
+DSM after 34.13789690789289 days
+DSM magnitude: 5.749616809027544e-09m/s
+
+Arrival at saturn
+Arrival epoch: 2007-Apr-08 06:13:38.522864 (2654.2594736442625 mjd2000) 
+Arrival Vinf: 4260.809617220865m/s
+Insertion DV: 474.0529580198345m/s
+Total mission time: 9.45211514778281 years (3452.385057727671 days)
+----
+image::cassini2.png[]
+
+==== Earth-Venus-Earth mga-1dsm
+https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_eve_mga1dsm.py[EVE] is a MGA-1DSM mission to Venus returning to Earth. A good score is usually found in a few seconds. 
+----
+solution = [946.5833262188481, 0.6183687175025218, 0.3663093221347987, 2499.999999999999, 0.14694954450113987, 123.97290946310139, -0.805792681834026, 1.1, 0.3272449823968612, 397.2667888747656]
+
+fitness = 4082.4897306048315,)
+First Leg: earth to venus
+Departure: 2002-Aug-04 13:59:59.385308 (946.5833262188481 mjd2000) 
+Duration: 123.97290946310139days
+VINF: 2.499999999999999 km/sec
+DSM after 18.2177625760838 days
+DSM magnitude: 302.2101312485047m/s
+
+leg no. 2: venus to earth
+Duration: 397.2667888747656days
+Fly-by epoch: 2002-Dec-06 13:20:58.762920 (1070.5562356819496 mjd2000) 
+Fly-by radius: 1.1 planetary radii
+DSM after 130.00356333218025 days
+DSM magnitude: 2639.993724949317m/s
+
+Arrival at earth
+Arrival epoch: 2004-Jan-07 19:45:09.321700 (1467.8230245567152 mjd2000) 
+Arrival Vinf: 1140.2858744070097m/s
+Total mission time: 1.4270765183788283 years (521.239698337867 days)
+----
+image::eve.png[]
+ 
+==== Rosetta
+https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_rosetta.py[Rosetta] rendezvous mission to the comet 67P/Churyumov-Gerasimenko modelled as an MGA-1DSM transfer. The fly-by sequence selected (i.e. E-EMEE-C) is similar to the one planned for the spacecraft Rosetta. The objective function considered is the total mission delta V. No launcher model is employed and a final rendezvous with the comet is included in the delta V computations.
+
+A score < 1350 is usually reached after three to five minutes. Its possible but not easy to get such a score without the coordinated retry. 
+----
+solution = [1543.2661408844722, 0.4934153600800337, 0.573351934777993, 4473.451666918325, 0.3729421882864208, 365.2561380887397, -1.6870315844374006, 3.0198930373784543, 0.8096906876626856, 707.9394006716375, 1.7884664717587317, 1.0499999999999998, 0.15802481556983658, 257.29067507087234, -1.7503278875941164, 3.1330604892167573, 0.643510171783615, 730.5078897991023, 4.332094684590686, 1.1005638208186208, 0.4358604536498662, 1849.999962373143]
+
+fitness = 1346.8640572197792
+
+First Leg: earth to earth
+Departure: 2004-Mar-23 06:23:14.572418 (1543.2661408844722 mjd2000) 
+Duration: 365.2561380887397days
+VINF: 4.473451666918325 km/sec
+DSM after 136.21942342386168 days
+DSM magnitude: 2.9724564566919556e-05m/s
+
+leg no. 2: earth to mars
+Duration: 707.9394006716375days
+Fly-by epoch: 2005-Mar-23 12:32:04.903286 (1908.522278973212 mjd2000) 
+Fly-by radius: 3.0198930373784543 planetary radii
+DSM after 573.2119401533276 days
+DSM magnitude: 79.03578114684694m/s
+
+leg no. 3: mars to earth
+Duration: 257.29067507087234days
+Fly-by epoch: 2007-Mar-01 11:04:49.121315 (2616.461679644849 mjd2000) 
+Fly-by radius: 1.0499999999999998 planetary radii
+DSM after 40.65831147591335 days
+DSM magnitude: 5.485266854903277e-05m/s
+
+leg no. 4: earth to earth
+Duration: 730.5078897991023days
+Fly-by epoch: 2007-Nov-13 18:03:23.447438 (2873.7523547157216 mjd2000) 
+Fly-by radius: 3.1330604892167573 planetary radii
+DSM after 470.08925765390643 days
+DSM magnitude: 0.13130711687587276m/s
+
+leg no. 5: earth to Churyumov-Gerasimenko
+Duration: 1849.999962373143days
+Fly-by epoch: 2009-Nov-13 06:14:45.126081 (3604.260244514824 mjd2000) 
+Fly-by radius: 1.1005638208186208 planetary radii
+DSM after 806.3418228521936 days
+DSM magnitude: 793.2628173165956m/s
+
+Arrival at Churyumov-Gerasimenko
+Arrival epoch: 2014-Dec-07 06:14:41.875120 (5454.260206887967 mjd2000) 
+Arrival Vinf: 474.4340670622277m/s
+Total mission time: 10.707718182076645 years (3910.9940660034945 days)
+----
+image::rosetta.png[]
+
+==== Earth-Mars 5 impulses
+https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_emNimp_udp.py[Earth-Mars 5 impulses] is a 5 impulsive Deep Space Manouvres mission to reach Mars.
+A good score is reached after a few seconds.
+----
+solution = [10359.962016407258, 700.0, 0.792397890631979, 1.0, 0.8009792273038916, 0.0, 0.386976567420959, 0.9334318605507639, 0.5661862201543786, 2433.127502980495, 0.0010315860640127835, 0.8853736291405103, 0.36888093872468103, 0.0, 0.0349218381975402]
+
+fitness = 5628.592098319032
+
+Total DV (m/s):  5628.592098319032
+Dvs (m/s):  [0.0, 2433.127502980495, 0.0, 419.1083963569563, 2776.3561989815807]
+Tofs (days):  [14.271327937417231, 58.22758851188319, 421.7557808109648, 205.74530273973488]
+----
+image::earthmars5.png[]
+
+==== Earth-Mars 7 impulses
+https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_emNimp_udp.py[Earth-Mars 7 impulses] is a 7 impulsive Deep Space Manouvres mission to reach Mars.
+A good score is reached after a few seconds.
+----
+solution = [10359.96201621306, 699.99999999967, 0.8675858244378735, 0.980238773107442, 0.8654116976301882, 0.0, 0.5819397340477784, 0.9334318599048091, 0.5661862216940652, 2433.1275174375482, 0.969600805658548, 1.0, 0.9986677954486534, 0.0, 0.016922153243993637, 0.20270767737395895, 0.051295766859595894, 0.0, 0.8817674494223253, 0.9466891232243391, 0.490939062775394, 0.0, 0.12902376918710104]
+
+fitness = 5628.592098319043
+
+Total DV (m/s):  5628.592098319043
+Dvs (m/s):  [0.0, 2433.1275174375482, 0.0, 0.0, 0.0, 419.1083950393422, 2776.3561858421526]
+Tofs (days):  [14.271327774009604, 54.39513853881697, 3.1016979057927903, 409.8442782317333, 12.642260060314266, 205.74529748900304]
+----
+image::earthmars7.png[]
+

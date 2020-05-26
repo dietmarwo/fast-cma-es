@@ -5,7 +5,7 @@
 
 import numpy as np
 from numpy.random import MT19937, Generator
-from scipy.optimize import minimize, shgo, differential_evolution, dual_annealing, basinhopping
+from scipy.optimize import Bounds, minimize, shgo, differential_evolution, dual_annealing, basinhopping
 import sys
 import time
 import math
@@ -62,14 +62,31 @@ def dtime(t0):
     """time since t0."""
     return round(time.perf_counter() - t0, 2)
 
+class single_objective:
+    """Utility class to create a fcmaes problem from a pagmo problem."""
+      
+    def __init__(self, pagmo_prob):
+        self.pagmo_prob = pagmo_prob
+        self.name = pagmo_prob.get_name() 
+        self.fun = self.fitness
+        lb, ub = pagmo_prob.get_bounds()
+        self.bounds = Bounds(lb, ub)
+         
+    def fitness(self,X):
+        try:
+            val = self.pagmo_prob.fitness(X)
+        except Exception as ex:
+            return sys.float_info.max
+        return val[0]
+
 def de_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES."""
 
     if de_max_evals is None:
-        de_max_evals = int(0.2*max_evaluations)
+        de_max_evals = int(0.5*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int(0.8*max_evaluations)
+        cma_max_evals = int(0.5*max_evaluations)
     opt1 = De_cpp(max_evaluations = de_max_evals, stop_fittness = stop_fittness)
     opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
                    stop_fittness = stop_fittness)
@@ -80,9 +97,9 @@ def da_cma(max_evaluations = 50000, da_max_evals = None, cma_max_evals = None,
     """Sequence differential evolution -> CMA-ES."""
 
     if da_max_evals is None:
-        da_max_evals = int(0.2*max_evaluations)
+        da_max_evals = int(0.5*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int(0.8*max_evaluations)
+        cma_max_evals = int(0.5*max_evaluations)
     opt1 = Da_cpp(max_evaluations = da_max_evals, stop_fittness = stop_fittness)
     opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
                    stop_fittness = stop_fittness)

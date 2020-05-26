@@ -6,26 +6,28 @@
 
 fcmaes complements https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy optimize] by providing 
 additional optimization methods, faster {cpp}/Eigen based implementations and a coordinated parallel retry mechanism. 
-It supports the multi threaded application of different gradient free optimization algorithms. 
+It supports the multi threaded application of different gradient free optimization algorithms. The coordinated retry
+can be viewed as a new meta algorithm operating on a population of user defined optimization runs. Its default
+optimization algorithm is a sequence of differential evolution and CMA-ES well suited for many ill conditioned,
+non-continous or even non-deterministic objective functions. 
 
 === Documentation
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results]
+- https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results]
 
 === Features
 
-- fcmaes is focussed on optimization problems hard to solve.
-- minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
-- parallel coordinated retry of sequences of optimization algorithms
-- parallel function evaluation for CMA-ES
-- new differential evolution variant optimized for usage with parallel coordinated retry and the DE->CMA sequence. 
-- on modern many-core machines global minima can usually be found fast using the default parameters.  
+- fcmaes is focused on optimization problems hard to solve.
+- Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
+- Parallel coordinated retry of sequences of optimization algorithms.
+- Parallel function evaluation for CMA-ES
+- New differential evolution variant optimized for usage with parallel coordinated retry and the DE->CMA sequence. 
+- Integrates many scipy global optimizers for use with the coordinated retry.
+https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] optimizers can also be used. 
 
-Since fcmaes only supports boxed constraints other constraints have to be mapped to penalty functions. This is much
-easier with gradient free optimization algorithms.
-
-Although binaries for Windows are provided, we highly recommend using Linux since fcmaes Python multithreading is less performant on Windows. But the Linux subsystem for windows works fine if you want to execute optimizations on a Windows machine. 
+Binaries for Windows are provided, but it is highly recommend to use Linux since fcmaes Python multi processing is less performant on Windows. The Linux subsystem for windows works fine if you want to execute optimizations on a Windows machine. 
 
 === Optimization algorithms
 
@@ -55,6 +57,24 @@ Compile time (binaries for Linux and Windows are included):
 - pcg-cpp: https://github.com/imneme/pcg-cpp - used in all {cpp} optimization algorithms.
 - LBFGSpp: https://github.com/yixuan/LBFGSpp/tree/master/include - used for dual annealing local optimization.
 
+Optional dependencies:
+
+- pygmo2: https://github.com/esa/pygmo2[pygmo]. Install with 'pip install pygmo'. 
+
+=== Comparison with PYGMO/Archipelago
+
+There are different ways to enable parallelization and the exchange of information between optimization runs. Two examples are:
+
+* The approach implemented in fcmaes:
+- Topology of the parallelization is hidden from the user. A simple "minimize" call hides the complexity. Parallelism is implemented using multi-processing which scales better than
+multi-threading with the number of available processor cores.  
+* The https://esa.github.io/pagmo2/docs/cpp/archipelago.html[Archipelago] approach as implemented in https://esa.github.io/pagmo2/[PAGMO2]:
+- Topology has to be defined by the user including how nodes/https://esa.github.io/pagmo2/docs/cpp/island.html#_CPPv4N5pagmo6islandE[islands] exchange members of their populations. Members of these
+populations are solution vectors. This approach gives more control to the user but there is no simple default "minimize" call hiding the complexity. As default parallelism is implemented using multi-threading but it is possible to use multi-processing or even distributed CPUs.  
+
+PYGMO/PAGMO has direct support of constraints and multiple objectives where with fcmaes you have to use penalty functions. Exchange of information between parallel PAGMO threads is based on exchanging population members, which doesn't fit well with CMA-ES which recreates its whole population each generation.  
+
+https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] optimization algorithms can be used in fcmaes but not vice versa since the fcmaes {cpp} algorithms don't support an 'evolve()' function. PAGMO wraps NLopt solvers (https://esa.github.io/pygmo2/tutorials/nlopt_basics.html[NLopt in PYGMO]), so these also can be used in fcmaes. 
  
 === Installation
 

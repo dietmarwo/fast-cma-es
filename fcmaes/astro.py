@@ -79,7 +79,36 @@ class Rosetta(object):
             [1460,3,0,0,300,150,150,300,700,0.01,0.01,0.01,0.01,0.01,1.05,1.05,1.05,1.05, -math.pi, -math.pi, -math.pi, -math.pi],
             [1825,5,1,1,500,800,800,800,1850,0.9,0.9,0.9,0.9,0.9,9,9,9,9,math.pi,  math.pi,  math.pi,  math.pi]
         )
-    
+
+class Tandem(object):
+    """ see https://www.esa.int/gsp/ACT/projects/gtop/tandem/ """
+    def __init__(self, i):   
+        self.name = 'Tandem' 
+        self.fun_c = libgtoplib.tandemC
+        self.fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_int)]
+        self.fun_c.restype = ct.c_double           
+        self.fun = self.tandem
+        self.bounds = Bounds([5475, 2.5, 0, 0, 20, 20, 20, 20, 0.01, 0.01, 0.01, 0.01, 1.05, 1.05, 1.05, -math.pi, -math.pi, -math.pi], 
+                             [9132, 4.9, 1, 1, 2500, 2500, 2500, 2500, 0.99, 0.99, 0.99, 0.99, 10, 10, 10, math.pi,  math.pi,  math.pi])
+        self.seqs = [[3,2,2,2,6],[3,2,2,3,6],[3,2,2,4,6],[3,2,2,5,6],[3,2,3,2,6],
+                [3,2,3,3,6],[3,2,3,4,6],[3,2,3,5,6],[3,2,4,2,6],[3,2,4,3,6],
+                [3,2,4,4,6],[3,2,4,5,6],[3,3,2,2,6],[3,3,2,3,6],[3,3,2,4,6],
+                [3,3,2,5,6],[3,3,3,2,6],[3,3,3,3,6],[3,3,3,4,6],[3,3,3,5,6],
+                [3,3,4,2,6],[3,3,4,3,6],[3,3,4,4,6],[3,3,4,5,6]]
+        self.seq = self.seqs[i]
+        
+    def tandem(self, x):
+        n = len(x)
+        array_type = ct.c_double * n   
+        ints_type = ct.c_int * 5   
+        try:
+            val = self.fun_c(n, array_type(*x), ints_type(*self.seq))
+            if not math.isfinite(val):
+                val = 1E16
+        except Exception as ex:
+            val = 1E16
+        return val
+  
 def _python_fun(cfun):
     return lambda x : _call_c(cfun, x)
 
