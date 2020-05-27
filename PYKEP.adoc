@@ -463,6 +463,7 @@ https://esa.github.io/pagmo2/docs/cpp/algorithms/moead.html[moead], https://esa.
 https://esa.github.io/pagmo2/docs/cpp/algorithms/maco.html[maco]
 
 but we are faced with issues:
+
 - Using the default configuration all three algorithms have trouble finding good solutions
 - It is not clear how to optimally configure pygmos parallel execution mechanism "archipelago"
 
