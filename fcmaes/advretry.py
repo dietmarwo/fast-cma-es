@@ -145,7 +145,8 @@ class Store(object):
         self.num_sorted = mp.RawValue(ct.c_int, 0)  
         self.best_y = mp.RawValue(ct.c_double, math.inf) 
         self.worst_y = mp.RawValue(ct.c_double, math.inf)  
-                                     
+        self.best_x = mp.RawArray(ct.c_double, self.dim)
+                                    
     def eval_num(self, max_evals):
         return self.eval_fac.value * max_evals
                                                
@@ -224,8 +225,7 @@ class Store(object):
             self.replace(i, sortRuns[i][0], sortRuns[i][1], sortRuns[i][2], sortRuns[i][3])
         self.num_sorted.value = numStored  
         self.num_stored.value = numStored     
-        self.best_y.value = self.get_y(0);
-        self.worst_y.value = self.get_y(numStored-1);
+        self.worst_y.value = self.get_y(numStored-1)
         return numStored        
      
     def add_result(self, y, xs, lower, upper, evals, limit=math.inf):
@@ -235,6 +235,7 @@ class Store(object):
             if y < limit:
                 if y < self.best_y.value:
                     self.best_y.value = y
+                    self.best_x[:] = xs[:]
                     self.dump()
                 if self.num_stored.value >= self.capacity - 1:
                     self.sort()
@@ -305,7 +306,7 @@ class Store(object):
         message = '{0} {1} {2} {3} {4:.6f} {5:.2f} {6} {7} {8!s} {9!s}'.format(
             dt, int(self.count_evals.value / dt), self.count_runs.value, self.count_evals.value, 
             self.best_y.value, self.worst_y.value, self.num_stored.value, self.eval_fac.value, 
-            vals, self.get_x(0))
+            vals, self.best_x[:])
         self.logger.info(message)
           
 def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit):

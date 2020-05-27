@@ -125,6 +125,7 @@ class Store(object):
         self.mean = mp.RawValue(ct.c_double, 0) 
         self.qmean = mp.RawValue(ct.c_double, 0) 
         self.best_y = mp.RawValue(ct.c_double, math.inf) 
+        self.best_x = mp.RawArray(ct.c_double, self.dim)
     
     def eval_num(self, max_evals):
         return max_evals
@@ -147,7 +148,7 @@ class Store(object):
         for i in range(numStored):
             self.replace(i, sortRuns[i][0], sortRuns[i][1])
         self.num_sorted.value = numStored  
-        self.num_stored.value = numStored     
+        self.num_stored.value = numStored  
         return numStored        
             
     def add_result(self, y, xs, evals, limit=math.inf):
@@ -158,6 +159,7 @@ class Store(object):
                 self.count_stat_runs.value += 1
                 if y < self.best_y.value:
                     self.best_y.value = y
+                    self.best_x[:] = xs[:]
                     self.dump()
                 if self.num_stored.value >= self.capacity-1:
                     self.sort()
@@ -222,16 +224,19 @@ class Store(object):
                  
         message = '{0} {1} {2} {3} {4:.6f} {5:.2f} {6:.2f} {7!s} {8!s}'.format(
             dt, int(self.count_evals.value / dt), self.count_runs.value, self.count_evals.value, \
-                self.best_y.value, self.get_y_mean(), self.get_y_standard_dev(), vals, self.get_x(0))
+                self.best_y.value, self.get_y_mean(), self.get_y_standard_dev(), vals, self.best_x[:])
         self.logger.info(message)
 
         
 def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit):
     lower = store.lower
-    while store.get_runs_compare_incr(num_retries):               
-        sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
-                                 [random.uniform(0.05, 0.1)]*len(lower), rgs[pid], store)
-        store.add_result(y, sol, evals, value_limit)
+    while store.get_runs_compare_incr(num_retries):        
+        try:       
+            sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
+                                     [random.uniform(0.05, 0.1)]*len(lower), rgs[pid], store)
+            store.add_result(y, sol, evals, value_limit)           
+        except Exception as ex:
+            continue
 #         if pid == 0:
 #             store.dump()
 
