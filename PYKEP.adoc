@@ -446,7 +446,9 @@ Lets discuss this issue using a multi objective variant of https://github.com/es
 Our two objectives are:
 
 - Save propellant - increase the final mass
-- Reduce the overall time for the mission. Pygmo offers some algorithms which can handle MO (multi objectives):
+- Reduce the overall time for the mission. 
+
+Pygmo offers some algorithms which can handle MO (multi objectives):
 
 [source,python]
 ----
