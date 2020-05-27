@@ -6,6 +6,7 @@
 
 PYKEP provides a number of https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[reference problems] for testing optimization methods, many of them replacing the old problems described in https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results]
 The new implementations have many advantages:
+
 - Implemented in Python so they can easily be adapted.
 - Provide pretty prints and plots of the computed trajectories. 
 - Based on a modern C++-backend, for instance the used Lambert solver is much more flexible.
