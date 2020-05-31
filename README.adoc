@@ -70,7 +70,7 @@ There are different ways to enable parallelization and the exchange of informati
 - Topology of the parallelization is hidden from the user. A simple "minimize" call hides the complexity. Parallelism is implemented using multi-processing which scales better than
 multi-threading with the number of available processor cores.  
 * The https://esa.github.io/pagmo2/docs/cpp/archipelago.html[Archipelago] approach as implemented in https://esa.github.io/pagmo2/[PAGMO2]:
-- Topology has to be defined by the user including how nodes/https://esa.github.io/pagmo2/docs/cpp/island.html#_CPPv4N5pagmo6islandE[islands] exchange members of their populations. Members of these
+- Topology has to be defined by the user including how nodes/ https://esa.github.io/pagmo2/docs/cpp/island.html[islands] exchange members of their populations. Members of these
 populations are solution vectors. This approach gives more control to the user but there is no simple default "minimize" call hiding the complexity. As default parallelism is implemented using multi-threading but it is possible to use multi-processing or even distributed CPUs.  
 - Exchange of information between parallel PAGMO threads is based on exchanging population members, which doesn't fit well with CMA-ES which recreates its whole population each generation.  
 
