@@ -482,7 +482,7 @@ def serial(fun):
         A function mapping a list of lists of float arguments to a list of float values
         by applying the input function in a loop."""
   
-    return lambda xs : [fun(x) for x in xs]
+    return lambda xs : [_tryfun(fun, x) for x in xs]
 
 def parallel(fun):
     """Convert an objective function for parallel execution for cmaes.minimize.
@@ -499,19 +499,26 @@ def parallel(fun):
  
     return lambda xs : _func_parallel(fun, xs)            
             
-def _func_parallel(func, xs):
+def _func_parallel(fun, xs):
     popsize = len(xs)
     num = min(popsize, mp.cpu_count())
     ys = mp.RawArray(ct.c_double, popsize) 
-    proc=[Process(target=_func_serial, args=(func, num, pid, xs, ys)) for pid in range(num)]
+    proc=[Process(target=_func_serial, args=(fun, num, pid, xs, ys)) for pid in range(num)]
     [p.start() for p in proc]
     [p.join() for p in proc]
     return [y for y in ys]
 
-def _func_serial(func, num, pid, xs, ys):
+def _func_serial(fun, num, pid, xs, ys):
     for i in range(pid, len(xs), num):
-        ys[i] = func(xs[i])
-                       
+        ys[i] = _tryfun(fun, xs[i])
+
+def _tryfun(fun, x):
+    try:
+        fit = fun(x)
+        return fit if math.isfinite(fit) else sys.float_info.max
+    except Exception:
+        return sys.float_info.max
+                        
 def _check_bounds(bounds, guess, rg):
     if bounds is None and guess is None:
         raise ValueError('either guess or bounds need to be defined')

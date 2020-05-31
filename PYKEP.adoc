@@ -32,41 +32,23 @@ https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_tandem.py[Tandem] is
 The problem includes several planet sequences, here we choose the 6th one '[earth, venus, earth, earth, saturn]'
 which leads to the best solution.
 
-First we need to wrap the PAGMO problem for fcmaes.
+Single objective PAGMO problems can be wrapped using `fcmaes.optimizer.single_objective`.
 
 [source,python]
 ----
 import pygmo as pg
 import pykep as pk
 from fcmaes import advretry
-from fcmaes.optimizer import logger, de_cma
-from scipy.optimize import Bounds
-
-class fcmaes_problem:
-      
-    def __init__(self, pagmo_prob):
-        self.pagmo_prob = pagmo_prob
-        self.name = pagmo_prob.get_name() 
-        self.fun = self.fitness
-        lb, ub = pagmo_prob.get_bounds()
-        self.bounds = Bounds(lb, ub)
-         
-    def fitness(self,X):
-        try:
-            val = self.pagmo_prob.fitness(X)
-        except Exception as ex:
-            return 1E12
-        return val[0]
+from fcmaes.optimizer import single_objective, dtime, logger, de_cma
 
 def test_problem(opt, problem, num_retries = 10000, num = 3, value_limit = math.inf, log = logger()):
     log.info(problem.name + ' ' + opt.name)
     for _ in range(num):
         _ = advretry.minimize(problem.fun, problem.bounds, value_limit, num_retries, log, optimizer=opt)
 ---- 
-Sometimes these problems throw nasty exceptions even when called with feasible arguments, so we have to catch them.
 'test_problem' calls the coordinated retry 'num' times, each executing 'num_retries' optimization runs. 
 
-Now we are ready to apply the fcmaes default optimizer 'de_cma', a sequence of differential evolution and CMA-ES, to the
+Now we are ready to apply the fcmaes default optimizer `de_cma`, a sequence of differential evolution and CMA-ES, to the
 Tandem problem:
 
 [source,python]
@@ -74,10 +56,11 @@ Tandem problem:
 tandem = pk.trajopt.gym.tandem(6)
 uda = pg.unconstrain(tandem, method = "weighted", weights=[10]*tandem.get_nic())
 opt = de_cma(de_max_evals = 750, cma_max_evals = 750)
-test_problem(opt, fcmaes_problem(pg.problem(uda)), num_retries = 20000, value_limit = 0)
+pr = single_objective(pg.problem(uda))
+test_problem(opt, pr, num_retries = 20000, value_limit = 0)
 ----
 We assign both to DE and CMA-ES 750 function evaluations per optimization run. This number will increase each 100 runs
-up to factor 50. Tandem is a difficult problem, so we increase the number of retries to 20000. 'value_limit = 0'
+up to factor 50. Tandem is a difficult problem, so we increase the number of retries to 20000. `value_limit = 0`
 means bad runs/values will not be stored and used as basis for new runs. For easier problems this can be left at the default.    
 
 After about three hours on an AMD 3950X sixteen core machine we get:
@@ -474,7 +457,7 @@ We could try something like
 ----
 I = mp.cpu_count()
 M = 1
-P = 30
+P = 300
 G = 100
 algo = pg.algorithm(pg.nsga2(gen = G))
 topo = pg.topology(pg.fully_connected(w=1.0))
@@ -482,7 +465,7 @@ rp = pg.r_policy(pg.fair_replace(M))
 sp = pg.s_policy(pg.select_best(M))
 archi = pg.archipelago(n=I, t=topo, algo = algo, prob = prob, pop_size=P, r_pol=rp, s_pol=sp)
 ----
-to fully utilize 16 cores. There are probably better configurations.
+to fully utilize 16 cores.  
 
 On the other hand, we could use the 
 https://www.researchgate.net/publication/225485886_The_weighted_sum_method_for_multi-objective_optimization_New_insights[weighted sum]
@@ -658,7 +641,7 @@ agrees and we are tasked to aim at a first objective value of -7.9.
 Our previous result with weight = 0.0008 was fitness = (-7.946060835277903, 2601.730991255295), lets see if we can beat 
 its dry mass = 2824 kg maintaining a first objective value < -7.9.
 
-We adapt "fitness" again:
+We adapt `fitness` again:
 [source,python]
 ----
 ...
@@ -745,5 +728,5 @@ Declination: 4.9959251623060075
 image::juice2.png[]
 
 Is it possible to find similar results using MOO optimizers like https://esa.github.io/pagmo2/docs/cpp/algorithms/moead.html[moead], https://esa.github.io/pagmo2/docs/cpp/algorithms/nsga2.html[nsga2] and https://esa.github.io/pagmo2/docs/cpp/algorithms/maco.html[maco]?
-How do we have to configure them and how do we configure parallel execution - the archipelago topology? Hopefully the pygmo team will provide us with a tutorial. 
+How do we have to configure them and how do we optimally configure parallel execution - the archipelago topology?
 

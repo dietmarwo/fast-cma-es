@@ -16,6 +16,7 @@ non-continous or even non-deterministic objective functions.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results]
+- https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints]
 
 === Features
 
@@ -71,8 +72,9 @@ multi-threading with the number of available processor cores.
 * The https://esa.github.io/pagmo2/docs/cpp/archipelago.html[Archipelago] approach as implemented in https://esa.github.io/pagmo2/[PAGMO2]:
 - Topology has to be defined by the user including how nodes/https://esa.github.io/pagmo2/docs/cpp/island.html#_CPPv4N5pagmo6islandE[islands] exchange members of their populations. Members of these
 populations are solution vectors. This approach gives more control to the user but there is no simple default "minimize" call hiding the complexity. As default parallelism is implemented using multi-threading but it is possible to use multi-processing or even distributed CPUs.  
+- Exchange of information between parallel PAGMO threads is based on exchanging population members, which doesn't fit well with CMA-ES which recreates its whole population each generation.  
 
-PYGMO/PAGMO has direct support of constraints and multiple objectives where with fcmaes you have to use penalty functions. Exchange of information between parallel PAGMO threads is based on exchanging population members, which doesn't fit well with CMA-ES which recreates its whole population each generation.  
+PYGMO/PAGMO has direct support of constraints and multiple objectives where with fcmaes you have to use penalty functions. But fcmaes supports parallel retry of PYGMO problems and algorithms, see https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints Tutorial].
 
 https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] optimization algorithms can be used in fcmaes but not vice versa since the fcmaes {cpp} algorithms don't support an 'evolve()' function. PAGMO wraps NLopt solvers (https://esa.github.io/pygmo2/tutorials/nlopt_basics.html[NLopt in PYGMO]), so these also can be used in fcmaes. 
  

@@ -10,7 +10,7 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaes import _check_bounds
+from fcmaes.cmaescpp import _c_func
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -52,23 +52,7 @@ def minimize(fun,
         freemem(res)
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
-        return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
-
-
-def _c_func(fun):
-    """Convert an objective function for serial execution for decpp.
-    
-    Parameters
-    ----------
-    fun : objective function mapping a list of float arguments to a float value
-
-    Returns
-    -------
-    out : function
-        A function suitable as ctypes based argument for decpp.minimize."""
- 
-    return lambda n, x: fun([x[i] for i in range(n)])
-  
+        return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
       
 basepath = os.path.dirname(os.path.abspath(__file__))
 

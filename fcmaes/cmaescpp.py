@@ -109,7 +109,7 @@ def minimize(fun,
 
 def _is_terminate_false(runid, iterations, val):
     return False 
-
+ 
 def _c_func(fun):
     """Convert an objective function for serial execution for cmaescpp.
     
@@ -122,7 +122,14 @@ def _c_func(fun):
     out : function
         A function suitable as ctypes based argument for cmaescpp.minimize."""
  
-    return lambda n, x: fun([x[i] for i in range(n)])
+    return lambda n, x: _tryfun(fun, n, x)
+
+def _tryfun(fun, n, x):
+    try:
+        fit = fun([x[i] for i in range(n)])
+        return fit if math.isfinite(fit) else sys.float_info.max
+    except Exception:
+        return sys.float_info.max
   
 basepath = os.path.dirname(os.path.abspath(__file__))
 

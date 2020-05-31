@@ -129,7 +129,7 @@ class Store(object):
         self.check_interval = check_interval       
         self.dim = len(self.lower)
         self.random = Random()
-        self.t0 = time.perf_counter();
+        self.t0 = time.perf_counter()
         
         #shared between processes
         self.add_mutex = mp.Lock()    
