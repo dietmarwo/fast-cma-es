@@ -268,9 +268,9 @@ https://github.com/esa/pykep/blob/532f9767385785fbed938f124fa593a6b5b60156/pykep
 
 Problems with the penalty approach using CMA-ES:
 
-- How to determine the weights for the constraints in "return 20*peneq + 20*peniq"? If the weights are too low we get
+- How to determine the weights for the constraints in `return 20*peneq + 20*peniq`? If the weights are too low we get
   infeasible results. Are they too high, they can "disturb" the optimization process. 
-- Same issue with the parameters for CMA-ES:  "optimizer=Cma_cpp(300000, popsize=13)" are good here but need to be adapted for different problems. 
+- Same issue with the parameters for CMA-ES: `optimizer=Cma_cpp(300000, popsize=13)` are good here but need to be adapted for different problems. 
 - Can be slower and less reliable than a derivative based optimizer for specific problems.
 
  
