@@ -77,7 +77,8 @@ def retry(store, prob, algo, num_retries, value_limit = math.inf, popsize=1, wor
     [p.join() for p in proc]
     store.sort()
     store.dump()
-    return OptimizeResult(x=store.get_x(0), fun=store.get_y(0), nfev=store.get_count_evals(), success=True)
+    return OptimizeResult(x=store.get_x_best(), fun=store.get_y_best(), 
+                          nfev=store.get_count_evals(), success=True)
         
 def _retry_loop(pid, rgs, store, prob, algo, num_retries, value_limit, popsize, pg):
     

@@ -92,7 +92,8 @@ def retry(fun, store, optimize, num_retries, value_limit = math.inf, workers=mp.
     [p.join() for p in proc]
     store.sort()
     store.dump()
-    return OptimizeResult(x=store.get_x(0), fun=store.get_y(0), nfev=store.get_count_evals(), success=True)
+    return OptimizeResult(x=store.get_x_best(), fun=store.get_y_best(), 
+                          nfev=store.get_count_evals(), success=True)
  
 class Store(object):
     """thread safe storage for optimization retry results."""
@@ -173,16 +174,22 @@ class Store(object):
             
     def get_x(self, pid):
         return self.xs[pid*self.dim:(pid+1)*self.dim]
+
+    def get_x_best(self):
+        return self.best_x[:]
     
     def get_y(self, pid):
         return self.ys[pid]
 
+    def get_y_best(self):
+        return self.best_y.value
+    
     def get_ys(self):
         return self.ys[:self.num_stored.value]
              
     def get_y_mean(self):
         return self.mean.value
-    
+
     def get_y_standard_dev(self):
         cnt = self.get_count_runs()
         return 0 if cnt <= 0 else math.sqrt(self.qmean.value / cnt)
