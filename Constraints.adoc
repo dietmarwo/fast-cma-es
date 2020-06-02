@@ -197,7 +197,7 @@ Next lets see if we can get rid of the constraints. The idea is to replace the c
 PYGMO2 provides a special class for that: 
 https://esa.github.io/pagmo2/docs/cpp/problems/unconstrain.html[unconstrain] but lets see if we can do this ourself. 
 
-In https://github.com/esa/pykep/blob/532f9767385785fbed938f124fa593a6b5b60156/pykep/trajopt/_lt_margo.py#L138[constaint scaling]
+In https://github.com/esa/pykep/blob/532f9767385785fbed938f124fa593a6b5b60156/pykep/trajopt/_lt_margo.py#L138[constraint scaling]
 we see that the position / velocity / mass mismatches are already scaled equally:
 
 - using AU - earth distance from sun - for the position mismatch 
