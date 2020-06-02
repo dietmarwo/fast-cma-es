@@ -861,7 +861,7 @@ best planet sequences with their retry scores:
 Sequence 6 `[earth, venus, earth, earth, saturn]`, the one we used before won as expected. 
 The https://www.esa.int/gsp/ACT/projects/gtop/tandem_unc[GTOP result] is much better, but here 
 https://github.com/esa/pykep/blob/42ccdfb812d77ecb085a58419a10e7e86787d38c/pykep/trajopt/gym/_tandem.py#L116[L116] we have a deviation because
-the GTOP Tandem problem chose the "wrong direction" for `Vinfz`which is corrected in pykep. It is an open question 
+the GTOP Tandem problem chose the "wrong direction" for `Vinfz` which is corrected in pykep. It is an open question 
 whether the final result below is a good solution. We suspect, that it is not since fcmaes coordinated retry couldn't find a better solution also for the
 original GTOP problem. But even `fitness = -7.388` should be a challenge for other optimizing algorithms for the unconstrained Tandem problem. 
 
