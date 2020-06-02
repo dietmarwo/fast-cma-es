@@ -29,10 +29,12 @@ See https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[trajopt/gym] for 
 
 https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_tandem.py[Tandem] is a rendezvous mission to Saturn modeled as an MGA-1DSM transfer. Mission parameters are inspired by the TandEM mission. A launcher model (i.e. Atlas 501) is also used, so that the final mass delivered at Saturn is the main objective of this optimization problem.
 
-The problem includes several planet sequences, here we choose the 6th one '[earth, venus, earth, earth, saturn]'
-which leads to the best solution.
+The problem includes several planet sequences, here we choose the 6th one `[earth, venus, earth, earth, saturn]`
+which leads to the best solution. There are two variants of the Tandem problem, this time we choose the time constrained variant.
+Mission time is limited to 10 years.   
 
-Single objective PAGMO problems can be wrapped using `fcmaes.optimizer.single_objective`.
+Single objective PAGMO problems can be wrapped using `fcmaes.optimizer.single_objective`, `pg.unconstrain` is used to convert
+the time limit into a penalty added to the objective function value.
 
 [source,python]
 ----
@@ -68,6 +70,7 @@ After about three hours on an AMD 3950X sixteen core machine we get:
 solution = [7985.2005463509195, 0.9030011694679589, 0.3590118628421891, 3319.4873498469165, 0.013884406331823213, 169.39189888962179, -1.151661383078681, 1.050000000000008, 0.11740075310407928, 338.512464914102, -1.6796842963039957, 1.1003653467864567, 0.6019983639984013, 1178.9023407204934, -2.0265823052439456, 1.05000000000032, 0.05055146337411492, 1762.610851218632]
 
 fitness = -7.30677225
+
 First Leg: earth to venus
 Departure: 2021-Nov-11 04:48:47.204719 (7985.2005463509195 mjd2000) 
 Duration: 169.39189888962179days
@@ -116,7 +119,7 @@ As the corresponding GTOP benchmark already described in Readme.adoc this is a h
 
 [source,python]
 ----
-prob = fcmaes_problem(pg.problem(pk.trajopt.gym.messenger))
+prob = single_objective(pg.problem(pk.trajopt.gym.messenger))
 opt = de_cma(de_max_evals = 500, cma_max_evals = 500)
 test_problem(opt, prob, num_retries = 100000, value_limit = 12000)
 ----
@@ -192,7 +195,7 @@ udas=[pk.trajopt.gym.cassini2,
 opt = de_cma(de_max_evals = 750, cma_max_evals = 750)
 
 for uda in udas:
-    test_problem(opt, fcmaes_problem(pg.problem(uda)), num_retries = 10000, value_limit = 100000)
+    test_problem(opt, single_objective(pg.problem(uda)), num_retries = 10000, value_limit = 100000)
 ----
 We expect a 'hit' already at the first try here where 'Messenger' eventually needs a second or even a third try to succeed. 
 
@@ -212,6 +215,7 @@ https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO
 solution = [8108.340864247543, 0.14265429780355834, 0.33964213005840077, 1000.0000080132397, 0.35092639600144443, 436.4274930596665, -4.052861631438546, 3.675356452528689, 0.10741066029466867, 149.0438085981111, -2.1631291025507076, 2.490048280168779, 0.010425812895849209, 315.36502811323714, 4.323135321315694, 1.3233114321446018, 0.03535422310799622, 164.26715796380074, 0.5490453386771064, 1.3808119312886746, 0.23609744554327003, 651.2673270168585, -1.346307881836456, 1.5235742458893275, 0.11717130589660309, 1107.410033856678]
 
 fitness = -7.999414363029065
+
 First Leg: earth to earth
 Departure: 2022-Mar-14 08:10:50.670988 (8108.340864247543 mjd2000) 
 Duration: 436.4274930596665days
@@ -729,4 +733,180 @@ image::juice2.png[]
 
 Is it possible to find similar results using MOO optimizers like https://esa.github.io/pagmo2/docs/cpp/algorithms/moead.html[moead], https://esa.github.io/pagmo2/docs/cpp/algorithms/nsga2.html[nsga2] and https://esa.github.io/pagmo2/docs/cpp/algorithms/maco.html[maco]?
 How do we have to configure them and how do we optimally configure parallel execution - the archipelago topology?
+
+=== Tandem Planet Sequence
+In our discussion of the 
+https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_tandem.py[Tandem] problem above, we chose the 6th planet sequence `[earth, venus, earth, earth, saturn]` because we suspected it to be the best one. Now we want to check if we were right. Instead of evaluating different planet sequences in parallel, we implement an iterative approach, applying parallel retry for a limited amount of retries to all sequences. Then we remove the worst ones and continue with the remaining ones. This process is repeated until we have identified the (hopefully) best sequences. This way we invest more time in the better sequences.
+Only for the best sequences we then apply the coordinated retry to see which sequence finally wins. This idea requires the evaluation store to be kept for all iterations. 
+
+We define a class `test_problem` representing the tandem problem for a specific planet sequence together with an associated retry store. We choose the
+Tandem problem without time constraint. Mission time is allowed to exceed 10 years. 
+This variant is actually a bit harder to solve compared to the time constraint variant. 
+
+[source,python]
+----
+import pykep as pk
+import numpy as np
+from fcmaes import retry, advretry
+from fcmaes.optimizer import single_objective, logger, de_cma
+
+class test_problem:
+
+    def __init__(self, prob, num_evals, num_retries, id):
+        self.store = retry.Store(prob.bounds, logger = logger())
+        self.prob = prob
+        self.name = prob.name
+        self.fun = prob.fun
+        self.num_retries = num_retries
+        self.optimizer = de_cma(num_evals)
+        self.retries = 0
+        self.value = 0
+        self.id = id
+        self.ret = None
+
+    def retry(self):
+        retries = self.retries + self.num_retries
+        self.ret = retry.retry(self.fun, self.store, self.optimizer.minimize, retries)
+        self.retries = retries
+        self.value = self.store.get_y_best()
+ 
+    def minimize(self):
+        self.ret = advretry.minimize(self.fun, bounds=self.prob.bounds, num_retries = 20000, 
+            value_limit = 0, logger = logger())
+        self.value = self.ret.fun
+----
+
+Method retry performs the parallel retry and is called in each iteration, minimize performs the coordinated retry for the best sequences in the end. 
+Class `test_problems` represents all sequences we want to compare.
+
+[source,python]
+----
+class test_problems:
+    
+    def __init__(self):
+        self.test_problems = []
+    
+    def add(self, test_problem):
+        self.test_problems.append(test_problem)
+    
+    def retry(self):
+        for tp in self.test_problems:
+            logger().info("retry for problem " + str(tp.id))
+            tp.retry()
+
+    def minimize(self):
+        for tp in self.test_problems:
+            logger().info("coordinated retry for problem " + str(tp.id))
+            tp.minimize()
+    
+    def values(self):
+        return np.array([tp.value for tp in self.test_problems])
+     
+    def remove_worst(self, n = 1):
+        for _ in range(n):
+            idx = self.values().argsort()
+            self.test_problems.pop(idx[-1])
+
+    def size(self):
+        return len(self.test_problems)
+                    
+    def dump(self):
+        idx = self.values().argsort()
+        for i in range(self.size()):
+            tp = self.test_problems[idx[i]]
+            logger().info(str(tp.id) + ' ' + str(tp.value))
+----
+
+Method `test_sequences` initializes the `test_problems` instance with all variations of the tandem problem, calls `tps.retry()` in a loop and finally 
+calls `tps.minimize()` to perform the coordinated retry for the best Tandem planet sequences. 
+
+[source,python]
+----
+def test_sequences():
+    tps = test_problems()
+    n = 24
+    delta = 4
+    
+    for i in range(n):
+        tandem = pk.trajopt.gym.tandem(i+1)
+        prob = single_objective(pg.problem(tandem))
+        tps.add(test_problem(prob, 50000, 128, i+1))
+        
+    while tps.size() > delta:    
+        tps.retry()
+        tps.dump()
+        tps.remove_worst(delta)
+    
+    tps.minimize()
+    tps.dump()
+----
+
+We chose `256` as the parallel retry number for each increment. Make sure this is a multiple of your number of logical processors
+`mp.cpu_count()`. As optimizer we use `de_cma(50000)` which is the default optimizer for the parallel retry with an objective
+function evaluation number of `50000`. As result we get:
+
+----
+best planet sequences with their retry scores:
+
+6 -7.234279427520673
+20 -7.163017778254503
+22 -7.0785510740228546
+24 -7.042380192439136
+2 -7.02035532005052
+18 -6.985418830906635
+8 -6.981895243731103
+19 -6.9770645164161476
+---- 
+
+Sequence 6 `[earth, venus, earth, earth, saturn]`, the one we used before won as expected. 
+The https://www.esa.int/gsp/ACT/projects/gtop/tandem_unc[GTOP result] is much better, but here 
+https://github.com/esa/pykep/blob/42ccdfb812d77ecb085a58419a10e7e86787d38c/pykep/trajopt/gym/_tandem.py#L116[L116] we have a deviation because
+the GTOP Tandem problem chose the "wrong direction" for `Vinfz`which is corrected in pykep. It is an open question 
+whether the final result below is a good solution. We suspect, that it is not since fcmaes coordinated retry couldn't find a better solution also for the
+original GTOP problem. But even `fitness = -7.388` should be a challenge for other optimizing algorithms for the unconstrained Tandem problem. 
+
+----
+solution = [7584.7555628948785, 0.7964130393731812, 0.5146468278950882, 3193.9141477569037, 0.8346148149867163, 998.6635296422996, -1.198848136500888, 1.050000567143599, 0.8395397371493137, 1891.4786735125872, 5.290936609245851, 1.0500311971254261, 0.275976396501909, 1095.7694951064686, -1.1040854008127086, 1.05011314612709, 0.1518818544190405, 2027.59864856371]
+
+fitness = -7.388089039175235
+
+First Leg: earth to venus
+Departure: 2020-Oct-06 18:08:00.634117 (7584.7555628948785 mjd2000) 
+Duration: 998.6635296422996days
+VINF: 3.1939141477569035 km/sec
+DSM after 833.499377026389 days
+DSM magnitude: 46.58721037915467m/s
+
+leg no. 2: venus to earth
+Duration: 1891.4786735125872days
+Fly-by epoch: 2023-Jul-02 10:03:29.595212 (8583.419092537179 mjd2000) 
+Fly-by radius: 1.050000567143599 planetary radii
+DSM after 1587.97150838429 days
+DSM magnitude: 0.000182210176374734m/s
+
+leg no. 3: earth to earth
+Duration: 1095.7694951064686days
+Fly-by epoch: 2028-Sep-04 21:32:46.986700 (10474.897766049766 mjd2000) 
+Fly-by radius: 1.0500311971254261 planetary radii
+DSM after 302.40651665619947 days
+DSM magnitude: 0.013293508810343895m/s
+
+leg no. 4: earth to saturn
+Duration: 2027.59864856371days
+Fly-by epoch: 2031-Sep-05 16:00:51.363899 (11570.667261156234 mjd2000) 
+Fly-by radius: 1.05011314612709 planetary radii
+DSM after 307.9554427613967 days
+DSM magnitude: 4.668352727036598e-05m/s
+
+Arrival at saturn
+Arrival epoch: 2037-Mar-25 06:22:54.599803 (13598.265909719943 mjd2000) 
+Arrival Vinf: 5695.967684588943m/s
+Insertion DV: 636.4525533154156m/s
+Total mission time: 16.46409403648204 years (6013.510346825065 days)
+
+Initial mass: [2132.94747272]
+Final mass: [1616.61387352]
+Declination: 20.72757493982784
+----
+image::tandem2.png[]
 
