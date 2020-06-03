@@ -97,4 +97,3 @@ def _retry_loop(pid, rgs, store, prob, algo, num_retries, value_limit, popsize, 
         if feasible:
             store.add_result(y[0], sol, evals, value_limit)
             store.dump()
-

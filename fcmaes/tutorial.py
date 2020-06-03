@@ -148,4 +148,3 @@ if __name__ == '__main__':
 #     test_differential_evolution(problem, 1000)
 #     test_dual_annealing(problem, 1000)
 #     test_scipy_minimize(problem, 200000)
-

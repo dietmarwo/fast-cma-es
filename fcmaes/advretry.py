@@ -9,6 +9,7 @@ import math
 import random
 import ctypes as ct
 import numpy as np
+from numpy.linalg import norm
 from random import Random
 import multiprocessing as mp
 from multiprocessing import Process
@@ -121,17 +122,17 @@ class Store(object):
                  capacity = 500, # capacity of the evaluation store
                  logger = None # if None logging is switched off
                ):
-         
+
         self.lower, self.upper = _convertBounds(bounds)
-        self.logger = logger        
         self.delta = self.upper - self.lower
+        self.logger = logger        
         self.capacity = capacity
         self.max_eval_fac = max_eval_fac
         self.check_interval = check_interval       
         self.dim = len(self.lower)
         self.random = Random()
         self.t0 = time.perf_counter()
-        
+
         #shared between processes
         self.add_mutex = mp.Lock()    
         self.check_mutex = mp.Lock()                     
@@ -170,14 +171,10 @@ class Store(object):
         sdev = np.maximum(0.001, np.minimum(0.5, diff_fac * deltax / self.delta))        
         return y0, x1, lower, upper, sdev
                  
-    def distance(self, yprev, y, xprev, x): 
-        """mean quadratic X difference to neighbor entry."""
-        diff = self.worst_y.value - self.best_y.value
-        if diff != 0 and (y - yprev) / diff > 0.01: #enough y distance: accept 
-            return 1        
-        dx = (np.asarray(x) - np.asarray(xprev)) / self.delta
-        return math.sqrt(sum(dx*dx)/self.dim)
-  
+    def distance(self, xprev, x): 
+        """distance between entries in store."""
+        return norm((x - xprev) / self.delta) / math.sqrt(self.dim)
+        
     def replace(self, i, y, xs, lower, upper):
         """replace entry in store."""
         self.set_y(i, y)
@@ -202,25 +199,28 @@ class Store(object):
                         i2 = j
                         return i1, i2
         return -1, -1
-             
+
     def sort(self): 
         """sorts all store entries, keep only the 90% best to make room for new ones;
         skip entries having similar x values than their neighbors to preserve diversity"""
         ns = self.num_stored.value
-        if ns == 0:
+        if ns < 2:
             return
+
         ys = np.asarray(self.ys[:ns])
         yi = ys.argsort()
         sortRuns = []
-        yprev = xprev = yprev2 = xprev2 = None
-        for i in range(len(yi)):
+
+        xprev = xprev2 = None
+        for i in range(ns):
             y = ys[yi[i]]
-            x = self.get_x(yi[i])
-            if (yprev is None or (self.distance(yprev, y, xprev, x) > 0.15) and 
-                (yprev2 is None or self.distance(yprev2, y, xprev2, x) > 0.15)):
-                sortRuns.append((y, x, self.get_lower(yi[i]), self.get_upper(yi[i])))
-                yprev2, xprev2 = yprev, xprev
-                yprev, xprev = y, x
+            x = np.asarray(self.get_x(yi[i]))
+            if (xprev is None or self.distance(xprev, x) > 0.15) and \
+                (xprev2 is None or self.distance(xprev2, x) > 0.15): 
+                sortRuns.append( (y, x, self.get_lower(yi[i]), self.get_upper(yi[i])) )
+                xprev2 = xprev
+                xprev = x
+
         numStored = min(len(sortRuns),int(0.9*self.capacity)) # keep 90% best 
         for i in range(numStored):
             self.replace(i, sortRuns[i][0], sortRuns[i][1], sortRuns[i][2], sortRuns[i][3])
@@ -228,7 +228,7 @@ class Store(object):
         self.num_stored.value = numStored     
         self.worst_y.value = self.get_y(numStored-1)
         return numStored        
-     
+
     def add_result(self, y, xs, lower, upper, evals, limit=math.inf):
         """registers an optimization result at the store."""
         with self.add_mutex:
@@ -243,46 +243,49 @@ class Store(object):
                 ns = self.num_stored.value
                 self.num_stored.value = ns + 1
                 self.replace(ns, y, xs, lower, upper)
-                     
+      
     def get_x(self, pid):
         return self.xs[pid*self.dim:(pid+1)*self.dim]
 
+    def get_xs(self):
+        return [self.get_x(i) for i in range(self.num_stored.value)]
+
     def get_x_best(self):
         return self.best_x[:]
-     
+
     def get_y(self, pid):
         return self.ys[pid]
 
     def get_y_best(self):
         return self.best_y.value
- 
+
     def get_ys(self):
         return self.ys[:self.num_stored.value]
-         
+
     def get_lower(self, pid):
         return self.lowers[pid*self.dim:(pid+1)*self.dim]
- 
+
     def get_upper(self, pid):
         return self.uppers[pid*self.dim:(pid+1)*self.dim]
-     
+
     def get_count_evals(self):
         return self.count_evals.value
   
     def get_count_runs(self):
         return self.count_runs.value
-    
+
     def set_x(self, pid, xs):
         self.xs[pid*self.dim:(pid+1)*self.dim] = xs[:]
-        
+
     def set_y(self, pid, y):
         self.ys[pid] = y            
- 
+
     def set_lower(self, pid, lower):
         self.lowers[pid*self.dim:(pid+1)*self.dim] = lower[:]
  
     def set_upper(self, pid, upper):
         self.uppers[pid*self.dim:(pid+1)*self.dim] = upper[:]
- 
+
     def get_runs_compare_incr(self, limit):
         with self.add_mutex:
             if self.count_runs.value < limit:
@@ -300,7 +303,7 @@ class Store(object):
                 #print(self.eval_fac.value)
             self.sort()
         self.count_evals.value += evals
-         
+
     def dump(self):
         """logs the current status of the store if logger defined."""
         if self.logger is None:
@@ -315,7 +318,7 @@ class Store(object):
             self.best_y.value, self.worst_y.value, self.num_stored.value, self.eval_fac.value, 
             vals, self.best_x[:])
         self.logger.info(message)
-          
+   
 def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit):
     while store.get_runs_compare_incr(num_retries):               
         if _crossover(fun, store, optimize, rgs[pid]):
@@ -329,7 +332,7 @@ def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit):
             continue
 #         if pid == 0:
 #             store.dump()
-   
+ 
 def _crossover(fun, store, optimize, rg):
     if random.random() < 0.5:
         return False

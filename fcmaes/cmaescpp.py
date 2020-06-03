@@ -153,4 +153,3 @@ optimizeACMA_C.restype = ct.POINTER(ct.c_double)
 
 freemem = libcmalib.free_mem
 freemem.argtypes = [ct.POINTER(ct.c_double)]
-
