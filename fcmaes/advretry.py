@@ -154,8 +154,8 @@ class Store(object):
                                                
     def limits(self): 
         """guess, boundaries and initial step size for crossover operation."""
-        diff_fac = self.random.uniform(0.5, 1.0);
-        lim_fac =  self.random.uniform(2.0, 4.0) * diff_fac;
+        diff_fac = self.random.uniform(0.5, 1.0)
+        lim_fac =  self.random.uniform(2.0, 4.0) * diff_fac
         with self.add_mutex:
             i, j = self.crossover()
             if i < 0:
@@ -256,11 +256,11 @@ class Store(object):
     def get_y(self, pid):
         return self.ys[pid]
 
-    def get_y_best(self):
-        return self.best_y.value
-
     def get_ys(self):
         return self.ys[:self.num_stored.value]
+
+    def get_y_best(self):
+        return self.best_y.value
 
     def get_lower(self, pid):
         return self.lowers[pid*self.dim:(pid+1)*self.dim]

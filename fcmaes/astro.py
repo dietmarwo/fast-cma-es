@@ -82,9 +82,9 @@ class Rosetta(object):
 
 class Tandem(object):
     """ see https://www.esa.int/gsp/ACT/projects/gtop/tandem/ """
-    def __init__(self, i):   
-        self.name = 'Tandem' 
-        self.fun_c = libgtoplib.tandemC
+    def __init__(self, i, constrained=True):   
+        self.name = 'Tandem' if constrained else 'Tandem unconstrained'
+        self.fun_c = libgtoplib.tandemC if constrained else libgtoplib.tandemCu
         self.fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_int)]
         self.fun_c.restype = ct.c_double           
         self.fun = self.tandem

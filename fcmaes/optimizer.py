@@ -62,49 +62,6 @@ def dtime(t0):
     """time since t0."""
     return round(time.perf_counter() - t0, 2)
 
-class single_objective:
-    """Utility class to create a fcmaes problem from a pagmo problem."""
-      
-    def __init__(self, pagmo_prob):
-        self.pagmo_prob = pagmo_prob
-        self.name = pagmo_prob.get_name() 
-        self.fun = self.fitness
-        lb, ub = pagmo_prob.get_bounds()
-        self.bounds = Bounds(lb, ub)
-         
-    def fitness(self,X):
-        try:
-            val = self.pagmo_prob.fitness(X)
-        except Exception as ex:
-            return sys.float_info.max
-        return val[0]
-
-def de_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
-           de_max_evals = None, cma_max_evals = None):
-    """Sequence differential evolution -> CMA-ES."""
-
-    if de_max_evals is None:
-        de_max_evals = int(0.5*max_evaluations)
-    if cma_max_evals is None:
-        cma_max_evals = int(0.5*max_evaluations)
-    opt1 = De_cpp(max_evaluations = de_max_evals, stop_fittness = stop_fittness)
-    opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
-                   stop_fittness = stop_fittness)
-    return Sequence([opt1, opt2])
-
-def da_cma(max_evaluations = 50000, da_max_evals = None, cma_max_evals = None,
-           popsize=31, stop_fittness = math.inf):
-    """Sequence differential evolution -> CMA-ES."""
-
-    if da_max_evals is None:
-        da_max_evals = int(0.5*max_evaluations)
-    if cma_max_evals is None:
-        cma_max_evals = int(0.5*max_evaluations)
-    opt1 = Da_cpp(max_evaluations = da_max_evals, stop_fittness = stop_fittness)
-    opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
-                   stop_fittness = stop_fittness)
-    return Sequence([opt1, opt2])
-
 class Optimizer(object):
     """Provides different optimization methods for use with parallel retry."""
     
@@ -138,6 +95,47 @@ class Sequence(Optimizer):
             guess = ret[0]
             evals += ret[2]
         return ret[0], ret[1], evals
+
+class Choice(Optimizer):
+    """Random choice of optimizers."""
+    
+    def __init__(self, optimizers):
+        Optimizer.__init__(self)
+        self.optimizers = optimizers 
+        self.max_evaluations = optimizers[0].max_evaluations 
+        for optimizer in self.optimizers:
+            self.name += optimizer.name + '|'
+                  
+    def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
+        choice = rg.integers(0, len(self.optimizers))
+        opt = self.optimizers[choice]
+        return opt.minimize(fun, bounds, guess, sdevs, rg, store)
+
+def de_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
+           de_max_evals = None, cma_max_evals = None):
+    """Sequence differential evolution -> CMA-ES."""
+
+    if de_max_evals is None:
+        de_max_evals = int(0.5*max_evaluations)
+    if cma_max_evals is None:
+        cma_max_evals = int(0.5*max_evaluations)
+    opt1 = De_cpp(max_evaluations = de_max_evals, stop_fittness = stop_fittness)
+    opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
+                   stop_fittness = stop_fittness)
+    return Sequence([opt1, opt2])
+
+def da_cma(max_evaluations = 50000, da_max_evals = None, cma_max_evals = None,
+           popsize=31, stop_fittness = math.inf):
+    """Sequence differential evolution -> CMA-ES."""
+
+    if da_max_evals is None:
+        da_max_evals = int(0.5*max_evaluations)
+    if cma_max_evals is None:
+        cma_max_evals = int(0.5*max_evaluations)
+    opt1 = Da_cpp(max_evaluations = da_max_evals, stop_fittness = stop_fittness)
+    opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
+                   stop_fittness = stop_fittness)
+    return Sequence([opt1, opt2])
 
 class Cma_python(Optimizer):
     """CMA_ES Python implementation."""
@@ -302,3 +300,47 @@ class Shgo(Optimizer):
         ret = shgo(fun, bounds=list(zip(bounds.lb, bounds.ub)), 
                    options={'maxfev': self.max_eval_num(store)})
         return ret.x, ret.fun, ret.nfev
+
+class single_objective:
+    """Utility class to create a fcmaes problem from a pagmo problem."""
+      
+    def __init__(self, pagmo_prob):
+        self.pagmo_prob = pagmo_prob
+        self.name = pagmo_prob.get_name() 
+        self.fun = self.fitness
+        lb, ub = pagmo_prob.get_bounds()
+        self.bounds = Bounds(lb, ub)
+         
+    def fitness(self,X):
+        try:
+            return self.pagmo_prob.fitness(X)[0]
+        except Exception as ex:
+            return sys.float_info.max
+
+class NLopt(Optimizer):
+    """NLopt_algo wrapper."""
+
+    def __init__(self, algo, max_evaluations=50000, store=None):        
+        Optimizer.__init__(self, max_evaluations, 'NLopt ' + algo.get_algorithm_name())
+        self.algo = algo
+ 
+    def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
+        self.fun = fun
+        opt = self.algo
+        opt.set_min_objective(self.nlfunc)
+        opt.set_lower_bounds(bounds.lb)
+        opt.set_upper_bounds(bounds.ub)
+        opt.set_maxeval(self.max_eval_num(store))
+        opt.set_initial_step(sdevs)
+        if guess is None:
+            guess = rg.uniform(bounds.lb, bounds.ub)
+        x = opt.optimize(guess)
+        y = opt.last_optimum_value()
+        return x, y, opt.get_numevals()
+    
+    def nlfunc(self, x, _):
+        try:
+            return self.fun(x)
+        except Exception as ex:
+            return sys.float_info.max
+    
