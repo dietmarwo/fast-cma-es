@@ -41,6 +41,7 @@ First we start with the recommended way to apply fcmaes:
 
 [source,python]
 ----
+import math
 import time
 from fcmaes.optimizer import dtime
 from fcmaes import astro, advretry
