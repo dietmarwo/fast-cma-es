@@ -96,7 +96,7 @@ class SADE_pagmo(Optimizer):
 algo = Choice([SADE_pagmo(50000), de_cma(50000)])
 ----
 
-Note that although https://esa.github.io/pagmo2/[pagmo] algorithm wrappers can only be defined for unconstrained single objective problems, https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints] shows two ways to parallelize all `pagmo` algorithms:
+Note that although https://esa.github.io/pagmo2/[pagmo] algorithm wrappers can only be defined for unconstrained single objective algorithms, https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints] shows two ways to parallelize all `pagmo` algorithms:
 
 - using `pg.archipelago`, pagmos own parallelization method 
 - using `fcmaes.pygmoretry`, a parallel retry mechanism specific for `pagmo` algorithms. 
