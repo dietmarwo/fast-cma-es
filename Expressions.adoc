@@ -37,7 +37,7 @@ ret = retry.minimize(fun, bounds, num_retries = 2000, logger = logger(), optimiz
 ----
 
 These expressions can be forwarded to the parallel or the coordinated parallel retry of fcmaes. 
-Each base algorithms has its own individually assigned evaluation budget - 50000 evaluations in the example above. With the coordinated parallel retry (`from fcmaes import advretry`) these budgets
+Each base algorithm has its own individually assigned evaluation budget - 50000 evaluations in the example above. With the coordinated parallel retry (`from fcmaes import advretry`) these budgets
 are individually incremented, their relation stays the same. 
 
 There are five types of `basic` algorithms which form the basis of expressions:

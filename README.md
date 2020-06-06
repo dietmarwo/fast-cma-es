@@ -6,3 +6,4 @@ A Python 3 gradient-free optimization library.
 - [Results](https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc)
 - [PYKEP Gym Results](https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc)
 - [Constraints](https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc)
+- [Expressions](https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc)
