@@ -7,7 +7,7 @@
 To cite https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt_Algorithms]:
 "For any given optimization problem, it is a good idea to compare several of the available algorithms that are applicable to that problem—in general, one often finds that the "best" algorithm strongly depends upon the problem at hand."
 
-This is true, but there is more to this issue. In the literature we find:
+This is true, but this is not the whole story. In the literature we find:
 
 * https://www.sciencedirect.com/science/article/abs/pii/S2210650218301585[Speed up differential evolution]:
 "To do so, CMAES is applied to the best known solution provided by DE. If the solution found by CMAES is better than the solution obtained in the exploration phase by DE, then it replaces the old one"
