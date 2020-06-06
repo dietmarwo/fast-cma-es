@@ -89,5 +89,5 @@ class SADE_pagmo(Optimizer):
         pop = algo.evolve(pop) 
         return pop.champion_x, pop.champion_f, pop.problem.get_fevals()
 
-algo = Choice([SADE_pagmo(50000), de_cma(50000))
+algo = Choice([SADE_pagmo(50000), de_cma(50000)])
 ----
