@@ -17,6 +17,7 @@ non-continous or even non-deterministic objective functions.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints]
+- https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions]
 
 === Features
 
