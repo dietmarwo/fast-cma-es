@@ -90,7 +90,7 @@ class SADE_pagmo(Optimizer):
         pgalgo = pg.algorithm(
             pg.sade(maxevals//self.popsize, seed = int(rg.uniform(0, 2**32 - 1))))
         pop = pg.population(problem, self.popsize)
-        pop = algo.evolve(pop) 
+        pop = pgalgo.evolve(pop) 
         return pop.champion_x, pop.champion_f, pop.problem.get_fevals()
 
 algo = Choice([SADE_pagmo(50000), de_cma(50000)])
