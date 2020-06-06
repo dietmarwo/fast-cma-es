@@ -30,8 +30,8 @@ from fcmaes import retry
 ...
 alg1 = Cma_cpp(50000)
 alg2 = De_cpp(50000)
-alg3 = Sequence(alg2, alg1)
-alg4 = Choice(alg3, alg1)
+alg3 = Sequence([alg2, alg1])
+alg4 = Choice([alg3, alg1])
 
 ret = retry.minimize(fun, bounds, num_retries = 2000, logger = logger(), optimizer = alg4)
 ----
