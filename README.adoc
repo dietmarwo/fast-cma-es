@@ -23,18 +23,19 @@ non-continous or even non-deterministic objective functions.
 
 - fcmaes is focused on optimization problems hard to solve.
 - Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
-- Parallel coordinated retry of sequences of optimization algorithms.
+- Parallel coordinated retry of sequences and random choices of optimization algorithms. See https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions].
 - Parallel function evaluation for CMA-ES
-- New differential evolution variant optimized for usage with parallel coordinated retry and the DE->CMA sequence. 
-- Integrates many scipy global optimizers for use with the coordinated retry.
-https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] optimizers can also be used. 
+- New DE (differential evolution) variant optimized for usage with parallel coordinated retry and the DE->CMA sequence.
+- C++ implementation of dual annealing. 
+- Integrates https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy] and https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt] optimization algorithms for use with the coordinated retry.
+- Parallel retry for https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] algorithms and problems. 
 
-Binaries for Windows are provided, but it is highly recommend to use Linux since fcmaes Python multi processing is less performant on Windows. The Linux subsystem for windows works fine if you want to execute optimizations on a Windows machine. 
+Binaries for Windows are provided, but it is recommend to use Linux since fcmaes Python multi processing is less performant on Windows. The Linux subsystem for windows works fine if you want to execute optimizations on a Windows machine. 
 
 === Optimization algorithms
 
 - CMA-ES: Implemented both in Python and in {cpp}. The Python version is faster than
-https://github.com/CMA-ES/pycma/tree/master/cma[CMA] but slower than the {cpp} variant. Only the Python variant provides an ask/tell interface and supports parallel function evaluation. Both CMA variants provide less configurability than https://github.com/CMA-ES/pycma/tree/master/cma[CMA].
+https://github.com/CMA-ES/pycma/tree/master/cma[CMA] but slower than the {cpp} variant. The Python variant provides an ask/tell interface and supports parallel function evaluation. Both CMA variants provide less configurability than https://github.com/CMA-ES/pycma/tree/master/cma[CMA].
 
 - Dual Annealing: Implemented in {cpp}. Use the scipy implementation if you prefer a pure python variant or need more
 configuration options. 
@@ -43,8 +44,8 @@ configuration options.
 works differently. Additional concepts implemented here are 
 https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model[temporal locality] and stochastic reinitialization of individuals based on their age. 
 
-- Sequences: It is possible to define sequences of optimization algorithms. Not only the three algorithms above, but also
-many scipy optimization methods and custom algorithms can be used in sequences. Default method for the parallel retry is the sequence DE -> CMA with 80% of the evaluation budget assigned to CMA.
+- Expressions: There are two operators for constructing expressions over optimization algorithms: Sequence and random choice.
+Not only the three algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. Default method for the parallel retry is the sequence DE -> CMA with the evaluation budget equally distributed. 
 
 === Dependencies
 
@@ -61,7 +62,12 @@ Compile time (binaries for Linux and Windows are included):
 
 Optional dependencies:
 
+- NLopt: https://github.com/esa/pygmo2[pygmo]. Install with 'pip install nlopt'. 
 - pygmo2: https://github.com/esa/pygmo2[pygmo]. Install with 'pip install pygmo'. 
+
+Example dependencies:
+
+- pykep: https://esa.github.io/pykep/[pykep]. Install with 'pip install pykep'. 
 
 === Comparison with PYGMO/Archipelago
 
@@ -75,9 +81,7 @@ multi-threading with the number of available processor cores.
 populations are solution vectors. This approach gives more control to the user but there is no simple default "minimize" call hiding the complexity. As default parallelism is implemented using multi-threading but it is possible to use multi-processing or even distributed CPUs.  
 - Exchange of information between parallel PAGMO threads is based on exchanging population members, which doesn't fit well with CMA-ES which recreates its whole population each generation.  
 
-PYGMO/PAGMO has direct support of constraints and multiple objectives where with fcmaes you have to use penalty functions. But fcmaes supports parallel retry of PYGMO problems and algorithms, see https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints Tutorial].
-
-https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] optimization algorithms can be used in fcmaes but not vice versa since the fcmaes {cpp} algorithms don't support an 'evolve()' function. PAGMO wraps NLopt solvers (https://esa.github.io/pygmo2/tutorials/nlopt_basics.html[NLopt in PYGMO]), so these also can be used in fcmaes. 
+PYGMO/PAGMO has direct support of constraints and multiple objectives. fcmaes supports parallel retry of PYGMO problems and algorithms, see https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints Tutorial].
  
 === Installation
 
