@@ -62,7 +62,7 @@ Compile time (binaries for Linux and Windows are included):
 
 Optional dependencies:
 
-- NLopt: https://github.com/esa/pygmo2[pygmo]. Install with 'pip install nlopt'. 
+- NLopt: https://nlopt.readthedocs.io/en/latest/[NLopt]. Install with 'pip install nlopt'. 
 - pygmo2: https://github.com/esa/pygmo2[pygmo]. Install with 'pip install pygmo'. 
 
 Example dependencies:
