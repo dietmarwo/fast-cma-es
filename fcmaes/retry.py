@@ -28,6 +28,7 @@ def minimize(fun,
              workers = mp.cpu_count(),
              popsize = 31, 
              max_evaluations = 50000, 
+             capacity = 500,
              stop_fittness = None,
              optimizer = None,
              ):   
@@ -65,6 +66,8 @@ def minimize(fun,
         Forced termination of all optimization runs after ``max_evaluations`` 
         function evaluations. Only used if optimizer is undefined, otherwise
         this setting is defined in the optimizer. 
+    capacity : int, optional
+        capacity of the evaluation store.
     stop_fittness : float, optional 
          Limit for fitness value. optimization runs terminate if this value is reached. 
     optimizer : optimizer.Optimizer, optional
@@ -80,7 +83,7 @@ def minimize(fun,
 
     if optimizer is None:
         optimizer = de_cma(max_evaluations, popsize, stop_fittness)        
-    store = Store(bounds, logger = logger)
+    store = Store(bounds, capacity = capacity, logger = logger)
     return retry(fun, store, optimizer.minimize, num_retries, value_limit, workers)
                  
 def retry(fun, store, optimize, num_retries, value_limit = math.inf, workers=mp.cpu_count()):

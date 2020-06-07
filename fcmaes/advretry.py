@@ -33,6 +33,7 @@ def minimize(fun,
              min_evaluations = 1500, 
              max_eval_fac = 50, 
              check_interval = 100,
+             capacity = 500,
              stop_fittness = None,
              optimizer = None
              ):   
@@ -78,6 +79,8 @@ def minimize(fun,
     check_interval : int, optional
         After ``check_interval`` runs the store is sorted and the evaluation limit
         is incremented by ``evals_step_size``
+    capacity : int, optional
+        capacity of the evaluation store. Higher value means broader search.
     stop_fittness : float, optional 
          Limit for fitness value. optimization runs terminate if this value is reached. 
     optimizer : optimizer.Optimizer, optional
@@ -96,7 +99,7 @@ def minimize(fun,
     if optimizer is None:
         optimizer = de_cma(min_evaluations, popsize, stop_fittness)     
     store = Store(bounds, max_eval_fac = max_eval_fac, 
-              check_interval = check_interval, logger = logger)
+              check_interval = check_interval, capacity = capacity, logger = logger)
     return retry(fun, store, optimizer.minimize, num_retries, value_limit, workers)
 
 def retry(fun, store, optimize, num_retries, value_limit = math.inf, workers=mp.cpu_count()):
