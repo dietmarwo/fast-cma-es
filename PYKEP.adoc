@@ -33,8 +33,7 @@ The problem includes several planet sequences, here we choose the 6th one `[eart
 which leads to the best solution. There are two variants of the Tandem problem, this time we choose the time constrained variant.
 Mission time is limited to 10 years.   
 
-Single objective PAGMO problems can be wrapped using `fcmaes.optimizer.single_objective`, `pg.unconstrain` is used to convert
-the time limit into a penalty added to the objective function value.
+Single objective PAGMO problems can be wrapped using `fcmaes.optimizer.single_objective`, `pg.unconstrain` is used to convert the time limit into a penalty added to the objective function value.
 
 [source,python]
 ----

@@ -187,7 +187,7 @@ class Store(object):
         n = self.num_sorted.value
         if n < 2:
             return -1, -1
-        lim = self.random.uniform(min(0.1*n, 1.5), 0.2*n)/n
+        lim = self.random.uniform(min(0.1*n, 1), 0.2*n)/n
         for _ in range(100):
             i1 = -1
             i2 = -1
