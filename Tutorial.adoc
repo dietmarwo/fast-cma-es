@@ -41,6 +41,7 @@ First we start with the recommended way to apply fcmaes:
 
 [source,python]
 ----
+import math
 import time
 from fcmaes.optimizer import dtime
 from fcmaes import astro, advretry
@@ -56,7 +57,7 @@ def test_advretry(problem, num):
           
 if __name__ == '__main__':
 	problem = astro.Gtoc1()
-	test_advretry(problem, 0, 10)
+	test_advretry(problem, 10)
 ----
 We perform 10 experiments each using 4000 retries, all other parameters are left at their default. 
 If we run this on a 16 core AMD 3950x the output is something like: 

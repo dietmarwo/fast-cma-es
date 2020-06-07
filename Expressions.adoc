@@ -7,7 +7,7 @@
 To cite https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt_Algorithms]:
 "For any given optimization problem, it is a good idea to compare several of the available algorithms that are applicable to that problem—in general, one often finds that the "best" algorithm strongly depends upon the problem at hand."
 
-This is true, but there is more to this issue. In the literature we find:
+This is true, but it is not the whole story. In the literature we find:
 
 * https://www.sciencedirect.com/science/article/abs/pii/S2210650218301585[Speed up differential evolution]:
 "To do so, CMAES is applied to the best known solution provided by DE. If the solution found by CMAES is better than the solution obtained in the exploration phase by DE, then it replaces the old one"
@@ -30,22 +30,24 @@ from fcmaes import retry
 ...
 alg1 = Cma_cpp(50000)
 alg2 = De_cpp(50000)
-alg3 = Sequence(alg2, alg1)
-alg4 = Choice(alg3, alg1)
+alg3 = Sequence([alg2, alg1])
+alg4 = Choice([alg3, alg1])
 
 ret = retry.minimize(fun, bounds, num_retries = 2000, logger = logger(), optimizer = alg4)
 ----
 
 These expressions can be forwarded to the parallel or the coordinated parallel retry of fcmaes. 
-Each base algorithms has its own individually assigned evaluation budget - 50000 evaluations in the example above. With the coordinated parallel retry (`from fcmaes import advretry`) these budgets
+Each base algorithm has its own individually assigned evaluation budget - 50000 evaluations in the example above. With the coordinated parallel retry (`from fcmaes import advretry`) these budgets
 are individually incremented, their relation stays the same. 
+
+=== Optimization algorithms for fcmaes parallel retry
 
 There are five types of `basic` algorithms which form the basis of expressions:
 
 * fcmaes native algorithms: `Cma_cpp, De_cpp, Da_cpp, Cma_python`, CMA-ES, differential evolution and dual annealing
-* fcmaes predefined sequences: `de_cma, da_cma`, where `de_cma`, the sequence CMA-ES -> DE is the default algorithm used for the parallel retry.  
-* scipy algorithms: `Dual_annealing, Differential_evolution, Basin_hopping, Minimize, Shgo`
-* NLopt algorithms: `NLopt`, requires `pip install nlopt`
+* fcmaes predefined sequences: `de_cma, da_cma`, where `de_cma`, the sequence `DE -> CMA-ES` is the default algorithm used for the parallel retry.  
+* https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy algorithms]: `Dual_annealing, Differential_evolution, Basin_hopping, Minimize, Shgo`
+* https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt algorithms]: `NLopt`, requires `pip install nlopt`
 
 Example: 
 
@@ -61,7 +63,9 @@ sbp = nlopt.opt(nlopt.LN_SBPLX, dim)
 algo = Choice([NLopt(dir, 2000), NLopt(esch, 2000), NLopt(bob, 2000), NLopt(sbp, 2000)])
 ----
 
-* Pagmo single objective algorithms: requires `pip install pygmo`
+Note that using `NLopt` currently is the only way to use algorithms supporting equality and inequality constraints in combination with the coordinated retry `fcmaes.advretry`. 
+
+* https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[Pagmo] single objective algorithms: requires `pip install pygmo`
 
 There is no predefined general algorithm wrapper, but you may define individual wrappers:
 
@@ -86,8 +90,15 @@ class SADE_pagmo(Optimizer):
         pgalgo = pg.algorithm(
             pg.sade(maxevals//self.popsize, seed = int(rg.uniform(0, 2**32 - 1))))
         pop = pg.population(problem, self.popsize)
-        pop = algo.evolve(pop) 
+        pop = pgalgo.evolve(pop) 
         return pop.champion_x, pop.champion_f, pop.problem.get_fevals()
 
-algo = Choice([SADE_pagmo(50000), de_cma(50000))
+algo = Choice([SADE_pagmo(50000), de_cma(50000)])
 ----
+
+Note that although https://esa.github.io/pagmo2/[pagmo] algorithm wrappers can only be defined for unconstrained single objective algorithms, https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints] shows two ways to parallelize all `pagmo` algorithms:
+
+- using `pg.archipelago`, pagmos own parallelization method 
+- using `fcmaes.pygmoretry`, a parallel retry mechanism specific for `pagmo` algorithms. 
+
+But for the coordinated retry a wrapper is required. Use `NLopt` instead if you want to apply the coordinated retry with algorithms supporting equality and inequality constraints.
