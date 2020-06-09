@@ -65,7 +65,7 @@ algo = Choice([NLopt(dir, 2000), NLopt(esch, 2000), NLopt(bob, 2000), NLopt(sbp,
 
 Note that using `NLopt` currently is the only way to use algorithms supporting equality and inequality constraints in combination with the coordinated retry `fcmaes.advretry`. 
 
-* https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms
+* https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[pygmo/pagmo algorithms]
 
 There is no predefined general algorithm wrapper, but you may define individual wrappers:
 
