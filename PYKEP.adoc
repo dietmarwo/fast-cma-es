@@ -861,51 +861,49 @@ Sequence 6 `[earth, venus, earth, earth, saturn]`, the one we used before won as
 The https://www.esa.int/gsp/ACT/projects/gtop/tandem_unc[GTOP result] is much better, but here 
 https://github.com/esa/pykep/blob/42ccdfb812d77ecb085a58419a10e7e86787d38c/pykep/trajopt/gym/_tandem.py#L116[L116] we have a deviation because
 the GTOP Tandem problem chose the "wrong direction" for `Vinfz` which is corrected in pykep. It is an open question 
-whether the final result below is a good solution. We suspect, that it is not since fcmaes coordinated retry couldn't find a better solution also for the
-original GTOP problem. But even `fitness = -7.388` should be a challenge for other optimizing algorithms for the unconstrained Tandem problem. 
+whether the final result below is a good solution. But `fitness = 7.4338` should be a challenge for other optimizing algorithms for the unconstrained Tandem problem for sequence 6. 
 
 ----
-solution = [7584.7555628948785, 0.7964130393731812, 0.5146468278950882, 3193.9141477569037, 0.8346148149867163, 998.6635296422996, -1.198848136500888, 1.050000567143599, 0.8395397371493137, 1891.4786735125872, 5.290936609245851, 1.0500311971254261, 0.275976396501909, 1095.7694951064686, -1.1040854008127086, 1.05011314612709, 0.1518818544190405, 2027.59864856371]
+solution = [8985.7529255691, 0.6288683258483504, 0.5114559852888231, 3069.6887063429026, 0.9257586246693946, 1508.947519175164, -1.1855127646915973, 1.0557970110155512, 0.8773779112867278, 2354.6044622468585, 4.703963836863605, 1.2164967307344021, 0.9043728224239871, 2481.2229452637835, -1.3794795580387544, 1.3379481557564792, 0.08143963789806034, 2459.0975767600025]
 
-fitness = -7.388089039175235
+fitness = (-7.4338140059429945, 5151.372503445809)
 
 First Leg: earth to venus
-Departure: 2020-Oct-06 18:08:00.634117 (7584.7555628948785 mjd2000) 
-Duration: 998.6635296422996days
-VINF: 3.1939141477569035 km/sec
-DSM after 833.499377026389 days
-DSM magnitude: 46.58721037915467m/s
+Departure: 2024-Aug-07 18:04:12.769170 (8985.7529255691 mjd2000) 
+Duration: 1508.947519175164days
+VINF: 3.0696887063429026 km/sec
+DSM after 1396.9211800498947 days
+DSM magnitude: 45.55784305233069m/s
 
 leg no. 2: venus to earth
-Duration: 1891.4786735125872days
-Fly-by epoch: 2023-Jul-02 10:03:29.595212 (8583.419092537179 mjd2000) 
-Fly-by radius: 1.050000567143599 planetary radii
-DSM after 1587.97150838429 days
-DSM magnitude: 0.000182210176374734m/s
+Duration: 2354.6044622468585days
+Fly-by epoch: 2028-Sep-24 16:48:38.425904 (10494.700444744265 mjd2000) 
+Fly-by radius: 1.0557970110155512 planetary radii
+DSM after 2065.877944992558 days
+DSM magnitude: 0.0010049610627437088m/s
 
 leg no. 3: earth to earth
-Duration: 1095.7694951064686days
-Fly-by epoch: 2028-Sep-04 21:32:46.986700 (10474.897766049766 mjd2000) 
-Fly-by radius: 1.0500311971254261 planetary radii
-DSM after 302.40651665619947 days
-DSM magnitude: 0.013293508810343895m/s
+Duration: 2481.2229452637835days
+Fly-by epoch: 2035-Mar-07 07:19:03.964033 (12849.304906991123 mjd2000) 
+Fly-by radius: 1.2164967307344021 planetary radii
+DSM after 2243.9505980713657 days
+DSM magnitude: 0.007327435540476821m/s
 
 leg no. 4: earth to saturn
-Duration: 2027.59864856371days
-Fly-by epoch: 2031-Sep-05 16:00:51.363899 (11570.667261156234 mjd2000) 
-Fly-by radius: 1.05011314612709 planetary radii
-DSM after 307.9554427613967 days
-DSM magnitude: 4.668352727036598e-05m/s
+Duration: 2459.0975767600025days
+Fly-by epoch: 2041-Dec-21 12:40:06.434824 (15330.527852254907 mjd2000) 
+Fly-by radius: 1.3379481557564792 planetary radii
+DSM after 200.26801620733227 days
+DSM magnitude: 0.010057156024015437m/s
 
 Arrival at saturn
-Arrival epoch: 2037-Mar-25 06:22:54.599803 (13598.265909719943 mjd2000) 
-Arrival Vinf: 5695.967684588943m/s
-Insertion DV: 636.4525533154156m/s
-Total mission time: 16.46409403648204 years (6013.510346825065 days)
+Arrival epoch: 2048-Sep-14 15:00:37.066888 (17789.625429014908 mjd2000) 
+Arrival Vinf: 5225.071650761917m/s
+Insertion DV: 554.072387224358m/s
+Total mission time: 24.103689263369773 years (8803.87250344581 days)
 
-Initial mass: [2132.94747272]
-Final mass: [1616.61387352]
-Declination: 20.72757493982784
+Initial mass: [2172.69961397]
+Final mass: [1692.24953049]
+Declination: 15.480672242471464
 ----
-image::tandem2.png[]
-
+image::tandem2.png[] 
