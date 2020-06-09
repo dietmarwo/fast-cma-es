@@ -80,6 +80,15 @@ class Rosetta(object):
             [1825,5,1,1,500,800,800,800,1850,0.9,0.9,0.9,0.9,0.9,9,9,9,9,math.pi,  math.pi,  math.pi,  math.pi]
         )
 
+class Sagas(object):
+    """ see https://www.esa.int/gsp/ACT/projects/gtop/sagas/ """
+    
+    def __init__(self):    
+        Astrofun.__init__(self, 'Sagas', libgtoplib.sagasC, 
+            [7000,0,0,0,50,300,0.01,0.01,1.05,8, -math.pi, -math.pi],
+            [9100,7,1,1,2000,2000,0.9,0.9,7,500, math.pi,  math.pi]
+        )
+
 class Tandem(object):
     """ see https://www.esa.int/gsp/ACT/projects/gtop/tandem/ """
     def __init__(self, i, constrained=True):   

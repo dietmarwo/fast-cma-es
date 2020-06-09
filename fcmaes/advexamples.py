@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-from fcmaes.astro import MessFull, Messenger, Cassini2, Rosetta, Gtoc1, Cassini1, Tandem
+from fcmaes.astro import MessFull, Messenger, Cassini2, Rosetta, Gtoc1, Cassini1, Tandem, Sagas
 from fcmaes.optimizer import logger, de_cma, da_cma, Cma_cpp, De_cpp, Da_cpp, Dual_annealing, Differential_evolution
 from fcmaes.advretry import minimize
 
@@ -14,7 +14,7 @@ def messengerFullLoop():
         ret = minimize(problem.fun, bounds=problem.bounds, num_retries = 60000, 
             value_limit = 10.0, logger = logger())
         
-problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), MessFull()]
+problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), MessFull(), Sagas()]
 
 min_evals = 1500
 
@@ -26,7 +26,7 @@ def test_all(num_retries = 10000, num = 10):
         for algo in algos:
             _test_optimizer(algo, problem, num_retries, num) 
 
-def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 20.0, log = logger()):
+def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 100.0, log = logger()):
     log.info(problem.name + ' ' + opt.name)
     for i in range(num):
         ret = minimize(problem.fun, problem.bounds, value_limit, num_retries, log, optimizer=opt)
