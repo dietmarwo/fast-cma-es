@@ -34,8 +34,8 @@ But the sequence DE -> CMA achieves the most consistent results, beside messenge
 problems can be solved in under one minute, messenger full needs about 2 hours. 
 These results explain why we choose DE-CMA as the default algorithm. 
 If you want to reproduce the results shown here, check 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/examples.py[examples.py] and 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/advexamples.py[advexamples.py].
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/examples/examples.py[examples.py] and 
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/examples/advexamples.py[advexamples.py].
 
 image::Cassini1_de_cpp_cma_cpp.png[]
 image::Cassini1_cma_cpp.png[]

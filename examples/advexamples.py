@@ -3,6 +3,9 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
+# Examples for fcmaes coordinated retry from https://www.esa.int/gsp/ACT/projects/gtop/
+# Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc
+
 from fcmaes.astro import MessFull, Messenger, Cassini2, Rosetta, Gtoc1, Cassini1, Tandem, Sagas
 from fcmaes.optimizer import logger, de_cma, da_cma, Cma_cpp, De_cpp, Da_cpp, Dual_annealing, Differential_evolution
 from fcmaes.advretry import minimize

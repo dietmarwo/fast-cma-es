@@ -1,0 +1,121 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+== Optimize with differential equations
+
+This tutorial discusses the example: https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/examples/f8.py[f8.py], an implementation of the F-8 aircraft control problem from from https://mintoc.de/index.php/F-8_aircraft[F-8_aircraft] which aims at controlling an aircraft in a time-optimal way from an initial state to a terminal state.
+
+It provides the information you need for your own optimization projects involving differential equations in the
+context of parallel retries. The example is described in detail in 
+http://www.midaco-solver.com/data/pub/The_Oracle_Penalty_Method.pdf[Oracle Penalty]: In 8 hours on a PC
+with 2 GHz clock rate and 2 GB RAM working memory - back in 2010 - the equality constraints could not 
+completely be solved using the oracle penalty method. We will use a fixed penalty weight instead, lets see
+if 10 years later modern multi-core processors make a difference. 
+
+=== How to implement differential equations in Python
+
+Integrating differential equations inside the objective function is costly. We should do everything we can
+to speed things up. Scipy provides two interfaces https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html[ode] and https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html[solve_ivp]. There is a massive overhead when using 
+`solve_ivp`, see https://github.com/scipy/scipy/issues/8257[Issue 8257] and its interface doesn't fit 
+very well with our needs, so we will use the older https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html[ode]. Using https://github.com/neurophysik/jitcode[jitcode] we can define
+our differential equations in Python but use a precompiled much faster version which is compatible with 
+scipys `ode`, see https://aip.scitation.org/doi/10.1063/1.5019320[JiTCODE]. You need to install 
+`jitcode` before executing  https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/examples/f8.py[f8.py] (`pip install jitcode`). 
+
+[source,python]
+----
+def get_compiled_function(f, control_pars):
+    dummy = jitcode(f, verbose=False, control_pars = control_pars)
+    dummy.compile_C()
+    return dummy.f
+----
+
+The `dummy = jitcode(f,...` call above creates a wrapper for scipy integrators which is used
+in all https://github.com/neurophysik/jitcode/blob/master/examples[jitcode examples]. Unfortunately it cannot be used in the context of parallel optimization retry. We would have to copy this wrapper to all processes. Instead
+we just extract the compiled differential equations `dummy.f` and use the original https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html[ode] interface with these. `ode` can be created separately in each process, since it doesn't involve a costly compilation operation. 
+
+Unbound variables inside the differential equations have to be declared as follows:
+
+[source,python]
+----
+w = Symbol("w") 
+----
+
+and later be set for each integration call:
+
+[source,python]
+----
+I.set_f_params(w)
+y = I.integrate(t)
+----
+
+Note that there is another `jitcode` argument `helpers` for common subexpressions which could speed up things further. See for example https://github.com/neurophysik/jitcode/blob/master/examples/SW_of_Roesslers.py[SW_of_Roesslers.py]. 
+
+=== Results for the F-18 problem 
+
+Executing the coordinated retry with pure CMA-ES with `popsize=13`
+[source,python]
+----
+ret = advretry.minimize(obj_f, bounds(dim), logger=logger(), optimizer=Cma_cpp(2000, popsize=13))
+----
+
+results in:
+
+----
+val = 3.78089529 penalty = 0.00000000 f(xmin) = 0.37809
+8.81 44272 253 390040 0.378091 2817684.83 96 3 [0.38, ...
+val = 3.78085609 penalty = 0.00000000 f(xmin) = 0.37809
+44.85 54287 659 2434774 0.378086 2818185.04 172 7 [0.38, ...
+
+solution = [1.1348985292609977, 0.34693726064109887, 1.417784557605076, 1.4994255498647044e-09, 0.1896150683616807, 0.6916206757374317]
+----
+
+After 9 seconds on a 16 core AMD 3950x we find an almost perfect solution, after 45s a solution at least as
+good as the best known is found. 
+
+But what about the default settings? Now after 9 seconds we get:
+
+----
+val = 3.78122898 penalty = 0.00003388 f(xmin) = 0.37816
+9.37 63775 259 597579 0.378157 0.63 94 3 [0.38, ... 
+
+val = 3.78085579 penalty = 0.00000000 f(xmin) = 0.37809
+48.08 66513 645 3197954 0.378086 0.63 143 7 [0.38,
+
+solution = [1.1348372252390804, 0.3458563912111454, 2.1045379783313223e-07, 0.0007604051033051543, 1.6080218689971524, 0.6913796811453801]
+----
+
+after 48 seconds we still find a "perfect" solution - a completely different one. 
+But it took longer for the equality constraint error to disappear. So why do we have 
+a `DE-CMA` sequence as default? We see it when we try to increase the dimension of 
+the problem by adding more https://en.wikipedia.org/wiki/Bang%E2%80%93bang_control[bang bang] switches.
+Even with `dim = 30` the coordinated retry with pure CMA-ES fails. But lets try a real challenge:
+`dim = 50`. Note that the upper bound `2.0` for each phase now leads the optimization initially to much higher values, an overall `time = 100` is now valid.  
+
+----
+...
+val = 27.08401336 penalty = 0.73889033 f(xmin) = 3.44729
+4.1 372 32 1526 3.447292 inf 0 1 []  ...
+...
+val = 17.49513502 penalty = 0.09440748 f(xmin) = 1.84392
+21.85 7175 131 156776 1.843921 639350.64 99 2 [3.43, ...
+...
+val = 0.01443653 penalty = 0.50487757 f(xmin) = 0.50632
+169.07 13143 501 2222128 0.506321 639350.64 422 6 [0.57
+...
+val = 4.07790487 penalty = 0.01842271 f(xmin) = 0.42621
+537.75 15339 1022 8248915 0.426213 2.76 468 11 [0.44
+...
+val = 3.78927355 penalty = 0.00402409 f(xmin) = 0.38295
+1167.66 15921 1610 18591083 0.382951 2.32 458 17 [0.39
+...
+val = 3.80516719 penalty = 0.00045756 f(xmin) = 0.38097
+2210.88 16068 2313 35525912 0.380974 1.93 461 24 [0.38
+
+solution = [0.07358599228694028, 7.764459239391805e-05, 0.6089797242601783, 0.001438144747684186, 0.0012452244506174733, 0.00026133929471262716, 0.407229372936015, 0.002288526769830258, 0.045606200377823376, 2.741447792853072e-05, 9.592092605233718e-05, 0.19882874050312668, 0.0, 0.051527207362785155, 0.013388426730218957, 0.036648514403703016, 5.183540052108129e-05, 0.04103622310202498, 0.0004014120532981131, 0.015471148599404043, 7.774395030413836e-05, 0.004567973230718994, 0.002847169706145192, 0.0002446026274211611, 1.5228670754126155, 0.015658478420893338, 0.0006564639519287904, 0.00042509123087745404, 0.003341067932352076, 0.0003890439984038092, 0.0515965091089832, 0.034657379995458364, 1.5229851247527043e-06, 0.02151551060405634, 0.0, 0.004771634244722672, 0.0016620887553473495, 0.0, 0.00016457301466208323, 0.04601603242702509, 9.45824479858324e-05, 0.5682107031571721, 0.0002875163442762875, 0.0002107437185446241, 0.008110942759240135, 0.0039927104917555425, 0.00025656702305171925, 0.0, 0.0, 0.014354453183723944]
+----
+
+Over 2200 seconds to reduce the constraint violation down to `0.000457`. And we know that `f(xmin) = 0.37809`
+is possible since 50 switches can "emulate" 6 switches by setting 44 variables to `0`.
+Of course the original `dim = 6` already had no strong "real world" relation since using only 4 switches produces good results. But the maximal dimension / number of switches an optimizer can handle is a nice performance indicator. May be there is an algorithm able to handle `dim = 100` ?. Or can reduce the constraint violation faster than fcmaes with `dim = 50`.   
