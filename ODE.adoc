@@ -4,7 +4,7 @@
 
 == Optimize with differential equations
 
-This tutorial discusses the example: https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/examples/f8.py[f8.py], an implementation of the F-8 aircraft control problem from https://mintoc.de/index.php/F-8_aircraft[F-8_aircraft] which aims at controlling an aircraft in a time-optimal way from an initial state to a terminal state.
+This tutorial discusses the example: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/f8.py[f8.py], an implementation of the F-8 aircraft control problem from https://mintoc.de/index.php/F-8_aircraft[F-8_aircraft] which aims at controlling an aircraft in a time-optimal way from an initial state to a terminal state.
 
 It provides the information you need for your own optimization projects involving differential equations in the
 context of parallel retries. The example is described in detail in 
