@@ -55,8 +55,11 @@ Note that there is another `jitcode` argument `helpers` for common subexpression
 === Results for the F-18 problem 
 
 Executing the coordinated retry with pure CMA-ES with `popsize=13`
+
 [source,python]
 ----
+dim = 6
+# coordinated retry with CMA-ES optimizer with reduced popsize
 ret = advretry.minimize(obj_f, bounds(dim), logger=logger(), optimizer=Cma_cpp(2000, popsize=13))
 ----
 
@@ -74,7 +77,16 @@ solution = [1.1348985292609977, 0.34693726064109887, 1.417784557605076, 1.499425
 After 9 seconds on a 16 core AMD 3950x we find an almost perfect solution, after 45s a solution at least as
 good as the best known is found. 
 
-But what about the default settings? Now after 9 seconds we get:
+But what about the default settings? 
+
+[source,python]
+----
+	dim = 6
+	# coordinated retry with default optimizer
+	ret = advretry.minimize(obj_f, bounds(dim), logger=logger()) 
+----    
+
+Now after 9 seconds we get:
 
 ----
 val = 3.78122898 penalty = 0.00003388 f(xmin) = 0.37816
@@ -93,6 +105,15 @@ the problem by adding more https://en.wikipedia.org/wiki/Bang%E2%80%93bang_contr
 Even with `dim = 30` the coordinated retry with pure CMA-ES fails. But lets try a real challenge:
 `dim = 50`. Note that the upper bound `2.0` for each phase now leads the optimization initially to much higher values, an overall `time = 100` is now valid.  
 
+[source,python]
+----
+	dim = 50
+	# coordinated retry with default optimizer
+	ret = advretry.minimize(obj_f, bounds(dim), logger=logger()) 
+----    
+
+On an AMD 3950X 16 core machine we get:
+    
 ----
 ...
 val = 27.08401336 penalty = 0.73889033 f(xmin) = 3.44729
@@ -115,10 +136,22 @@ val = 3.80516719 penalty = 0.00045756 f(xmin) = 0.38097
 ...
 val = 3.80056272 penalty = 0.00010055 f(xmin) = 0.38016
 4974.3 16749 3753 83319335 0.380157 1.36 483 38 [0.38
-...
-solution = [0.1243903372412827, 0.0, 0.04828613549657601, 1.490910363417875e-05, 0.001340600214817634, 0.0007746675393874754, 0.9448307600602018, 0.0005320401851369675, 0.0034705995458724635, 0.0004769489317540366, 1.288823601014204e-06, 0.0, 6.728573180658644e-05, 0.011138073853486457, 0.013551130405265188, 0.0451784843207716, 0.0020871247511391193, 0.05220255375029917, 0.000993774633472217, 0.04490687416547069, 0.0001777438719494862, 0.0007773839066830289, 0.008236784342303181, 0.22944468981847704, 1.3883873635940471, 0.0034609275780210576, 0.0018212392512506198, 2.0742419512936117e-05, 0.008575000733916743, 0.001398856623813188, 0.09499478907628077, 0.001707389769468453, 5.7871858147362194e-05, 0.09220979523259387, 4.480925626456997e-09, 0.0036793417342606445, 3.4908867251440417e-06, 6.179972281339754e-09, 0.00010648476111969638, 0.0, 0.00041921041373729637, 0.025379643934075966, 0.00893975763919493, 0.0005106841396119166, 0.023600942538110157, 0.0, 2.2840953562624415e-05, 9.99992162265139e-05, 0.0, 0.61228614733163]
 ----
 
 About 5000 seconds to reduce the constraint violation down to `0.0001`. And we know that `f(xmin) = 0.37809`
 is possible since 50 switches can "emulate" 6 switches by setting 44 variables to `0`.
-Of course the original `dim = 6` already had no strong "real world" relation since using only 4 switches produces good results. But the maximal dimension / number of switches an optimizer can handle is a nice performance indicator. May be there is an algorithm able to handle `dim = 100` ?. Or can reduce the constraint violation faster than fcmaes with `dim = 50`.   
+Of course the original `dim = 6` already had no strong "real world" relation since using only 4 switches produces good results. But the maximal dimension / number of switches an optimizer can handle is a nice performance indicator. May be there is an algorithm able to handle `dim = 100` ?. Or can reduce the constraint violation faster than fcmaes with `dim = 50`?
+
+Lets repeat the same experiment on an AMD 2990WX 32 core machine. This old Zen 1 based processor has memory latencies causing inferior scaling compared with the new AMD 3970x, but optimization uses not much memory and therefore scales excellently:
+
+----
+val = 29.79966645 penalty = 0.38013333 f(xmin) = 3.36010
+5.32 286 64 1526 3.360100 inf 0 1 
+...
+val = 3.78487281 penalty = 0.00001984 f(xmin) = 0.37851
+20445.62 27565 13763 563584635 0.378507 0.89 490 50 [0.38,
+
+solution = [1.1326083933964763, 0.33018804287824055, 0.0015797016944767346, 0.0, 0.00041388330868745313, 0.005766343338547673, 1.5511572680129606, 5.231350807490471e-09, 2.3880353373060585e-05, 7.298572992274168e-05, 3.9789127888219825e-05, 0.0006150180997003716, 0.06341745006415928, 0.00010003517505922108, 1.6313804268070133e-05, 1.300749837716078e-05, 0.00910364507438097, 0.3269893161858966, 1.6979215682758936e-07, 9.999779527545584e-05, 0.0, 0.00010000210688143446, 0.0, 3.6734166517531815e-07, 1.583462105652369e-07, 0.0, 7.654526271934326e-05, 0.00558740459294974, 0.0001716992607985044, 4.001439309721446e-06, 3.163121259404459e-07, 1.0471102841248277e-05, 8.973093118726171e-05, 0.004352232523562075, 0.0002459310670276825, 3.673286270605999e-08, 0.002529868815441627, 1.702036400800958e-09, 0.0006002635982425756, 0.0007137236078362145, 0.0, 3.391529467517241e-05, 0.00010120718939378514, 0.3465992627863233, 9.338186469440464e-06, 0.00038849620853035125, 0.0, 0.00073421817436267, 6.586994129365896e-09, 0.0003183673296339078]
+----
+
+Now we have `27565` function evaluations per second compared to `16749` on the 3950x. I havent't seen any other application scaling this well on the 2990WX. After 20445 seconds we found a nearly perfect solution even with 50 bang bang switches. 

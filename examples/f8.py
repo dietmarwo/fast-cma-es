@@ -90,9 +90,10 @@ def bounds(n):
 
 if __name__ == '__main__':
     
-    dim = 50
+    dim = 6
     # coordinated retry with default optimizer
     ret = advretry.minimize(obj_f, bounds(dim), logger=logger()) 
 
+    # coordinated retry with CMA-ES optimizer with reduced popsize
     # faster for small dimension, use default for dim > 12
     #ret = advretry.minimize(obj_f, bounds(dim), logger=logger(), optimizer=Cma_cpp(2000, popsize=13))
