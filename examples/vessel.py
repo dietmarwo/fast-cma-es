@@ -14,7 +14,7 @@
 # x1 and x2 are integer multiples of 0.0625 inch, witch are
 # the available thickness of rolled steel plates, 
 # and x3 and x4 are continuous.
-# The x1 and x2 made discrete by calling 'feasible(x)' in the objective function 'feasable_cost_penalty()
+# x1 and x2 are made discrete by calling 'feasible(x)' in the objective function 'feasable_cost_penalty()
 # This works well with derivative free optimizers, but never do this with scipy.minimize. 
 # Try 'test_minimize_SLSQP' to see why. But this can be fixed by using 'cost_int_penalty' as
 # objective function which adds a penalty for the "multiples of 0.0625" violation. 
