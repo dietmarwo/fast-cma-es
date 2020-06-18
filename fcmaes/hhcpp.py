@@ -3,11 +3,10 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-"""Eigen based implementation of differential evolution using onl the DE/best/1 strategy.
-    Uses two deviations from the standard DE algorithm:
-    a) temporal locality introduced in 
-        https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model
-    b) reinitialization of individuals based on their age."""
+""" Eigen based implementation of the Harris hawks algorithm.
+    Derived from derived from https://github.com/7ossam81/EvoloPy/blob/master/optimizers/HHO.py.
+    See DOI: https://doi.org/10.1016/j.future.2019.02.028
+"""
 
 import sys
 import os
@@ -26,14 +25,11 @@ def minimize(fun,
              popsize = None, 
              max_evaluations = 100000, 
              stop_fittness = None, 
-             keep = 200.0,
-             f = 0.5,
-             cr = 0.9,
              rg = Generator(MT19937()),
-             runid=0):  
-     
+             runid=0):   
+
     """Minimization of a scalar function of one or more variables using a 
-    C++ Differential Evolution implementation called via ctypes.
+    C++ Harris hawks implementation called via ctypes.
      
     Parameters
     ----------
@@ -54,15 +50,6 @@ def minimize(fun,
         Forced termination after ``max_evaluations`` function evaluations.
     stop_fittness : float, optional 
          Limit for fitness value. If reached minimize terminates.
-    keep = float, optional
-        changes the reinitialization probability of individuals based on their age. Higher value
-        means lower probablity of reinitialization.
-    f = float, optional
-        The mutation constant. In the literature this is also known as differential weight, 
-        being denoted by F. Should be in the range [0, 2].
-    cr = float, optional
-        The recombination constant. Should be in the range [0, 1]. 
-        In the literature this is also known as the crossover probability.     
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     runid : int, optional
@@ -82,7 +69,7 @@ def minimize(fun,
     upper = np.asarray(bounds.ub)
     n = dim  
     if popsize is None:
-        popsize = n*15
+        popsize = 31
     if lower is None:
         lower = [0]*n
         upper = [0]*n
@@ -92,10 +79,10 @@ def minimize(fun,
     c_callback = call_back_type(_c_func(fun))
     seed = int(rg.uniform(0, 2**32 - 1))
     try:
-        res = optimizeDE_C(runid, c_callback, n, seed,
+        res = optimizeHH_C(runid, c_callback, n, seed,
                            array_type(*lower), array_type(*upper), 
-                           max_evaluations, keep, stop_fittness,  
-                           popsize, f, cr)
+                           max_evaluations, stop_fittness,  
+                           popsize)
         x = np.array(np.fromiter(res, dtype=np.float64, count=n))
         val = res[n]
         evals = int(res[n+1])
@@ -116,13 +103,12 @@ else:
     libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')  
 
 call_back_type = ct.CFUNCTYPE(ct.c_double, ct.c_int, ct.POINTER(ct.c_double))  
-optimizeDE_C = libcmalib.optimizeDE_C
-optimizeDE_C.argtypes = [ct.c_long, call_back_type, ct.c_int, ct.c_int, \
+optimizeHH_C = libcmalib.optimizeHH_C
+optimizeHH_C.argtypes = [ct.c_long, call_back_type, ct.c_int, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
-            ct.c_double, ct.c_double]
+            ct.c_int, ct.c_double, ct.c_int]
 
-optimizeDE_C.restype = ct.POINTER(ct.c_double)         
+optimizeHH_C.restype = ct.POINTER(ct.c_double)         
 freemem = libcmalib.free_mem
 freemem.argtypes = [ct.POINTER(ct.c_double)]
   

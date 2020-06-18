@@ -12,12 +12,12 @@ def get_version():
 setup(
     name='fcmaes',
     version=get_version(),
-    description=('Fast implementation of CMA-ES.'),
+    description=('A Python 3 gradient-free optimization library.'),
     long_description=long_description,
     long_description_content_type="text/markdown",
     author='Dietmar Wolz',
     author_email='drdietmarwolz@yahoo.de',
-    url='https://github.com/dwolz/cmaes',
+    url='https://github.com/dietmarwo/fast-cma-es',
     license='MIT',
     packages=find_packages(),
     install_requires=[
@@ -37,6 +37,6 @@ setup(
       "Environment :: Console",
       "License :: OSI Approved :: MIT License",
       ],
-    keywords=["optimization", "CMA-ES", "cmaes", "fast CMA", "stochastic", "differential evolution", "dual annealing", "gradient free", "parallel retry"],
+    keywords=["optimization", "CMA-ES", "Harris hawks", "differential evolution", "dual annealing", "fast CMA", "stochastic", "gradient free", "parallel retry"],
     include_package_data=True,
    )

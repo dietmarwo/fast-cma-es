@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory.
 
-// Eigen based implementation of differential evolution using only the DE/best/1 strategy.
+// Eigen based implementation of differential evolution using onl the DE/best/1 strategy.
 // Uses two deviations from the standard DE algorithm:
 // a) temporal locality introduced in 
 // https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model
@@ -158,7 +158,7 @@ public:
     DeOptimizer(long runid_, Fittness* fitfun_, int dim_, int seed_, int popsize_, 
             int maxEvaluations_, double keep_,  
             double stopfitness_, double F_, double CR_) {
-        // runid used in isTerminate callback to identify a specific run at different iteration
+        // runid used to identify a specific run
         runid = runid_;
         // fitness function to minimize
         fitfun = fitfun_;
@@ -201,18 +201,8 @@ public:
         return rnd*rnd;
     }
 
-    double rnd03() {
-        double rnd = distr_01(*rs);
-        return rnd*rnd;
-    }
-
     int rndInt(int max) {
         return (int) (max*distr_01(*rs));
-    } 
-
-    int rndInt2(int max) {
-        double rnd = distr_01(*rs);
-        return (int) (max*rnd*rnd);
     } 
 
     void doOptimize() {

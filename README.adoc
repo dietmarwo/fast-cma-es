@@ -28,6 +28,7 @@ non-continous or even non-deterministic objective functions.
 - Parallel function evaluation for CMA-ES
 - New DE (differential evolution) variant optimized for usage with parallel coordinated retry and the DE->CMA sequence.
 - C++ implementation of dual annealing. 
+- C++ implementation of the Harris Hawks algorithm. 
 - Integrates https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy] and https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt] optimization algorithms for use with the coordinated retry.
 - Parallel retry for https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] algorithms and problems. 
 
@@ -38,12 +39,13 @@ Binaries for Windows are provided, but it is recommend to use Linux since fcmaes
 - CMA-ES: Implemented both in Python and in {cpp}. The Python version is faster than
 https://github.com/CMA-ES/pycma/tree/master/cma[CMA] but slower than the {cpp} variant. The Python variant provides an ask/tell interface and supports parallel function evaluation. Both CMA variants provide less configurability than https://github.com/CMA-ES/pycma/tree/master/cma[CMA].
 
-- Dual Annealing: Implemented in {cpp}. Use the scipy implementation if you prefer a pure python variant or need more
-configuration options. 
+- Dual Annealing: Implemented in {cpp}. Use the scipy implementation if you prefer a pure python variant or need more configuration options. 
 
 - Differential Evolution: Implemented in {cpp}. There is no python equivalent, the scipy implementation 
 works differently. Additional concepts implemented here are 
 https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model[temporal locality] and stochastic reinitialization of individuals based on their age. 
+
+- Harris hawks: Implemented in {cpp}. Use the https://github.com/7ossam81/EvoloPy/blob/master/optimizers/HHO.py[HHO] if you prefer a pure python variant. See Harris hawks optimization: Algorithm and applications Ali Asghar Heidari, Seyedali Mirjalili, Hossam Faris, Ibrahim Aljarah, Majdi Mafarja, Huiling Chen, Future Generation Computer Systems,  DOI: https://doi.org/10.1016/j.future.2019.02.028 .
 
 - Expressions: There are two operators for constructing expressions over optimization algorithms: Sequence and random choice.
 Not only the three algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. Default method for the parallel retry is the sequence DE -> CMA with the evaluation budget equally distributed. 
@@ -150,7 +152,7 @@ for i in range(iterNum):
         break 
 ----
 
-Differential evolution (fcmaes.decpp) and Dual Annealing (fcmaes.dacpp) provide similar interfaces. 
+Differential evolution (fcmaes.decpp), Dual Annealing (fcmaes.dacpp) and Harris hawks (fcmaes.hhcpp) provide similar interfaces. 
 [source,python]
 ----
 from fcmaes import decpp, dacpp

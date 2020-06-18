@@ -3,6 +3,11 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
+""" Eigen based implementation of dual annealing.
+    Derived from https://github.com/scipy/scipy/blob/master/scipy/optimize/_dual_annealing.py.
+    Local search is fixed to LBFGS-B
+"""
+
 import sys
 import os
 import ctypes as ct
@@ -21,6 +26,44 @@ def minimize(fun,
              use_local_search = True,
              rg = Generator(MT19937()),
              runid=0):   
+
+    """Minimization of a scalar function of one or more variables using a 
+    C++ Dual Annealing implementation called via ctypes.
+     
+    Parameters
+    ----------
+    fun : callable
+        The objective function to be minimized.
+            ``fun(x, *args) -> float``
+        where ``x`` is an 1-D array with shape (n,) and ``args``
+        is a tuple of the fixed parameters needed to completely
+        specify the function.
+    bounds : sequence or `Bounds`, optional
+        Bounds on variables. There are two ways to specify the bounds:
+            1. Instance of the `scipy.Bounds` class.
+            2. Sequence of ``(min, max)`` pairs for each element in `x`. None
+               is used to specify no bound.
+    x0 : ndarray, shape (n,)
+        Initial guess. Array of real elements of size (n,),
+        where 'n' is the number of independent variables.  
+    max_evaluations : int, optional
+        Forced termination after ``max_evaluations`` function evaluations.
+    use_local_search : bool, optional
+        If true local search is performed.
+    rg = numpy.random.Generator, optional
+        Random generator for creating random guesses.
+    runid : int, optional
+        id used to identify the optimization run. 
+            
+    Returns
+    -------
+    res : scipy.OptimizeResult
+        The optimization result is represented as an ``OptimizeResult`` object.
+        Important attributes are: ``x`` the solution array, 
+        ``fun`` the best function value, 
+        ``nfev`` the number of function evaluations,
+        ``nit`` the number of iterations,
+        ``success`` a Boolean flag indicating if the optimizer exited successfully. """
                 
     lower, upper, guess = _check_bounds(bounds, x0, rg)   
     n = guess.size   
@@ -48,7 +91,7 @@ basepath = os.path.dirname(os.path.abspath(__file__))
 
 if sys.platform.startswith('linux'):
     libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.so')  
-elif sys.platform.contains('mac'):
+elif 'mac' in sys.platform:
     libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
 else:
     libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')

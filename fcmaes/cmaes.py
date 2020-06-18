@@ -3,6 +3,11 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
+""" Numpy based implementation of active CMA-ES.
+    Derived from http://cma.gforge.inria.fr/cmaes.m which follows
+    https://www.researchgate.net/publication/227050324_The_CMA_Evolution_Strategy_A_Comparing_Review
+"""
+
 import sys
 import os
 import math

@@ -12,7 +12,7 @@ from scipy.optimize import Bounds
 basepath = os.path.dirname(os.path.abspath(__file__))
 if sys.platform.startswith('linux'):
     libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.so')    
-elif sys.platform.contains('mac'):
+elif 'mac' in sys.platform:
     libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.dylib')  
 else:
     libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.dll')

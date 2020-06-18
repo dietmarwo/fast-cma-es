@@ -11,7 +11,7 @@ import time
 import math
 import logging
 
-from fcmaes import cmaes, cmaescpp, decpp, dacpp
+from fcmaes import cmaes, cmaescpp, decpp, dacpp, hhcpp
 
 _logger = None
 
@@ -215,6 +215,23 @@ class Da_cpp(Optimizer):
                             max_evaluations = self.max_eval_num(store), 
                             use_local_search = self.use_local_search,
                             rg=rg, runid = self.get_count_runs(store))
+        return ret.x, ret.fun, ret.nfev
+
+class Hh_cpp(Optimizer):
+    """Harris hawks C++ implementation."""
+    
+    def __init__(self, max_evaluations=50000,
+                 popsize = None, stop_fittness = None):        
+        Optimizer.__init__(self, max_evaluations, 'de cpp')
+        self.popsize = popsize
+        self.stop_fittness = stop_fittness
+
+    def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
+        ret = hhcpp.minimize(fun, len(bounds.lb), bounds, 
+                popsize=self.popsize, 
+                max_evaluations = self.max_eval_num(store), 
+                stop_fittness = self.stop_fittness,
+                rg=rg, runid = self.get_count_runs(store))
         return ret.x, ret.fun, ret.nfev
         
 class Dual_annealing(Optimizer):

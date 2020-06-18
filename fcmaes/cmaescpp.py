@@ -3,6 +3,11 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
+""" Eigen based implementation of active CMA-ES.
+    Derived from http://cma.gforge.inria.fr/cmaes.m which follows
+    https://www.researchgate.net/publication/227050324_The_CMA_Evolution_Strategy_A_Comparing_Review
+"""
+
 import sys
 import os
 import math
@@ -70,8 +75,10 @@ def minimize(fun,
     res : scipy.OptimizeResult
         The optimization result is represented as an ``OptimizeResult`` object.
         Important attributes are: ``x`` the solution array, 
-        ``fun`` the best function value, ``nfev`` the number of function evaluations,
-        ``nit`` the number of CMA-ES iterations, ``status`` the stopping critera and
+        ``fun`` the best function value, 
+        ``nfev`` the number of function evaluations,
+        ``nit`` the number of CMA-ES iterations, 
+        ``status`` the stopping critera and
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
     
     lower, upper, guess = _check_bounds(bounds, x0, rg)      
@@ -135,7 +142,7 @@ basepath = os.path.dirname(os.path.abspath(__file__))
 
 if sys.platform.startswith('linux'):
     libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.so')  
-elif sys.platform.contains('mac'):
+elif 'mac' in sys.platform:
     libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
 else:
     libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')  
