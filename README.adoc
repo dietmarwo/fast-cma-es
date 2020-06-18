@@ -27,8 +27,7 @@ non-continous or even non-deterministic objective functions.
 - Parallel coordinated retry of sequences and random choices of optimization algorithms. See https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions].
 - Parallel function evaluation for CMA-ES
 - New DE (differential evolution) variant optimized for usage with parallel coordinated retry and the DE->CMA sequence.
-- C++ implementation of dual annealing. 
-- C++ implementation of the Harris hawks algorithm. 
+- Fast C++ implementations of CMA-ES, differential evolution, dual annealing and the Harris hawks algorithm.
 - Integrates https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy] and https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt] optimization algorithms for use with the coordinated retry.
 - Parallel retry for https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] algorithms and problems. 
 
