@@ -31,7 +31,7 @@ astro_map = {
     "gtoc1C": libgtoplib.gtoc1C,
     "cassini1C": libgtoplib.cassini1C,
     "cassini2C": libgtoplib.cassini2C,
-    "rosettaC": libgtoplib.messengerfullC,
+    "rosettaC": libgtoplib.rosettaC,
     "sagasC": libgtoplib.sagasC,
     "tandemC": libgtoplib.tandemC,
     "tandemCu": libgtoplib.tandemCu
