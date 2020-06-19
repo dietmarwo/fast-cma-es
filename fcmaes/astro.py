@@ -21,10 +21,9 @@ class Astrofun(object):
     """Provides access to ESAs GTOP optimization test functions."""
     def __init__(self, name, fun_c, lower, upper):    
         self.name = name 
-        self.fun_c = fun_c
-        self.fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double)] 
-        self.fun_c.restype = ct.c_double           
-        self.fun = _python_fun(self.fun_c)
+        fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double)] 
+        fun_c.restype = ct.c_double           
+        self.fun = python_fun(fun_c)
         self.bounds = Bounds(lower, upper)
 
 class MessFull(object):
@@ -118,14 +117,18 @@ class Tandem(object):
             val = 1E16
         return val
   
-def _python_fun(cfun):
-    return lambda x : _call_c(cfun, x)
-
-def _call_c(cfun, x):
-    n = len(x)
-    array_type = ct.c_double * n   
-    try:
-        val = float(cfun(n, array_type(*x)))
-    except Exception as ex:
-        val = sys.float_info.max
-    return val
+class python_fun(object):
+    
+    def __init__(self, cfun):
+        self.cfun = cfun
+    
+    def __call__(self, x):
+        n = len(x)
+        array_type = ct.c_double * n   
+        try:
+            val = float(self.cfun(n, array_type(*x)))
+            if not math.isfinite(val):
+                val = sys.float_info.max
+        except Exception as ex:
+            val = sys.float_info.max
+        return val

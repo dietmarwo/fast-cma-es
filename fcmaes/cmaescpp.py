@@ -97,7 +97,7 @@ def minimize(fun,
     else:
         use_terminate = True 
     array_type = ct.c_double * n   
-    c_callback = call_back_type(_c_func(fun))
+    c_callback = call_back_type(callback(fun))
     c_is_terminate = is_terminate_type(is_terminate)
     try:
         res = optimizeACMA_C(runid, c_callback, n, array_type(*guess), array_type(*lower), array_type(*upper), 
@@ -114,29 +114,20 @@ def minimize(fun,
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
 
+class callback(object):
+    
+    def __init__(self, fun):
+        self.fun = fun
+    
+    def __call__(self, n, x):
+        try:
+            fit = self.fun([x[i] for i in range(n)])
+            return fit if math.isfinite(fit) else sys.float_info.max
+        except Exception:
+            return sys.float_info.max
+
 def _is_terminate_false(runid, iterations, val):
     return False 
- 
-def _c_func(fun):
-    """Convert an objective function for serial execution for cmaescpp.
-    
-    Parameters
-    ----------
-    fun : objective function mapping a list of float arguments to a float value
-
-    Returns
-    -------
-    out : function
-        A function suitable as ctypes based argument for cmaescpp.minimize."""
- 
-    return lambda n, x: _tryfun(fun, n, x)
-
-def _tryfun(fun, n, x):
-    try:
-        fit = fun([x[i] for i in range(n)])
-        return fit if math.isfinite(fit) else sys.float_info.max
-    except Exception:
-        return sys.float_info.max
   
 basepath = os.path.dirname(os.path.abspath(__file__))
 

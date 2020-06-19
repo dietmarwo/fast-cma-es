@@ -15,7 +15,7 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaescpp import _c_func
+from fcmaes.cmaescpp import callback
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -76,7 +76,7 @@ def minimize(fun,
     if stop_fittness is None:
         stop_fittness = math.inf   
     array_type = ct.c_double * n   
-    c_callback = call_back_type(_c_func(fun))
+    c_callback = call_back_type(callback(fun))
     seed = int(rg.uniform(0, 2**32 - 1))
     try:
         res = optimizeHH_C(runid, c_callback, n, seed,
