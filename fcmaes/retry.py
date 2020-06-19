@@ -7,6 +7,7 @@ import random
 import time
 import math
 import os
+import sys
 import ctypes as ct
 import numpy as np
 from numpy.random import Generator, MT19937, SeedSequence
@@ -14,7 +15,7 @@ from scipy.optimize._constraints import new_bounds_to_old
 from scipy.optimize import OptimizeResult, Bounds
 import multiprocessing as mp
 from multiprocessing import Process
-from fcmaes.optimizer import de_cma, dtime
+from fcmaes.optimizer import de_cma, dtime, logger
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -239,6 +240,11 @@ class Store(object):
 
         
 def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit):
+    
+    #reinitialize logging config for windows -  multi threading fix
+    if 'win' in sys.platform and not store.logger is None:
+        store.logger = logger()
+        
     lower = store.lower
     while store.get_runs_compare_incr(num_retries):        
         try:       

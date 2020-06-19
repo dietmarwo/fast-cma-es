@@ -15,7 +15,7 @@ Several real world optimization tasks from the space trajectory design domain ar
 
 Its source code can be found here https://www.esa.int/gsp/ACT/doc/INF/Code/globopt/GTOPtoolbox.zip[GTOPToolbox].
 fcmaes adds a python interface in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/astro.py[astro.py]. 
-The tutorial code can be found in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/tutorial.py[tutorial.py]. 
+The tutorial code can be found in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/tutorial.py[tutorial.py]. 
 We focus on https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1] and leave the other problems for you to experiment with. 
 
 === GTOC1

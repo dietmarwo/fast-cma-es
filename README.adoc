@@ -9,7 +9,7 @@ additional optimization methods, faster {cpp}/Eigen based implementations and a 
 It supports the multi threaded application of different gradient free optimization algorithms. The coordinated retry
 can be viewed as a new meta algorithm operating on a population of user defined optimization runs. Its default
 optimization algorithm is a sequence of differential evolution and CMA-ES well suited for many ill conditioned,
-non-continous or even non-deterministic objective functions. 
+non-continous objective functions. 
 
 === Documentation
 
@@ -29,9 +29,7 @@ non-continous or even non-deterministic objective functions.
 - New DE (differential evolution) variant optimized for usage with parallel coordinated retry and the DE->CMA sequence.
 - Fast C++ implementations of CMA-ES, differential evolution, dual annealing and the Harris hawks algorithm.
 - Integrates https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy] and https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt] optimization algorithms for use with the coordinated retry.
-- Parallel retry for https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] algorithms and problems. 
-
-Binaries for Windows are provided, but it is recommend to use Linux since fcmaes Python multi processing is less performant on Windows. The Linux subsystem for windows works fine if you want to execute optimizations on a Windows machine. 
+- Parallel retry for https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] algorithms and problems.
 
 === Optimization algorithms
 
@@ -95,12 +93,6 @@ PYGMO/PAGMO has direct support of constraints and multiple objectives. fcmaes su
 
 * `pip install fcmaes`
 * install {cpp} runtime libraries https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
-
-===== Recommended alternative:
-* Linux subsystem for Windows, see
-https://docs.microsoft.com/en-us/windows/wsl/install-win10[Linux subsystem] or
-https://superuser.com/questions/1271682/is-there-a-way-of-installing-ubuntu-windows-subsystem-for-linux-on-win10-v170[Ubuntu subsystem].
-Tested with Ubuntu 18.04, fcmaes performance is about 98% of a native Linux installation.
 
 ==== MacOS
 

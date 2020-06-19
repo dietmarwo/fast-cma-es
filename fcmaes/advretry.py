@@ -5,6 +5,7 @@
 
 import time
 import os
+import sys
 import math
 import random
 import ctypes as ct
@@ -17,7 +18,7 @@ from numpy.random import Generator, MT19937, SeedSequence
 from scipy.optimize import OptimizeResult, Bounds
 
 from fcmaes.retry import _convertBounds
-from fcmaes.optimizer import dtime, fitting, de_cma
+from fcmaes.optimizer import dtime, fitting, de_cma, logger
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -323,6 +324,11 @@ class Store(object):
         self.logger.info(message)
    
 def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit):
+    
+    #reinitialize logging config for windows -  multi threading fix
+    if 'win' in sys.platform and not store.logger is None:
+        store.logger = logger()
+        
     while store.get_runs_compare_incr(num_retries):               
         if _crossover(fun, store, optimize, rgs[pid]):
             continue

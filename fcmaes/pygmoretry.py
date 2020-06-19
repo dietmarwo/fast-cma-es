@@ -5,11 +5,13 @@
 
 import math
 import os
+import sys
 from numpy.random import Generator, MT19937, SeedSequence
 from scipy.optimize import OptimizeResult, Bounds
 import multiprocessing as mp
 from multiprocessing import Process
 from fcmaes.retry import Store
+from fcmaes.optimizer import logger
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -81,6 +83,10 @@ def retry(store, prob, algo, num_retries, value_limit = math.inf, popsize=1, wor
                           nfev=store.get_count_evals(), success=True)
         
 def _retry_loop(pid, rgs, store, prob, algo, num_retries, value_limit, popsize, pg):
+
+   #reinitialize logging config for windows -  multi threading fix
+    if 'win' in sys.platform and not store.logger is None:
+        store.logger = logger()
     
     while store.get_runs_compare_incr(num_retries):      
         try:            
