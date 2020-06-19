@@ -221,8 +221,8 @@ class Hh_cpp(Optimizer):
     """Harris hawks C++ implementation."""
     
     def __init__(self, max_evaluations=50000,
-                 popsize = None, stop_fittness = None):        
-        Optimizer.__init__(self, max_evaluations, 'de cpp')
+                 popsize = 31, stop_fittness = None):        
+        Optimizer.__init__(self, max_evaluations, 'hh cpp')
         self.popsize = popsize
         self.stop_fittness = stop_fittness
 

@@ -183,6 +183,7 @@ public:
             // Update the location of the harris hawks 
            for (int i = 0; i < popsize; i++) {
                 double e0 = 2*rnd01()-1;  // -1<e0<1
+                vec xi = popX.col(i);
                 double escapingEnergy = e1*e0; // escaping energy of rabbit Eq. (3) in the paper
 
                 // -------- Exploration phase Eq. (1) in paper -------------------
@@ -194,7 +195,8 @@ public:
                     vec xr = popX.col(randHawkIndex);
                     if (q < 0.5)
                         // perch based on other family members
-                        popX.col(i) = xr - rnd01() * (xr - 2*rnd01()*popX.col(i));
+                    	popX.col(i) = xr - rnd01() * (xr - 2*rnd01()*xi).cwiseAbs();
+
                     else {
                         // perch on a random tall tree (random site inside group's home range)
                         vec xmean = popX.rowwise().mean();
@@ -212,24 +214,26 @@ public:
                     double r = rnd01(); // probability of each event
                     
                     if (r >= 0.5 && abs(escapingEnergy) < 0.5)  // Hard besiege Eq. (6) in paper
-                        popX.col(i) = (bestX)-escapingEnergy*(bestX-popX.col(i)).cwiseAbs();
+                        popX.col(i) = bestX - escapingEnergy*(bestX - xi).cwiseAbs();
 
                     if (r >= 0.5 && abs(escapingEnergy) >= 0.5) {  // Soft besiege Eq. (4) in paper
                         double jumpStrength = 2*(1- rnd01()); // random jump strength of the rabbit
-                        popX.col(i) = (bestX-popX.col(i))-escapingEnergy*(jumpStrength*bestX-popX.col(i)).cwiseAbs();
+                        popX.col(i) = (bestX-popX.col(i)) - escapingEnergy*(jumpStrength*bestX-xi).cwiseAbs();
                     }
                     // phase 2: --------performing team rapid dives (leapfrog movements)----------
 
                     if (r < 0.5 && abs(escapingEnergy) >= 0.5) { // Soft besiege Eq. (10) in paper
                         // rabbit try to escape by many zigzag deceptive motions
                         double jumpStrength = 2 * (1-rnd01());
-                        vec x1 = bestX-escapingEnergy*(jumpStrength*bestX-popX.col(i)).cwiseAbs();
+                        vec x1 = fitfun->getClosestFeasible(
+                        		bestX-escapingEnergy*(jumpStrength*bestX-xi).cwiseAbs());
                         double y1 = fitfun->value(x1);
                         if (y1 < bestY) // improved move?
                             popX.col(i) = x1;
                         else { // hawks perform levy-based short rapid dives around the rabbit
-                            vec x2 = bestX-escapingEnergy*(jumpStrength*bestX-popX.col(i)).cwiseAbs() +
-                            		normalVec(dim, *rs).cwiseProduct(levy(dim));
+                            vec x2 = fitfun->getClosestFeasible(
+                            		bestX-escapingEnergy*(jumpStrength*bestX-xi).cwiseAbs() +
+                            		normalVec(dim, *rs).cwiseProduct(levy(dim)));
                             double y2 = fitfun->value(x2);
                             if ( y2 < bestY )
                                 popX.col(i) = x2;
@@ -238,13 +242,15 @@ public:
                     if (r < 0.5 && abs(escapingEnergy) < 0.5) {  // Hard besiege Eq. (11) in paper
                          double jumpStrength = 2 * (1-rnd01());
                          vec xmean = popX.rowwise().mean();
-                         vec x1 = bestX - escapingEnergy * (jumpStrength * bestX-xmean).cwiseAbs();
+                         vec x1 = fitfun->getClosestFeasible(
+                        		 bestX - escapingEnergy * (jumpStrength * bestX-xmean).cwiseAbs());
                          
                          if (fitfun->value(x1) < bestY) // improved move?
                             popX.col(i) = x1;
                          else { // Perform levy-based short rapid dives around the rabbit
-                             vec x2 = bestX - escapingEnergy * (jumpStrength*bestX - xmean).cwiseAbs() +
-                            		 normalVec(dim, *rs).cwiseProduct(levy(dim));
+                             vec x2 = fitfun->getClosestFeasible(
+                            		 bestX - escapingEnergy * (jumpStrength*bestX - xmean).cwiseAbs() +
+                            		 normalVec(dim, *rs).cwiseProduct(levy(dim)));
                             double y2 = fitfun->value(x2);
                             if ( y2 < bestY )
                                 popX.col(i) = x2; 
