@@ -6,6 +6,7 @@
 import sys
 import math
 import os
+import numpy as np
 import ctypes as ct
 from scipy.optimize import Bounds
 
@@ -21,8 +22,8 @@ class Astrofun(object):
     """Provides access to ESAs GTOP optimization test functions."""
     def __init__(self, name, fun_c, lower, upper):    
         self.name = name 
-        self.fun = python_fun(fun_c)
         self.bounds = Bounds(lower, upper)
+        self.fun = python_fun(fun_c, self.bounds)
 
 # for windows compatibility. Linux can pickle c pointers, windows can not
 astro_map = {  
@@ -124,27 +125,30 @@ class Tandem(object):
         ints_type = ct.c_int * 5   
         fun_c = astro_map[self.cfun]      
         fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_int)]
-        try:
+        try: # function is only defined inside bounds
+            x = np.asarray(x).clip(self.bounds.lb, self.bounds.ub)
             val = fun_c(n, array_type(*x), ints_type(*self.seq))
             if not math.isfinite(val):
-                val = 1E16
+                val = 1E10
         except Exception as ex:
-            val = 1E16
+            val = 1E10
         return val
   
 class python_fun(object):
     
-    def __init__(self, cfun):
+    def __init__(self, cfun, bounds):
         self.cfun = cfun
+        self.bounds = bounds
     
     def __call__(self, x):
         fun_c = astro_map[self.cfun]      
         n = len(x)
         array_type = ct.c_double * n   
-        try:
+        try: # function is only defined inside bounds
+            x = np.asarray(x).clip(self.bounds.lb, self.bounds.ub)
             val = float(fun_c(n, array_type(*x)))
             if not math.isfinite(val):
-                val = sys.float_info.max
+                val = 1E10
         except Exception as ex:
-            val = sys.float_info.max
+            val = 1E10
         return val
