@@ -126,7 +126,7 @@ class Store(object):
                  check_interval = 100, # sort evaluation store after check_interval iterations
                  capacity = 500, # capacity of the evaluation store
                  logger = None, # if None logging is switched off
-                 num_runs = None
+                 num_retries = None
                ):
 
         self.lower, self.upper = _convertBounds(bounds)
@@ -134,14 +134,14 @@ class Store(object):
         self.logger = logger        
         self.capacity = capacity
         if max_eval_fac is None:
-            if num_runs is None:
+            if num_retries is None:
                 max_eval_fac = 50
             else:
-                max_eval_fac = int(min(50, 1 + num_runs // check_interval))
-        if num_runs == None:
-            num_runs = max_eval_fac * check_interval
+                max_eval_fac = int(min(50, 1 + num_retries // check_interval))
+        if num_retries == None:
+            num_retries = max_eval_fac * check_interval
         # increment eval_fac so that max_eval_fac is reached at last retry
-        self.eval_fac_incr = max_eval_fac / (num_runs/check_interval)
+        self.eval_fac_incr = max_eval_fac / (num_retries/check_interval)
         self.max_eval_fac = max_eval_fac
         self.check_interval = check_interval       
         self.dim = len(self.lower)
