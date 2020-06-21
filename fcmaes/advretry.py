@@ -32,7 +32,7 @@ def minimize(fun,
              workers = mp.cpu_count(),
              popsize = 31, 
              min_evaluations = 1500, 
-             max_eval_fac = 50, 
+             max_eval_fac = None, 
              check_interval = 100,
              capacity = 500,
              stop_fittness = None,
@@ -99,8 +99,9 @@ def minimize(fun,
 
     if optimizer is None:
         optimizer = de_cma(min_evaluations, popsize, stop_fittness)     
-    store = Store(bounds, max_eval_fac = max_eval_fac, 
-              check_interval = check_interval, capacity = capacity, logger = logger)
+    if max_eval_fac is None:
+        max_eval_fac = int(min(50, 1 + num_retries // check_interval))
+    store = Store(bounds, max_eval_fac, check_interval, capacity, logger, num_retries)
     return retry(fun, store, optimizer.minimize, num_retries, value_limit, workers)
 
 def retry(fun, store, optimize, num_retries, value_limit = math.inf, workers=mp.cpu_count()):
@@ -121,22 +122,32 @@ class Store(object):
          
     def __init__(self, 
                  bounds, # bounds of the objective function arguments
-                 max_eval_fac = 50, # maximal number of evaluations
+                 max_eval_fac = None, # maximal number of evaluations factor
                  check_interval = 100, # sort evaluation store after check_interval iterations
                  capacity = 500, # capacity of the evaluation store
-                 logger = None # if None logging is switched off
+                 logger = None, # if None logging is switched off
+                 num_runs = None
                ):
 
         self.lower, self.upper = _convertBounds(bounds)
         self.delta = self.upper - self.lower
         self.logger = logger        
         self.capacity = capacity
+        if max_eval_fac is None:
+            if num_runs is None:
+                max_eval_fac = 50
+            else:
+                max_eval_fac = int(min(50, 1 + num_runs // check_interval))
+        if num_runs == None:
+            num_runs = max_eval_fac * check_interval
+        # increment eval_fac so that max_eval_fac is reached at last retry
+        self.eval_fac_incr = max_eval_fac / (num_runs/check_interval)
         self.max_eval_fac = max_eval_fac
         self.check_interval = check_interval       
         self.dim = len(self.lower)
         self.random = Random()
         self.t0 = time.perf_counter()
-
+    
         #shared between processes
         self.add_mutex = mp.Lock()    
         self.check_mutex = mp.Lock()                     
@@ -144,7 +155,7 @@ class Store(object):
         self.lowers = mp.RawArray(ct.c_double, capacity * self.dim)
         self.uppers = mp.RawArray(ct.c_double, capacity * self.dim)
         self.ys = mp.RawArray(ct.c_double, capacity)                  
-        self.eval_fac = mp.RawValue(ct.c_int, 1)
+        self.eval_fac = mp.RawValue(ct.c_double, 1)
         self.count_evals = mp.RawValue(ct.c_long, 0)   
         self.count_runs = mp.RawValue(ct.c_int, 0) 
         self.num_stored = mp.RawValue(ct.c_int, 0) 
@@ -152,9 +163,41 @@ class Store(object):
         self.best_y = mp.RawValue(ct.c_double, math.inf) 
         self.worst_y = mp.RawValue(ct.c_double, math.inf)  
         self.best_x = mp.RawArray(ct.c_double, self.dim)
+        # statistics                            
+        self.statistic_num = 1000
+        self.time = mp.RawArray(ct.c_double, self.statistic_num)
+        self.val = mp.RawArray(ct.c_double, self.statistic_num)
+        self.si = mp.RawValue(ct.c_int, 0)
+
+    # store improvement - time and value
+    def add_statistics(self):
+        si = self.si.value
+        if si < self.statistic_num - 1:
+            self.si.value = si + 1
+        self.time[si] = dtime(self.t0)
+        self.val[si] = self.best_y.value  
+        
+    def get_improvements(self):
+        return zip(self.time[:self.si.value], self.val[:self.si.value])
+ 
+    # get num best values at evenly distributed times
+    def get_statistics(self, num):
+        ts = self.time[:self.si.value]
+        vs = self.val[:self.si.value]
+        mt = ts[-1]
+        dt = 0.9999999 * mt / num
+        stats = []
+        ti = 0
+        val = vs[0]
+        for i in range(num):
+            while ts[ti] < (i+1) * dt:
+                ti += 1
+                val = vs[ti]
+            stats.append(val)
+        return stats
                                     
     def eval_num(self, max_evals):
-        return self.eval_fac.value * max_evals
+        return int(self.eval_fac.value * max_evals)
                                                
     def limits(self): 
         """guess, boundaries and initial step size for crossover operation."""
@@ -241,6 +284,7 @@ class Store(object):
                 if y < self.best_y.value:
                     self.best_y.value = y
                     self.best_x[:] = xs[:]
+                    self.add_statistics()
                     self.dump()
                 if self.num_stored.value >= self.capacity - 1:
                     self.sort()
@@ -303,7 +347,7 @@ class Store(object):
         trigger sorting after check_interval calls. """
         if self.count_runs.value % self.check_interval == self.check_interval-1:
             if self.eval_fac.value < self.max_eval_fac:
-                self.eval_fac.value += 1
+                self.eval_fac.value += self.eval_fac_incr
                 #print(self.eval_fac.value)
             self.sort()
         self.count_evals.value += evals

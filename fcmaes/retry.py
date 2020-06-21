@@ -131,6 +131,38 @@ class Store(object):
         self.qmean = mp.RawValue(ct.c_double, 0) 
         self.best_y = mp.RawValue(ct.c_double, math.inf) 
         self.best_x = mp.RawArray(ct.c_double, self.dim)
+        # statistics                            
+        self.statistic_num = 1000
+        self.time = mp.RawArray(ct.c_double, self.statistic_num)
+        self.val = mp.RawArray(ct.c_double, self.statistic_num)
+        self.si = mp.RawValue(ct.c_int, 0)
+
+    # store improvement - time and value
+    def add_statistics(self):
+        si = self.si.value
+        if si < self.statistic_num - 1:
+            self.si.value = si + 1
+        self.time[si] = dtime(self.t0)
+        self.val[si] = self.best_y.value  
+        
+    def get_improvements(self):
+        return zip(self.time[:self.si.value], self.val[:self.si.value])
+ 
+    # get num best values at evenly distributed times
+    def get_statistics(self, num):
+        ts = self.time[:self.si.value]
+        vs = self.val[:self.si.value]
+        mt = ts[-1]
+        dt = 0.9999999 * mt / num
+        conv = []
+        ti = 0
+        val = vs[0]
+        for i in range(num):
+            while ts[ti] < (i+1) * dt:
+                ti += 1
+                val = vs[ti]
+            conv.append(val)
+        return conv
     
     def eval_num(self, max_evals):
         return max_evals
@@ -165,6 +197,7 @@ class Store(object):
                 if y < self.best_y.value:
                     self.best_y.value = y
                     self.best_x[:] = xs[:]
+                    self.add_statistics()
                     self.dump()
                 if self.num_stored.value >= self.capacity-1:
                     self.sort()
