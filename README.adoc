@@ -151,6 +151,38 @@ ret = dacpp.minimize(fun, bounds, x0)
 
 Check the https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial] for more details. 
 
+=== Log output of the parallel retry
+
+The log output of the parallel retry contains the following rows:
+
+===== Simple retry
+
+- time (in sec)
+- evaluations / sec
+- number of retries - optimization runs
+- total number of evaluations in all retries
+- best value found so far
+- mean of the values found by the retries below the defined threshold
+- standard deviation of the values found by the retries below the defined threshold
+- list of the best 20 function values in the retry store
+- best solution (x-vector) found so far
+
+Mean and standard deviation would be misleading when using advanced retry, because
+of the retries initiated by crossover. Therefore the rows of the
+log output differ slightly:
+ 
+===== Advanced coordinated retry
+
+- time (in sec)
+- evaluations / sec
+- number of retries - optimization runs
+- total number of evaluations in all retries
+- best value found so far
+- worst value in the retry store
+- number of entries in the retry store
+- list of the best 20 function values in the retry store
+- best solution (x-vector) found so far
+
 === Comparison with PYGMO/Archipelago
 
 There are different ways to enable parallelization and the exchange of information between optimization runs. Two examples are:
@@ -215,34 +247,3 @@ image::mf3.1959.png[]
 Using fcmaes with parallel retry performs > 800000 messenger_full evaluations per second
 on an AMD 3950x processor. This outperforms both the official
 https://github.com/CMA-ES/pycma[CMA-ES] implementation and scipy differential evolution.
-
-=== How to read the log output of the parallel retry
-The log output of the parallel retry contains the following rows:
-
-===== Simple retry
-
-- time (in sec)
-- evaluations / sec
-- number of retries - optimization runs
-- total number of evaluations in all retries
-- best value found so far
-- mean of the values found by the retries below the defined threshold
-- standard deviation of the values found by the retries below the defined threshold
-- list of the best 20 function values in the retry store
-- best solution (x-vector) found so far
-
-Mean and standard deviation would be misleading when using advanced retry, because
-of the retries initiated by crossover. Therefore the rows of the
-log output differ slightly:
- 
-===== Advanced coordinated retry
-
-- time (in sec)
-- evaluations / sec
-- number of retries - optimization runs
-- total number of evaluations in all retries
-- best value found so far
-- worst value in the retry store
-- number of entries in the retry store
-- list of the best 20 function values in the retry store
-- best solution (x-vector) found so far
