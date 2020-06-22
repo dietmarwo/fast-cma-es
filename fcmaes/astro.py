@@ -145,7 +145,7 @@ class python_fun(object):
         n = len(x)
         array_type = ct.c_double * n   
         try: # function is only defined inside bounds
-            x = np.asarray(x).clip(self.bounds.lb, self.bounds.ub)
+            # x = np.asarray(x).clip(self.bounds.lb, self.bounds.ub)
             val = float(fun_c(n, array_type(*x)))
             if not math.isfinite(val):
                 val = 1E10
