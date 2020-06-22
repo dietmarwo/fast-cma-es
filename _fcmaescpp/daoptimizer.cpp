@@ -7,7 +7,7 @@
 // derived from https://github.com/scipy/scipy/blob/master/scipy/optimize/_dual_annealing.py
 // Implementation only differs regarding boundary handling - this implementattion 
 // uses boundary-normalized X values. Local search is fixed to LBFGS-B, see
-// https://github.com/yixuan/LBFGSpp/tree/master/include 
+// https://github.com/yixuan/LBFGSpp/tree/master/include
 // requires https://github.com/imneme/pcg-cpp
 
 #include <Eigen/Core>

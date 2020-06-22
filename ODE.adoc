@@ -21,7 +21,7 @@ to speed things up. Scipy provides two interfaces https://docs.scipy.org/doc/sci
 very well with our needs, so we will use the older https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html[ode]. Using https://github.com/neurophysik/jitcode[jitcode] we can define
 our differential equations in Python but use a precompiled much faster version which is compatible with 
 scipys `ode`, see https://aip.scitation.org/doi/10.1063/1.5019320[JiTCODE]. You need to install 
-`jitcode` before executing  https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/examples/f8.py[f8.py] (`pip install jitcode`). 
+`jitcode` before executing  https://github.com/dietmarwo/fast-cma-es/blob/master/examples/f8.py[f8.py] (`pip install jitcode`). 
 
 [source,python]
 ----
@@ -32,7 +32,7 @@ def get_compiled_function(f, control_pars):
 ----
 
 The `dummy = jitcode(f,...` call above creates a wrapper for scipy integrators which is used
-in all https://github.com/neurophysik/jitcode/blob/master/examples[jitcode examples]. Unfortunately it cannot be used in the context of parallel optimization retry. We would have to copy this wrapper to all processes. Instead
+in all https://github.com/neurophysik/jitcode/tree/master/examples[jitcode examples]. Unfortunately it cannot be used in the context of parallel optimization retry. We would have to copy this wrapper to all processes. Instead
 we just extract the compiled differential equations `dummy.f` and use the original https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html[ode] interface with these. `ode` can be created separately in each process, since it doesn't involve a costly compilation operation. 
 
 Unbound variables inside the differential equations have to be declared as follows:

@@ -34,7 +34,7 @@ non-continous objective functions.
 === Optimization algorithms
 
 - CMA-ES: Implemented both in Python and in {cpp}. The Python version is faster than
-https://github.com/CMA-ES/pycma/tree/master/cma[CMA] but slower than the {cpp} variant. The Python variant provides an ask/tell interface and supports parallel function evaluation. Both CMA variants provide less configurability than https://github.com/CMA-ES/pycma/tree/master/cma[CMA].
+https://github.com/CMA-ES/pycma/tree/master/cma[CMA] but slower than the {cpp} variant. The Python variant provides an ask/tell interface and supports parallel function evaluation. Both CMA variants provide less configurability than https://github.com/CMA-ES/pycma/blob/master/cma[CMA].
 
 - Dual Annealing: Implemented in {cpp}. Use the scipy implementation if you prefer a pure python variant or need more configuration options. 
 
@@ -46,42 +46,6 @@ https://www.researchgate.net/publication/309179699_Differential_evolution_for_pr
 
 - Expressions: There are two operators for constructing expressions over optimization algorithms: Sequence and random choice.
 Not only the three algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. Default method for the parallel retry is the sequence DE -> CMA with the evaluation budget equally distributed. 
-
-=== Dependencies
-
-Runtime:
-
-- numpy: https://github.com/numpy/numpy
-- scipy: https://github.com/scipy/scipy
-
-Compile time (binaries for Linux and Windows are included):
-
-- Eigen https://gitlab.com/libeigen/eigen (version >= 3.9 is required for CMA).
-- pcg-cpp: https://github.com/imneme/pcg-cpp - used in all {cpp} optimization algorithms.
-- LBFGSpp: https://github.com/yixuan/LBFGSpp/tree/master/include - used for dual annealing local optimization.
-
-Optional dependencies:
-
-- NLopt: https://nlopt.readthedocs.io/en/latest/[NLopt]. Install with 'pip install nlopt'. 
-- pygmo2: https://github.com/esa/pygmo2[pygmo]. Install with 'pip install pygmo'. 
-
-Example dependencies:
-
-- pykep: https://esa.github.io/pykep/[pykep]. Install with 'pip install pykep'. 
-
-=== Comparison with PYGMO/Archipelago
-
-There are different ways to enable parallelization and the exchange of information between optimization runs. Two examples are:
-
-* The approach implemented in fcmaes:
-- Topology of the parallelization is hidden from the user. A simple "minimize" call hides the complexity. Parallelism is implemented using multi-processing which scales better than
-multi-threading with the number of available processor cores.  
-* The https://esa.github.io/pagmo2/docs/cpp/archipelago.html[Archipelago] approach as implemented in https://esa.github.io/pagmo2/[PAGMO2]:
-- Topology has to be defined by the user including how nodes/ https://esa.github.io/pagmo2/docs/cpp/island.html[islands] exchange members of their populations. Members of these
-populations are solution vectors. This approach gives more control to the user but there is no simple default "minimize" call hiding the complexity. As default parallelism is implemented using multi-threading but it is possible to use multi-processing or even distributed CPUs.  
-- Exchange of information between parallel PAGMO threads is based on exchanging population members, which doesn't fit well with CMA-ES which recreates its whole population each generation.  
-
-PYGMO/PAGMO has direct support of constraints and multiple objectives. fcmaes supports parallel retry of PYGMO problems and algorithms, see https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints Tutorial].
  
 === Installation
 
@@ -99,11 +63,45 @@ PYGMO/PAGMO has direct support of constraints and multiple objectives. fcmaes su
 * `pip install fcmaes`
 * For using the {cpp} optimization algorithms: 
 ** adapt https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/CMakeLists.txt[CMakeLists.txt]
-** compile https://github.com/dietmarwo/fast-cma-es/tree/master/_fcmaescpp[_fcmaescpp] 
+** compile https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp[_fcmaescpp] 
 
 === Usage
 
 Usage is similar to https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html[scipy.optimize.minimize].
+
+For coordinated parallel retry use:
+
+[source,python]
+----
+from fcmaes.optimizer import logger
+from fcmaes import advretry
+ret = advretry.minimize(fun, bounds, logger=logger())
+----
+
+`advretry.minimize` has many parameters for fine tuning, but in most of the cases the default settings work well. 
+
+In https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[tutorial.py] and https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[advexamples.py] you find examples for the coordinated retry. 
+Parallel retry does not support initial quess `x0` and initial step size `input_sigma` parameters because it
+uses generated guesses and step size values. The default logger logs both into a file and to stdout. 
+For easy problems it is sometimes better to use the simple parallel retry:
+
+[source,python]
+----
+from fcmaes.optimizer import logger
+from fcmaes import retry
+ret = retry.minimize(fun, bounds, logger=logger())
+----
+
+The simple retry logs mean and standard deviation of the results, so it can be used to test and compare optimization algorithms:
+
+[source,python]
+----
+opt = ...
+ret = retry.minimize(fun, bounds, logger=logger(), optimizer=opt)
+----
+
+Here https://github.com/dietmarwo/fast-cma-es/blob/master/examples/examples.py[examples.py] you find examples for the simple retry.
+The single threaded Python CMA-ES implementation is used as follows:
 
 [source,python]
 ----
@@ -112,7 +110,7 @@ ret = cmaes.minimize(fun, bounds, x0)
 print (ret.x, ret.fun, ret.nfev)
 ----
 
-fcmaes.cmaes.minimize cannot handle constraints and derivatives (jac, hess, hessp). If the initial guess x0 is undefined,
+If the initial guess x0 is undefined,
 a feasible uniformly distributed random value is automatically generated. It is recommended to define
 bounds, since CMA-ES uses them also for internal scaling. Additional parameters are
 
@@ -151,33 +149,43 @@ ret = decpp.minimize(fun, bounds)
 ret = dacpp.minimize(fun, bounds, x0)
 ----
 
-For simple parallel retry use:
-
-[source,python]
-----
-from fcmaes.optimizer import logger
-from fcmaes import retry
-ret = retry.minimize(fun, bounds, logger=logger())
-----
-
-For coordinated parallel retry use:
-
-[source,python]
-----
-from fcmaes.optimizer import logger
-from fcmaes import advretry
-ret = advretry.minimize(fun, bounds, logger=logger())
-----
-
-Parallel retry does not support initial quess `x0` and initial step size `input_sigma` parameters because it
-uses generated guesses and step size values. Use parameter `logger` to specify the 
-log output, default is no logging. Use 
-`fcmaes.optimizer import logger` to log both into a file and to stdout. 
 Check the https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial] for more details. 
-It is possible to use other optimization methods with parallel retry, see
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/examples.py[examples.py],
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/advexamples.py[advexamples.py] and
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/optimizer.py[optimizer.py] 
+
+=== Comparison with PYGMO/Archipelago
+
+There are different ways to enable parallelization and the exchange of information between optimization runs. Two examples are:
+
+* The approach implemented in fcmaes:
+- Topology of the parallelization is hidden from the user. A simple "minimize" call hides the complexity. Parallelism is implemented using multi-processing which scales better than
+multi-threading with the number of available processor cores.  
+* The https://esa.github.io/pagmo2/docs/cpp/archipelago.html[Archipelago] approach as implemented in https://esa.github.io/pagmo2/[PAGMO2]:
+- Topology has to be defined by the user including how nodes/ https://esa.github.io/pagmo2/docs/cpp/island.html[islands] exchange members of their populations. Members of these
+populations are solution vectors. This approach gives more control to the user but there is no simple default "minimize" call hiding the complexity. As default parallelism is implemented using multi-threading but it is possible to use multi-processing or even distributed CPUs.  
+- Exchange of information between parallel PAGMO threads is based on exchanging population members, which doesn't fit well with CMA-ES which recreates its whole population each generation.  
+
+PYGMO/PAGMO has direct support of constraints and multiple objectives. fcmaes supports parallel retry of PYGMO problems and algorithms, see https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints Tutorial].
+
+=== Dependencies
+
+Runtime:
+
+- numpy: https://github.com/numpy/numpy
+- scipy: https://github.com/scipy/scipy
+
+Compile time (binaries for Linux and Windows are included):
+
+- Eigen https://gitlab.com/libeigen/eigen (version >= 3.9 is required for CMA).
+- pcg-cpp: https://github.com/imneme/pcg-cpp - used in all {cpp} optimization algorithms.
+- LBFGSpp: https://github.com/yixuan/LBFGSpp/tree/master/include - used for dual annealing local optimization.
+
+Optional dependencies:
+
+- NLopt: https://nlopt.readthedocs.io/en/latest/[NLopt]. Install with 'pip install nlopt'. 
+- pygmo2: https://github.com/esa/pygmo2[pygmo]. Install with 'pip install pygmo'. 
+
+Example dependencies:
+
+- pykep: https://esa.github.io/pykep/[pykep]. Install with 'pip install pykep'. 
 
 === Performance
 
