@@ -127,7 +127,7 @@ problem = Tandem(5, False) # unconstrained variant using [earth, venus, earth, e
 
 logger().info("coordinated retry for problem " + problem.name)
 
-self.ret = advretry.minimize(problem.fun, bounds=problem.bounds, num_retries = 500000,
+ret = advretry.minimize(problem.fun, bounds=problem.bounds, num_retries = 500000,
 	value_limit = 0, logger = logger()) 
 ----
 
@@ -157,6 +157,8 @@ In the code above we redefine `algo` and increase the initial number of evaluati
 ...
 isres = nlopt.opt(nlopt.GN_ISRES, 18)
 algo = NLopt(isres, 4000)])
+ret = advretry.minimize(problem.fun, bounds=problem.bounds, num_retries = 500000,
+	value_limit = 0, logger = logger(), optimizer = algo)
 ...
 ----
 
