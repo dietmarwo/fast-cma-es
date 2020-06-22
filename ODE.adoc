@@ -2,7 +2,7 @@
 :imagesdir: img
 :cpp: C++
 
-== Optimize with differential equations
+== Optimization of functions described by differential equations
 
 This tutorial discusses the example: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/f8.py[f8.py], an implementation of the F-8 aircraft control problem from https://mintoc.de/index.php/F-8_aircraft[F-8_aircraft] which aims at controlling an aircraft in a time-optimal way from an initial state to a terminal state.
 
