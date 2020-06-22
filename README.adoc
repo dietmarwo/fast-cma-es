@@ -144,9 +144,10 @@ for i in range(iterNum):
 Differential evolution (fcmaes.decpp), Dual Annealing (fcmaes.dacpp) and Harris hawks (fcmaes.hhcpp) provide similar interfaces. 
 [source,python]
 ----
-from fcmaes import decpp, dacpp
+from fcmaes import decpp, dacpp, hhcpp
 ret = decpp.minimize(fun, bounds)
 ret = dacpp.minimize(fun, bounds, x0)
+ret = hhcpp.minimize(fun, bounds)
 ----
 
 Check the https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial] for more details. 
