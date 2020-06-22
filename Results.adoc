@@ -9,7 +9,7 @@
 ==== Comparison with nature-inspired metaheuristic optimizers
 
 https://github.com/7ossam81/EvoloPy[EvoloPy] implements a list of nature-inspired metaheuristic 
-https://github.com/7ossam81/EvoloPy/tree/master/optimizers[optimizers] partly described in
+https://github.com/7ossam81/EvoloPy/tree/master/optimizers[optimizers] partly described
 https://github.com/7ossam81/EvoloPy/wiki/List-of-optimizers[here]. 
 
 All of these algorithms support boxed boundaries and are implemented single threaded. We will use them to check what can be gained
