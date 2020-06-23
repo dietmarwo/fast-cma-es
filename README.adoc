@@ -33,19 +33,20 @@ non-continous objective functions.
 
 === Optimization algorithms
 
-- CMA-ES: Implemented both in Python and in {cpp}. The Python version is faster than
-https://github.com/CMA-ES/pycma/tree/master/cma[CMA] but slower than the {cpp} variant. The Python variant provides an ask/tell interface and supports parallel function evaluation. Both CMA variants provide less configurability than https://github.com/CMA-ES/pycma/blob/master/cma[CMA].
+- CMA-ES: Implemented both in Python and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[C++]. The https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[Python version] is faster than
+https://github.com/CMA-ES/pycma/tree/master/cma[CMA] but slower than the https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[{cpp} variant]. The Python variant provides an ask/tell interface and supports parallel function evaluation. Both CMA variants provide less configurability than https://github.com/CMA-ES/pycma/blob/master/cma[CMA].
 
-- Dual Annealing: Implemented in {cpp}. Use the scipy implementation if you prefer a pure python variant or need more configuration options. 
-
-- Differential Evolution: Implemented in {cpp}. There is no python equivalent, the scipy implementation 
+- Differential Evolution: Implemented in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/deoptimizer.cpp[C++]. There is no python equivalent, the https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html[scipy implementation] 
 works differently. Additional concepts implemented here are 
 https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model[temporal locality] and stochastic reinitialization of individuals based on their age. 
 
-- Harris hawks: Implemented in {cpp}. Use https://github.com/7ossam81/EvoloPy/blob/master/optimizers/HHO.py[HHO] if you prefer a pure python variant. See Harris hawks optimization: Algorithm and applications Ali Asghar Heidari, Seyedali Mirjalili, Hossam Faris, Ibrahim Aljarah, Majdi Mafarja, Huiling Chen, Future Generation Computer Systems,  DOI: https://doi.org/10.1016/j.future.2019.02.028 .
+- Dual Annealing: Implemented in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/daoptimizer.cpp[C++]. Use the https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html[scipy implementation] if you prefer a pure python variant or need more configuration options. 
+
+- Harris' hawks: Implemented in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/hawksoptimizer.cpp[C++]. Use https://github.com/7ossam81/EvoloPy/blob/master/optimizers/HHO.py[HHO] if you prefer a pure python variant. See Harris' hawks optimization: Algorithm and applications Ali Asghar Heidari, Seyedali Mirjalili, Hossam Faris, Ibrahim Aljarah, Majdi Mafarja, Huiling Chen, Future Generation Computer Systems,  DOI: https://doi.org/10.1016/j.future.2019.02.028 .
 
 - Expressions: There are two operators for constructing expressions over optimization algorithms: Sequence and random choice.
-Not only the three algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. Default method for the parallel retry is the sequence DE -> CMA with the evaluation budget equally distributed. 
+Not only the four algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. Default method for the parallel retry is the sequence DE -> CMA with the evaluation budget equally distributed. 
+
  
 === Installation
 
