@@ -54,6 +54,8 @@ Note that there is another `jitcode` argument `helpers` for common subexpression
 
 === Results for the F-18 problem 
 
+==== Parallel retry
+
 Executing the coordinated retry with pure CMA-ES with `popsize=13`
 
 [source,python]
@@ -99,8 +101,47 @@ solution = [1.1348372252390804, 0.3458563912111454, 2.1045379783313223e-07, 0.00
 ----
 
 after 48 seconds we still find a "perfect" solution - a completely different one. 
-But it took longer for the equality constraint error to disappear. So why do we have 
-a `DE-CMA` sequence as default? We see it when we try to increase the dimension of 
+But it took longer for the equality constraint error to disappear. 
+
+==== Parallel function evaluation
+
+Instead of using the parallel retry we could use parallel function evaluation. Only `fcmaes.cmaes`,
+the Python variant of CMA-ES supports parallel evaluation:
+
+[source,python]
+----
+    import time
+    from fcmaes import cmaes
+    from fcmaes.optimizer import dtime
+    best = math.inf
+    t0 = time.perf_counter();
+    for i in range(10000):
+     	# parallel function evaluation using CMA-ES
+		ret = cmaes.minimize(obj_f, bounds(dim), workers = mp.cpu_count())
+		print("{0}: time = {1:.1f} fun = {2:.3f}".format(i+1, dtime(t0), ret.fun)) 
+----    
+
+We get after a 4 seconds:
+
+----
+...
+val = 3.78085587 penalty = 0.00000000 f(xmin) = 0.37809
+11: time = 4.2 fun = 0.378
+----
+
+If we check the System Monitor we see that we have only about 30% processor load - it
+was around 98% for the parallel retry. This indicates poor scaling. 
+Scaling would improve for more expensive ODEs / function evaluations. For these
+parallel function evaluation is the better alternative. 
+
+But there is a complexity-limit pure CMA-ES can handle. 
+Increase the dimension of the problem as below and parallel function evaluation will 
+fail where coordinated retry still succeeds. 
+
+==== Parallel retry with dimension=50
+
+Why do we have a `DE-CMA` sequence as default algorithm for the parallel retry? 
+We see it when we try to increase the dimension of 
 the problem by adding more https://en.wikipedia.org/wiki/Bang%E2%80%93bang_control[bang bang] switches.
 Even with `dim = 30` the coordinated retry with pure CMA-ES fails. But lets try a real challenge:
 `dim = 50`. Note that the upper bound `2.0` for each phase now leads the optimization initially to much higher values, an overall `time = 100` is now valid.  
@@ -154,4 +195,4 @@ val = 3.78487281 penalty = 0.00001984 f(xmin) = 0.37851
 solution = [1.1326083933964763, 0.33018804287824055, 0.0015797016944767346, 0.0, 0.00041388330868745313, 0.005766343338547673, 1.5511572680129606, 5.231350807490471e-09, 2.3880353373060585e-05, 7.298572992274168e-05, 3.9789127888219825e-05, 0.0006150180997003716, 0.06341745006415928, 0.00010003517505922108, 1.6313804268070133e-05, 1.300749837716078e-05, 0.00910364507438097, 0.3269893161858966, 1.6979215682758936e-07, 9.999779527545584e-05, 0.0, 0.00010000210688143446, 0.0, 3.6734166517531815e-07, 1.583462105652369e-07, 0.0, 7.654526271934326e-05, 0.00558740459294974, 0.0001716992607985044, 4.001439309721446e-06, 3.163121259404459e-07, 1.0471102841248277e-05, 8.973093118726171e-05, 0.004352232523562075, 0.0002459310670276825, 3.673286270605999e-08, 0.002529868815441627, 1.702036400800958e-09, 0.0006002635982425756, 0.0007137236078362145, 0.0, 3.391529467517241e-05, 0.00010120718939378514, 0.3465992627863233, 9.338186469440464e-06, 0.00038849620853035125, 0.0, 0.00073421817436267, 6.586994129365896e-09, 0.0003183673296339078]
 ----
 
-Now we have `27565` function evaluations per second compared to `16749` on the 3950x. I havent't seen any other application scaling this well on the 2990WX. After 20445 seconds we found a nearly perfect solution even with 50 bang bang switches. 
+Now we have `27565` function evaluations per second compared to `16749` on the 3950x. I haven't seen any other application scaling this well on the 2990WX. After 20445 seconds we found a nearly perfect solution even with 50 bang bang switches. 
