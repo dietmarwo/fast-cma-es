@@ -17,13 +17,7 @@ from parallelization using fcmaes coordinated retry. "DCD" is the default algori
 per optimization run. "DCX" is DE->CMA starting with 1000*X evaluations. Every 100 optimizations this number is incremented. 
 As test problems we use ESAs GTOP problem database:
 
-- https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1]
-- https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2]
-- https://www.esa.int/gsp/ACT/projects/gtop/rosetta/[Rosetta]
-- https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem 6 constrained]
-- https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1]
-- https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/[Messenger reduced]
-- https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full]
+- https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1], https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2], https://www.esa.int/gsp/ACT/projects/gtop/rosetta/[Rosetta], https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1], https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/[Messenger reduced], https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full] and https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem 6 constrained]
 
 These tests were performed on an AMD 3950x 16 core processor executing 32 retries in parallel. For the nature inspired algorithms 20000 iterations were performed. The fcmaes algorithms were limited by the number of retries, `4800`/X for DCX. For all tests 3 repetitions were performed and the mean result was plotted. 
 
