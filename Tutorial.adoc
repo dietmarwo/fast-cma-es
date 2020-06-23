@@ -4,6 +4,9 @@
 
 == How to use fcmaes
 
+Here we use a real world example from the space mission design domain, but https://github.com/dietmarwo/fast-cma-es/tree/master/examples[examples]
+also contains examples from the mechanical component design domain and how to optimize when solving ODEs in the objective function https://github.com/dietmarwo/fast-cma-es/blob/master/ODE.adoc[ODE].  
+
 Several real world optimization tasks from the space trajectory design domain are made callable via Python in fcmaes: 
 
 - https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1], https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2], https://www.esa.int/gsp/ACT/projects/gtop/rosetta/[Rosetta], https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1], https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/[Messenger reduced], https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full], https://www.esa.int/gsp/ACT/projects/gtop/sagas/[Sagas], and https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem]
