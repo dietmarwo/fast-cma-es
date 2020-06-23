@@ -5,9 +5,10 @@
 
 import math
 import time
+import multiprocessing as mp
+from scipy.optimize import minimize, differential_evolution, dual_annealing
 from fcmaes import astro, advretry, retry, cmaes, cmaescpp
 from fcmaes.optimizer import dtime, random_x, Cma_python
-from scipy.optimize import minimize, differential_evolution, dual_annealing
 
 def test_advretry(problem, value_limit, num):
     best = math.inf
@@ -89,7 +90,7 @@ def test_cma_parallel(problem, num):
     best = math.inf
     t0 = time.perf_counter();
     for i in range(num):
-        ret = cmaes.minimize(problem.fun, is_parallel = True, bounds = problem.bounds)
+        ret = cmaes.minimize(problem.fun, bounds = problem.bounds, workers = mp.cpu_count())
         if best > ret.fun or i % 100 == 99:
             print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
               .format(i+1, dtime(t0), best, ret.fun))

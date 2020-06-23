@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-__version__ = '1.1.2'
+__version__ = '1.1.3'
 
 __all__ = [
     'cmaes',
@@ -16,5 +16,6 @@ __all__ = [
     'pygmoretry',
     'optimizer',
     'astro',
+    'evaluator',
     'testfun',
 ]

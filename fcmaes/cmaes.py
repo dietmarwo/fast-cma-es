@@ -11,13 +11,11 @@
 import sys
 import os
 import math
-import ctypes as ct
 import numpy as np
 from scipy import linalg
 from scipy.optimize import OptimizeResult
 from numpy.random import MT19937, Generator
-from multiprocessing import Process
-import multiprocessing as mp
+from fcmaes.evaluator import Evaluator, eval_parallel
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -28,7 +26,7 @@ def minimize(fun,
              popsize = 31, 
              max_evaluations = 100000, 
              max_iterations = 100000,  
-             is_parallel = False,
+             workers = None,
              accuracy = 1.0, 
              stop_fittness = np.nan, 
              is_terminate = None, 
@@ -60,10 +58,9 @@ def minimize(fun,
         Forced termination after ``max_evaluations`` function evaluations.
     max_iterations : int, optional
         Forced termination after ``max_iterations`` iterations.
-    is_parallel : bool, optional
-        If True, function evaluation is performed in parallel for the
-        whole population, if the CPU has enough threads. Otherwise
-        mp.cpu_count() processes are used.  
+    workers : int or None, optional
+        If not workers is None, function evaluation is performed in parallel for the whole population. 
+        Useful for costly objective functions but is deactivated for parallel retry.      
     accuracy : float, optional
         values > 1.0 reduce the accuracy.
     stop_fittness : float, optional 
@@ -85,13 +82,15 @@ def minimize(fun,
         ``nit`` the number of CMA-ES iterations, ``status`` the stopping critera and
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
    
-    fun = parallel(fun) if is_parallel else serial(fun)
+    fun = serial(fun) if workers is None else parallel(fun, workers)
     cmaes = Cmaes(bounds, x0, 
                   input_sigma, popsize, 
                   max_evaluations, max_iterations, 
                   accuracy, stop_fittness, 
                   is_terminate, rg, np.random.randn, runid, fun)
     x, val, evals, iterations, stop = cmaes.doOptimize()
+    if not workers is None:
+        fun.stop() # stop all parallel evaluation processes
     return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, 
                           success=True)
 
@@ -489,30 +488,27 @@ def serial(fun):
   
     return lambda xs : [_tryfun(fun, x) for x in xs]
 
-def parallel(fun):
+class parallel(object):
     """Convert an objective function for parallel execution for cmaes.minimize.
     
     Parameters
     ----------
     fun : objective function mapping a list of float arguments to a float value.
+   
+    represents a function mapping a list of lists of float arguments to a list of float values
+    by applying the input function using parallel processes. stop needs to be called to avoid
+    a resource leak"""
+        
+    def __init__(self, fun, workers):
+        self.evaluator = Evaluator(fun)
+        self.evaluator.start(workers)
+    
+    def __call__(self, xs):
+        return eval_parallel(xs, self.evaluator)
 
-    Returns
-    -------
-    out : function
-        A function mapping a list of lists of float arguments to a list of float values
-        by applying the input function using parallel processes. """
- 
-    return lambda xs : _func_parallel(fun, xs)            
-            
-def _func_parallel(fun, xs):
-    popsize = len(xs)
-    num = min(popsize, mp.cpu_count())
-    ys = mp.RawArray(ct.c_double, popsize) 
-    proc=[Process(target=_func_serial, args=(fun, num, pid, xs, ys)) for pid in range(num)]
-    [p.start() for p in proc]
-    [p.join() for p in proc]
-    return [y for y in ys]
-
+    def stop(self):
+        self.evaluator.stop()
+        
 def _func_serial(fun, num, pid, xs, ys):
     for i in range(pid, len(xs), num):
         ys[i] = _tryfun(fun, xs[i])

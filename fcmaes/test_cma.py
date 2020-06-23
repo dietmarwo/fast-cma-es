@@ -4,9 +4,10 @@
 # LICENSE file in the root directory.
 
 import sys
+import multiprocessing as mp
+from scipy.optimize import OptimizeResult
 from fcmaes.testfun import Wrapper, Rosen, Rastrigin, Eggholder
 from fcmaes import cmaes, cmaescpp, retry, advretry
-from scipy.optimize import OptimizeResult
 
 def test_rastrigin_python():
     popsize = 100
@@ -85,8 +86,6 @@ def test_rosen_ask_tell():
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
 def test_rosen_cpp():
-    if not sys.platform.startswith('linux'):
-        return
     popsize = 31
     dim = 5
     testfun = Rosen(dim)
@@ -108,14 +107,6 @@ def test_rosen_cpp():
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
 def test_rosen_parallel():
-    # parallel execution slows down the test since we are using a test function
-    # which is very fast to evaluate
-    # popsize defines the maximal number of used threads
-    
-    #windows cannot pickle function objects
-    if sys.platform.startswith('windows'):
-        return
-
     popsize = 8
     dim = 2
     testfun = Rosen(dim)
@@ -127,7 +118,7 @@ def test_rosen_parallel():
         wrapper = Wrapper(testfun.fun, dim)
         ret = cmaes.minimize(wrapper.eval, testfun.bounds, input_sigma = sdevs, 
                        max_evaluations = max_eval, 
-                       popsize=popsize, is_parallel=True)
+                       popsize=popsize, workers = mp.cpu_count())
         if limit > ret.fun:
             break
        
@@ -161,10 +152,6 @@ def test_eggholder_python():
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
 def test_eggholder_retry():
-    #windows cannot pickle function objects
-    if sys.platform.startswith('windows'):
-        return
-
     dim = 2
     testfun = Eggholder()
 
@@ -182,10 +169,6 @@ def test_eggholder_retry():
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
 def test_eggholder_advanced_retry():
-    #windows cannot pickle function objects
-    if sys.platform.startswith('windows'):
-        return
-
     dim = 2
     testfun = Eggholder()
 

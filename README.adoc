@@ -114,9 +114,11 @@ bounds, since CMA-ES uses them also for internal scaling. Additional parameters 
 
 - `popsize` (default 31) - Size of the population used. Instead of increasing this parameter for hard problems, it is often better to use parallel retry instead. Reduce `popsize` for a narrower search if your budget is restricted.
 - `input_sigma` (default 0.3) - The initial step size. Can be defined for each dimension separately. Both parallel retry mechanism
-  set this parameter together with the initial guess automatically.   
-- `is_parallel` (default False) - Calls the objective function for the whole population in parallel. Useful for costly 
-  objective functions but is switched off when you use parallel retry.    
+  set this parameter together with the initial guess automatically. 
+- `workers` (default None): int or None.
+If not workers is None, function evaluation is performed in parallel for the whole population. Useful for costly 
+objective functions but is deactivated for parallel retry.      
+
   
 For the {cpp} variant use instead:
 
