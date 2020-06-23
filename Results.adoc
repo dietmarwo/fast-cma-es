@@ -4,6 +4,15 @@
 
 == Results
 
+Here we show results from the areas
+
+- Space Mission Design
+- Protein Folding
+- Circle in Square Packing
+
+See https://github.com/dietmarwo/fast-cma-es/blob/master/ODE.adoc[ODE] for results solving ODE in the objective function and
+check https://github.com/dietmarwo/fast-cma-es/tree/master/examples[examples] for mechanical component design problems.  
+
 === Space Mission Design
 
 ==== Comparison with nature-inspired metaheuristic optimizers
