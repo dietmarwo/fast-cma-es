@@ -115,7 +115,7 @@ score of -2.970 km/s is easily improved by fcmaes in about 1000 seconds (see htt
 
 Lets see whether algorithm expressions can help here. 
 
-First lets check the default algorithm which currently is Sequence([De_cpp(750), Cma_cpp(750)]. Note that the coordinated retry increments this evaluation budget over time preserving the relations inside the algorithm expression.
+First lets check the default algorithm which currently is Sequence([De_cpp(750), Cma_cpp(750)]). Note that the coordinated retry increments this evaluation budget over time preserving the relations inside the algorithm expression.
 
 [source,python]
 ----

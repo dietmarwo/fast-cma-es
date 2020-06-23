@@ -83,7 +83,7 @@ ret = advretry.minimize(fun, bounds, logger=logger())
 
 In https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[tutorial.py] and https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[advexamples.py] you find examples for the coordinated retry. 
 Parallel retry does not support initial quess `x0` and initial step size `input_sigma` parameters because it
-uses generated guesses and step size values. The default logger logs both into a file and to stdout. 
+uses generated guesses and step size values. The optional logger logs both into a file and to stdout. 
 For easy problems it is sometimes better to use the simple parallel retry:
 
 [source,python]
@@ -97,8 +97,10 @@ The simple retry logs mean and standard deviation of the results, so it can be u
 
 [source,python]
 ----
-opt = ...
-ret = retry.minimize(fun, bounds, logger=logger(), optimizer=opt)
+from fcmaes.optimizer import logger, De_cpp, Cma_cpp, Sequence
+ret = retry.minimize(fun, bounds, logger=logger(), optimizer=De_cpp(100000))
+ret = retry.minimize(fun, bounds, logger=logger(), optimizer=Cma_cpp(100000))
+ret = retry.minimize(fun, bounds, logger=logger(), optimizer=Sequence([De_cpp(50000), Cma_cpp(50000)]))
 ----
 
 Here https://github.com/dietmarwo/fast-cma-es/blob/master/examples/examples.py[examples.py] you find examples for the simple retry.
