@@ -4,8 +4,7 @@
 
 == How to use fcmaes
 
-Here we use a real world example from the space mission design domain, but https://github.com/dietmarwo/fast-cma-es/tree/master/examples[examples]
-also contains examples from the mechanical component design domain and how to optimize when solving ODEs in the objective function https://github.com/dietmarwo/fast-cma-es/blob/master/ODE.adoc[ODE].  
+Here we use a real world example from the space mission design domain, but there are https://github.com/dietmarwo/fast-cma-es/tree/master/examples[examples] from the mechanical component design domain and how to optimize when solving ODEs in the objective function https://github.com/dietmarwo/fast-cma-es/blob/master/ODE.adoc[ODE].  
 
 Several real world optimization tasks from the space trajectory design domain are made callable via Python in fcmaes: 
 
