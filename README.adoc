@@ -111,7 +111,7 @@ print (ret.x, ret.fun, ret.nfev)
 
 If the initial guess x0 is undefined,
 a feasible uniformly distributed random value is automatically generated. It is recommended to define
-bounds, since CMA-ES uses them for internal scaling. Additional parameters are
+bounds, since CMA-ES uses them for internal scaling. Additional parameters are:
 
 - `popsize` (default 31) - Size of the population used. Instead of increasing this parameter for hard problems, it is often better to use parallel retry instead. Reduce `popsize` for a narrower search if your budget is restricted.
 - `input_sigma` (default 0.3) - The initial step size. Can be defined for each dimension separately. Both parallel retry mechanism
