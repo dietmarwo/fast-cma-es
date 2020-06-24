@@ -59,7 +59,7 @@ Not only the four algorithms above, but also scipy and NLopt optimization method
 * `pip install fcmaes`
 * For using the {cpp} optimization algorithms: 
 ** adapt https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/CMakeLists.txt[CMakeLists.txt]
-** compile https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp[_fcmaescpp] 
+** generate the shared library: `cmake . ; make install`. 
 
 === Usage
 
@@ -77,7 +77,7 @@ ret = advretry.minimize(fun, bounds, logger=logger())
 `advretry.minimize` has many parameters for fine tuning, but in most of the cases the default settings work well. 
 
 In https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[tutorial.py] and https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[advexamples.py] you find examples for the coordinated retry. 
-Parallel retry does not support initial quess `x0` and initial step size `input_sigma` parameters because it
+Parallel retry does not support initial guess `x0` and initial step size `input_sigma` parameters because it
 uses generated guesses and step size values. The optional logger logs both into a file and to stdout. 
 For easy problems it is sometimes better to use the simple parallel retry:
 
