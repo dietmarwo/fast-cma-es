@@ -99,6 +99,7 @@ ret = retry.minimize(fun, bounds, logger=logger(), optimizer=Sequence([De_cpp(50
 ----
 
 Here https://github.com/dietmarwo/fast-cma-es/blob/master/examples/examples.py[examples.py] you find examples for the simple retry.
+
 The single threaded Python CMA-ES implementation is used as follows:
 
 [source,python]
