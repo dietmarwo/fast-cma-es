@@ -59,7 +59,7 @@ Not only the four algorithms above, but also scipy and NLopt optimization method
 * `pip install fcmaes`
 * For using the {cpp} optimization algorithms: 
 ** adapt https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/CMakeLists.txt[CMakeLists.txt]
-** generate the shared library: `cmake . ; make install`. 
+** generate the shared library: `cmake . ; make install` 
 
 === Usage
 
