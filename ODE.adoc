@@ -113,7 +113,6 @@ the Python variant of CMA-ES supports parallel evaluation:
     import time
     from fcmaes import cmaes
     from fcmaes.optimizer import dtime
-    best = math.inf
     t0 = time.perf_counter();
     for i in range(10000):
      	# parallel function evaluation using CMA-ES
