@@ -140,17 +140,18 @@ class Tandem(object):
 class Cassini1multi(object):
     """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/ """
     
-    def __init__(self, weights = [1,0,0,0]):    
+    def __init__(self, weights = [1,0,0,0], planets = [2,2,3,5]):    
         Astrofun.__init__(self, 'Cassini1minlp', "Cassini1minlpC", 
                            [-1000.,30.,100.,30.,400.,1000.],
                            [0.,400.,470.,400.,2000.,6000.]       
         )
         self.fun = self.cassini1
         self.weights = weights
+        self.planets = planets
         self.mfun = lambda x: cassini1multi(x + [2,2,3,5])
          
     def cassini1(self, x):
-        r = cassini1multi(x + [2,2,3,5])
+        r = cassini1multi(x + self.planets)
         return self.weights[0]*r[0] + self.weights[1]*r[1] + self.weights[2]*r[2] + self.weights[3]*r[3]
     
 class Cassini1minlp(object):
