@@ -7,11 +7,11 @@
 # Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc
 
 import math
-from fcmaes.astro import MessFull, Messenger, Gtoc1, Cassini1, Cassini2, Rosetta, Tandem, Sagas
+from fcmaes.astro import MessFull, Messenger, Gtoc1, Cassini1, Cassini2, Rosetta, Tandem, Sagas, Cassini1minlp
 from fcmaes.optimizer import logger, de_cma, da_cma, Cma_cpp, De_cpp, Da_cpp, Hh_cpp, Dual_annealing, Differential_evolution
 from fcmaes.retry import minimize
             
-problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), MessFull(), Sagas()]
+problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), MessFull(), Sagas(), Cassini1minlp()]
 
 max_evals = 50000
 
@@ -27,10 +27,12 @@ def _test_optimizer(opt, problem, num_retries = 32, num = 10):
     log = logger()
     log.info(problem.name + ' ' + opt.name)
     for _ in range(num):
-        ret = minimize(problem.fun, problem.bounds, math.inf, num_retries, log, optimizer=opt)
+        minimize(problem.fun, problem.bounds, math.inf, num_retries, log, optimizer=opt)
 
 def main():
+        
     test_all()
 
 if __name__ == '__main__':
     main()
+    

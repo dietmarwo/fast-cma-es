@@ -6,24 +6,19 @@
 import sys
 import math
 import os
-import numpy as np
 import ctypes as ct
 from scipy.optimize import Bounds
 
 basepath = os.path.dirname(os.path.abspath(__file__))
-if sys.platform.startswith('linux'):
+if sys.platform.startswith('linux'):   
     libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.so')    
 elif 'mac' in sys.platform:
     libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.dylib')  
 else:
     libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.dll')
 
-class Astrofun(object):
-    """Provides access to ESAs GTOP optimization test functions."""
-    def __init__(self, name, fun_c, lower, upper):    
-        self.name = name 
-        self.bounds = Bounds(lower, upper)
-        self.fun = python_fun(fun_c, self.bounds)
+freemem = libgtoplib.free_mem
+freemem.argtypes = [ct.POINTER(ct.c_double)]
 
 # for windows compatibility. Linux can pickle c pointers, windows can not
 astro_map = {  
@@ -31,12 +26,20 @@ astro_map = {
     "messengerC": libgtoplib.messengerC,
     "gtoc1C": libgtoplib.gtoc1C,
     "cassini1C": libgtoplib.cassini1C,
+    "cassini1minlpC": libgtoplib.cassini1minlpC,
     "cassini2C": libgtoplib.cassini2C,
     "rosettaC": libgtoplib.rosettaC,
     "sagasC": libgtoplib.sagasC,
     "tandemC": libgtoplib.tandemC,
     "tandemCu": libgtoplib.tandemCu
     }
+
+class Astrofun(object):
+    """Provides access to ESAs GTOP optimization test functions."""
+    def __init__(self, name, fun_c, lower, upper):    
+        self.name = name 
+        self.bounds = Bounds(lower, upper)
+        self.fun = python_fun(fun_c, self.bounds)
 
 for func in astro_map:
     astro_map[func].argtypes = [ct.c_int, ct.POINTER(ct.c_double)]           
@@ -126,13 +129,66 @@ class Tandem(object):
         fun_c = astro_map[self.cfun]      
         fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_int)]
         try: # function is only defined inside bounds
-            x = np.asarray(x).clip(self.bounds.lb, self.bounds.ub)
+            #x = np.asarray(x).clip(self.bounds.lb, self.bounds.ub)
             val = fun_c(n, array_type(*x), ints_type(*self.seq))
             if not math.isfinite(val):
                 val = 1E10
         except Exception as ex:
             val = 1E10
         return val
+
+class Cassini1multi(object):
+    """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/ """
+    
+    def __init__(self, weights = [1,0,0,0]):    
+        Astrofun.__init__(self, 'Cassini1minlp', "Cassini1minlpC", 
+                           [-1000.,30.,100.,30.,400.,1000.],
+                           [0.,400.,470.,400.,2000.,6000.]       
+        )
+        self.fun = self.cassini1
+        self.weights = weights
+        self.mfun = lambda x: cassini1multi(x + [2,2,3,5])
+         
+    def cassini1(self, x):
+        r = cassini1multi(x + [2,2,3,5])
+        return self.weights[0]*r[0] + self.weights[1]*r[1] + self.weights[2]*r[2] + self.weights[3]*r[3]
+    
+class Cassini1minlp(object):
+    """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/ """
+    
+    def __init__(self, weights = [1,0,0,0]):    
+        Astrofun.__init__(self, 'Cassini1minlp', "Cassini1minlpC", 
+                           [-1000.,30.,100.,30.,400.,1000., 1.0,1.0,1.0,1.0 ],
+                           [0.,400.,470.,400.,2000.,6000., 9.0,9.0,9.0,9.0 ]       
+        )
+        self.fun = self.cassini1minlp
+        self.weights = weights
+        self.mfun = cassini1multi
+         
+    def cassini1minlp(self, x):
+        r = cassini1multi(x)
+        return self.weights[0]*r[0] + self.weights[1]*r[1] + self.weights[2]*r[2] + self.weights[3]*r[3]
+
+def cassini1multi(x):
+    n = len(x)
+    array_type = ct.c_double * n   
+    fun_c = astro_map["cassini1minlpC"]      
+    fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double)]
+    fun_c.restype = ct.POINTER(ct.c_double)  
+    try: # function is only defined inside bounds
+        res = fun_c(n, array_type(*x))
+        dv = res[0]
+        launch_dv = res[1]
+        freemem(res)
+        if not math.isfinite(dv):
+            dv = 1E10
+    except Exception as ex:
+        dv = 1E10
+        launch_dv = 1E10 
+    tof = x[1] + x[2] + x[3] + x[4]
+    launch_time = x[0] 
+    return [dv, tof, launch_time, launch_dv]
+
   
 class python_fun(object):
     
@@ -152,3 +208,4 @@ class python_fun(object):
         except Exception as ex:
             val = 1E10
         return val
+    
