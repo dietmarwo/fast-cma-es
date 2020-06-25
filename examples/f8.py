@@ -23,8 +23,10 @@ import numpy as np
 import multiprocessing as mp
 import ctypes as ct
 import math
-from fcmaes.optimizer import logger, Cma_cpp
-from fcmaes import advretry
+import warnings
+import time 
+from fcmaes.optimizer import logger, Cma_cpp, dtime
+from fcmaes import advretry, cmaes
 
 # use only the compiled function, not the integrator-wrapper because of parallelism
 def get_compiled_function(f, control_pars):
@@ -68,7 +70,9 @@ def obj_f(X):
         try:
             t += X[i]
             I.set_f_params(w)
-            y = I.integrate(t)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                y = I.integrate(t)
         except Exception:
             return 1E10 # fail
     val0 = np.sum(X)
@@ -83,6 +87,24 @@ def obj_f(X):
               .format(val0, penalty, val))
     return val
     
+def test_cordinated_retry(dim = 6):
+    # coordinated retry with default optimizer
+    return advretry.minimize(obj_f, bounds(dim), logger=logger()) 
+
+def test_cordinated_retry_cma(dim = 6):
+    # coordinated retry with CMA-ES optimizer with reduced popsize
+    # faster for small dimension, use default for dim > 12
+    return advretry.minimize(obj_f, bounds(dim), logger=logger(), optimizer=Cma_cpp(2000, popsize=13))
+        
+def test_cma_parallel(dim = 6):
+    # parallel function evaluation using CMA-ES
+    t0 = time.perf_counter();
+    for i in range(100000):
+        ret = cmaes.minimize(obj_f, bounds(dim), popsize=16, max_evaluations = 4000000, workers = mp.cpu_count())
+        print("{0}: time = {1:.1f} fun = {2:.3f}"
+              .format(i+1, dtime(t0), ret.fun)) 
+    return ret
+    
 def bounds(n):
     lb = [0]*n
     ub = [2]*n
@@ -91,9 +113,7 @@ def bounds(n):
 if __name__ == '__main__':
     
     dim = 6
-    # coordinated retry with default optimizer
-    ret = advretry.minimize(obj_f, bounds(dim), logger=logger()) 
+    ret = test_cordinated_retry(dim)
+    #ret = test_cordinated_retry_cma(dim)
+    #ret = test_cma_parallel(dim)
 
-    # coordinated retry with CMA-ES optimizer with reduced popsize
-    # faster for small dimension, use default for dim > 12
-    #ret = advretry.minimize(obj_f, bounds(dim), logger=logger(), optimizer=Cma_cpp(2000, popsize=13))
