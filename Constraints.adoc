@@ -2,7 +2,7 @@
 :imagesdir: img
 :cpp: C++
 
-== Optimize with Constraints
+== Optimization with Constraints
 
 Not all optimization problems are boxed constrained, there may be additional equality and/or inequality constraints.
 Using a real life example we will discuss how such a problem can be converted into a boxed constrained one. 
