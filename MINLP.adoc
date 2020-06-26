@@ -147,7 +147,7 @@ We conclude:
 
 - Cassini1-MINLP is indeed currently intractable for Ant Colony Optimization based algorithms.
 - We have no clue if it is also intractable for fcmaes coordinated retry, since we have nothing to compare to. 
-- The "test of the 6561 possible combinations" was indeed flawed, it was not able to find the superior planet sequence ... .
+- The "test of the 6561 possible combinations" was indeed flawed, it was not able to find the superior planet sequences from the seven solutions above.
 
 ==== Fixing the objective function
 
