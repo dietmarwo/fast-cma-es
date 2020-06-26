@@ -8,3 +8,4 @@ A Python 3 gradient-free optimization library.
 - [Constraints](https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc)
 - [Expressions](https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc)
 - [ODE](https://github.com/dietmarwo/fast-cma-es/blob/master/ODE.adoc)
+- [MINLP](https://github.com/dietmarwo/fast-cma-es/blob/master/MINLP.adoc)
