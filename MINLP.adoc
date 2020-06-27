@@ -10,7 +10,7 @@ are integer multiples of some real value (see https://github.com/dietmarwo/fast-
 
 We could define all variables as continuous and map these to the nearest feasible value as done in both examples above. The vessel example has shown, that we have to be careful when using an optimizer
 which utilizes derivatives - since this mapping destroys the smoothness of the objective function. 
-But the luck is on our side, all fcmaes optimizers are derivative-free. So we don't expect 
+But luck is on our side, all fcmaes optimizers are derivative-free. So we don't expect 
 problems here. To verify this assumption, lets analyze a non-trivial example:
 
 Here http://www.midaco-solver.com/index.php/about/benchmarks/gtopx[Midaco/GTOPX] we find 
@@ -25,9 +25,9 @@ We have mentioned the https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassin
 https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results] and https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results], Cassini1-MINLP is an extension of this benchmark. The original https://solarsystem.nasa.gov/missions/cassini/overview/[Cassini Mission]
 to Saturn involved four gravity-assists at Venus, Venus, Earth and Jupiter to save fuel. 
 
-Cassini1-MINLP now adds four variables performing the decision which planets to use for the four flybys. Nasa/JPL has not shown a good "intuition" choosing a planet sequence for the https://sophia.estec.esa.int/gtoc_portal/?page_id=13[GTOC1 competition] as we have seen in the last section of https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial]. That they nevertheless won the competition shows that there is definitely an urgent need to improve our tools. 
+Cassini1-MINLP now adds four variables performing the decision which planets to use for the four flybys. Nasa/JPL has shown limited "intuition" choosing a planet sequence for the https://sophia.estec.esa.int/gtoc_portal/?page_id=13[GTOC1 competition] as we have seen in the last section of https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial]. Better tools could assist "intuition" and could simplify mission planning. 
 
-But the authors of http://www.midaco-solver.com/data/pub/CEC2019_Schlueter_Munetomo.pdf[CEC2019] are right: If we find a better planet sequence for Cassini this could be caused by flaws in the model. Allowing deep space maneuvers between planets as in https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2] could help. Additionally the final flyby at Jupiter probably was required because it is of significant scientific value.  
+The authors of http://www.midaco-solver.com/data/pub/CEC2019_Schlueter_Munetomo.pdf[CEC2019] are right: If we find a better planet sequence for Cassini this could be caused by flaws in the model. Allowing deep space maneuvers between planets as in https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2] could help. Additionally the final flyby at Jupiter probably was required because it is of significant scientific value. This topic will be analyzed further in the last section.   
 
 ==== Cassini1-MINLP
 
@@ -89,53 +89,59 @@ image::minlp.png[]
 
 After about 10 sec fcmaes coordinated retry surpasses the old "reference" solution at deltaV = 3.507. We 
 observe strong "resistance" at deltaV = 2.896, but after about 1000 sec this value is also
-improved significantly. The best solution at deltaV = 2.25 is reached only twice out of ten runs.
+improved significantly in many runs. The best solution at deltaV = 2.17576 is reached only once out of 20 runs.
 
 ----
 
 Solution 1:
+
+x = [-192.2248623732259, 47.13641665602527, 167.36749494279744, 315.1019785468309, 1095.7262611785677, 5695.214069302039, 3, 2, 3, 3]
+
+f(x) = 2.1757611862263295
+
+Solution 2:
 
 x = [-738.4153386564027, 60.81046673324806, 162.5036882873382, 382.4428551935498,
  1041.1379919643405, 1838.8750084727974, 3, 2, 2, 3]
 
 f(x) = 2.2509707061664836 
 
-Solution 2:
+Solution 3:
 
 x = [-749.7212652657448, 30.09190796959058, 175.81322285889598, 120.75196759589647,
  1654.1828907793347, 1648.8003356144363, 3, 2, 1, 3]
 
 f(x) = 2.381303161294389 
 
-Solution 3:
+Solution 4:
 
 x = [-752.1806083713891, 35.697326301809824, 172.76699133668922, 119.93341579587955,
  284.200426044298, 1899.602688862882, 3, 2, 1, 3]
 
 f(x) = 2.4565392360584846 
 
-Solution 4:
+Solution 5:
 
 x = [-749.193295711612, 30.000054978768333, 175.83068988316717, 119.9549095294082,
  1319.5114852475795, 2087.1005631439943, 3, 2, 1, 1]
 
 f(x) = 2.634271591021617 
 
-Solution 5:
+Solution 6:
 
 x = [-450.50243577446554, 86.2171545987049, 100.00010655594988, 87.96773444960056,
  647.2163781367608, 1665.8700702117821, 3, 1, 1, 5]
 
 f(x) = 2.675631996694141 
 
-Solution 6:
+Solution 7:
 
 x = [-753.7073438710086, 38.216285336897, 171.58134440907514, 119.96546003932784,
  791.7077131095718, 2554.6619174960915, 3, 2, 1, 1]
 
 f(x) = 2.7546928923685012 
 
-Solution 7:
+Solution 8:
 
 x = [-116.56834621673381, 84.0536929014271, 146.5166328413733, 164.12139419142477,
  1039.5719817140705, 4437.629781942452, 3, 2, 1, 5]
@@ -173,4 +179,17 @@ After implementing a fix for GTOP using the new PYKEP Lambert solver we repeat t
 image::minlp2.png[]
 
 We observe much "smoother" curves which means there are many more good solutions. And the best one with `deltaV = 1.846`
-using planet sequence "Earth, Venus, Venus, Earth" is found in all ten runs after about 100 - 600 sec. This is the same sequence as the best solution with the original objective function. 
+using planet sequence "Earth, Venus, Venus, Earth" is found in all ten runs after about 100 - 600 sec. 
+
+==== Why did they use VVEJ for the real Cassini mission?
+
+The question why the sequence Venus, Venus, Earth, Jupiter was chosen for the real Cassini mission can easily be answered by checking the alternative planet sequences we found using the much more accurate model from 
+https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_cassini2.py[pykep cassini2]. In https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results] we find a visualisation of a good solution for the original planet sequence with deltaV = 0.729 km/s. A quick 5 min check for the other sequences shows:
+
+- VVEJ: deltaV = 0.729 km/s
+- EVEJ: deltaV = 2.434 km/s
+- EEVE: deltaV = 2.606 km/s
+- EVVE: deltaV = 3.534 km/s
+- EMMJ: deltaV = 9.571 km/s
+
+Using deep space maneuvers and a generally more accurate model of the real mission shows that VVEJ needs only a fraction of the deltaV compared to the other planet sequences. The GTOP Cassini1 benchmark has only a very limited relevance in the real world. 
