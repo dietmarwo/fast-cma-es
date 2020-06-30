@@ -146,7 +146,7 @@ After 1326 sec we get the following sorted list of planet sequences:
 [3, 3, 3, 5, 6] -49.047704882833855
 ----
 
-For the best sequence we already got an optimal solution, otherwise we could continue further evaluating the best ones. 
+For the best sequence we already got an optimal solution, otherwise we could continue further evaluate the best ones. 
 
 === Cassini1-MINLP
 
@@ -188,7 +188,7 @@ These constraints are planet specific and the penalties adapt to the planet sequ
 http://www.midaco-solver.com/data/pub/CEC2019_Schlueter_Munetomo.pdf[CEC2019] unfortunately added 
 fixed constraints which only work for the original planet sequence. Although the resulting problem
 has no relation to the "real world" it is nevertheless interesting since it represents a kind of
-worst kind scenario for the MINLP approach.  
+worst case scenario for the MINLP approach.  
 
 === Cassini1-MINLP with correct constraints
 
