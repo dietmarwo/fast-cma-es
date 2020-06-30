@@ -265,7 +265,7 @@ image::minlp2.png[]
 
 We observe much "smoother" curves which means there are many more good solutions. And the best one with `deltaV = 1.846` using planet sequence "Earth, Venus, Venus, Earth" is found in all ten runs after about 100 - 600 sec. 
 
-==== Why did they use VVEJ for the real Cassini mission?
+==== Why did they use Venus Venus Earth Jupiter for the real Cassini mission?
 
 The question why the sequence Venus, Venus, Earth, Jupiter was chosen for the real Cassini mission can easily be answered by checking the alternative planet sequences we found using the much more accurate model from 
 https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_cassini2.py[pykep cassini2]. In https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results] we find a visualisation of a good solution for the original planet sequence with deltaV = 0.729 km/s. A quick 5 min check for the other sequences shows:
@@ -277,3 +277,100 @@ https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_cassini2.py[pykep ca
 - EMMJ: deltaV = 9.571 km/s
 
 Using deep space maneuvers and a more accurate model of the real mission shows that VVEJ needs only a fraction of the deltaV compared to the other planet sequences.
+
+=== GTOC1
+
+The https://sophia.estec.esa.int/gtoc_portal/?page_id=13[GTOC1] competition was already discussed in detail in the https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial]. This time we will show how to find a good planet sequence. We will use the "fixed multirevolution Lambert" version of the GTOP code which is not yet included in fcmaes. For GTOC1 this is an essential requirement for solutions which improve on the winning one from JPL. And we need a long planet sequence - therefore we had to add a `time of flight <= 30 year` constraint to the code. Our boxed constraints which define the timings are:
+
+----
+       lb = [3000.,14.,14.,14.,14.,14.,14.,300.,300.,300.,300.], 
+       ub = [10000.,2000.,2000.,2000.,2000.,2000.,2000.,3000.,1000.,4000.,1000.] 
+----
+A typical planet sequence is for instance `[3, 2, 2, 3, 2, 2, 3, 3, 6, 5, 10]` with ten trajectory legs starting at Earth (3) and aiming at the asteroid which threatens our planet (10). 
+Using domain knowledge we fix the last two flybys to Saturn and Jupiter and allow only Venus and Earth flybys in between. This leaves us with 2^7 = 128 different planet sequences. We don't expect to find big differences between the sequences, so we decide against using MINLP and for the simultaneous optimization approach:
+
+[source,python]
+----
+def sequences():
+    for p1 in range(2,4):
+        for p2 in range(2, 4):
+            for p3 in range(2, 4):
+                for p4 in range(2, 4):
+                    for p5 in range(2, 4):
+                        for p6 in range(2, 4):
+                            for p7 in range(2, 4):
+                                yield[p1,p2,p3,p4,p5,p6,p7]
+
+def test_multiretry(num_retries = min(512, 16*mp.cpu_count()), 
+             keep = 0.7, optimizer = de_cma(1500), logger = logger(), repeat = 100):
+    problems = []
+    ids = []
+    for seq in sequences(2,3):
+        problems.append(Gtoc1(planets = seq))
+        ids.append(str(seq))
+    for _ in range(100):
+        problem_stats = multiretry.minimize(problems, ids, num_retries, keep, optimizer, logger)
+        ps = problem_stats[0]
+        for _ in range(repeat):
+            logger.info("problem " + ps.prob.name + ' ' + str(ps.id))
+            ps.retry(optimizer)
+----
+
+Because of the enormous complexity of this task we define a base retry number of 1024 for each iteration. 
+Each iteration 30% of the problem variations / sequences are filtered out. 
+After about 25 minutes using the 3950X 16 core CPU we get our first ranking:
+
+----
+[3, 3, 3, 3, 2, 3, 3] -1708989.6693652852
+[3, 2, 3, 2, 3, 3, 3] -1696396.0489073088
+[3, 3, 3, 2, 3, 3, 3] -1682620.699099308
+[3, 3, 2, 3, 3, 3, 3] -1680375.8026656334
+[2, 2, 3, 2, 2, 3, 3] -1663756.207142463
+[3, 2, 3, 3, 2, 3, 3] -1659601.1495679119
+[3, 2, 3, 2, 2, 3, 3] -1655046.4219106187
+[3, 3, 3, 2, 2, 3, 3] -1639178.8846807072
+[3, 3, 2, 2, 3, 2, 3] -1637261.6500321375
+[3, 3, 2, 2, 3, 3, 3] -1636352.5885824538
+...
+----
+
+But it takes 8 hours more until the final result of the multiretry sorting process appears:
+
+----
+[2, 2, 3, 2, 3, 3, 3] -1847110.3065493396 -----
+[3, 2, 3, 2, 3, 3, 3] -1847069.2810261745 -----
+[2, 3, 2, 3, 2, 3, 3] -1843218.757455708 -----
+[3, 2, 3, 3, 2, 3, 3] -1836566.1917796042
+[2, 3, 2, 2, 3, 3, 3] -1827985.9268557034
+[3, 2, 3, 2, 2, 3, 3] -1816419.265119756
+[3, 3, 2, 2, 3, 3, 3] -1813416.482933015
+[3, 3, 2, 3, 2, 3, 3] -1813359.2309791856
+[3, 3, 3, 2, 3, 3, 3] -1782243.9263929802
+[3, 2, 3, 3, 3, 3, 3] -1780021.7413547586
+[3, 3, 2, 2, 2, 3, 3] -1779001.0378138914
+[2, 3, 2, 2, 2, 3, 3] -1770922.5899577655
+[3, 2, 2, 3, 2, 3, 3] -1765913.2291847111
+[3, 2, 2, 2, 3, 3, 3] -1760166.55383832
+[2, 2, 3, 2, 2, 3, 3] -1760078.2693866405
+[3, 3, 3, 3, 2, 3, 3] -1759074.1787529092
+[2, 3, 3, 3, 2, 3, 3] -1740435.1296423872
+[3, 3, 2, 2, 3, 2, 3] -1733650.8112690973
+[3, 3, 2, 3, 3, 3, 3] -1727629.2676451143
+[3, 3, 3, 2, 2, 3, 3] -1712522.4017491455
+[2, 3, 3, 2, 3, 3, 3] -1711634.8412391657
+[3, 2, 3, 3, 2, 2, 3] -1710975.450628684
+...
+----
+
+Further evaluation of the first three sequences using the regular coordinated retry resulted in:
+
+----
+ [3,2,3,2,2,3,3,3,6,5,10] score = -1927767
+ [3,2,3,2,3,2,3,3,6,5,10] score = -1924321
+ [3,3,2,3,2,3,3,3,6,5,10] score = -1906362
+----
+
+The order of the first three sequences was correctly predicted by the simultaneous retry 
+and probably all of them would have been
+sufficient to win the competition - JPL scored "only" 1850000. 
+They all have very low deltaV impulses so that converting them into a low thrust trajectory is not difficult. 
