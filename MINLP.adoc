@@ -109,8 +109,9 @@ def test_multiretry(num_retries = 512,
     problems = [Tandem(i) for i in range(n)]
     ids = [str(seqs[i]) for i in range(n)]
     for _ in range(100):
+    	 # sort the problem variations
         problem_stats = multiretry.minimize(problems, ids, num_retries, keep, optimizer, logger)
-        ps = problem_stats[0]
+        ps = problem_stats[0] # focus on the best one
         for _ in range(repeat):
             logger.info("problem " + ps.prob.name + ' ' + str(ps.id))
             ps.retry(optimizer)
