@@ -13,6 +13,7 @@ __all__ = [
     'hhcpp',
     'retry',
     'advretry',
+    'multiretry',
     'pygmoretry',
     'optimizer',
     'astro',

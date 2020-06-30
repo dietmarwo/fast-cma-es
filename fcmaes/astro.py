@@ -69,7 +69,12 @@ class Gtoc1(object):
         Astrofun.__init__(self, 'GTOC1', "gtoc1C", 
                            [3000.,14.,14.,14.,14.,100.,366.,300.],
                            [10000.,2000.,2000.,2000.,2000.,9000.,9000.,9000.]       
-       )
+                           )
+        self.gfun = self.fun
+        self.fun = self.gtoc1       
+    
+    def gtoc1(self, x):
+        return self.gfun(x) - 2000000
 
 class Cassini1(object):
     """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/ """
@@ -131,6 +136,33 @@ class Tandem(object):
         try: # function is only defined inside bounds
             #x = np.asarray(x).clip(self.bounds.lb, self.bounds.ub)
             val = fun_c(n, array_type(*x), ints_type(*self.seq))
+            if not math.isfinite(val):
+                val = 1E10
+        except Exception as ex:
+            val = 1E10
+        return val
+
+class Tandem_minlp(object):
+    """ see https://www.esa.int/gsp/ACT/projects/gtop/tandem/ """
+    def __init__(self, constrained=True):   
+        self.name = ('Tandem minlp ' if constrained else 'Tandem unconstrained minlp ') 
+        self.cfun = "tandemC" if constrained else "tandemCu"
+        self.fun = self.tandem_minlp
+        self.bounds = Bounds([5475, 2.5, 0, 0, 20, 20, 20, 20, 0.01, 0.01, 0.01, 0.01, 1.05, 1.05, 1.05, -math.pi, -math.pi, -math.pi,
+                              1.51,1.51,1.51], 
+                             [9132, 4.9, 1, 1, 2500, 2500, 2500, 2500, 0.99, 0.99, 0.99, 0.99, 10, 10, 10, math.pi,  math.pi,  math.pi,
+                              3.49,4.49,5.49])
+         
+    def tandem_minlp(self, xs):
+        n = len(xs) - 3
+        x = xs[:-3]
+        seq = [3] + [int(round(xi)) for xi in xs[-3:]] + [6]
+        array_type = ct.c_double * n   
+        ints_type = ct.c_int * 5   
+        fun_c = astro_map[self.cfun]      
+        fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_int)]
+        try:
+            val = fun_c(n, array_type(*x), ints_type(*seq))
             if not math.isfinite(val):
                 val = 1E10
         except Exception as ex:
