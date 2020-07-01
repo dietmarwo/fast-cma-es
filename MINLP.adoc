@@ -98,7 +98,7 @@ problem is comparable with the Messenger-Full problem.
 
 Converting TandEm into a mixed integer problem is not the only approach. It pushed the coordinated retry to its limits since we used only a 16 core CPU. Alternatively we could use the simultaneous optimization approach,
 which evaluates all problem variants at the same time. Each iteration the worst 30% are removed, so that
-more time is spent on the promising Planet sequences. 
+more time is spent on the promising planet sequences. 
 
 [source,python]
 ----
