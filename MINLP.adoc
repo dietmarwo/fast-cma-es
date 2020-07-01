@@ -242,7 +242,7 @@ f(x) = 2.381303161294389
 
 ==== Fixing the objective function
 
-As already mentioned in https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results] there is a fundamental flaw both in the https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] problems as also in their newer replacements https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[reference problems]:
+As already mentioned in https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[pykep gym results] there is a fundamental flaw both in the https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] problems as also in their newer replacements https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[pykep gym]:
 
 Restricting the coasting trajectory legs to single revolution transfers has a number of nasty side effects, specially for the inner planets:
 
