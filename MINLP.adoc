@@ -301,11 +301,11 @@ def sequences():
                             for p7 in range(2, 4):
                                 yield[p1,p2,p3,p4,p5,p6,p7]
 
-def test_multiretry(num_retries = min(512, 16*mp.cpu_count()), 
+def test_multiretry(num_retries = 1024), 
              keep = 0.7, optimizer = de_cma(1500), logger = logger(), repeat = 100):
     problems = []
     ids = []
-    for seq in sequences(2,3):
+    for seq in sequences():
         problems.append(Gtoc1(planets = seq))
         ids.append(str(seq))
     for _ in range(100):
