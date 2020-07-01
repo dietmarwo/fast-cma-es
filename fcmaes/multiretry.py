@@ -28,9 +28,15 @@ def minimize(problems, ids=None, num_retries = min(256, 8*mp.cpu_count()),
     
     problems: list
         list of objects providing name, fun and bounds attributes like fcmaes.astro.Astrofun
+
+    ids:  list, optional
+        list of objects corresponding to the list of problems used in logging to identify the 
+        problem variant currently logged. If None, the index of the problem 
+        variant is used instead.
     
     num_retries:  int, optional
-        number of coordinated retries applied in the problem filter for each problem
+        number of coordinated retries applied in the problem filter for each problem 
+        in each iteration.
  
     keep:  float, optional
         rate of the problems kept after each iteration. 100*(1 - keep) % will be deleted. 
