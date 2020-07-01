@@ -147,7 +147,7 @@ After 1326 sec we get the following sorted list of planet sequences:
 [3, 3, 3, 5, 6] -49.047704882833855
 ----
 
-For the best sequence we already got an optimal solution, otherwise we could continue further evaluate the best ones. 
+For the best sequence we already got an optimal solution, otherwise we could continue to further evaluate the best ones. 
 
 === Cassini1-MINLP
 
