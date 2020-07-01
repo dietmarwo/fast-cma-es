@@ -193,7 +193,7 @@ worst case scenario for the MINLP approach.
 
 === Cassini1-MINLP with correct constraints
 
-Lets apply fcmaes coordinated retry using the default optimizer `de_cma` (see https://github.com/dietmarwo/fast-cma-es/blob/master/examples/cassini_minlp.py[cassini_minlp.py]):
+Lets apply fcmaes coordinated retry using the default optimizer `de_cma` (see https://github.com/dietmarwo/fast-cma-es/blob/master/examples/cassini_minlp.py[cassini_minlp.py]) allowing all nine planets in the sequence which results in 9^4 = 6561 possible combinations:
 
 [source,python]
 ----
