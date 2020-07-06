@@ -282,9 +282,9 @@ public:
     		for (int p = 0; p < popsize; p++) {
     			if (nextY[p] < popY[p]) { // improvement
     				if (sp.size() < popsize)
-    				    sp.push_back(popX.col(p));
+    				    sp.push_back(nextX.col(p));
     				else
-    					sp[rndInt(popsize)] = popX.col(p);
+    					sp[rndInt(popsize)] = nextX.col(p);
     				InfoStore entry;
     				entry.CR = popCR[p];
     				entry.F = popF[p];
