@@ -274,7 +274,6 @@ public:
 			vec fitness = vec(popsize);
 			fitfun->values(nextX, popsize, fitness);
 			for (int p = 0; p < popsize; p++) {
-//            	fitness[p] = fitfun->value(nextX.col(p));
 				if (!isfinite(fitness[p]))
 					fitness[p] = DBL_MAX;
 			}
@@ -295,11 +294,11 @@ public:
 					nextX.col(p) = popX.col(p);
 			}
 			for (int p = 0; p < popsize; p++) {
-				if (nextY[p] < popY[p]) { // improvement
+				if (nextY[p] <= popY[p]) { // improvement
 					if (sp.size() < popsize)
-						sp.push_back(nextX.col(p));
+						sp.push_back(popX.col(p));
 					else
-						sp[rndInt(popsize)] = nextX.col(p);
+						sp[rndInt(popsize)] = popX.col(p);
 					InfoStore entry;
 					entry.CR = popCR[p];
 					entry.F = popF[p];
