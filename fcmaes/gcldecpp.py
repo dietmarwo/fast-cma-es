@@ -29,8 +29,6 @@ def minimize(fun,
              max_evaluations = 100000, 
              stop_fittness = None, 
              pbest = 0.7,
-             f0 = 0.5,
-             cr0 = 0.9,
              rg = Generator(MT19937()),
              runid=0):  
      
@@ -58,12 +56,6 @@ def minimize(fun,
          Limit for fitness value. If reached minimize terminates.
     pbest = float, optional
         use low value 0 < pbest <= 1 to narrow search.
-    f0 = float, optional
-        The initial mutation constant. In the literature this is also known as differential weight, 
-        being denoted by F. Should be in the range [0, 2].
-    cr0 = float, optional
-        The initial recombination constant. Should be in the range [0, 1]. 
-        In the literature this is also known as the crossover probability.     
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     runid : int, optional
@@ -96,7 +88,7 @@ def minimize(fun,
         res = optimizeGCLDE_C(runid, c_callback, n, seed,
                            array_type(*lower), array_type(*upper), 
                            max_evaluations, pbest, stop_fittness,  
-                           popsize, f0, cr0)
+                           popsize)
         x = np.array(np.fromiter(res, dtype=np.float64, count=n))
         val = res[n]
         evals = int(res[n+1])
@@ -120,8 +112,7 @@ call_back_type = ct.CFUNCTYPE(ct.c_double, ct.c_int, ct.POINTER(ct.c_double))
 optimizeGCLDE_C = libcmalib.optimizeGCLDE_C
 optimizeGCLDE_C.argtypes = [ct.c_long, call_back_type, ct.c_int, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
-            ct.c_double, ct.c_double]
+            ct.c_int, ct.c_double, ct.c_double, ct.c_int]
 
 optimizeGCLDE_C.restype = ct.POINTER(ct.c_double)         
 freemem = libcmalib.free_mem
