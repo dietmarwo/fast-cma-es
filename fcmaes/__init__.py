@@ -10,6 +10,7 @@ __all__ = [
     'cmaescpp',
     'dacpp',
     'decpp',
+    'gcldecpp',
     'hhcpp',
     'retry',
     'advretry',

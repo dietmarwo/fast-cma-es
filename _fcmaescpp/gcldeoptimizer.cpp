@@ -1,14 +1,11 @@
-// Copyright (c) Dietmar Wolz.
+// Copyright (c)  Mingcheng Zuo, Dietmar Wolz.
 //
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory.
 
-// Eigen based implementation of differential evolution using on the DE/best/1 strategy.
-// Uses two deviations from the standard DE algorithm:
-// a) temporal locality introduced in 
-// https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model
-// b) reinitialization of individuals based on their age. 
-// requires https://github.com/imneme/pcg-cpp
+// Eigen based implementation of differential evolution (GCL-DE) derived from
+// "A case learning-based differential evolution algorithm for global optimization of interplanetary trajectory design,
+//  Mingcheng Zuo, Guangming Dai, Lei Peng, Maocai Wang, Zhengquan Liu", https://doi.org/10.1016/j.asoc.2020.106451
 
 #include <Eigen/Core>
 #include <iostream>
@@ -25,19 +22,22 @@ typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> mat;
 
 typedef double (*callback_type)(int, double[]);
 
-namespace differential_evolution {
+namespace gcl_differential_evolution {
 
 static uniform_real_distribution<> distr_01 = std::uniform_real_distribution<>(
 		0, 1);
+static normal_distribution<> gauss_01 = std::normal_distribution<>(0, 1);
+
+static double normreal(pcg64 *rs, double mu, double sdev) {
+	return gauss_01(*rs) * sdev + mu;
+}
 
 static vec zeros(int n) {
 	return Eigen::MatrixXd::Zero(n, 1);
 }
 
-static Eigen::MatrixXd uniform(int dx, int dy, pcg64 &rs) {
-	return Eigen::MatrixXd::NullaryExpr(dx, dy, [&]() {
-		return distr_01(rs);
-	});
+static vec constant(int n, double val) {
+	return Eigen::MatrixXd::Constant(n, 1, val);
 }
 
 static Eigen::MatrixXd uniformVec(int dim, pcg64 &rs) {
@@ -46,28 +46,10 @@ static Eigen::MatrixXd uniformVec(int dim, pcg64 &rs) {
 	});
 }
 
-static int index_max(vec &v) {
-	double maxv = DBL_MIN;
-	int mi = -1;
-	for (int i = 0; i < v.size(); i++) {
-		if (v[i] > maxv) {
-			mi = i;
-			maxv = v[i];
-		}
-	}
-	return mi;
-}
-
-static int index_min(vec &v) {
-	double minv = DBL_MAX;
-	int mi = -1;
-	for (int i = 0; i < v.size(); i++) {
-		if (v[i] < minv) {
-			mi = i;
-			minv = v[i];
-		}
-	}
-	return mi;
+static Eigen::MatrixXd uniform(int dx, int dy, pcg64 &rs) {
+	return Eigen::MatrixXd::NullaryExpr(dx, dy, [&]() {
+		return distr_01(rs);
+	});
 }
 
 struct IndexVal {
@@ -92,6 +74,11 @@ static ivec sort_index(const vec &x) {
 	});
 }
 
+static void copyvec(const vec &x1, vec &x2) {
+	for (int i = 0; i < x1.size(); i++)
+		x2[i] = x1[i];
+}
+
 // wrapper around the fittness function, scales according to boundaries
 
 class Fittness {
@@ -108,6 +95,13 @@ public:
 			scale = (upper - lower);
 			invScale = scale.cwiseInverse();
 		}
+	}
+
+	vec getClosestFeasible(const vec &X) const {
+		if (lower.size() > 0) {
+			return X.cwiseMin(upper).cwiseMax(lower);
+		}
+		return X;
 	}
 
 	double eval(const vec &X) {
@@ -129,20 +123,8 @@ public:
 		return ((x1 - x2).array() * invScale.array()).matrix().squaredNorm();
 	}
 
-	vec getClosestFeasible(const vec &X) const {
-		if (lower.size() > 0) {
-			return X.cwiseMin(upper).cwiseMax(lower);
-		}
-		return X;
-	}
-
 	bool feasible(int i, double x) {
 		return x >= lower[i] && x <= upper[i];
-	}
-
-	bool feasible(const vec &x) {
-		return (x.array() >= lower.array()).all()
-				&& (x.array() <= upper.array()).all();
 	}
 
 	vec uniformX(pcg64 &rs) {
@@ -167,13 +149,19 @@ private:
 	vec invScale;
 };
 
-class DeOptimizer {
+typedef struct {
+	double F;
+	double CR;
+	vec x;
+} InfoStore;
+
+class GclDeOptimizer {
 
 public:
 
-	DeOptimizer(long runid_, Fittness *fitfun_, int dim_, int seed_,
-			int popsize_, int maxEvaluations_, double keep_,
-			double stopfitness_, double F_, double CR_) {
+	GclDeOptimizer(long runid_, Fittness *fitfun_, int dim_, int seed_,
+			int popsize_, int maxEvaluations_, double pbest_,
+			double stopfitness_, double F0_, double CR0_) {
 		// runid used to identify a specific run
 		runid = runid_;
 		// fitness function to minimize
@@ -188,23 +176,19 @@ public:
 		// termination criteria
 		// maximal number of evaluations allowed.
 		maxEvaluations = maxEvaluations_;
-		// keep best young after each iteration.
-		keep = keep_;
+		// use low value 0 < pbest <= 1 to narrow search.
+		pbest = pbest_;
 		// Limit for fitness value.
 		stopfitness = stopfitness_;
-		F = F_;
-		CR = CR_;
-		// Number of iterations already performed.
-		iterations = 0;
-		bestY = DBL_MAX;
+		F0 = F0_;
+		CR0 = CR0_;
 		// stop criteria
 		stop = 0;
-		//std::random_device rd;
 		rs = new pcg64(seed_);
 		init();
 	}
 
-	~DeOptimizer() {
+	~GclDeOptimizer() {
 		delete rs;
 	}
 
@@ -212,84 +196,123 @@ public:
 		return distr_01(*rs);
 	}
 
-	double rnd02() {
-		double rnd = distr_01(*rs);
-		return rnd * rnd;
-	}
-
 	int rndInt(int max) {
 		return (int) (max * distr_01(*rs));
 	}
 
+	int findNear(vec x, vector<InfoStore> storage) {
+		int index = 0;
+		double minDist = DBL_MAX;
+		for (int j = 0; j < storage.size(); j++) {
+			//double distance = (x - storage[j].x).squaredNorm();
+			double distance = fitfun->distance(x, storage[j].x);
+			if (distance < minDist) {
+				index = j;
+				minDist = distance;
+			}
+		}
+		return index;
+	}
+
 	void doOptimize() {
+		int Gr = 2;
+		int gen_stuck = 0;
+		vector<vec> sp;
+		bool storage = false;
+
+		int maxIter = maxEvaluations / popsize + 1;
+		double previous_best = DBL_MAX;
+		double CR, F;
 
 		// -------------------- Generation Loop --------------------------------
 
-		for (iterations = 1; fitfun->getEvaluations() < maxEvaluations;
-				iterations++) {
-			for (int k = 0; k < popsize; k++) {
-				vec xi = popX.col(k);
-				vec xb = popX.col(bestI);
-				int r1, r2;
+		for (iterations = 1;; iterations++) {
+			// sort population
+			ivec sindex = sort_index(nextY);
+			popY = nextY(sindex, Eigen::all);
+			popX = nextX(Eigen::all, sindex);
+
+			bestX = popX.col(0);
+			bestY = popY[0];
+
+			if (isfinite(stopfitness) && bestY < stopfitness) {
+				stop = 1;
+				return;
+			}
+			if (bestY == previous_best)
+				gen_stuck++;
+			else
+				gen_stuck = 0;
+			previous_best = bestY;
+
+			if (fitfun->getEvaluations() >= maxEvaluations)
+				return;
+			for (int p = 0; p < popsize; p++) {
+				int r1, r2, r3;
 				do {
 					r1 = rndInt(popsize);
-				} while (r1 == k);
+				} while (r1 == p);
 				do {
-					r2 = rndInt(popsize);
-				} while (r2 == k || r2 == r1);
+					r2 = rndInt(int(popsize * pbest));
+				} while (r2 == p || r2 == r1);
+				do {
+					r3 = rndInt(popsize + sp.size());
+				} while (r3 == p || r3 == r2 || r3 == r1);
 				int jr = rndInt(dim);
-				vec ui = vec(xi);
-				for (int j = 0; j < dim; j++) {
-					if (j == jr || rnd01() < CR)
-						ui[j] = xb[j] + F * (popX(j, r1) - popX(j, r2));
-					if (!fitfun->feasible(j, ui[j]))
-						ui[j] = fitfun->uniformXi(j, *rs);
-				}
-				double eu = fitfun->eval(ui);
-				if (isfinite(eu) && eu < popY[k]) {
-					// temporal locality
-					vec uis = fitfun->getClosestFeasible(
-							xb + ((ui - xi) * 0.5));
-					double eus = fitfun->eval(uis);
-					if (isfinite(eus) && eus < eu) {
-						eu = eus;
-						ui = uis;
-					}
-					popX.col(k) = ui;
-					popY(k) = eu;
-					popIter[k] = iterations;
-					if (eu < popY[bestI]) {
-						bestI = k;
-						if (eu < bestY) {
-							bestY = eu;
-							bestX = ui;
-							if (isfinite(stopfitness) && bestY < stopfitness) {
-								stop = 1;
-								return;
-							}
-						}
-					}
+				//Produce the CR and F
+				double mu = 1
+						- sqrt(float(iterations / maxIter))
+								* exp(float(-gen_stuck / iterations));
+				if (!storage || iterations < Gr) {
+					CR = normreal(rs, 0.95, 0.01);
+					F = normreal(rs, mu, 1);
+					if (F < 0 || F > 1)
+						F = rnd01();
 				} else {
-					// reinitialize individual
-					if (keep * rnd02() + 3 < iterations - popIter[k]) {
-						popX.col(k) = fitfun->uniformX(*rs);
-						popY[k] = fitfun->eval(popX.col(k)); // compute fitness
+					CR = CR0;
+					F = F0;
+				}
+				vec ui = popX.col(p);
+				for (int j = 0; j < dim; j++) {
+					if (j == jr || rnd01() < CR) {
+						if (r3 < popsize)
+							ui[j] = popX(j, r1)
+									+ F * (popX(j, r2) - popX(j, r3));
+						else
+							ui[j] = popX(j, r1)
+									+ F * ((popX)(j, r2) - sp[r3 - popsize][j]);
+						if (!fitfun->feasible(j, ui[j]))
+							ui[j] = fitfun->uniformXi(j, *rs);
 					}
+				}
+				nextX.col(p) = ui;
+			}
+			fitfun->values(nextX, popsize, nextY);
+			for (int p = 0; p < popsize; p++) {
+				if (nextY[p] <= popY[p]) {
+					if (sp.size() < popsize)
+						sp.push_back(vec(popX.col(p)));
+					else
+						copyvec(popX.col(p), sp[rndInt(popsize)]);
+					storage = true;
+				} else {        // no improvement, copy from parent
+					nextX.col(p) = popX.col(p);
+					nextY[p] = popY[p];
 				}
 			}
+			if (iterations % Gr == 0)
+				storage = false;
 		}
 	}
 
 	void init() {
-		popX = mat(dim, popsize);
-		popY = vec(popsize);
-		for (int p = 0; p < popsize; p++) {
-			popX.col(p) = fitfun->uniformX(*rs);
-			popY[p] = fitfun->eval(popX.col(p)); // compute fitness
-		}
-		bestI = index_min(popY);
-		bestX = popX.col(bestI);
-		popIter = zeros(popsize);
+		popCR = zeros(popsize);
+		popF = zeros(popsize);
+		nextX = mat(dim, popsize);
+		for (int p = 0; p < popsize; p++)
+			nextX.col(p) = fitfun->uniformX(*rs);
+		nextY = vec(popsize);
+		fitfun->values(nextX, popsize, nextY);
 	}
 
 	vec getBestX() {
@@ -314,31 +337,30 @@ private:
 	int popsize; // population size
 	int dim;
 	int maxEvaluations;
-	double keep;
+	double pbest;
 	double stopfitness;
 	int iterations;
 	double bestY;
 	vec bestX;
-	int bestI;
 	int stop;
-	double F;
-	double CR;
+	double F0;
+	double CR0;
 	pcg64 *rs;
 	mat popX;
 	vec popY;
-	vec popIter;
+	mat nextX;
+	vec nextY;
+	vec popCR;
+	vec popF;
 };
-
-// see https://cvstuff.wordpress.com/2014/11/27/wraping-c-code-with-python-ctypes-memory-and-pointers/
-
 }
 
-using namespace differential_evolution;
+using namespace gcl_differential_evolution;
 
 extern "C" {
-double* optimizeDE_C(long runid, callback_type func, int dim, int seed,
-		double *lower, double *upper, int maxEvals, double keep,
-		double stopfitness, int popsize, double F, double CR) {
+double* optimizeGCLDE_C(long runid, callback_type func, int dim, int seed,
+		double *lower, double *upper, int maxEvals, double pbest,
+		double stopfitness, int popsize, double F0, double CR0) {
 	int n = dim;
 	double *res = new double[n + 4];
 	vec lower_limit(n), upper_limit(n);
@@ -354,8 +376,8 @@ double* optimizeDE_C(long runid, callback_type func, int dim, int seed,
 		upper_limit.resize(0);
 	}
 	Fittness fitfun(func, lower_limit, upper_limit);
-	DeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, keep,
-			stopfitness, F, CR);
+	GclDeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, pbest,
+			stopfitness, F0, CR0);
 	try {
 		opt.doOptimize();
 		vec bestX = opt.getBestX();
@@ -373,4 +395,3 @@ double* optimizeDE_C(long runid, callback_type func, int dim, int seed,
 	}
 }
 }
-
