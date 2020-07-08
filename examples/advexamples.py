@@ -10,7 +10,7 @@ from fcmaes.astro import MessFull, Messenger, Cassini2, Rosetta, Gtoc1, Cassini1
 from fcmaes.optimizer import logger, de_cma, da_cma, Cma_cpp, De_cpp, Da_cpp, Hh_cpp, Dual_annealing, Differential_evolution, GCLDE_cpp, Sequence
 from fcmaes.advretry import minimize
 
-glcma = Sequence([GCLDE_cpp(750, pbest=1.0), Cma_cpp(750)])
+glcma = Sequence([GCLDE_cpp(750), Cma_cpp(750)])
 
 def messengerFullLoop():    
     while True:    
