@@ -97,6 +97,13 @@ public:
 		}
 	}
 
+	vec getClosestFeasible(const vec &X) const {
+		if (lower.size() > 0) {
+			return X.cwiseMin(upper).cwiseMax(lower);
+		}
+		return X;
+	}
+
 	double eval(const vec &X) {
 		int n = X.size();
 		double parg[n];
@@ -154,7 +161,7 @@ public:
 
 	GclDeOptimizer(long runid_, Fittness *fitfun_, int dim_, int seed_,
 			int popsize_, int maxEvaluations_, double pbest_,
-			double stopfitness_) {
+			double stopfitness_, double F0_, double CR0_) {
 		// runid used to identify a specific run
 		runid = runid_;
 		// fitness function to minimize
@@ -173,7 +180,8 @@ public:
 		pbest = pbest_;
 		// Limit for fitness value.
 		stopfitness = stopfitness_;
-		bestY = DBL_MAX;
+		F0 = F0_;
+		CR0 = CR0_;
 		// stop criteria
 		stop = 0;
 		rs = new pcg64(seed_);
@@ -261,8 +269,8 @@ public:
 					if (F < 0 || F > 1)
 						F = rnd01();
 				} else {
-					CR = 0;
-					F = 0;
+					CR = CR0;
+					F = F0;
 				}
 				vec ui = popX.col(p);
 				for (int j = 0; j < dim; j++) {
@@ -335,6 +343,8 @@ private:
 	double bestY;
 	vec bestX;
 	int stop;
+	double F0;
+	double CR0;
 	pcg64 *rs;
 	mat popX;
 	vec popY;
@@ -350,7 +360,7 @@ using namespace gcl_differential_evolution;
 extern "C" {
 double* optimizeGCLDE_C(long runid, callback_type func, int dim, int seed,
 		double *lower, double *upper, int maxEvals, double pbest,
-		double stopfitness, int popsize) {
+		double stopfitness, int popsize, double F0, double CR0) {
 	int n = dim;
 	double *res = new double[n + 4];
 	vec lower_limit(n), upper_limit(n);
@@ -367,7 +377,7 @@ double* optimizeGCLDE_C(long runid, callback_type func, int dim, int seed,
 	}
 	Fittness fitfun(func, lower_limit, upper_limit);
 	GclDeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, pbest,
-			stopfitness);
+			stopfitness, F0, CR0);
 	try {
 		opt.doOptimize();
 		vec bestX = opt.getBestX();
