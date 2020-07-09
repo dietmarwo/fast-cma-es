@@ -264,8 +264,8 @@ public:
 						- sqrt(float(iterations / maxIter))
 								* exp(float(-gen_stuck / iterations));
 				if (!storage || iterations < Gr) {
-					CR = normreal(rs, 0.95, 0.01);
-					F = normreal(rs, mu, 1);
+					CR = normreal(rs, 0.90, 0.02);
+					F = normreal(rs, mu, 0.2);
 					if (F < 0 || F > 1)
 						F = rnd01();
 				} else {
@@ -289,7 +289,7 @@ public:
 			}
 			fitfun->values(nextX, popsize, nextY);
 			for (int p = 0; p < popsize; p++) {
-				if (nextY[p] <= popY[p]) {
+				if (nextY[p] < popY[p]) {
 					if (sp.size() < popsize)
 						sp.push_back(vec(popX.col(p)));
 					else

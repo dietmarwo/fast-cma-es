@@ -30,7 +30,7 @@ def minimize(fun,
              stop_fittness = None, 
              pbest = 0.7,
              f0 = 0.005,
-             cr0 = 0.1,
+             cr0 = 0.05,
              rg = Generator(MT19937()),
              runid=0):  
      
