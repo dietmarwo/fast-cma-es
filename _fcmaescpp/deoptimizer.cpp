@@ -181,19 +181,16 @@ public:
 		// Number of objective variables/problem dimension
 		dim = dim_;
 		// Population size
-		if (popsize_ > 0)
-			popsize = popsize_;
-		else
-			popsize = 15 * dim;
+		popsize = popsize_ > 0 ? popsize_ : 15 * dim;
 		// termination criteria
 		// maximal number of evaluations allowed.
-		maxEvaluations = maxEvaluations_;
+		maxEvaluations = maxEvaluations_ > 0 ? maxEvaluations_ : 50000;
 		// keep best young after each iteration.
-		keep = keep_;
+		keep = keep_ > 0 ? keep_ : 20;
 		// Limit for fitness value.
 		stopfitness = stopfitness_;
-		F = F_;
-		CR = CR_;
+		F = F_ > 0 ? F_ : 0.5;
+		CR = CR_ > 0 ? CR_ : 0.9;
 		// Number of iterations already performed.
 		iterations = 0;
 		bestY = DBL_MAX;
@@ -227,16 +224,16 @@ public:
 
 		for (iterations = 1; fitfun->getEvaluations() < maxEvaluations;
 				iterations++) {
-			for (int k = 0; k < popsize; k++) {
-				vec xi = popX.col(k);
+			for (int p = 0; p < popsize; p++) {
+				vec xi = popX.col(p);
 				vec xb = popX.col(bestI);
 				int r1, r2;
 				do {
 					r1 = rndInt(popsize);
-				} while (r1 == k);
+				} while (r1 == p);
 				do {
 					r2 = rndInt(popsize);
-				} while (r2 == k || r2 == r1);
+				} while (r2 == p || r2 == r1);
 				int jr = rndInt(dim);
 				vec ui = vec(xi);
 				for (int j = 0; j < dim; j++) {
@@ -246,7 +243,7 @@ public:
 						ui[j] = fitfun->uniformXi(j, *rs);
 				}
 				double eu = fitfun->eval(ui);
-				if (isfinite(eu) && eu < popY[k]) {
+				if (isfinite(eu) && eu < popY[p]) {
 					// temporal locality
 					vec uis = fitfun->getClosestFeasible(
 							xb + ((ui - xi) * 0.5));
@@ -255,11 +252,11 @@ public:
 						eu = eus;
 						ui = uis;
 					}
-					popX.col(k) = ui;
-					popY(k) = eu;
-					popIter[k] = iterations;
+					popX.col(p) = ui;
+					popY(p) = eu;
+					popIter[p] = iterations;
 					if (eu < popY[bestI]) {
-						bestI = k;
+						bestI = p;
 						if (eu < bestY) {
 							bestY = eu;
 							bestX = ui;
@@ -271,9 +268,9 @@ public:
 					}
 				} else {
 					// reinitialize individual
-					if (keep * rnd02() + 3 < iterations - popIter[k]) {
-						popX.col(k) = fitfun->uniformX(*rs);
-						popY[k] = fitfun->eval(popX.col(k)); // compute fitness
+					if (keep * rnd01() < iterations - popIter[p]) {
+						popX.col(p) = fitfun->uniformX(*rs);
+						popY[p] = fitfun->eval(popX.col(p)); // compute fitness
 					}
 				}
 			}
