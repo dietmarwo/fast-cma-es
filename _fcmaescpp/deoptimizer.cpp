@@ -46,18 +46,6 @@ static Eigen::MatrixXd uniformVec(int dim, pcg64 &rs) {
 	});
 }
 
-static int index_max(vec &v) {
-	double maxv = DBL_MIN;
-	int mi = -1;
-	for (int i = 0; i < v.size(); i++) {
-		if (v[i] > maxv) {
-			mi = i;
-			maxv = v[i];
-		}
-	}
-	return mi;
-}
-
 static int index_min(vec &v) {
 	double minv = DBL_MAX;
 	int mi = -1;
@@ -182,7 +170,6 @@ public:
 		dim = dim_;
 		// Population size
 		popsize = popsize_ > 0 ? popsize_ : 15 * dim;
-		// termination criteria
 		// maximal number of evaluations allowed.
 		maxEvaluations = maxEvaluations_ > 0 ? maxEvaluations_ : 50000;
 		// keep best young after each iteration.
@@ -224,22 +211,25 @@ public:
 
 		for (iterations = 1; fitfun->getEvaluations() < maxEvaluations;
 				iterations++) {
+			double CRu = iterations % 2 == 0 ? 0.5*CR : CR;
+			double Fu = iterations % 2 == 0 ? 0.5*F : F;
 			for (int p = 0; p < popsize; p++) {
 				vec xi = popX.col(p);
 				vec xb = popX.col(bestI);
 				int r1, r2;
 				do {
 					r1 = rndInt(popsize);
-				} while (r1 == p);
+				} while (r1 == p || r1 == bestI);
 				do {
 					r2 = rndInt(popsize);
-				} while (r2 == p || r2 == r1);
+				} while (r2 == p || r2 == bestI || r2 == r1);
 				int jr = rndInt(dim);
 				vec ui = vec(xi);
+
 				for (int j = 0; j < dim; j++) {
-					if (j == jr || rnd01() < CR)
-						ui[j] = xb[j] + F * (popX(j, r1) - popX(j, r2));
-					if (!fitfun->feasible(j, ui[j]))
+					if (j == jr || rnd01() < CRu) {
+						ui[j] = xb[j] + Fu * (popX(j, r1) - popX(j, r2));
+					} if (!fitfun->feasible(j, ui[j]))
 						ui[j] = fitfun->uniformXi(j, *rs);
 				}
 				double eu = fitfun->eval(ui);

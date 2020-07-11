@@ -182,7 +182,7 @@ class De_cpp(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fittness = None, 
-                 keep = 200, f = 0.5, cr = 0.9):        
+                 keep = 30, f = 0.5, cr = 0.9):        
         Optimizer.__init__(self, max_evaluations, 'de cpp')
         self.popsize = popsize
         self.stop_fittness = stop_fittness

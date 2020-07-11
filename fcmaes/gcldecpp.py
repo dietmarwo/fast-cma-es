@@ -18,7 +18,8 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaescpp import callback
+from fcmaes.cmaescpp import callback_par 
+from fcmaes.cmaes import serial, parallel
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -32,7 +33,8 @@ def minimize(fun,
              f0 = 0.005,
              cr0 = 0.05,
              rg = Generator(MT19937()),
-             runid=0):  
+             runid=0,
+             workers = None):  
      
     """Minimization of a scalar function of one or more variables using a 
     C++ GCL Differential Evolution implementation called via ctypes.
@@ -67,8 +69,12 @@ def minimize(fun,
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     runid : int, optional
-        id used to identify the optimization run. 
-            
+        id used to identify the optimization run.
+    workers : int or None, optional
+        If not workers is None, function evaluation is performed in parallel for the whole population. 
+        Useful for costly objective functions but is deactivated for parallel retry.      
+ 
+           
     Returns
     -------
     res : scipy.OptimizeResult
@@ -89,11 +95,12 @@ def minimize(fun,
         upper = [0]*n
     if stop_fittness is None:
         stop_fittness = math.inf   
+    parfun = None if workers is None else parallel(fun, workers)
     array_type = ct.c_double * n   
-    c_callback = call_back_type(callback(fun))
+    c_callback_par = call_back_par(callback_par(fun, parfun))
     seed = int(rg.uniform(0, 2**32 - 1))
     try:
-        res = optimizeGCLDE_C(runid, c_callback, n, seed,
+        res = optimizeGCLDE_C(runid, c_callback_par, n, seed,
                            array_type(*lower), array_type(*upper), 
                            max_evaluations, pbest, stop_fittness,  
                            popsize, f0, cr0)
@@ -103,8 +110,12 @@ def minimize(fun,
         iterations = int(res[n+2])
         stop = int(res[n+3])
         freemem(res)
+        if not parfun is None:
+            parfun.stop() # stop all parallel evaluation processes
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
+        if not workers is None:
+            fun.stop() # stop all parallel evaluation processes
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
       
 basepath = os.path.dirname(os.path.abspath(__file__))
@@ -115,10 +126,13 @@ elif 'mac' in sys.platform:
     libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
 else:
     libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')  
+    
 
-call_back_type = ct.CFUNCTYPE(ct.c_double, ct.c_int, ct.POINTER(ct.c_double))  
+call_back_par = ct.CFUNCTYPE(None, ct.c_int, ct.c_int, \
+                                  ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))  
+
 optimizeGCLDE_C = libcmalib.optimizeGCLDE_C
-optimizeGCLDE_C.argtypes = [ct.c_long, call_back_type, ct.c_int, ct.c_int, \
+optimizeGCLDE_C.argtypes = [ct.c_long, call_back_par, ct.c_int, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
             ct.c_double, ct.c_double]

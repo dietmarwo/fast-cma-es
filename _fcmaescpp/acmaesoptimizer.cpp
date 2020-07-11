@@ -24,7 +24,7 @@ typedef Eigen::Matrix<double, Eigen::Dynamic, 1> vec;
 typedef Eigen::Matrix<int, Eigen::Dynamic, 1> ivec;
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> mat;
 
-typedef double (*callback_type)(int, double[]);
+typedef void (*callback_parallel)(int, int, double[], double[]);
 typedef bool (*is_terminate_type)(long, int, double); // runid, iter, value -> isTerminate
 
 namespace acmaes {
@@ -87,9 +87,9 @@ class Fittness {
 
 public:
 
-	Fittness(callback_type pfunc, const vec &lower_limit,
+	Fittness(callback_parallel func_par_, const vec &lower_limit,
 			const vec &upper_limit) {
-		func = pfunc;
+		func_par = func_par_;
 		lower = lower_limit;
 		upper = upper_limit;
 		evaluationCounter = 0;
@@ -106,14 +106,20 @@ public:
 		return X;
 	}
 
-	double eval(const vec &X) {
-		int n = X.size();
-		double parg[n];
-		for (int i = 0; i < n; i++)
-			parg[i] = X(i);
-		double res = func(n, parg);
-		evaluationCounter++;
-		return res;
+	void values(const mat &popX, vec &ys) {
+		int popsize = popX.cols();
+		int n = popX.rows();
+		double pargs[popsize*n];
+		double res[popsize];
+		for (int p = 0; p < popX.cols(); p++) {
+			vec x = decode(getClosestFeasible(popX.col(p)));
+			for (int i = 0; i < n; i++)
+				pargs[p * n + i] = x[i];
+		}
+		func_par(popsize, n, pargs, res);
+		for (int p = 0; p < popX.cols(); p++)
+			ys[p] = res[p];
+		evaluationCounter += popsize;
 	}
 
 	void values(const mat &popX, int popsize, vec &ys) {
@@ -147,7 +153,7 @@ public:
 	}
 
 private:
-	callback_type func;
+	callback_parallel func_par;
 	vec lower;
 	vec upper;
 	long evaluationCounter;
@@ -270,7 +276,7 @@ public:
 		// stop criteria
 		stop = 0;
 		// best value so far
-		bestValue = fitfun->value(xmean);
+		bestValue = DBL_MAX;
 		// best parameters so far
 		bestX = guess;
 		// history queue of best values.
@@ -400,7 +406,7 @@ public:
 				arx.col(k) = fitfun->getClosestFeasible(xmean + delta);
 			}
 			vec fitness = vec(popsize);
-			fitfun->values(arx, popsize, fitness);
+			fitfun->values(arx, fitness);
 			for (int k = 0; k < popsize; k++) {
 				if (!isfinite(fitness[k]))
 					fitness[k] = DBL_MAX;
@@ -550,10 +556,10 @@ private:
 using namespace acmaes;
 
 extern "C" {
-double* optimizeACMA_C(long runid, callback_type func, int dim, double *init,
+double* optimizeACMA_C(long runid, callback_parallel func_par, int dim, double *init,
 		double *lower, double *upper, double *sigma, int maxIter, int maxEvals,
 		double stopfitness, int mu, int popsize, double accuracy,
-		bool useTerminate, is_terminate_type isTerminate, long seed) {
+		bool useTerminate, is_terminate_type isTerminate, long seed, bool isParallel) {
 	int n = dim;
 	double *res = new double[n + 4];
 	vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
@@ -570,7 +576,7 @@ double* optimizeACMA_C(long runid, callback_type func, int dim, double *init,
 		lower_limit.resize(0);
 		upper_limit.resize(0);
 	}
-	Fittness fitfun(func, lower_limit, upper_limit);
+	Fittness fitfun(func_par, lower_limit, upper_limit);
 	AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, inputSigma, maxIter,
 			maxEvals, accuracy, stopfitness, useTerminate ? isTerminate : NULL,
 			seed);

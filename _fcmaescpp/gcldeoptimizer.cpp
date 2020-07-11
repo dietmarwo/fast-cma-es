@@ -20,7 +20,7 @@ typedef Eigen::Matrix<double, Eigen::Dynamic, 1> vec;
 typedef Eigen::Matrix<int, Eigen::Dynamic, 1> ivec;
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> mat;
 
-typedef double (*callback_type)(int, double[]);
+typedef void (*callback_parallel)(int, int, double[], double[]);
 
 namespace gcl_differential_evolution {
 
@@ -74,10 +74,6 @@ static ivec sort_index(const vec &x) {
 	});
 }
 
-static void copyvec(const vec &x1, vec &x2) {
-	for (int i = 0; i < x1.size(); i++)
-		x2[i] = x1[i];
-}
 
 // wrapper around the fittness function, scales according to boundaries
 
@@ -85,9 +81,9 @@ class Fittness {
 
 public:
 
-	Fittness(callback_type pfunc, const vec &lower_limit,
+	Fittness(callback_parallel func_par_, const vec &lower_limit,
 			const vec &upper_limit) {
-		func = pfunc;
+		func_par = func_par_;
 		lower = lower_limit;
 		upper = upper_limit;
 		evaluationCounter = 0;
@@ -104,19 +100,19 @@ public:
 		return X;
 	}
 
-	double eval(const vec &X) {
-		int n = X.size();
-		double parg[n];
-		for (int i = 0; i < n; i++)
-			parg[i] = X(i);
-		double res = func(n, parg);
-		evaluationCounter++;
-		return res;
-	}
-
-	void values(const mat &popX, int popsize, vec &ys) {
-		for (int p = 0; p < popsize; p++)
-			ys[p] = eval(popX.col(p));
+	void values(const mat &popX, vec &ys) {
+		int popsize = popX.cols();
+		int n = popX.rows();
+		double pargs[popsize*n];
+		double res[popsize];
+		for (int p = 0; p < popX.cols(); p++) {
+			for (int i = 0; i < n; i++)
+				pargs[p * n + i] = popX(i, p);
+		}
+		func_par(popsize, n, pargs, res);
+		for (int p = 0; p < popX.cols(); p++)
+			ys[p] = res[p];
+		evaluationCounter += popsize;
 	}
 
 	double distance(const vec &x1, const vec &x2) {
@@ -141,19 +137,13 @@ public:
 	}
 
 private:
-	callback_type func;
+	callback_parallel func_par;
 	vec lower;
 	vec upper;
 	long evaluationCounter;
 	vec scale;
 	vec invScale;
 };
-
-typedef struct {
-	double F;
-	double CR;
-	vec x;
-} InfoStore;
 
 class GclDeOptimizer {
 
@@ -169,11 +159,7 @@ public:
 		// Number of objective variables/problem dimension
 		dim = dim_;
 		// Population size
-		if (popsize_ > 0)
-			popsize = popsize_;
-		else
-			popsize = 15 * dim;
-		// termination criteria
+		popsize = popsize_ > 0 ? popsize_ : 15 * dim;
 		// maximal number of evaluations allowed.
 		maxEvaluations = maxEvaluations_;
 		// use low value 0 < pbest <= 1 to narrow search.
@@ -200,25 +186,14 @@ public:
 		return (int) (max * distr_01(*rs));
 	}
 
-	int findNear(vec x, vector<InfoStore> storage) {
-		int index = 0;
-		double minDist = DBL_MAX;
-		for (int j = 0; j < storage.size(); j++) {
-			//double distance = (x - storage[j].x).squaredNorm();
-			double distance = fitfun->distance(x, storage[j].x);
-			if (distance < minDist) {
-				index = j;
-				minDist = distance;
-			}
-		}
-		return index;
+	int rndInt2(int max) {
+		double u = distr_01(*rs);
+		return (int) (max * u*u);
 	}
 
 	void doOptimize() {
-		int Gr = 2;
 		int gen_stuck = 0;
 		vector<vec> sp;
-		bool storage = false;
 
 		int maxIter = maxEvaluations / popsize + 1;
 		double previous_best = DBL_MAX;
@@ -247,13 +222,14 @@ public:
 
 			if (fitfun->getEvaluations() >= maxEvaluations)
 				return;
+			int max_r2 = max(3, int(popsize * pbest));
 			for (int p = 0; p < popsize; p++) {
 				int r1, r2, r3;
 				do {
 					r1 = rndInt(popsize);
 				} while (r1 == p);
 				do {
-					r2 = rndInt(int(popsize * pbest));
+					r2 = rndInt2(max_r2);
 				} while (r2 == p || r2 == r1);
 				do {
 					r3 = rndInt(popsize + sp.size());
@@ -263,7 +239,7 @@ public:
 				double mu = 1
 						- sqrt(float(iterations / maxIter))
 								* exp(float(-gen_stuck / iterations));
-				if (!storage || iterations < Gr) {
+				if (iterations % 2 == 1) {
 					CR = normreal(rs, 0.90, 0.02);
 					F = normreal(rs, mu, 0.2);
 					if (F < 0 || F > 1)
@@ -287,21 +263,18 @@ public:
 				}
 				nextX.col(p) = ui;
 			}
-			fitfun->values(nextX, popsize, nextY);
+			fitfun->values(nextX, nextY);
 			for (int p = 0; p < popsize; p++) {
 				if (nextY[p] < popY[p]) {
 					if (sp.size() < popsize)
-						sp.push_back(vec(popX.col(p)));
+						sp.push_back(popX.col(p));
 					else
-						copyvec(popX.col(p), sp[rndInt(popsize)]);
-					storage = true;
+						sp[rndInt(popsize)] = popX.col(p);
 				} else {        // no improvement, copy from parent
 					nextX.col(p) = popX.col(p);
 					nextY[p] = popY[p];
 				}
 			}
-			if (iterations % Gr == 0)
-				storage = false;
 		}
 	}
 
@@ -312,7 +285,7 @@ public:
 		for (int p = 0; p < popsize; p++)
 			nextX.col(p) = fitfun->uniformX(*rs);
 		nextY = vec(popsize);
-		fitfun->values(nextX, popsize, nextY);
+		fitfun->values(nextX, nextY);
 	}
 
 	vec getBestX() {
@@ -358,7 +331,7 @@ private:
 using namespace gcl_differential_evolution;
 
 extern "C" {
-double* optimizeGCLDE_C(long runid, callback_type func, int dim, int seed,
+double* optimizeGCLDE_C(long runid, callback_parallel func_par, int dim, int seed,
 		double *lower, double *upper, int maxEvals, double pbest,
 		double stopfitness, int popsize, double F0, double CR0) {
 	int n = dim;
@@ -375,7 +348,7 @@ double* optimizeGCLDE_C(long runid, callback_type func, int dim, int seed,
 		lower_limit.resize(0);
 		upper_limit.resize(0);
 	}
-	Fittness fitfun(func, lower_limit, upper_limit);
+	Fittness fitfun(func_par, lower_limit, upper_limit);
 	GclDeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, pbest,
 			stopfitness, F0, CR0);
 	try {

@@ -12,6 +12,7 @@ import sys
 import os
 import math
 import numpy as np
+import multiprocessing as mp
 from scipy import linalg
 from scipy.optimize import OptimizeResult
 from numpy.random import MT19937, Generator
@@ -499,7 +500,7 @@ class parallel(object):
     by applying the input function using parallel processes. stop needs to be called to avoid
     a resource leak"""
         
-    def __init__(self, fun, workers):
+    def __init__(self, fun, workers = mp.cpu_count()):
         self.evaluator = Evaluator(fun)
         self.evaluator.start(workers)
     
