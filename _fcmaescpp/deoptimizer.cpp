@@ -173,7 +173,7 @@ public:
 		// maximal number of evaluations allowed.
 		maxEvaluations = maxEvaluations_ > 0 ? maxEvaluations_ : 50000;
 		// keep best young after each iteration.
-		keep = keep_ > 0 ? keep_ : 20;
+		keep = keep_ > 0 ? keep_ : 30;
 		// Limit for fitness value.
 		stopfitness = stopfitness_;
 		F = F_ > 0 ? F_ : 0.5;
@@ -208,14 +208,16 @@ public:
 	void doOptimize() {
 
 		// -------------------- Generation Loop --------------------------------
-
 		for (iterations = 1; fitfun->getEvaluations() < maxEvaluations;
 				iterations++) {
-			double CRu = iterations % 2 == 0 ? 0.5*CR : CR;
-			double Fu = iterations % 2 == 0 ? 0.5*F : F;
+
+			double CRu = iterations % 2 == 0 ? 0.9*CR : CR;
+			double Fu = iterations % 2 == 0 ? 0.9*F : F;
+
 			for (int p = 0; p < popsize; p++) {
 				vec xi = popX.col(p);
 				vec xb = popX.col(bestI);
+
 				int r1, r2;
 				do {
 					r1 = rndInt(popsize);
@@ -223,6 +225,7 @@ public:
 				do {
 					r2 = rndInt(popsize);
 				} while (r2 == p || r2 == bestI || r2 == r1);
+
 				int jr = rndInt(dim);
 				vec ui = vec(xi);
 

@@ -74,7 +74,6 @@ static ivec sort_index(const vec &x) {
 	});
 }
 
-
 // wrapper around the fittness function, scales according to boundaries
 
 class Fittness {
