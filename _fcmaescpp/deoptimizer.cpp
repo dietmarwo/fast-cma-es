@@ -211,8 +211,8 @@ public:
 		for (iterations = 1; fitfun->getEvaluations() < maxEvaluations;
 				iterations++) {
 
-			double CRu = iterations % 2 == 0 ? 0.9*CR : CR;
-			double Fu = iterations % 2 == 0 ? 0.9*F : F;
+			double CRu = iterations % 2 == 0 ? 0.5*CR : CR;
+			double Fu = iterations % 2 == 0 ? 0.5*F : F;
 
 			for (int p = 0; p < popsize; p++) {
 				vec xi = popX.col(p);
