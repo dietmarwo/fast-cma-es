@@ -54,6 +54,7 @@ atol = 1e-8
 compiled_f8 = get_compiled_function(f8_equations, [w])
 # shared with all parallel processes
 best_f = mp.RawValue(ct.c_double, math.inf) 
+f_evals = mp.RawValue(ct.c_int, 0) 
 
 def obj_f(X):
     try:
@@ -77,12 +78,14 @@ def obj_f(X):
         penalty = np.sum(np.abs(y))
         # estimated fixed weight for penalty 
         val = 0.1*val0 + penalty
+        global f_evals
+        f_evals.value += 1
         global best_f
         if best_f.value > val:
             best_f.value = val
             # monitor value and constraint violation
-            print("val = {0:.8f} penalty = {1:.8f} f(xmin) = {2:.5f}"
-                  .format(val0, penalty, val))
+            print("val = {0:.8f} penalty = {1:.8f} f(xmin) = {2:.5f} nfev = {3}"
+                  .format(val0, penalty, val, f_evals.value))
         return val
     except Exception:
         return 1E10 # fail
@@ -104,29 +107,35 @@ def test_cordinated_retry_cma(dim = 6):
 def test_cma_parallel(dim = 6):
     # parallel function evaluation using CMA-ES
     t0 = time.perf_counter();
+    evals = 0
     for i in range(100000):
         ret = cmaes.minimize(obj_f, bounds(dim), popsize=32, max_evaluations = 4000000, workers = mp.cpu_count())
-        print("{0}: time = {1:.1f} fun = {2:.3f}"
-              .format(i+1, dtime(t0), ret.fun)) 
+        evals += ret.nfev
+        print("{0}: time = {1:.1f} fun = {2:.3f} nfev = {3}"
+              .format(i+1, dtime(t0), ret.fun, evals)) 
     return ret
 
 def test_cmacpp_parallel(dim = 6):
     # parallel function evaluation using CMA-ES cpp
     t0 = time.perf_counter();
+    evals = 0
     for i in range(100000):
         ret = cmaescpp.minimize(obj_f, bounds(dim), popsize=32, max_evaluations = 4000000, workers = mp.cpu_count())
-        print("{0}: time = {1:.1f} fun = {2:.3f}"
-              .format(i+1, dtime(t0), ret.fun)) 
+        evals += ret.nfev
+        print("{0}: time = {1:.1f} fun = {2:.3f} nfev = {3}"
+              .format(i+1, dtime(t0), ret.fun, evals)) 
     return ret
 
 def test_gcldecpp_parallel(dim = 6):
     # parallel function evaluation using GCL_DE
     t0 = time.perf_counter();
+    evals = 0
     for i in range(100000):
         ret = gcldecpp.minimize(obj_f, bounds(dim), popsize=256, max_evaluations = 500000, 
                                 workers = mp.cpu_count())
-        print("{0}: time = {1:.1f} fun = {2:.3f}"
-              .format(i+1, dtime(t0), ret.fun)) 
+        evals += ret.nfev
+        print("{0}: time = {1:.1f} fun = {2:.3f} nfev = {3}"
+              .format(i+1, dtime(t0), ret.fun, evals)) 
     return ret
     
 def bounds(n):
