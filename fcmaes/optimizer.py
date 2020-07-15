@@ -204,7 +204,7 @@ class GCLDE_cpp(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fittness = None, 
-                 pbest = 0.7, f0 = 0.001, cr0 = 0.1):        
+                 pbest = 0.7, f0 = 0.001, cr0 = 0.08):        
         Optimizer.__init__(self, max_evaluations, 'gclde cpp')
         self.popsize = popsize
         self.stop_fittness = stop_fittness
@@ -213,7 +213,7 @@ class GCLDE_cpp(Optimizer):
         self.cr0 = cr0
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
-        ret = gcldecpp.minimize(fun, len(bounds.lb), bounds, 
+        ret = gcldecpp.minimize(fun, bounds, 
                 popsize=self.popsize, 
                 max_evaluations = self.max_eval_num(store), 
                 stop_fittness = self.stop_fittness,

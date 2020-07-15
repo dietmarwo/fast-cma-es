@@ -25,8 +25,8 @@ import ctypes as ct
 import math
 import warnings
 import time 
-from fcmaes.optimizer import logger, Cma_cpp, dtime
-from fcmaes import advretry, cmaes
+from fcmaes.optimizer import logger, Sequence, Cma_cpp, GCLDE_cpp, dtime
+from fcmaes import advretry, cmaes, cmaescpp, gcldecpp
 
 # use only the compiled function, not the integrator-wrapper because of parallelism
 def get_compiled_function(f, control_pars):
@@ -91,6 +91,11 @@ def test_cordinated_retry(dim = 6):
     # coordinated retry with default optimizer
     return advretry.minimize(obj_f, bounds(dim), logger=logger()) 
 
+def test_cordinated_retry_GCL(dim = 6):
+    # coordinated retry with GCLDE->CMA sequence optimizer
+    return advretry.minimize(obj_f, bounds(dim), logger=logger(), 
+                             optimizer=Sequence([GCLDE_cpp(750), Cma_cpp(750, popsize=13)])) 
+
 def test_cordinated_retry_cma(dim = 6):
     # coordinated retry with CMA-ES optimizer with reduced popsize
     # faster for small dimension, use default for dim > 12
@@ -100,7 +105,25 @@ def test_cma_parallel(dim = 6):
     # parallel function evaluation using CMA-ES
     t0 = time.perf_counter();
     for i in range(100000):
-        ret = cmaes.minimize(obj_f, bounds(dim), popsize=16, max_evaluations = 4000000, workers = mp.cpu_count())
+        ret = cmaes.minimize(obj_f, bounds(dim), popsize=32, max_evaluations = 4000000, workers = mp.cpu_count())
+        print("{0}: time = {1:.1f} fun = {2:.3f}"
+              .format(i+1, dtime(t0), ret.fun)) 
+    return ret
+
+def test_cmacpp_parallel(dim = 6):
+    # parallel function evaluation using CMA-ES cpp
+    t0 = time.perf_counter();
+    for i in range(100000):
+        ret = cmaescpp.minimize(obj_f, bounds(dim), popsize=32, max_evaluations = 4000000, workers = mp.cpu_count())
+        print("{0}: time = {1:.1f} fun = {2:.3f}"
+              .format(i+1, dtime(t0), ret.fun)) 
+    return ret
+
+def test_gcldecpp_parallel(dim = 6):
+    # parallel function evaluation using GCL_DE
+    t0 = time.perf_counter();
+    for i in range(100000):
+        ret = gcldecpp.minimize(obj_f, bounds(dim), popsize=256, max_evaluations = 512000, workers = mp.cpu_count())
         print("{0}: time = {1:.1f} fun = {2:.3f}"
               .format(i+1, dtime(t0), ret.fun)) 
     return ret
@@ -113,7 +136,8 @@ def bounds(n):
 if __name__ == '__main__':
     
     dim = 6
-    ret = test_cordinated_retry(dim)
+    #ret = test_cordinated_retry(dim)
+    #ret = test_cordinated_retry_GCL(dim)
     #ret = test_cordinated_retry_cma(dim)
-    #ret = test_cma_parallel(dim)
+    ret = test_gcldecpp_parallel(dim)
 

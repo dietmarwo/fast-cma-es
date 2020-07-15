@@ -161,7 +161,7 @@ def test_rosen_gclde_parallel():
     limit = 0.00001   
     for _ in range(5):
         wrapper = Wrapper(testfun.fun, dim)
-        ret = gcldecpp.minimize(wrapper.eval, dim, testfun.bounds,
+        ret = gcldecpp.minimize(wrapper.eval, testfun.bounds,
                        max_evaluations = max_eval, 
                        popsize=popsize, workers = mp.cpu_count())
         if limit > ret.fun:

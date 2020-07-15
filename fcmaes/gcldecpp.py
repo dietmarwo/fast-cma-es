@@ -24,14 +24,13 @@ from fcmaes.cmaes import serial, parallel
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
 def minimize(fun, 
-             dim,
-             bounds = None, 
+             bounds, 
              popsize = None, 
              max_evaluations = 100000, 
              stop_fittness = None, 
              pbest = 0.7,
              f0 = 0.001,
-             cr0 = 0.1,
+             cr0 = 0.08,
              rg = Generator(MT19937()),
              runid=0,
              workers = None):  
@@ -47,13 +46,10 @@ def minimize(fun,
         where ``x`` is an 1-D array with shape (n,) and ``args``
         is a tuple of the fixed parameters needed to completely
         specify the function.
-    dim : int
-        dimension of the argument of the objective function
-    bounds : sequence or `Bounds`, optional
+    bounds : sequence or `Bounds`
         Bounds on variables. There are two ways to specify the bounds:
             1. Instance of the `scipy.Bounds` class.
-            2. Sequence of ``(min, max)`` pairs for each element in `x`. None
-               is used to specify no bound.
+            2. Sequence of ``(min, max)`` pairs for each element in `x`.
     max_evaluations : int, optional
         Forced termination after ``max_evaluations`` function evaluations.
     stop_fittness : float, optional 
@@ -87,9 +83,9 @@ def minimize(fun,
                 
     lower = np.asarray(bounds.lb)
     upper = np.asarray(bounds.ub)
-    n = dim  
+    n = len(lower)  
     if popsize is None:
-        popsize = n*15
+        popsize = n*16
     if lower is None:
         lower = [0]*n
         upper = [0]*n
