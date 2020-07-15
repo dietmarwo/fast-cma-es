@@ -123,7 +123,7 @@ def test_gcldecpp_parallel(dim = 6):
     # parallel function evaluation using GCL_DE
     t0 = time.perf_counter();
     for i in range(100000):
-        ret = gcldecpp.minimize(obj_f, bounds(dim), popsize=512, max_evaluations = 500000, 
+        ret = gcldecpp.minimize(obj_f, bounds(dim), popsize=256, max_evaluations = 500000, 
                                 workers = mp.cpu_count())
         print("{0}: time = {1:.1f} fun = {2:.3f}"
               .format(i+1, dtime(t0), ret.fun)) 
