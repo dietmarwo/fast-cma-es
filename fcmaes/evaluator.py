@@ -19,11 +19,15 @@ import math
 def eval_parallel(xs, evaluator):
     popsize = len(xs)
     ys = np.empty(popsize)
-    for i in range(popsize):
-        evaluator.pipe[0].send((i, xs[i]))
-    for i in range(popsize):        
-        i, y = evaluator.pipe[0].recv()
-        ys[i] = y
+    pipe_limit = 256
+    i0 = 0
+    i1 = min(popsize, pipe_limit)
+    while True:
+        _eval_parallel_segment(xs, ys, i0, i1, evaluator)
+        if i1 >= popsize:
+            break;
+        i0 += pipe_limit
+        i1 = min(popsize, i1 + pipe_limit)
     return ys
 
 class Evaluator(object):
@@ -48,6 +52,14 @@ class Evaluator(object):
         [p.join() for p in self.proc]    
         for p in self.pipe:
             p.close()
+
+def _eval_parallel_segment(xs, ys, i0, i1, evaluator):
+    for i in range(i0, i1):
+        evaluator.pipe[0].send((i, xs[i]))
+    for _ in range(i0, i1):        
+        i, y = evaluator.pipe[0].recv()
+        ys[i] = y
+    return ys
 
 def _evaluate(fun, pipe, read_mutex, write_mutex): # worker
     while True:
