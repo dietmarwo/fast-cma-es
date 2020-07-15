@@ -140,5 +140,6 @@ if __name__ == '__main__':
     #ret = test_cordinated_retry(dim)
     #ret = test_cordinated_retry_GCL(dim)
     #ret = test_cordinated_retry_cma(dim)
+    #ret = test_cmacpp_parallel(dim)
     ret = test_gcldecpp_parallel(dim)
 
