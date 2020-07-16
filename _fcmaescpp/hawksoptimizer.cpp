@@ -30,6 +30,10 @@ namespace harris_hawks {
 
 static uniform_real_distribution<> distr_01 = std::uniform_real_distribution<>(
 		0, 1);
+
+static uniform_real_distribution<> distr_0x = std::uniform_real_distribution<>(
+		0, 0.3);
+
 static normal_distribution<> gauss_01 = std::normal_distribution<>(0, 1);
 
 static vec zeros(int n) {
@@ -151,6 +155,10 @@ public:
 
 	double rnd01() {
 		return distr_01(*rs);
+	}
+
+	double rnd0x() {
+		return distr_0x(*rs);
 	}
 
 	vec levy(int dim) {
