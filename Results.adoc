@@ -15,6 +15,74 @@ check https://github.com/dietmarwo/fast-cma-es/tree/master/examples[examples] fo
 
 === Space Mission Design
 
+==== Coordinated parallel retry 
+
+Coordinated parallel retry is a super-linear scaling meta algorithm optimized for modern high core count CPUs. 
+The following tests were performed on an AMD 3950x 16 core processor executing 32 retries in parallel.
+As test problems we use ESAs GTOP problem database:
+
+- https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1], https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2], https://www.esa.int/gsp/ACT/projects/gtop/rosetta/[Rosetta], https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1], https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/[Messenger reduced], https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full] and https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem 6 constrained]
+
+In https://doi.org/10.1016/j.asoc.2020.106451[G-CLDE paper] and http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] show
+actual results of state of the art algorithms for the GTOP benchmarks. Usually mean / sdev and best results are shown for a number of
+runs executed for each algorithm. This is because these algorithms cannot reliably solve these problems in a reasonable time. Here we show
+the progress of the best value found over time for 20 runs of the coordinated parallel retry. Beside Messenger Full which needs more evaluations
+(see https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc[README]) the coordinated retry finds the best known solution in all runs. 
+
+Initially the coordinated retry was developed as a meta algorithm for CMA-ES. In completely annihilates the weaknesses of CMA-ES. But sequences of differential evolution followed by CMA-ES, although slightly slower wrt. execution time, produce better results for very hard to solve problems. 
+Now we compare CMA-ES, DE->CMA-ES and GCL-DE->CMA-ES as base algorithm of the coordinated retry. Both differential evolution variants
+are configured to work optimal in this context and produce similar results, but GCL-DE is superior when used stand-alone.
+
+To reproduce the results or check another CPU use https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[advexamples.py].
+
+==== Coordinated parallel retry of CMA-ES
+
+image::Cassini1_cma_cpp_coordinated_parallel_retry.png[]
+
+image::Cassini2_cma_cpp_coordinated_parallel_retry.png[]
+
+image::Rosetta_cma_cpp_coordinated_parallel_retry.png[]
+
+image::GTOC1_cma_cpp_coordinated_parallel_retry.png[]
+
+image::messenger_reduced_cma_cpp_coordinated_parallel_retry.png[]
+
+image::messenger_full_cma_cpp_coordinated_parallel_retry.png[]
+
+image::Tandem_6_cma_cpp_coordinated_parallel_retry.png[]
+
+==== Coordinated parallel retry of DE->CMA-ES
+
+image::Cassini1_de_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+image::Cassini2_de_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+image::Rosetta_de_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+image::GTOC1_de_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+image::messenger_reduced_de_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+image::messenger_full_de_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+image::Tandem_6_de_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+==== Coordinated parallel retry of GCL-DE->CMA-ES
+
+image::Cassini1_gclde_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+image::Cassini2_gclde_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+image::Rosetta_gclde_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+image::GTOC1_gclde_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+image::messenger_reduced_gclde_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+image::messenger_full_gclde_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+image::Tandem_6_gclde_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
 ==== Comparison with nature-inspired metaheuristic optimizers
 
 https://github.com/7ossam81/EvoloPy[EvoloPy] implements a list of nature-inspired metaheuristic 
@@ -24,11 +92,7 @@ https://github.com/7ossam81/EvoloPy/wiki/List-of-optimizers[here].
 All of these algorithms support boxed boundaries and are implemented single threaded. We will use them to check what can be gained
 from parallelization using fcmaes coordinated retry. "DCD" is the default algorithm DE->CMA starting with 1500 evaluations
 per optimization run. "DCX" is DE->CMA starting with 1000*X evaluations. Every 100 optimizations this number is incremented. 
-As test problems we use ESAs GTOP problem database:
-
-- https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1], https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2], https://www.esa.int/gsp/ACT/projects/gtop/rosetta/[Rosetta], https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1], https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/[Messenger reduced], https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full] and https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem 6 constrained]
-
-These tests were performed on an AMD 3950x 16 core processor executing 32 retries in parallel. For the nature inspired algorithms 20000 iterations were performed. The fcmaes algorithms were limited by the number of retries, `4800`/X for DCX. For all tests 3 repetitions were performed and the mean result was plotted. 
+As test problems we use again ESAs GTOP problem database and the AMD 3950x 16 core processor. For the nature inspired algorithms 20000 iterations were performed. The fcmaes algorithms were limited by the number of retries, `4800`/X for DCX. For all tests 3 repetitions were performed and the mean result was plotted. 
 
 * https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1]
 
@@ -67,8 +131,8 @@ image::mt-conv-Mef.png[]
 
 ==== Comparison of fcmaes and scipy optimization algorithms
 
-Next we test in detail different fcmaes and scipy optimization algorithms in connection with parallel retry and
-coordinated retry using again the AMD 3950x 16 core processor.
+Next we check the difference of the coordinated retry with a simple retry applied to several
+fcmaes and scipy optimization algorithms using again the AMD 3950x 16 core processor.
 
 The following optimization algorithms were tested:
 
@@ -80,11 +144,11 @@ The following optimization algorithms were tested:
 - scipy dual annealing
 - scipy differential evolution 
 
-The coordinated retry mechanism achieves good results even with the scipy python optimization
+The coordinated retry mechanism achieves good results with the scipy python optimization
 algorithms differential evolution and dual annealing. 
 But the sequence DE -> CMA achieves the most consistent results, beside messenger full all
-problems can be solved in under one minute, messenger full needs about 2 hours. 
-These results explain why we choose DE-CMA as the default algorithm. 
+problems can be solved in under one minute, messenger full needs about 1.5 hours. 
+ 
 If you want to reproduce the results shown here, check 
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/examples.py[examples.py] and 
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[advexamples.py].
