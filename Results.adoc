@@ -29,7 +29,7 @@ runs executed for each algorithm. This is because these algorithms cannot reliab
 the progress of the best value found over time for 20 runs of the coordinated parallel retry. Beside Messenger Full which needs more evaluations
 (see https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc[README]) the coordinated retry finds the best known solution in all runs. 
 
-Initially the coordinated retry was developed as a meta algorithm for CMA-ES. In completely annihilates the weaknesses of CMA-ES. But sequences of differential evolution followed by CMA-ES, although slightly slower wrt. execution time, produce better results for very hard to solve problems. 
+Initially the coordinated retry was developed as a meta algorithm for CMA-ES. It removes most weaknesses of CMA-ES. But sequences of differential evolution followed by CMA-ES, although slightly slower wrt. execution time, produce better results for very hard to solve problems. 
 Now we compare CMA-ES, DE->CMA-ES and GCL-DE->CMA-ES as base algorithm of the coordinated retry. Both differential evolution variants
 are configured to work optimal in this context and produce similar results, but GCL-DE is superior when used stand-alone.
 
