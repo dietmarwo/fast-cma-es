@@ -11,7 +11,7 @@ from fcmaes.astro import MessFull, Messenger, Gtoc1, Cassini1, Cassini2, Rosetta
 from fcmaes.optimizer import logger, de_cma, da_cma, Cma_cpp, De_cpp, Da_cpp, Hh_cpp, Dual_annealing, Differential_evolution, GCLDE_cpp, Sequence
 from fcmaes.retry import minimize
 
-glcma = Sequence([GCLDE_cpp(25000), Cma_cpp(25000)])
+glcma = Sequence([GCLDE_cpp(50000), Cma_cpp(25000)])
             
 problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), MessFull(), Sagas(), Cassini1minlp()]
 

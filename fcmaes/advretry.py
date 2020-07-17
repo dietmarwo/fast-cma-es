@@ -18,7 +18,7 @@ from numpy.random import Generator, MT19937, SeedSequence
 from scipy.optimize import OptimizeResult, Bounds
 
 from fcmaes.retry import _convertBounds
-from fcmaes.optimizer import dtime, fitting, de_cma, logger
+from fcmaes.optimizer import dtime, fitting, gclde_cma, logger
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -31,12 +31,13 @@ def minimize(fun,
              logger = None,
              workers = mp.cpu_count(),
              popsize = 31, 
-             min_evaluations = 1500, 
+             min_evaluations = 2250, 
              max_eval_fac = None, 
              check_interval = 100,
              capacity = 500,
              stop_fittness = None,
-             optimizer = None
+             optimizer = None,
+             statistic_num = 0
              ):   
     """Minimization of a scalar function of one or more variables using 
     coordinated parallel CMA-ES retry.
@@ -98,10 +99,10 @@ def minimize(fun,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
     if optimizer is None:
-        optimizer = de_cma(min_evaluations, popsize, stop_fittness)     
+        optimizer = gclde_cma(min_evaluations, popsize, stop_fittness)     
     if max_eval_fac is None:
         max_eval_fac = int(min(50, 1 + num_retries // check_interval))
-    store = Store(bounds, max_eval_fac, check_interval, capacity, logger, num_retries)
+    store = Store(bounds, max_eval_fac, check_interval, capacity, logger, num_retries, statistic_num)
     return retry(fun, store, optimizer.minimize, num_retries, value_limit, workers)
 
 def retry(fun, store, optimize, num_retries, value_limit = math.inf, workers=mp.cpu_count()):
@@ -126,7 +127,8 @@ class Store(object):
                  check_interval = 100, # sort evaluation store after check_interval iterations
                  capacity = 500, # capacity of the evaluation store
                  logger = None, # if None logging is switched off
-                 num_retries = None
+                 num_retries = None,
+                 statistic_num = 0
                ):
 
         self.lower, self.upper = _convertBounds(bounds)
@@ -163,19 +165,22 @@ class Store(object):
         self.best_y = mp.RawValue(ct.c_double, math.inf) 
         self.worst_y = mp.RawValue(ct.c_double, math.inf)  
         self.best_x = mp.RawArray(ct.c_double, self.dim)
-        # statistics                            
-        self.statistic_num = 1000
-        self.time = mp.RawArray(ct.c_double, self.statistic_num)
-        self.val = mp.RawArray(ct.c_double, self.statistic_num)
-        self.si = mp.RawValue(ct.c_int, 0)
-
+        self.statistic_num = statistic_num
+ 
+        if statistic_num > 0:  # enable statistics                          
+            self.statistic_num = 1000
+            self.time = mp.RawArray(ct.c_double, self.statistic_num)
+            self.val = mp.RawArray(ct.c_double, self.statistic_num)
+            self.si = mp.RawValue(ct.c_int, 0)
+ 
     # store improvement - time and value
     def add_statistics(self):
-        si = self.si.value
-        if si < self.statistic_num - 1:
-            self.si.value = si + 1
-        self.time[si] = dtime(self.t0)
-        self.val[si] = self.best_y.value  
+        if self.statistic_num > 0:
+            si = self.si.value
+            if si < self.statistic_num - 1:
+                self.si.value = si + 1
+            self.time[si] = dtime(self.t0)
+            self.val[si] = self.best_y.value  
         
     def get_improvements(self):
         return zip(self.time[:self.si.value], self.val[:self.si.value])

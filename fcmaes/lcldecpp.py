@@ -6,6 +6,8 @@
 """Eigen based implementation of differential evolution (LCL-DE) derived from
     "A case learning-based differential evolution algorithm for global optimization of interplanetary trajectory design,
     Mingcheng Zuo, Guangming Dai, Lei Peng, Maocai Wang, Zhengquan Liu", https://doi.org/10.1016/j.asoc.2020.106451
+    To be used to further optimize a given solution. Initial population is created using a normal distribition 
+    with mean=x0 and sdev = input_sigma (normalized over the bounds and can be defined separately for each variable)
 """
 
 import sys
@@ -35,7 +37,7 @@ def minimize(fun,
              workers = None):  
      
     """Minimization of a scalar function of one or more variables using a 
-    C++ GCL Differential Evolution implementation called via ctypes.
+    C++ LCL Differential Evolution implementation called via ctypes.
      
     Parameters
     ----------
@@ -54,6 +56,8 @@ def minimize(fun,
         where 'n' is the number of independent variables.  
     input_sigma : ndarray, shape (n,) or scalar
         Initial step size for each dimension.
+    popsize : int, optional
+        Population size.
     max_evaluations : int, optional
         Forced termination after ``max_evaluations`` function evaluations.
     stop_fittness : float, optional 
@@ -88,7 +92,7 @@ def minimize(fun,
     lower, upper, guess = _check_bounds(bounds, x0, rg)      
     n = guess.size  
     if popsize is None:
-        popsize = n*16
+        popsize = n*32
     if lower is None:
         lower = [0]*n
         upper = [0]*n

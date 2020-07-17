@@ -50,6 +50,8 @@ def minimize(fun,
             1. Instance of the `scipy.Bounds` class.
             2. Sequence of ``(min, max)`` pairs for each element in `x`. None
                is used to specify no bound.
+    popsize : int, optional
+        Population size.
     max_evaluations : int, optional
         Forced termination after ``max_evaluations`` function evaluations.
     stop_fittness : float, optional 

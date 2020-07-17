@@ -11,6 +11,8 @@ __all__ = [
     'dacpp',
     'decpp',
     'gcldecpp',
+    'ldecpp',
+    'lgcldecpp',
     'hhcpp',
     'retry',
     'advretry',

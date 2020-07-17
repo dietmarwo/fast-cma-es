@@ -11,7 +11,7 @@ import time
 import math
 import logging
 
-from fcmaes import cmaes, cmaescpp, decpp, dacpp, hhcpp, gcldecpp, lcldecpp
+from fcmaes import cmaes, cmaescpp, decpp, dacpp, hhcpp, gcldecpp, lcldecpp, ldecpp
 
 _logger = None
 
@@ -124,6 +124,19 @@ def de_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf,
                    stop_fittness = stop_fittness)
     return Sequence([opt1, opt2])
 
+def gclde_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
+           de_max_evals = None, cma_max_evals = None, workers = None):
+    """Sequence G-CL-differential evolution -> CMA-ES."""
+
+    if de_max_evals is None:
+        de_max_evals = int(2.0*max_evaluations/3.0)
+    if cma_max_evals is None:
+        cma_max_evals = int(max_evaluations/3.0)
+    opt1 = GCLDE_cpp(max_evaluations = de_max_evals, stop_fittness = stop_fittness, workers = workers)
+    opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
+                   stop_fittness = stop_fittness, workers = workers)
+    return Sequence([opt1, opt2])
+
 def da_cma(max_evaluations = 50000, da_max_evals = None, cma_max_evals = None,
            popsize=31, stop_fittness = math.inf):
     """Sequence differential evolution -> CMA-ES."""
@@ -161,22 +174,67 @@ class Cma_cpp(Optimizer):
     """CMA_ES C++ implementation."""
    
     def __init__(self, max_evaluations=50000,
-                 popsize = 31, guess=None, stop_fittness = None):        
+                 popsize = 31, guess=None, stop_fittness = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'cma cpp')
         self.popsize = popsize
         self.stop_fittness = stop_fittness
         self.guess = guess
+        self.workers = workers
 
-    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), 
+                 store=None, workers = None):
         ret = cmaescpp.minimize(fun, bounds, 
                 self.guess if guess is None else guess,
                 input_sigma=sdevs, 
                 max_evaluations = self.max_eval_num(store), 
                 popsize=self.popsize, 
                 stop_fittness = self.stop_fittness,
-                rg=rg, runid = self.get_count_runs(store))     
+                rg=rg, runid = self.get_count_runs(store), 
+                workers = self.workers if workers is None else workers)     
         return ret.x, ret.fun, ret.nfev
 
+class Cma_orig(Optimizer):
+    """CMA_ES original implementation."""
+   
+    def __init__(self, max_evaluations=50000,
+                 popsize = 31, guess=None, stop_fittness = None):        
+        Optimizer.__init__(self, max_evaluations, 'cma orig')
+        self.popsize = popsize
+        self.stop_fittness = stop_fittness
+        self.guess = guess
+
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
+        lower = bounds.lb
+        upper = bounds.ub
+        guess = self.guess if guess is None else guess
+        if guess is None:
+            guess = rg.uniform(lower, upper)
+        max_evaluations = self.max_eval_num(store)   
+        try:
+            import cma
+        except ImportError as e:
+            raise ImportError("Please install CMA (pip install cma)") 
+        try: 
+            es = cma.CMAEvolutionStrategy(guess, 0.1,  {'bounds': [lower, upper], 
+                                                             'typical_x': guess,
+                                                             'scaling_of_variables': scale(lower, upper),
+                                                             'popsize': self.popsize,
+                                                             'CMA_stds': sdevs,
+                                                             'verbose': -1,
+                                                             'verb_disp': -1})
+            evals = 0
+            for i in range(max_evaluations):
+                X, Y = es.ask_and_eval(fun)
+                es.tell(X, Y)
+                evals += self.popsize
+                if es.stop():
+                    break 
+                if evals > max_evaluations:
+                    break    
+            return es.result.xbest, es.result.fbest, evals
+        except Exception as ex:
+            print(ex)
+  
 class De_cpp(Optimizer):
     """Differential Evolution C++ implementation."""
     
@@ -199,48 +257,77 @@ class De_cpp(Optimizer):
                 rg=rg, runid = self.get_count_runs(store))
         return ret.x, ret.fun, ret.nfev
 
+class LDe_cpp(Optimizer):
+    """Local Differential Evolution C++ implementation."""
+    
+    def __init__(self, max_evaluations=50000,
+                 popsize = None, stop_fittness = None, 
+                 keep = 30, f = 0.5, cr = 0.9):        
+        Optimizer.__init__(self, max_evaluations, 'lde cpp')
+        self.popsize = popsize
+        self.stop_fittness = stop_fittness
+        self.keep = keep
+        self.f = f
+        self.cr = cr
+
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
+        ret = ldecpp.minimize(fun, bounds, guess, sdevs,
+                popsize=self.popsize, 
+                max_evaluations = self.max_eval_num(store), 
+                stop_fittness = self.stop_fittness,
+                keep = self.keep, f = self.f, cr = self.cr,
+                rg=rg, runid = self.get_count_runs(store))
+        return ret.x, ret.fun, ret.nfev
+
 class GCLDE_cpp(Optimizer):
     """GCL-Differential Evolution C++ implementation."""
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fittness = None, 
-                 pbest = 0.7, f0 = 0.001, cr0 = 0.1):        
+                 pbest = 0.7, f0 = 0.001, cr0 = 0.1, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'gclde cpp')
         self.popsize = popsize
         self.stop_fittness = stop_fittness
         self.pbest = pbest
         self.f0 = f0
         self.cr0 = cr0
+        self.workers = workers
 
-    def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
+    def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), 
+                 store=None, workers = None):
         ret = gcldecpp.minimize(fun, bounds, 
                 popsize=self.popsize, 
                 max_evaluations = self.max_eval_num(store), 
                 stop_fittness = self.stop_fittness,
                 pbest = self.pbest, f0 = self.f0, cr0 = self.cr0,
-                rg=rg, runid = self.get_count_runs(store))
+                rg=rg, runid = self.get_count_runs(store),
+                workers = self.workers if workers is None else workers)
         return ret.x, ret.fun, ret.nfev
 
 class LCLDE_cpp(Optimizer):
-    """GCL-Differential Evolution C++ implementation."""
+    """LCL-Differential Evolution C++ implementation."""
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fittness = None, 
-                 pbest = 0.7, f0 = 0.001, cr0 = 0.1):        
+                 pbest = 0.7, f0 = 0.001, cr0 = 0.1, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'lclde cpp')
         self.popsize = popsize
         self.stop_fittness = stop_fittness
         self.pbest = pbest
         self.f0 = f0
         self.cr0 = cr0
+        self.workers = workers
 
-    def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), 
+                 store=None, workers = None):
         ret = lcldecpp.minimize(fun, bounds, guess, sdevs,
                 popsize=self.popsize, 
                 max_evaluations = self.max_eval_num(store), 
                 stop_fittness = self.stop_fittness,
                 pbest = self.pbest, f0 = self.f0, cr0 = self.cr0,
-                rg=rg, runid = self.get_count_runs(store))
+                rg=rg, runid = self.get_count_runs(store),
+                workers = self.workers if workers is None else workers)
+
         return ret.x, ret.fun, ret.nfev
     
 class Da_cpp(Optimizer):
