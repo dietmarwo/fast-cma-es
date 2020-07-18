@@ -20,7 +20,7 @@ non-continous objective functions.
 - fcmaes is focused on optimization problems hard to solve.
 - Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
 - Parallel coordinated retry of sequences and random choices of optimization algorithms. See https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions].
-- Parallel function evaluation for CMA-ES
+- Parallel objective function evaluation. 
 - New DE (differential evolution) variant optimized for usage with parallel coordinated retry and the DE->CMA sequence.
 - GCL-DE (differential evolution) variant from Mingcheng Zuo.
 - Fast C++ implementations of CMA-ES, differential evolution, dual annealing and the Harris hawks algorithm.
