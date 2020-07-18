@@ -57,6 +57,14 @@ Not only the four algorithms above, but also scipy and NLopt optimization method
 * `pip install fcmaes`
 * install {cpp} runtime libraries https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
 
+Python multiprocessing is currently flawed on Windows. To get optimal scaling from parallel retry and parallel function evaluation use:
+
+* Linux subsystem for Windows:
+- https://docs.microsoft.com/en-us/windows/wsl/install-win10[Linux subsystem] or
+- https://superuser.com/questions/1271682/is-there-a-way-of-installing-ubuntu-windows-subsystem-for-linux-on-win10-v170[Ubuntu subsystem].
+
+The Linux subsystem can read/write NTFS, so you can do your development on a NTFS partition. Just the Python call is routed to Linux. 
+
 ==== MacOS
 
 * `pip install fcmaes`
