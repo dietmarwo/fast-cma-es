@@ -85,8 +85,9 @@ class Sequence(Optimizer):
         self.optimizers = optimizers 
         self.max_evaluations = 0 
         for optimizer in self.optimizers:
-            self.name += optimizer.name + ' '
+            self.name += optimizer.name + ' -> '
             self.max_evaluations += optimizer.max_evaluations
+        self.name = self.name[:-4]
                   
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
         evals = 0
@@ -104,12 +105,25 @@ class Choice(Optimizer):
         self.optimizers = optimizers 
         self.max_evaluations = optimizers[0].max_evaluations 
         for optimizer in self.optimizers:
-            self.name += optimizer.name + '|'
+            self.name += optimizer.name + ' | '
+        self.name = self.name[:-3]
                   
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
         choice = rg.integers(0, len(self.optimizers))
         opt = self.optimizers[choice]
         return opt.minimize(fun, bounds, guess, sdevs, rg, store)
+
+def de3_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
+           de_max_evals = None, cma_max_evals = None):
+    """Sequence differential evolution -> CMA-ES."""
+
+    if de_max_evals is None:
+        de_max_evals = int(0.5*max_evaluations)
+    if cma_max_evals is None:
+        cma_max_evals = int(0.5*max_evaluations)
+    opt1 =  Choice([GCLDE_cpp(de_max_evals), Cma_cpp(de_max_evals), De_cpp(de_max_evals)])
+    opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fittness = stop_fittness)
+    return Sequence([opt1, opt2])
 
 def de_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
            de_max_evals = None, cma_max_evals = None):
@@ -240,7 +254,7 @@ class De_cpp(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fittness = None, 
-                 keep = 30, f = 0.5, cr = 0.9):        
+                 keep = 200, f = 0.5, cr = 0.9):        
         Optimizer.__init__(self, max_evaluations, 'de cpp')
         self.popsize = popsize
         self.stop_fittness = stop_fittness
@@ -262,7 +276,7 @@ class LDe_cpp(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fittness = None, 
-                 keep = 30, f = 0.5, cr = 0.9):        
+                 keep = 200, f = 0.5, cr = 0.9):        
         Optimizer.__init__(self, max_evaluations, 'lde cpp')
         self.popsize = popsize
         self.stop_fittness = stop_fittness

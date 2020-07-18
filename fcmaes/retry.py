@@ -15,7 +15,7 @@ from scipy.optimize._constraints import new_bounds_to_old
 from scipy.optimize import OptimizeResult, Bounds
 import multiprocessing as mp
 from multiprocessing import Process
-from fcmaes.optimizer import gclde_cma, dtime, logger
+from fcmaes.optimizer import de3_cma, dtime, logger
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -32,6 +32,7 @@ def minimize(fun,
              capacity = 500,
              stop_fittness = None,
              optimizer = None,
+             statistic_num = 0
              ):   
     """Minimization of a scalar function of one or more variables using parallel 
      CMA-ES retry.
@@ -83,8 +84,8 @@ def minimize(fun,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
     if optimizer is None:
-        optimizer = gclde_cma(max_evaluations, popsize, stop_fittness)        
-    store = Store(bounds, capacity = capacity, logger = logger)
+        optimizer = de3_cma(max_evaluations, popsize, stop_fittness)        
+    store = Store(bounds, capacity = capacity, logger = logger, statistic_num = statistic_num)
     return retry(fun, store, optimizer.minimize, num_retries, value_limit, workers)
                  
 def retry(fun, store, optimize, num_retries, value_limit = math.inf, workers=mp.cpu_count()):
@@ -106,7 +107,8 @@ class Store(object):
                  bounds, # bounds of the objective function arguments
                  check_interval = 10, # sort evaluation memory after check_interval iterations
                  capacity = 500, # capacity of the evaluation store
-                 logger = None # if None logging is switched off
+                 logger = None, # if None logging is switched off
+                 statistic_num=0
                 ):    
         self.lower, self.upper = _convertBounds(bounds)
         self.logger = logger
@@ -131,19 +133,23 @@ class Store(object):
         self.qmean = mp.RawValue(ct.c_double, 0) 
         self.best_y = mp.RawValue(ct.c_double, math.inf) 
         self.best_x = mp.RawArray(ct.c_double, self.dim)
+        self.statistic_num = statistic_num
+
         # statistics                            
-        self.statistic_num = 1000
-        self.time = mp.RawArray(ct.c_double, self.statistic_num)
-        self.val = mp.RawArray(ct.c_double, self.statistic_num)
-        self.si = mp.RawValue(ct.c_int, 0)
+        if statistic_num > 0:  # enable statistics                          
+            self.statistic_num = 1000
+            self.time = mp.RawArray(ct.c_double, self.statistic_num)
+            self.val = mp.RawArray(ct.c_double, self.statistic_num)
+            self.si = mp.RawValue(ct.c_int, 0)
 
     # store improvement - time and value
     def add_statistics(self):
-        si = self.si.value
-        if si < self.statistic_num - 1:
-            self.si.value = si + 1
-        self.time[si] = dtime(self.t0)
-        self.val[si] = self.best_y.value  
+        if self.statistic_num > 0:
+            si = self.si.value
+            if si < self.statistic_num - 1:
+                self.si.value = si + 1
+            self.time[si] = dtime(self.t0)
+            self.val[si] = self.best_y.value  
         
     def get_improvements(self):
         return zip(self.time[:self.si.value], self.val[:self.si.value])
