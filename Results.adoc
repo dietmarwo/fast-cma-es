@@ -23,7 +23,7 @@ As test problems we use ESAs GTOP problem database:
 
 - https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1], https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2], https://www.esa.int/gsp/ACT/projects/gtop/rosetta/[Rosetta], https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1], https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/[Messenger reduced], https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full] and https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem 6 constrained]
 
-In https://doi.org/10.1016/j.asoc.2020.106451[G-CLDE paper] and http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] show
+https://doi.org/10.1016/j.asoc.2020.106451[G-CLDE paper] and http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] show
 actual results of state of the art algorithms for the GTOP benchmarks. Usually mean / sdev and best results are shown for a number of
 runs executed for each algorithm. This is because these algorithms cannot reliably solve these problems in a reasonable time. Here we show
 the progress of the best value found over time for 20 runs of the coordinated parallel retry. Beside Messenger Full which needs more evaluations
