@@ -180,11 +180,11 @@ The log output of the parallel retry contains the following rows:
 - list of the best 20 function values in the retry store
 - best solution (x-vector) found so far
 
-Mean and standard deviation would be misleading when using advanced retry, because
+Mean and standard deviation would be misleading when using coordinated retry, because
 of the retries initiated by crossover. Therefore the rows of the
 log output differ slightly:
  
-===== Advanced coordinated retry
+===== Coordinated retry
 
 - time (in sec)
 - evaluations / sec
