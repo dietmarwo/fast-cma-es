@@ -4,6 +4,8 @@
 
 = fcmaes - a Python 3 gradient-free optimization library
 
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
 fcmaes complements https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy optimize] by providing 
 additional optimization methods, faster {cpp}/Eigen based implementations and a coordinated parallel retry mechanism. 
 It supports the multi threaded application of different gradient free optimization algorithms. The coordinated retry
