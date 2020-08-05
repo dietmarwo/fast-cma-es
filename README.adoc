@@ -4,6 +4,8 @@
 
 = fcmaes - a Python 3 gradient-free optimization library
 
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
 fcmaes complements https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy optimize] by providing 
 additional optimization methods, faster {cpp}/Eigen based implementations and a coordinated parallel retry mechanism. 
 It supports the multi threaded application of different gradient free optimization algorithms. The coordinated retry
@@ -21,7 +23,7 @@ an extension of fcmaes based on https://docs.ray.io/en/master/cluster/index.html
 - fcmaes is focused on optimization problems hard to solve.
 - Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
 - Parallel coordinated retry of sequences and random choices of optimization algorithms. See https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions].
-- Parallel function evaluation for CMA-ES
+- Parallel objective function evaluation. 
 - New DE (differential evolution) variant optimized for usage with parallel coordinated retry and the DE->CMA sequence.
 - GCL-DE (differential evolution) variant from Mingcheng Zuo.
 - Fast C++ implementations of CMA-ES, differential evolution, dual annealing and the Harris hawks algorithm.
@@ -181,11 +183,11 @@ The log output of the parallel retry contains the following rows:
 - list of the best 20 function values in the retry store
 - best solution (x-vector) found so far
 
-Mean and standard deviation would be misleading when using advanced retry, because
+Mean and standard deviation would be misleading when using coordinated retry, because
 of the retries initiated by crossover. Therefore the rows of the
 log output differ slightly:
  
-===== Advanced coordinated retry
+===== Coordinated retry
 
 - time (in sec)
 - evaluations / sec
