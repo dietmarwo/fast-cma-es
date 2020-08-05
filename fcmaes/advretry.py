@@ -18,7 +18,7 @@ from numpy.random import Generator, MT19937, SeedSequence
 from scipy.optimize import OptimizeResult, Bounds
 
 from fcmaes.retry import _convertBounds
-from fcmaes.optimizer import dtime, fitting, de3_cma, logger
+from fcmaes.optimizer import dtime, fitting, de2_cma, logger
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -99,7 +99,7 @@ def minimize(fun,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
     if optimizer is None:
-        optimizer = de3_cma(min_evaluations, popsize, stop_fittness)     
+        optimizer = de2_cma(min_evaluations, popsize, stop_fittness)     
     if max_eval_fac is None:
         max_eval_fac = int(min(50, 1 + num_retries // check_interval))
     store = Store(bounds, max_eval_fac, check_interval, capacity, logger, num_retries, statistic_num)

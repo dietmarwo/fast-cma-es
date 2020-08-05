@@ -23,15 +23,11 @@ As test problems we use ESAs GTOP problem database:
 
 - https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1], https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2], https://www.esa.int/gsp/ACT/projects/gtop/rosetta/[Rosetta], https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1], https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/[Messenger reduced], https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full] and https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem 6 constrained]
 
-In https://doi.org/10.1016/j.asoc.2020.106451[G-CLDE paper] and http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] show
-actual results of state of the art algorithms for the GTOP benchmarks. Usually mean / sdev and best results are shown for a number of
+In https://doi.org/10.1016/j.asoc.2020.106451[G-CLDE paper] and http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] show actual results of state of the art algorithms for the GTOP benchmarks. Usually mean / sdev and best results are shown for a number of
 runs executed for each algorithm. This is because these algorithms cannot reliably solve these problems in a reasonable time. Here we show
-the progress of the best value found over time for 20 runs of the coordinated parallel retry. Beside Messenger Full which needs more evaluations
-(see https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc[README]) the coordinated retry finds the best known solution in all runs. 
+the progress of the best value found over time for 20 runs of the coordinated parallel retry. Beside Messenger Full which needs more evaluations (see https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc[README]) the coordinated retry finds the best known solution in all runs. 
 
-Initially the coordinated retry was developed as a meta algorithm for CMA-ES. It removes most weaknesses of CMA-ES. But sequences of differential evolution followed by CMA-ES, although slightly slower wrt. execution time, produce better results for very hard to solve problems. 
-Now we compare CMA-ES, DE->CMA-ES and GCL-DE->CMA-ES as base algorithm of the coordinated retry. Both differential evolution variants
-are configured to work optimal in this context and produce similar results, but GCL-DE is superior when used stand-alone.
+Initially the coordinated retry was developed as a meta algorithm for CMA-ES. It removes most weaknesses of CMA-ES. But sequences of differential evolution followed by CMA-ES, although slightly slower wrt. execution time, produce better results for very hard to solve problems.  Now we compare CMA-ES, DE->CMA-ES and GCL-DE->CMA-ES as base algorithm of the coordinated retry. Both differential evolution variants are configured to work optimal in this context and produce similar results, but GCL-DE is superior when used stand-alone.
 
 To reproduce the results or check another CPU use https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[advexamples.py].
 
@@ -90,7 +86,7 @@ https://github.com/7ossam81/EvoloPy/tree/master/optimizers[optimizers] partly de
 https://github.com/7ossam81/EvoloPy/wiki/List-of-optimizers[here]. 
 
 All of these algorithms support boxed boundaries and are implemented single threaded. We will use them to check what can be gained
-from parallelization using fcmaes coordinated retry. "DCD" is the default algorithm DE->CMA starting with 1500 evaluations
+from parallelization using fcmaes coordinated retry. "DCD" is the old default algorithm DE->CMA starting with 1500 evaluations
 per optimization run. "DCX" is DE->CMA starting with 1000*X evaluations. Every 100 optimizations this number is incremented. 
 As test problems we use again ESAs GTOP problem database and the AMD 3950x 16 core processor. For the nature inspired algorithms 20000 iterations were performed. The fcmaes algorithms were limited by the number of retries, `4800`/X for DCX. For all tests 3 repetitions were performed and the mean result was plotted. 
 
@@ -136,7 +132,7 @@ fcmaes and scipy optimization algorithms using again the AMD 3950x 16 core proce
 
 The following optimization algorithms were tested:
 
-- sequence DE -> CMA, default algorithm
+- sequence DE -> CMA, the old default algorithm (now it is (DE | GLC-DE) -> CMA)
 - CMA - {cpp} implementation
 - DE - differential evolution, {cpp} implementation
 - sequence DA -> CMA

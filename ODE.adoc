@@ -139,7 +139,7 @@ fail where coordinated retry still succeeds.
 
 ==== Parallel retry with dimension=50
 
-Why do we have a `DE-CMA` sequence as default algorithm for the parallel retry? 
+Why is a sequence of differential evolution and CMA-ES a good default algorithm for the parallel retry? 
 We see it when we try to increase the dimension of 
 the problem by adding more https://en.wikipedia.org/wiki/Bang%E2%80%93bang_control[bang bang] switches.
 Even with `dim = 30` the coordinated retry with pure CMA-ES fails. But lets try a real challenge:

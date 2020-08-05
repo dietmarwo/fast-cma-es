@@ -113,18 +113,6 @@ class Choice(Optimizer):
         opt = self.optimizers[choice]
         return opt.minimize(fun, bounds, guess, sdevs, rg, store)
 
-def de3_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
-           de_max_evals = None, cma_max_evals = None):
-    """Sequence differential evolution -> CMA-ES."""
-
-    if de_max_evals is None:
-        de_max_evals = int(0.5*max_evaluations)
-    if cma_max_evals is None:
-        cma_max_evals = int(0.5*max_evaluations)
-    opt1 =  Choice([GCLDE_cpp(de_max_evals), Cma_cpp(de_max_evals), De_cpp(de_max_evals)])
-    opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fittness = stop_fittness)
-    return Sequence([opt1, opt2])
-
 def de_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES."""
@@ -136,6 +124,30 @@ def de_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf,
     opt1 = De_cpp(max_evaluations = de_max_evals, stop_fittness = stop_fittness)
     opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
                    stop_fittness = stop_fittness)
+    return Sequence([opt1, opt2])
+
+def de2_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
+           de_max_evals = None, cma_max_evals = None):
+    """Sequence differential evolution -> CMA-ES."""
+
+    if de_max_evals is None:
+        de_max_evals = int(0.5*max_evaluations)
+    if cma_max_evals is None:
+        cma_max_evals = int(0.5*max_evaluations)
+    opt1 = Choice([GCLDE_cpp(de_max_evals), De_cpp(de_max_evals)])
+    opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fittness = stop_fittness)
+    return Sequence([opt1, opt2])
+
+def de3_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
+           de_max_evals = None, cma_max_evals = None):
+    """Sequence differential evolution -> CMA-ES."""
+
+    if de_max_evals is None:
+        de_max_evals = int(0.5*max_evaluations)
+    if cma_max_evals is None:
+        cma_max_evals = int(0.5*max_evaluations)
+    opt1 =  Choice([GCLDE_cpp(de_max_evals), Cma_cpp(de_max_evals), De_cpp(de_max_evals)])
+    opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fittness = stop_fittness)
     return Sequence([opt1, opt2])
 
 def gclde_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 

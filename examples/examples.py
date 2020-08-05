@@ -8,14 +8,14 @@
 
 import math
 from fcmaes.astro import MessFull, Messenger, Gtoc1, Cassini1, Cassini2, Rosetta, Tandem, Sagas, Cassini1minlp
-from fcmaes.optimizer import logger, de_cma, de3_cma, da_cma, Cma_cpp, De_cpp, Da_cpp, Hh_cpp, Dual_annealing, Differential_evolution, GCLDE_cpp, Sequence
+from fcmaes.optimizer import logger, de_cma, de2_cma, da_cma, Cma_cpp, De_cpp, Da_cpp, Hh_cpp, Dual_annealing, Differential_evolution, GCLDE_cpp, Sequence
 from fcmaes.retry import minimize
             
 problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), MessFull(), Sagas(), Cassini1minlp()]
 
 max_evals = 50000
 
-algos = [de3_cma(max_evals), de_cma(max_evals), da_cma(max_evals), Cma_cpp(max_evals), De_cpp(max_evals), Hh_cpp(max_evals),
+algos = [de2_cma(max_evals), de_cma(max_evals), da_cma(max_evals), Cma_cpp(max_evals), De_cpp(max_evals), Hh_cpp(max_evals),
          Da_cpp(max_evals), Dual_annealing(max_evals), Differential_evolution(max_evals)]
                
 def test_all(num_retries = 10000, num = 10):

@@ -9,7 +9,8 @@ additional optimization methods, faster {cpp}/Eigen based implementations and a 
 It supports the multi threaded application of different gradient free optimization algorithms. The coordinated retry
 can be viewed as a new meta algorithm operating on a population of user defined optimization runs. Its default
 optimization algorithm is a sequence of differential evolution and CMA-ES well suited for many ill conditioned,
-non-continous objective functions. 
+non-continuous objective functions. For optimization on a cluster see https://github.com/dietmarwo/fcmaes-ray/[fcmaesray],
+an extension of fcmaes based on https://docs.ray.io/en/master/cluster/index.html[ray].
 
 === Documentation
 
@@ -43,7 +44,7 @@ https://www.researchgate.net/publication/309179699_Differential_evolution_for_pr
 - Harris' hawks: Eigen based implementation in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/hawksoptimizer.cpp[C++]. Use https://github.com/7ossam81/EvoloPy/blob/master/optimizers/HHO.py[HHO] if you prefer a pure python variant. See Harris' hawks optimization: Algorithm and applications Ali Asghar Heidari, Seyedali Mirjalili, Hossam Faris, Ibrahim Aljarah, Majdi Mafarja, Huiling Chen, Future Generation Computer Systems,  DOI: https://doi.org/10.1016/j.future.2019.02.028 .
 
 - Expressions: There are two operators for constructing expressions over optimization algorithms: Sequence and random choice.
-Not only the four algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. Default method for the parallel retry is the sequence DE -> CMA with the evaluation budget equally distributed. 
+Not only the four algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. Default method for the parallel retry is the sequence (DE | GLC-DE) -> CMA with the evaluation budget equally distributed. 
 
  
 === Installation
@@ -242,8 +243,6 @@ was submitted. It took more than five years to reach 1.959 km/s and three more y
 
 image::Fsc.png[]  
 
-http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] shows that using 1000 cores of the the Hokudai Supercomputer using Intel Xeon Gold 6148 CPU’s with a clock rate of 2.7 GHz Messenger Full can be solved in about 1 hour using the MXHCP algorithm. fcmaes coordinated parallel retry is slightly slower - on a single AMD 3950x 16 core CPU:
-
 The following picture shows 173 retry runs, each about 1 hour. 
 
 image::mf3.6000.png[]  
@@ -256,7 +255,8 @@ image::mf3.2000.png[]
 
 image::mf3.1959.png[] 
 
-Using fcmaes with parallel retry performs > 650000 messenger_full evaluations per second
-on an AMD 3950x processor using the default `DE->CMA` sequence, and > 900000 
-evaluations per second using CMA-ES. This outperforms previous implementations of these
-algorithms.
+For comparison: http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] shows that using 1000 cores of the the Hokudai Supercomputer using Intel Xeon Gold 6148 CPU’s with a clock rate of 2.7 GHz Messenger Full can be solved in about 1 hour using the MXHCP algorithm. https://github.com/dietmarwo/fcmaes-ray/blob/master/README.adoc[fcmaesray] shows how a 5 node cluster using 96 CPU-cores executing fcmaes coordinated retry performs in comparison. 
+
+On an 16 core AMD 3950x fcmaes with parallel retry performs > 650000 messenger_full evaluations per second
+on an AMD 3950x processor using the `DE->CMA` sequence, and > 900000 
+evaluations per second using CMA-ES. 
