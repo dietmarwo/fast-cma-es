@@ -259,6 +259,4 @@ image::mf3.1959.png[]
 
 For comparison: http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] shows that using 1000 cores of the the Hokudai Supercomputer using Intel Xeon Gold 6148 CPU’s with a clock rate of 2.7 GHz Messenger Full can be solved in about 1 hour using the MXHCP algorithm. https://github.com/dietmarwo/fcmaes-ray/blob/master/README.adoc[fcmaesray] shows how a 5 node cluster using 96 CPU-cores executing fcmaes coordinated retry performs in comparison. 
 
-On an 16 core AMD 3950x fcmaes with parallel retry performs > 650000 messenger_full evaluations per second
-on an AMD 3950x processor using the `DE->CMA` sequence, and > 900000 
-evaluations per second using CMA-ES. 
+On an 16 core AMD 3950x fcmaes with parallel retry performs > 650000 messenger_full evaluations per second using the `DE->CMA` sequence, and > 900000 evaluations per second using only CMA-ES. 
