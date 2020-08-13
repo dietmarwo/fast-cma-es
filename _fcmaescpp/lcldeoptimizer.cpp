@@ -209,7 +209,7 @@ public:
 		// Number of objective variables/problem dimension
 		dim = dim_;
 		// Population size
-		popsize = popsize_ > 0 ? popsize_ : 15 * dim;
+		popsize = popsize_ > 0 ? popsize_ : int(dim*8.5+150);
 		// maximal number of evaluations allowed.
 		maxEvaluations = maxEvaluations_;
 		// use low value 0 < pbest <= 1 to narrow search.
@@ -277,14 +277,13 @@ public:
 
 			if (fitfun->getEvaluations() >= maxEvaluations)
 				return;
-			int max_r2 = max(3, int(popsize * pbest));
 			for (int p = 0; p < popsize; p++) {
 				int r1, r2, r3;
 				do {
 					r1 = rndInt(popsize);
 				} while (r1 == p);
 				do {
-					r2 = rndInt2(max_r2);
+					r2 = rndInt(int(popsize * pbest));
 				} while (r2 == p || r2 == r1);
 				do {
 					r3 = rndInt(popsize + sp.size());
@@ -295,12 +294,12 @@ public:
 						- sqrt(float(iterations / maxIter))
 								* exp(float(-gen_stuck / iterations));
 				if (iterations % 2 == 1) {
-					CR = normreal(0.90, 0.02, *rs);
-					F = normreal(mu, 0.2, *rs);
+					CR = normreal(0.95, 0.01, *rs);
+					F = normreal(mu, 1, *rs);
 					if (F < 0 || F > 1)
 						F = rnd01();
 				} else {
-					CR = CR0;
+					CR = abs(normreal(CR0, 0.01, *rs));
 					F = F0;
 				}
 				vec ui = popX.col(p);

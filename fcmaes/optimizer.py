@@ -310,7 +310,7 @@ class GCLDE_cpp(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fittness = None, 
-                 pbest = 0.7, f0 = 0.001, cr0 = 0.1, workers = None):        
+                 pbest = 0.7, f0 = 0.0, cr0 = 0.0, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'gclde cpp')
         self.popsize = popsize
         self.stop_fittness = stop_fittness
@@ -335,7 +335,7 @@ class LCLDE_cpp(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fittness = None, 
-                 pbest = 0.7, f0 = 0.001, cr0 = 0.1, workers = None):        
+                 pbest = 0.7, f0 = 0.0, cr0 = 0.0, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'lclde cpp')
         self.popsize = popsize
         self.stop_fittness = stop_fittness

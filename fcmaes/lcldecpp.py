@@ -30,8 +30,8 @@ def minimize(fun,
              max_evaluations = 100000, 
              stop_fittness = None, 
              pbest = 0.7,
-             f0 = 0.001,
-             cr0 = 0.1,
+             f0 = 0.0,
+             cr0 = 0.0,
              rg = Generator(MT19937()),
              runid=0,
              workers = None):  
@@ -92,7 +92,7 @@ def minimize(fun,
     lower, upper, guess = _check_bounds(bounds, x0, rg)      
     n = guess.size  
     if popsize is None:
-        popsize = n*15
+        popsize = int(n*8.5+150)
     if lower is None:
         lower = [0]*n
         upper = [0]*n
