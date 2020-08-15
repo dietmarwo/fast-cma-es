@@ -48,7 +48,7 @@ image::messenger_full_cma_cpp_coordinated_parallel_retry.png[]
 
 image::Tandem_6_cma_cpp_coordinated_parallel_retry.png[]
 
-==== Coordinated parallel retry of DE->CMA-ES
+==== Coordinated parallel retry of DE -> CMA-ES
 
 image::Cassini1_de_cpp_cma_cpp_coordinated_parallel_retry.png[]
 
@@ -64,7 +64,7 @@ image::messenger_full_de_cpp_cma_cpp_coordinated_parallel_retry.png[]
 
 image::Tandem_6_de_cpp_cma_cpp_coordinated_parallel_retry.png[]
 
-==== Coordinated parallel retry of GCL-DE->CMA-ES
+==== Coordinated parallel retry of GCL-DE -> CMA-ES
 
 image::Cassini1_gclde_cpp_cma_cpp_coordinated_parallel_retry.png[]
 
@@ -79,6 +79,22 @@ image::messenger_reduced_gclde_cpp_cma_cpp_coordinated_parallel_retry.png[]
 image::messenger_full_gclde_cpp_cma_cpp_coordinated_parallel_retry.png[]
 
 image::Tandem_6_gclde_cpp_cma_cpp_coordinated_parallel_retry.png[]
+
+==== Coordinated parallel retry of (DE | GCL-DE) -> CMA-ES
+
+image::_Cassini1_gclde_cpp_|_de_cpp_->_cma_cpp_coordinated_parallel_retry.png[]
+
+image::_Cassini2_gclde_cpp_|_de_cpp_->_cma_cpp_coordinated_parallel_retry.png[]
+
+image::_GTOC1_gclde_cpp_|_de_cpp_->_cma_cpp_coordinated_parallel_retry.png[]
+
+image::_Rosetta_gclde_cpp_|_de_cpp_->_cma_cpp_coordinated_parallel_retry.png[]
+
+image::_messenger_reduced_gclde_cpp_|_de_cpp_->_cma_cpp_coordinated_parallel_retry.png[]
+
+image::_messenger_full_gclde_cpp_|_de_cpp_->_cma_cpp_coordinated_parallel_retry.png[]
+
+image::_Tandem_6_gclde_cpp_|_de_cpp_->_cma_cpp_coordinated_parallel_retry.png[]
 
 ==== Comparison with nature-inspired metaheuristic optimizers
 

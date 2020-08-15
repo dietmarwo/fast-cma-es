@@ -108,7 +108,7 @@ class multiretry:
             ps.retry(optimizer)
     
     def values(self):
-        return np.array([tp.value for tp in self.problems_stats])
+        return np.array([ps.value for ps in self.problems_stats])
      
     def remove_worst(self, n = 1):
         idx = self.values().argsort()
@@ -121,18 +121,18 @@ class multiretry:
                     
     def dump(self):
         for i in range(self.size()):
-            tp = self.problems_stats[i]
-            logger().info(str(tp.id) + ' ' + str(tp.value))
+            ps = self.problems_stats[i]
+            logger().info(str(ps.id) + ' ' + str(ps.value))
                 
     def values_all(self):
-        return np.array([tp.value for tp in self.all_stats])
+        return np.array([ps.value for ps in self.all_stats])
  
     def dump_all(self):
         idx = self.values_all().argsort()
         self.all_stats = list(np.asarray(self.all_stats)[idx])
         for i in range(len(self.all_stats)):
-            tp = self.all_stats[i]
-            logger().info(str(tp.id) + ' ' + str(tp.value))
+            ps = self.all_stats[i]
+            logger().info(str(ps.id) + ' ' + str(ps.value))
         
     def result(self):
         idx = self.values_all().argsort()
