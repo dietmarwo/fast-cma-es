@@ -30,6 +30,9 @@ an extension of fcmaes based on https://docs.ray.io/en/master/cluster/index.html
 - Integrates https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy] and https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt] optimization algorithms for use with the coordinated retry.
 - Parallel retry for https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] algorithms and problems.
 
+ image::coord_retry.jpg[]
+ image::simple_retry.jpg[]
+ 
 === Optimization algorithms
 
 - CMA-ES: Implemented both in Python and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[C++]. The https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[Python version] is faster than
@@ -48,6 +51,7 @@ https://www.researchgate.net/publication/309179699_Differential_evolution_for_pr
 - Expressions: There are two operators for constructing expressions over optimization algorithms: Sequence and random choice.
 Not only the four algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. Default method for the parallel retry is the sequence (DE | GLC-DE) -> CMA with the evaluation budget equally distributed. 
 
+ image::default_algo.jpg[]
  
 === Installation
 
