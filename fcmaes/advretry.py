@@ -154,8 +154,6 @@ class Store(object):
         self.add_mutex = mp.Lock()    
         self.check_mutex = mp.Lock()                     
         self.xs = mp.RawArray(ct.c_double, capacity * self.dim)
-        self.lowers = mp.RawArray(ct.c_double, capacity * self.dim)
-        self.uppers = mp.RawArray(ct.c_double, capacity * self.dim)
         self.ys = mp.RawArray(ct.c_double, capacity)                  
         self.eval_fac = mp.RawValue(ct.c_double, 1)
         self.count_evals = mp.RawValue(ct.c_long, 0)   
@@ -227,12 +225,10 @@ class Store(object):
         """distance between entries in store."""
         return norm((x - xprev) / self.delta) / math.sqrt(self.dim)
         
-    def replace(self, i, y, xs, lower, upper):
+    def replace(self, i, y, xs):
         """replace entry in store."""
         self.set_y(i, y)
         self.set_x(i, xs)
-        self.set_lower(i, lower)
-        self.set_upper(i, upper)
         
     def crossover(self): # Choose two good entries for recombination
         """indices of store entries to be used for crossover operation."""
@@ -269,13 +265,13 @@ class Store(object):
             x = np.asarray(self.get_x(yi[i]))
             if (xprev is None or self.distance(xprev, x) > 0.15) and \
                 (xprev2 is None or self.distance(xprev2, x) > 0.15): 
-                sortRuns.append( (y, x, self.get_lower(yi[i]), self.get_upper(yi[i])) )
+                sortRuns.append( (y, x) )
                 xprev2 = xprev
                 xprev = x
 
         numStored = min(len(sortRuns),int(0.9*self.capacity)) # keep 90% best 
         for i in range(numStored):
-            self.replace(i, sortRuns[i][0], sortRuns[i][1], sortRuns[i][2], sortRuns[i][3])
+            self.replace(i, sortRuns[i][0], sortRuns[i][1])
         self.num_sorted.value = numStored  
         self.num_stored.value = numStored     
         self.worst_y.value = self.get_y(numStored-1)
@@ -315,12 +311,6 @@ class Store(object):
     def get_y_best(self):
         return self.best_y.value
 
-    def get_lower(self, pid):
-        return self.lowers[pid*self.dim:(pid+1)*self.dim]
-
-    def get_upper(self, pid):
-        return self.uppers[pid*self.dim:(pid+1)*self.dim]
-
     def get_count_evals(self):
         return self.count_evals.value
   
@@ -332,12 +322,6 @@ class Store(object):
 
     def set_y(self, pid, y):
         self.ys[pid] = y            
-
-    def set_lower(self, pid, lower):
-        self.lowers[pid*self.dim:(pid+1)*self.dim] = lower[:]
- 
-    def set_upper(self, pid, upper):
-        self.uppers[pid*self.dim:(pid+1)*self.dim] = upper[:]
 
     def get_runs_compare_incr(self, limit):
         with self.add_mutex:

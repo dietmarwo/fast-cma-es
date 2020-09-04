@@ -234,7 +234,7 @@ class Store(object):
         return self.mean.value
 
     def get_y_standard_dev(self):
-        cnt = self.get_count_runs()
+        cnt = self.count_stat_runs.value
         return 0 if cnt <= 0 else math.sqrt(self.qmean.value / cnt)
 
     def get_count_evals(self):
@@ -292,8 +292,8 @@ def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit):
             store.add_result(y, sol, evals, value_limit)           
         except Exception as ex:
             continue
-#         if pid == 0:
-#             store.dump()
+#        if pid == 0:
+#            store.dump()
 
 def _convertBounds(bounds):
     if bounds is None:
