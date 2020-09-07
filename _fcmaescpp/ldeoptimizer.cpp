@@ -112,32 +112,29 @@ public:
 		sigma = vec(sigma0);
 	}
 
-	void updateSigma() {
-		vec delta = (xmean - guess).cwiseAbs() * 0.5;
-		sigma = (sigma0 + delta).cwiseMin(maxSigma);
-	}
-
-	void updateMean(const vec &X) {
+	void updateSigma(const vec &X) {
+		vec delta = (xmean - X).cwiseAbs() * 0.5;
+		sigma = delta.cwiseMin(maxSigma);
 		xmean = X;
 	}
 
-	vec uniNormX(double uniProb) {
-		return distr_01(rs) < uniProb ? uniformX() : normX();
-	}
-
-	double uniNormXi(int j, double uniProb) {
-		return distr_01(rs) < uniProb ? uniformXi(j) : normXi(j);
-	}
-
 	vec normX() {
-		return getClosestFeasible(normalVec(xmean, sigma, dim, rs));
+		return distr_01(rs) < 0.5 ? 
+            getClosestFeasible(normalVec(xmean, sigma0, dim, rs)) :
+            getClosestFeasible(normalVec(xmean, sigma, dim, rs));
 	}
 
 	double normXi(int i) {
 		double nx;
-		do {
-			nx = normreal(xmean[i], sigma[i], rs);
-		} while (!feasible(i, nx));
+        if (distr_01(rs) < 0.5) {
+		    do {
+			    nx = normreal(xmean[i], sigma0[i], rs);
+		    } while (!feasible(i, nx));
+        } else {
+		    do {
+			    nx = normreal(xmean[i], sigma[i], rs);
+		    } while (!feasible(i, nx));
+        }
 		return nx;
 	}
 
@@ -278,7 +275,7 @@ public:
 					if (j == jr || rnd01() < CRu) {
 						ui[j] = xb[j] + Fu * (popX(j, r1) - popX(j, r2));
 						if (!fitfun->feasible(j, ui[j]))
-							ui[j] = fitfun->uniNormXi(j, 0.3);
+							ui[j] = fitfun->normXi(j);
 					}
 				}
 				double eu = fitfun->eval(ui);
@@ -297,8 +294,7 @@ public:
 					if (eu < popY[bestI]) {
 						bestI = p;
 						if (eu < bestY) {
-							fitfun->updateMean(ui);
-							fitfun->updateSigma();
+							fitfun->updateSigma(ui);
 							bestY = eu;
 							bestX = ui;
 							if (isfinite(stopfitness) && bestY < stopfitness) {
@@ -310,7 +306,7 @@ public:
 				} else {
 					// reinitialize individual
 					if (keep * rnd01() < iterations - popIter[p]) {
-						popX.col(p) = fitfun->uniNormX(0.3);
+						popX.col(p) = fitfun->normX();
 						popY[p] = fitfun->eval(popX.col(p)); // compute fitness
 					}
 				}
@@ -322,7 +318,7 @@ public:
 		popX = mat(dim, popsize);
 		popY = vec(popsize);
 		for (int p = 0; p < popsize; p++) {
-			popX.col(p) = fitfun->uniNormX(0.3);
+			popX.col(p) = fitfun->normX();
 			popY[p] = fitfun->eval(popX.col(p)); // compute fitness
 		}
 		bestX = fitfun->guess;
@@ -331,6 +327,7 @@ public:
 		if (popY[bestI] < bestY) {
 			bestX = popX.col(bestI);
 			bestY = popY[bestI];
+			fitfun->updateSigma(bestX);
 		}
 		popIter = zeros(popsize);
 	}

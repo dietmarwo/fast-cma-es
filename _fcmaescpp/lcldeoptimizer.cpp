@@ -107,13 +107,30 @@ public:
 		sigma = vec(sigma0);
 	}
 
-	void updateSigma() {
-		vec delta = (xmean - guess).cwiseAbs() * 0.5;
-		sigma = (sigma0 + delta).cwiseMin(maxSigma);
+	void updateSigma(const vec &X) {
+		vec delta = (xmean - X).cwiseAbs() * 0.5;
+		sigma = delta.cwiseMin(maxSigma);
+		xmean = X;
 	}
 
-	void updateMean(const vec &X) {
-		xmean = X;
+	vec normX() {
+		return distr_01(rs) < 0.5 ? 
+            getClosestFeasible(normalVec(xmean, sigma0, dim, rs)) :
+            getClosestFeasible(normalVec(xmean, sigma, dim, rs));
+	}
+
+	double normXi(int i) {
+		double nx;
+        if (distr_01(rs) < 0.5) {
+		    do {
+			    nx = normreal(xmean[i], sigma0[i], rs);
+		    } while (!feasible(i, nx));
+        } else {
+		    do {
+			    nx = normreal(xmean[i], sigma[i], rs);
+		    } while (!feasible(i, nx));
+        }
+		return nx;
 	}
 
 	vec getClosestFeasible(const vec &X) const {
@@ -144,26 +161,6 @@ public:
 
 	bool feasible(int i, double x) {
 		return x >= lower[i] && x <= upper[i];
-	}
-
-	vec uniNormX(double uniProb) {
-		return distr_01(rs) < uniProb ? uniformX() : normX();
-	}
-
-	double uniNormXi(int j, double uniProb) {
-		return distr_01(rs) < uniProb ? uniformXi(j) : normXi(j);
-	}
-
-	vec normX() {
-		return getClosestFeasible(normalVec(xmean, sigma, dim, rs));
-	}
-
-	double normXi(int i) {
-		double nx;
-		do {
-			nx = normreal(xmean[i], sigma[i], rs);
-		} while (!feasible(i, nx));
-		return nx;
 	}
 
 	vec uniformX() {
@@ -269,8 +266,7 @@ public:
 			else {
 				gen_stuck = 0;
 				if (iterations > 1) {
-					fitfun->updateMean(bestX);
-					fitfun->updateSigma();
+					fitfun->updateSigma(bestX);
 				}
 			}
 			previous_best = bestY;
@@ -312,7 +308,7 @@ public:
 							ui[j] = popX(j, r1)
 									+ F * ((popX)(j, r2) - sp[r3 - popsize][j]);
 						if (!fitfun->feasible(j, ui[j]))
-							ui[j] = fitfun->uniNormXi(j, 0.3);
+							ui[j] = fitfun->normXi(j);
 					}
 				}
 				nextX.col(p) = ui;
@@ -337,7 +333,7 @@ public:
 		popF = zeros(popsize);
 		nextX = mat(dim, popsize);
 		for (int p = 0; p < popsize; p++)
-			nextX.col(p) = fitfun->uniNormX(0.3);
+			nextX.col(p) = fitfun->normX();
 		nextY = vec(popsize);
 		fitfun->values(nextX, nextY);
 	}
