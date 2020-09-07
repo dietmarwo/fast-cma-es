@@ -291,7 +291,7 @@ class Store(object):
                     self.sort()
                 ns = self.num_stored.value
                 self.num_stored.value = ns + 1
-                self.replace(ns, y, xs, lower, upper)
+                self.replace(ns, y, xs)
       
     def get_x(self, pid):
         return self.xs[pid*self.dim:(pid+1)*self.dim]
