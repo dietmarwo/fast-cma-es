@@ -80,22 +80,20 @@ static ivec sort_index(const vec &x) {
 	});
 }
 
-// wrapper around the fittness function, scales according to boundaries
+// wrapper around the fitness function, scales according to boundaries
 
-class Fittness {
+class Fitness {
 
 public:
 
-	Fittness(callback_type pfunc, const vec &lower_limit,
+	Fitness(callback_type pfunc, const vec &lower_limit,
 			const vec &upper_limit) {
 		func = pfunc;
 		lower = lower_limit;
 		upper = upper_limit;
 		evaluationCounter = 0;
-		if (lower.size() > 0) { // bounds defined
+		if (lower.size() > 0) // bounds defined
 			scale = (upper - lower);
-			invScale = scale.cwiseInverse();
-		}
 	}
 
 	double eval(const vec &X) {
@@ -111,10 +109,6 @@ public:
 	void values(const mat &popX, int popsize, vec &ys) {
 		for (int p = 0; p < popsize; p++)
 			ys[p] = eval(popX.col(p));
-	}
-
-	double distance(const vec &x1, const vec &x2) {
-		return ((x1 - x2).array() * invScale.array()).matrix().squaredNorm();
 	}
 
 	vec getClosestFeasible(const vec &X) const {
@@ -152,14 +146,13 @@ private:
 	vec upper;
 	long evaluationCounter;
 	vec scale;
-	vec invScale;
 };
 
 class DeOptimizer {
 
 public:
 
-	DeOptimizer(long runid_, Fittness *fitfun_, int dim_, int seed_,
+	DeOptimizer(long runid_, Fitness *fitfun_, int dim_, int seed_,
 			int popsize_, int maxEvaluations_, double keep_,
 			double stopfitness_, double F_, double CR_) {
 		// runid used to identify a specific run
@@ -300,7 +293,7 @@ public:
 
 private:
 	long runid;
-	Fittness *fitfun;
+	Fitness *fitfun;
 	int popsize; // population size
 	int dim;
 	int maxEvaluations;
@@ -343,7 +336,7 @@ double* optimizeDE_C(long runid, callback_type func, int dim, int seed,
 		lower_limit.resize(0);
 		upper_limit.resize(0);
 	}
-	Fittness fitfun(func, lower_limit, upper_limit);
+	Fitness fitfun(func, lower_limit, upper_limit);
 	DeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, keep,
 			stopfitness, F, CR);
 	try {

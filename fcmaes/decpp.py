@@ -16,7 +16,8 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaescpp import callback
+from fcmaes.cmaescpp import callback, libcmalib, freemem
+from fcmaes.dacpp import call_back_type
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -68,7 +69,7 @@ def minimize(fun,
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     runid : int, optional
-        id used to identify the optimization run. 
+        id used to identify the run for debugging / logging. 
             
     Returns
     -------
@@ -108,16 +109,6 @@ def minimize(fun,
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
       
-basepath = os.path.dirname(os.path.abspath(__file__))
-
-if sys.platform.startswith('linux'):
-    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.so')  
-elif 'mac' in sys.platform:
-    libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
-else:
-    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')  
-
-call_back_type = ct.CFUNCTYPE(ct.c_double, ct.c_int, ct.POINTER(ct.c_double))  
 optimizeDE_C = libcmalib.optimizeDE_C
 optimizeDE_C.argtypes = [ct.c_long, call_back_type, ct.c_int, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
@@ -125,6 +116,4 @@ optimizeDE_C.argtypes = [ct.c_long, call_back_type, ct.c_int, ct.c_int, \
             ct.c_double, ct.c_double]
 
 optimizeDE_C.restype = ct.POINTER(ct.c_double)         
-freemem = libcmalib.free_mem
-freemem.argtypes = [ct.POINTER(ct.c_double)]
-  
+ 

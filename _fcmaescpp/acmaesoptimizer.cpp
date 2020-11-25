@@ -81,13 +81,13 @@ static Eigen::MatrixXd normal(int dx, int dy, pcg64 &rs) {
 	});
 }
 
-// wrapper around the fittness function, scales according to boundaries
+// wrapper around the fitness function, scales according to boundaries
 
-class Fittness {
+class Fitness {
 
 public:
 
-	Fittness(callback_parallel func_par_, const vec &lower_limit,
+	Fitness(callback_parallel func_par_, const vec &lower_limit,
 			const vec &upper_limit) {
 		func_par = func_par_;
 		lower = lower_limit;
@@ -122,17 +122,27 @@ public:
 		evaluationCounter += popsize;
 	}
 
-	void values(const mat &popX, int popsize, vec &ys) {
-		for (int p = 0; p < popsize; p++)
-			ys[p] = value(popX.col(p));
-	}
+//	void values(const mat &popX, int popsize, vec &ys) {
+//		for (int p = 0; p < popsize; p++)
+//			ys[p] = value(popX.col(p));
+//	}
 
-	double value(const vec &X) {
-		if (lower.size() > 0)
-			return eval(decode(getClosestFeasible(X)));
-		else
-			return eval(X);
-	}
+//	double eval(const vec &X) {
+//		int n = X.size();
+//		double parg[n];
+//		for (int i = 0; i < n; i++)
+//			parg[i] = X(i);
+//		double res = func(n, parg);
+//		evaluationCounter++;
+//		return res;
+//	}
+
+//	double value(const vec &X) {
+//		if (lower.size() > 0)
+//			return eval(decode(getClosestFeasible(X)));
+//		else
+//			return eval(X);
+//	}
 
 	vec encode(const vec &X) const {
 		if (lower.size() > 0)
@@ -165,7 +175,7 @@ class AcmaesOptimizer {
 
 public:
 
-	AcmaesOptimizer(long runid_, Fittness *fitfun_, int popsize_, int mu_,
+	AcmaesOptimizer(long runid_, Fitness *fitfun_, int popsize_, int mu_,
 			const vec &guess_, const vec &inputSigma_, int maxIterations_,
 			int maxEvaluations_, double accuracy_, double stopfitness_,
 			is_terminate_type isTerminate_, long seed) {
@@ -508,7 +518,7 @@ public:
 
 private:
 	long runid;
-	Fittness *fitfun;
+	Fitness *fitfun;
 	vec guess;
 	double accuracy;
 	is_terminate_type isTerminate;
@@ -576,7 +586,7 @@ double* optimizeACMA_C(long runid, callback_parallel func_par, int dim, double *
 		lower_limit.resize(0);
 		upper_limit.resize(0);
 	}
-	Fittness fitfun(func_par, lower_limit, upper_limit);
+	Fitness fitfun(func_par, lower_limit, upper_limit);
 	AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, inputSigma, maxIter,
 			maxEvals, accuracy, stopfitness, useTerminate ? isTerminate : NULL,
 			seed);

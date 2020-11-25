@@ -82,13 +82,13 @@ struct IndexVal {
 	double val;
 };
 
-// wrapper around the fittness function, scales according to boundaries
+// wrapper around the fitness function, scales according to boundaries
 
-class Fittness {
+class Fitness {
 
 public:
 
-	Fittness(callback_type func_, int dim_, const vec &lower_limit,
+	Fitness(callback_type func_, int dim_, const vec &lower_limit,
 			const vec &upper_limit, const vec &guess_, const vec &sigma_, pcg64 &rs_) {
 		func = func_;
 		dim = dim_;
@@ -202,7 +202,7 @@ class LDeOptimizer {
 
 public:
 
-	LDeOptimizer(long runid_, Fittness *fitfun_, int dim_, pcg64* rs_,
+	LDeOptimizer(long runid_, Fitness *fitfun_, int dim_, pcg64* rs_,
 			int popsize_, int maxEvaluations_, double keep_,
 			double stopfitness_, double F_, double CR_) {
 		// runid used to identify a specific run
@@ -350,7 +350,7 @@ public:
 
 private:
 	long runid;
-	Fittness *fitfun;
+	Fitness *fitfun;
 	int popsize; // population size
 	int dim;
 	int maxEvaluations;
@@ -397,7 +397,7 @@ double* optimizeLDE_C(long runid, callback_type func, int dim,
 		upper_limit.resize(0);
 	}
 	pcg64* rs = new pcg64(seed);
-	Fittness fitfun(func, dim, lower_limit, upper_limit, guess, inputSigma, *rs);
+	Fitness fitfun(func, dim, lower_limit, upper_limit, guess, inputSigma, *rs);
 	LDeOptimizer opt(runid, &fitfun, dim, rs, popsize, maxEvals, keep,
 			stopfitness, F, CR);
 	try {

@@ -173,7 +173,7 @@ basepath = os.path.dirname(os.path.abspath(__file__))
 if sys.platform.startswith('linux'):
     libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.so')  
 elif 'mac' in sys.platform:
-    libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
+    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
 else:
     libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')  
 

@@ -8,10 +8,8 @@ set(CMAKE_CXX_FLAGS_DEBUG          "-g")
 set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG -march=native")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
-#set(CMAKE_CXX_COMPILER             "/usr/bin/g++-9")
-#set(CMAKE_CXX_COMPILER             "/usr/bin/g++)
 
-INCLUDE_DIRECTORIES(/home/xxx/python/fcmaes/_fcmaescpp/include)
+INCLUDE_DIRECTORIES(/home/xxx/ctoc/fcmaes/_fcmaescpp/include)
 
 #set default build type to Release
 if(NOT CMAKE_BUILD_TYPE)
@@ -22,7 +20,7 @@ endif()
 
 PROJECT(acmalib)
 
-add_library(acmalib SHARED acmaesoptimizer.cpp deoptimizer.cpp daoptimizer.cpp hawksoptimizer.cpp gcldeoptimizer.cpp lcldeoptimizer.cpp ldeoptimizer.cpp)
+add_library(acmalib SHARED acmaesoptimizer.cpp deoptimizer.cpp daoptimizer.cpp hawksoptimizer.cpp gcldeoptimizer.cpp lcldeoptimizer.cpp ldeoptimizer.cpp biteoptimizer.cpp csmaoptimizer.cpp ascent.cpp)
 
 set(CMAKE_INSTALL_LIBDIR ${CMAKE_BINARY_DIR}/../fcmaes/lib)
 

@@ -30,9 +30,9 @@ namespace dual_annealing {
 
 typedef double (*callback_type)(int, double[]);
 
-// wrapper around the fittness function, scales according to boundaries
+// wrapper around the fitness function, scales according to boundaries
 
-class Fittness;
+class Fitness;
 
 static uniform_real_distribution<> distr_01 = std::uniform_real_distribution<>(
 		0, 1);
@@ -68,16 +68,16 @@ static vec expv(vec v) {
 	});
 }
 
-double minLBFGS(Fittness *fitfun, vec &X0_, int maxIterations);
+double minLBFGS(Fitness *fitfun, vec &X0_, int maxIterations);
 
-class Fittness {
+class Fitness {
 
 public:
 
 	vec lower;
 	vec upper;
 
-	Fittness(callback_type pfunc, vec *lower_limit, vec *upper_limit,
+	Fitness(callback_type pfunc, vec *lower_limit, vec *upper_limit,
 			long maxEvals_) {
 		func = pfunc;
 		lower = *lower_limit;
@@ -170,13 +170,13 @@ private:
 
 class LBFGSFunc {
 private:
-	Fittness *func;
+	Fitness *func;
 	int dim;
 
 public:
 
-	LBFGSFunc(Fittness *fittness_, int dim_) {
-		func = fittness_;
+	LBFGSFunc(Fitness *Fitness_, int dim_) {
+		func = Fitness_;
 		dim = dim_;
 	}
 
@@ -211,7 +211,7 @@ public:
 	}
 };
 
-double minLBFGS(Fittness *fitfun, vec &X0, int maxIterations) {
+double minLBFGS(Fitness *fitfun, vec &X0, int maxIterations) {
 	int dim = X0.size();
 	LBFGSFunc fun = LBFGSFunc(fitfun, dim);
 
@@ -370,7 +370,7 @@ public:
 		current_location = { };
 	}
 
-	void reset(Fittness *owf, pcg64 *rs, const vec &x0) {
+	void reset(Fitness *owf, pcg64 *rs, const vec &x0) {
 		if (x0.size() == 0)
 			current_location = normalVec(dim, *rs);
 		else
@@ -419,7 +419,7 @@ class StrategyChain {
 public:
 
 	StrategyChain(double acceptance_param_, VisitingDistribution *vd_,
-			Fittness *ofw_, pcg64 *rs_, EnergyState *state_) {
+			Fitness *ofw_, pcg64 *rs_, EnergyState *state_) {
 		// Global optimizer state
 		state = state_;
 		// Local markov chain minimum energy and location
@@ -545,7 +545,7 @@ private:
 	int not_improved_idx;
 	int not_improved_max_idx;
 	pcg64 *rs;
-	Fittness *ofw;
+	Fitness *ofw;
 	double temperature_step;
 	double K;
 	bool state_improved = false;
@@ -561,7 +561,7 @@ class DARunner {
 
 public:
 
-	DARunner(Fittness *fun_, vec &x0_, long seed_, bool use_local_search_) {
+	DARunner(Fitness *fun_, vec &x0_, long seed_, bool use_local_search_) {
 		owf = fun_;
 		if (x0_.size() > 0 && x0_.size() != owf->lower.size())
 			throw sizeeexc;
@@ -633,7 +633,7 @@ private:
 	// minimum value of annealing temperature reached to perform
 	// re-annealing temperature_start
 	double temperature_restart = 0.1;
-	Fittness *owf;
+	Fitness *owf;
 	pcg64 *rs;
 	EnergyState *es;
 	StrategyChain *sc;
@@ -641,7 +641,7 @@ private:
 	int iter = 0;
 };
 
-double minimize(Fittness *fun, vec &x0, long seed, bool use_local_search,
+double minimize(Fitness *fun, vec &x0, long seed, bool use_local_search,
 		vec &X) {
 	DARunner gr = DARunner(fun, x0, seed, use_local_search);
 	gr.search();
@@ -676,7 +676,7 @@ double* optimizeDA_C(long runid, callback_type func, int dim, int seed,
 	}
 	if (maxEvals <= 0)
 		maxEvals = 1E7;
-	Fittness fitfun(func, &lower_limit, &upper_limit, maxEvals);
+	Fitness fitfun(func, &lower_limit, &upper_limit, maxEvals);
 
 	try {
 		vec X = zeros(dim);

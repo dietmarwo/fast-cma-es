@@ -74,22 +74,20 @@ static ivec sort_index(const vec &x) {
 	});
 }
 
-// wrapper around the fittness function, scales according to boundaries
+// wrapper around the fitness function, scales according to boundaries
 
-class Fittness {
+class Fitness {
 
 public:
 
-	Fittness(callback_parallel func_par_, const vec &lower_limit,
+	Fitness(callback_parallel func_par_, const vec &lower_limit,
 			const vec &upper_limit) {
 		func_par = func_par_;
 		lower = lower_limit;
 		upper = upper_limit;
 		evaluationCounter = 0;
-		if (lower.size() > 0) { // bounds defined
+		if (lower.size() > 0) // bounds defined
 			scale = (upper - lower);
-			invScale = scale.cwiseInverse();
-		}
 	}
 
 	vec getClosestFeasible(const vec &X) const {
@@ -112,10 +110,6 @@ public:
 		for (int p = 0; p < popX.cols(); p++)
 			ys[p] = res[p];
 		evaluationCounter += popsize;
-	}
-
-	double distance(const vec &x1, const vec &x2) {
-		return ((x1 - x2).array() * invScale.array()).matrix().squaredNorm();
 	}
 
 	bool feasible(int i, double x) {
@@ -141,14 +135,13 @@ private:
 	vec upper;
 	long evaluationCounter;
 	vec scale;
-	vec invScale;
 };
 
 class GclDeOptimizer {
 
 public:
 
-	GclDeOptimizer(long runid_, Fittness *fitfun_, int dim_, int seed_,
+	GclDeOptimizer(long runid_, Fitness *fitfun_, int dim_, int seed_,
 			int popsize_, int maxEvaluations_, double pbest_,
 			double stopfitness_, double F0_, double CR0_) {
 		// runid used to identify a specific run
@@ -300,7 +293,7 @@ public:
 
 private:
 	long runid;
-	Fittness *fitfun;
+	Fitness *fitfun;
 	int popsize; // population size
 	int dim;
 	int maxEvaluations;
@@ -342,7 +335,7 @@ double* optimizeGCLDE_C(long runid, callback_parallel func_par, int dim, int see
 		lower_limit.resize(0);
 		upper_limit.resize(0);
 	}
-	Fittness fitfun(func_par, lower_limit, upper_limit);
+	Fitness fitfun(func_par, lower_limit, upper_limit);
 	GclDeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, pbest,
 			stopfitness, F0, CR0);
 	try {
