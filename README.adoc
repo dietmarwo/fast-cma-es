@@ -16,7 +16,13 @@ an extension of fcmaes based on https://docs.ray.io/en/master/cluster/index.html
 
 === Documentation
 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial], https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results], https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results], https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints], https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions], https://github.com/dietmarwo/fast-cma-es/blob/master/ODE.adoc[ODE] and https://github.com/dietmarwo/fast-cma-es/blob/master/MINLP.adoc[MINLP] .
+- https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/ODE.adoc[ODE], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/HyperparameterOptimization.adoc[Hyper Parameters] .
 
 === Features
 
