@@ -218,8 +218,10 @@ if evolutionary:
     
     bounds = Bounds([0.4, 0, 1.5, 0.07, 3, 1e-5, 1e-5, 0.6], [0.8, 0.3, 10, 0.1, 5.99, 0.75, 0.45, 0.95])
     
-    #ret = decpp.minimize(obj_f, 8, bounds, popsize=16, max_evaluations = 20000)
+    #ret = decpp.minimize(obj_f, 8, bounds, popsize=17, max_evaluations = 20000)
     
     #ret = cmaescpp.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, workers=16)
-    
+ 
+    #ret = cmaescpp.minimize(obj_f, bounds, popsize=32, max_evaluations = 20000, workers=32)
+   
     ret = bitecpp.minimize(obj_f, bounds, max_evaluations = 20000)
