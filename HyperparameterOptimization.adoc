@@ -248,6 +248,7 @@ ret = bitecpp.minimize(obj_f, bounds, max_evaluations = 20000)
 
 # for cmaescpp with multiple workers set n_jobs=1 in XGBRegressor
 #ret = cmaescpp.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, workers=16)
+#ret = cmaescpp.minimize(obj_f, bounds, popsize=32, max_evaluations = 20000, workers=32)
 
-#ret = decpp.minimize(obj_f, 8, bounds, popsize=13, max_evaluations = 20000)
+#ret = decpp.minimize(obj_f, 8, bounds, popsize=17, max_evaluations = 20000)
 ----
