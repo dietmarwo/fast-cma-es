@@ -14,7 +14,7 @@
 # This example illustrates that for relatively simple tasks no dedicated mixed integer
 # solver is required. 500 solutions with different upper bounds are computed in about 80 sec
 # on an AMD 3950x 16 core processor. The continuous input vector is made discrete by
-# calling 'feasible(x)' in the objective function 'feasable_ratio()'. The second objective
+# calling '_feasible(x)' in the objective function 'feasable_ratio()'. The second objective
 # is modeled as boxed boundary. By incrementally increasing the bounds on the teeth number
 # the whole pareto front is listed. 
 
@@ -40,16 +40,16 @@ def discrete(x):
         feasible_x = 60
     return feasible_x
  
-def feasible(x):
+def _feasible(x):
     x = np.array(x)
     return [discrete(v) for v in x]
  
 def feasable_ratio(x): 
-    x = feasible(x)   
+    x = _feasible(x)   
     return ratio(x) 
 
 def print_result(ret, best, t0, i):
-    x = feasible(ret.x) # make sure result is feasible / discrete
+    x = _feasible(ret.x) # make sure result is _feasible / discrete
     val = ratio(x)
     if val < best:
         best = min(val, best)

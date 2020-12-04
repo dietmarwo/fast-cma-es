@@ -26,7 +26,7 @@ from fcmaes import retry, advretry
 
 bounds = Bounds([0.01, 0.01, 0.01], [20, 20, 20])
 
-def feasible(x):
+def _feasible(x):
     x = np.array(x)
     return np.maximum(np.minimum(x, bounds.ub), bounds.lb)
 
@@ -50,7 +50,7 @@ def weight_penalty(x):
         return 1E99
         
 def print_result(ret, best, t0, i):
-    x = feasible(ret.x) # make sure result is feasible
+    x = _feasible(ret.x) # make sure result is _feasible
     w = weight(x)
     val = weight_penalty(x) # add penalty for ineq constraint violation
     if val < best:

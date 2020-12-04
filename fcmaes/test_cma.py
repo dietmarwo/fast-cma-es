@@ -8,7 +8,7 @@ import multiprocessing as mp
 import numpy as np
 from scipy.optimize import OptimizeResult
 from fcmaes.testfun import Wrapper, Rosen, Rastrigin, Eggholder
-from fcmaes import cmaes, cmaescpp, gcldecpp, retry, advretry
+from fcmaes import cmaes, de, cmaescpp, gcldecpp, retry, advretry
 
 def test_rastrigin_python():
     popsize = 100
@@ -130,6 +130,29 @@ def test_rosen_parallel():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
+def test_rosen_delayed():
+    popsize = 16
+    dim = 2
+    testfun = Rosen(dim)
+    sdevs = [1.0]*dim
+    max_eval = 10000
+    
+    limit = 0.00001   
+    for _ in range(5):
+        wrapper = Wrapper(testfun.fun, dim)
+        ret = cmaes.minimize(wrapper.eval, testfun.bounds, input_sigma = sdevs, 
+                       max_evaluations = max_eval, 
+                       popsize=popsize, workers = mp.cpu_count(), delayed_update=True)
+        if limit > ret.fun:
+            break
+       
+    assert(limit > ret.fun) # optimization target not reached
+    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval // popsize + 2 > ret.nit) # too much iterations
+    #assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
+    assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
+    assert(almost_equal(ret.fun, wrapper.get_best_y())) # wrong best y returned
+
 def test_rosen_cpp_parallel():
     popsize = 8
     dim = 2
@@ -173,6 +196,48 @@ def test_rosen_gclde_parallel():
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
+
+def test_rosen_de():
+    popsize = 8
+    dim = 2
+    testfun = Rosen(dim)
+    max_eval = 10000    
+    limit = 0.00001   
+    for _ in range(5):
+        wrapper = Wrapper(testfun.fun, dim)
+        ret = de.minimize(wrapper.eval, testfun.bounds,
+                       max_evaluations = max_eval, 
+                       popsize=popsize, workers = None)
+        if limit > ret.fun:
+            break
+       
+    assert(limit > ret.fun) # optimization target not reached
+    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval // popsize + 2 > ret.nit) # too much iterations
+    assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
+    assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
+    assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
+
+def test_rosen_de_delayed():
+    popsize = 8
+    dim = 2
+    testfun = Rosen(dim)
+    max_eval = 10000    
+    limit = 0.00001   
+    for _ in range(5):
+        wrapper = Wrapper(testfun.fun, dim)
+        ret = de.minimize(wrapper.eval, testfun.bounds,
+                       max_evaluations = max_eval, 
+                       popsize=popsize, workers = mp.cpu_count())
+        if limit > ret.fun:
+            break
+       
+    assert(limit > ret.fun) # optimization target not reached
+    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval // popsize + 2 > ret.nit) # too much iterations
+    assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
+    assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
+    assert(almost_equal(ret.fun, wrapper.get_best_y())) # wrong best y returned
 
 def test_eggholder_python():
     popsize = 1000

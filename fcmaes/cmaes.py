@@ -32,7 +32,8 @@ def minimize(fun,
              stop_fittness = np.nan, 
              is_terminate = None, 
              rg = Generator(MT19937()),
-             runid=0):    
+             runid=0,
+             delayed_update = False):    
     """Minimization of a scalar function of one or more variables using CMA-ES.
      
     Parameters
@@ -73,7 +74,9 @@ def minimize(fun,
         Random generator for creating random guesses.
     runid : int, optional
         id used by the is_terminate callback to identify the CMA-ES run. 
-    
+    delayed_update : boolean, optional
+        delayed_update if workers > 1. 
+   
     Returns
     -------
     res : scipy.OptimizeResult
@@ -82,16 +85,24 @@ def minimize(fun,
         ``fun`` the best function value, ``nfev`` the number of function evaluations,
         ``nit`` the number of CMA-ES iterations, ``status`` the stopping critera and
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
-   
-    fun = serial(fun) if workers is None else parallel(fun, workers)
-    cmaes = Cmaes(bounds, x0, 
-                  input_sigma, popsize, 
-                  max_evaluations, max_iterations, 
-                  accuracy, stop_fittness, 
-                  is_terminate, rg, np.random.randn, runid, fun)
-    x, val, evals, iterations, stop = cmaes.doOptimize()
-    if not workers is None:
-        fun.stop() # stop all parallel evaluation processes
+        
+    if workers and workers > 1 and delayed_update:
+        cmaes = Cmaes(bounds, x0, 
+                      input_sigma, popsize, 
+                      max_evaluations, max_iterations, 
+                      accuracy, stop_fittness, 
+                      is_terminate, rg, np.random.randn, runid, None)
+        x, val, evals, iterations, stop = cmaes.do_optimize_delayed_update(fun, workers)
+    else:      
+        fun = serial(fun) if workers is None else parallel(fun, workers)
+        cmaes = Cmaes(bounds, x0, 
+                      input_sigma, popsize, 
+                      max_evaluations, max_iterations, 
+                      accuracy, stop_fittness, 
+                      is_terminate, rg, np.random.randn, runid, fun)
+        x, val, evals, iterations, stop = cmaes.doOptimize()
+        if not workers is None:
+            fun.stop() # stop all parallel evaluation processes
     return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, 
                           success=True)
 
@@ -223,7 +234,7 @@ class Cmaes(object):
         self.fitness_history = np.full(self.historySize, sys.float_info.max)
         self.fitness_history[0] = self.best_value    
         self.arz = None
-
+        self.fitness = None
 
     def ask(self):
         """ask for popsize new argument vectors.
@@ -265,7 +276,51 @@ class Cmaes(object):
         self.updateCMA()
         self.arz = None
         return self.stop
-            
+ 
+    def ask_one(self):
+        """ask for one new argument vector.
+        
+        Returns
+        -------
+        x : dim sized argument ."""
+        arz = self.randn(self.dim) 
+        delta = (self.BD @ arz.transpose()) * self.sigma
+        arx = self.fitfun.closestFeasible(self.xmean + delta.transpose())  
+        return self.fitfun.decode(arx)
+
+    def tell_one(self, y, x):      
+        """tell function value for a argument list retrieved by ask_one().
+    
+        Parameters
+        ----------
+        y : function value
+        x : dim sized argument list
+ 
+        Returns
+        -------
+        stop : int termination criteria, if != 0 loop should stop."""
+
+        if self.fitness is None or not type(self.fitness) is list:
+            self.arx = []
+            self.fitness = []
+        self.fitness.append(y)
+        self.arx.append(x)
+        if len(self.fitness) >= self.popsize:
+            self.fitness = np.asarray(self.fitness)
+            self.arx = np.array([self.fitfun.encode(x) for x in self.arx])
+            try:
+                self.arz = (linalg.inv(self.BD) @ \
+                            ((self.arx - self.xmean).transpose() / self.sigma)).transpose()   
+            except Exception:
+                if self.arz is None: 
+                    self.arz = self.randn(self.popsize, self.dim)
+            self.iterations += 1
+            self.updateCMA()
+            self.arz = None
+            self.arx = []
+            self.fitness = []
+        return self.stop                
+           
     def newArgs(self):
         self.xmean = self.fitfun.closestFeasible(self.xmean)
         self.fitness = np.full(self.popsize, math.inf)
@@ -273,7 +328,34 @@ class Cmaes(object):
         self.arz = self.randn(self.popsize, self.dim)    
         delta = (self.BD @ self.arz.transpose()) * self.sigma
         self.arx = self.fitfun.closestFeasible(self.xmean + delta.transpose())  
-          
+    
+    def do_optimize_delayed_update(self, fun, workers=mp.cpu_count()):
+        evaluator = Evaluator(fun)
+        evaluator.start(workers)
+        evals_x = {}
+        self.evals = 0;
+        for _ in range(workers): # fill queue
+            x = self.ask_one()
+            evaluator.pipe[0].send((self.evals, x))
+            evals_x[self.evals] = x # store x
+            self.evals += 1
+            
+        while True: # read from pipe, tell es and create new x
+            evals, y = evaluator.pipe[0].recv()
+            
+            x = evals_x[evals] # retrieve evaluated x
+            del evals_x[evals]
+            stop = self.tell_one(y, x) # tell evaluated x
+            if stop != 0 or self.evals >= self.max_evaluations:
+                break # shutdown worker if stop criteria met
+            
+            x = self.ask_one() # create new x
+            evaluator.pipe[0].send((self.evals, x))       
+            evals_x[self.evals] = x  # store x
+            self.evals += 1            
+        evaluator.stop()
+        return self.best_x, self.best_value, evals, self.iterations, self.stop 
+         
     def doOptimize(self):
         # -------------------- Generation Loop --------------------------------
         while True:

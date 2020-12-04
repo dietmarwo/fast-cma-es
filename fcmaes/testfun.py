@@ -26,6 +26,7 @@ class Wrapper(object):
             if y < self.best_y.value:
                 self.best_y.value = y
                 self.best_x[:] = x[:]
+                #print(str(self.count.value) + " " + str(y) + " " + str(x))
             self.count.value += 1
         return y
     

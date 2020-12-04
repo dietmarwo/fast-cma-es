@@ -226,7 +226,7 @@ best = fmin(fn = obj_fmin, space = xgb_space, algo = tpe.suggest,
                 max_evals = 20000, verbose=False)
 ----
 
-=== Fcmaes Optimization Algorithms
+=== fcmaes Optimization Algorithms
 
 For standard real value optimization algorithms we define real `bounds`.
 Note that since we have `max_depth=int(X[4])`, the real valued
@@ -235,12 +235,16 @@ real value boundaries the upper bound should be `6` so that max_depth=5 has
 a corresponding real value interval of size 1.0. When cmaescpp.minimize uses multiple parallel
 workers, we have to disable parallelism in XGBRegressor (set n_jobs=1).
 
+This tutorial is continued in  
+https://github.com/dietmarwo/fast-cma-es/blob/master/DelayedUpdate.adoc[delayed update tutorial]
+where we focus on algorithms supporting delayed optimization state update.
+
 [source,python]
 ----
 # fcmaes optimization methods
 
 from scipy.optimize import Bounds
-from fcmaes import decpp, cmaescpp, bitecpp
+from fcmaes import decpp, cmaescpp, bitecpp, de
 
 bounds = Bounds([0.4, 0, 1.5, 0.07, 3, 1e-5, 1e-5, 0.6], [0.8, 0.3, 10, 0.1, 6, 0.75, 0.45, 0.95])
 
@@ -250,8 +254,14 @@ def obj_f(X):
 ret = bitecpp.minimize(obj_f, bounds, max_evaluations = 20000)
 
 # for cmaescpp with multiple workers set n_jobs=1 in XGBRegressor
+
 #ret = cmaescpp.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, workers=16)
 #ret = cmaescpp.minimize(obj_f, bounds, popsize=32, max_evaluations = 20000, workers=32)
+#ret = decpp.minimize(obj_f, 8, bounds, popsize=16, max_evaluations = 20000)
 
-#ret = decpp.minimize(obj_f, 8, bounds, popsize=17, max_evaluations = 20000)
+# delayed state update
+#ret = cmaes.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, 
+#   					workers=32, delayed_update=True)
+
+#ret = de.minimize(obj_f, bounds, popsize = 16, max_evaluations = 20000, workers=32)
 ----

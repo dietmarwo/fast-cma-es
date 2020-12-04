@@ -29,7 +29,7 @@ def eval_parallel(xs, evaluator):
         i0 += pipe_limit
         i1 = min(popsize, i1 + pipe_limit)
     return ys
-
+        
 class Evaluator(object):
        
     def __init__(self, 

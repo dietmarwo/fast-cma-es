@@ -99,7 +99,7 @@ def _retry_loop(pid, rgs, store, prob, algo, num_retries, value_limit, popsize, 
         y = pop.champion_f
         evals = pop.problem.get_fevals()
          
-        feasible = prob.feasibility_x(pop.champion_x)
-        if feasible:
+        _feasible = prob.feasibility_x(pop.champion_x)
+        if _feasible:
             store.add_result(y[0], sol, evals, value_limit)
             store.dump()

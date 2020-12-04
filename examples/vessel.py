@@ -14,7 +14,7 @@
 # x1 and x2 are integer multiples of 0.0625 inch, witch are
 # the available thickness of rolled steel plates, 
 # and x3 and x4 are continuous.
-# x1 and x2 are made discrete by calling 'feasible(x)' in the objective function 'feasable_cost_penalty()
+# x1 and x2 are made discrete by calling '_feasible(x)' in the objective function 'feasable_cost_penalty()
 # This works well with derivative free optimizers, but never do this with scipy.minimize. 
 # Try 'test_minimize_SLSQP' to see why. But this can be fixed by using 'cost_int_penalty' as
 # objective function which adds a penalty for the "multiples of 0.0625" violation. 
@@ -39,7 +39,7 @@ def discrete(x):
         feasible_x += fac
     return feasible_x
 
-def feasible(x):
+def _feasible(x):
     x = np.array(x)
     x[0] = discrete(x[0])
     x[1] = discrete(x[1])
@@ -58,7 +58,7 @@ def penalty(x):
     return -np.sum(np.minimum(constraint_ineq(x), 0))
 
 def feasable_cost(x): 
-    x = feasible(x)   
+    x = _feasible(x)   
     return weight(x)
 
 def feasable_cost_penalty(x): 
@@ -79,7 +79,7 @@ def cost_int_penalty(x):
 
 def print_result(ret, best, t0, i):
     val = feasable_cost_penalty(ret.x) 
-    x = feasible(ret.x) # make sure result is feasible
+    x = _feasible(ret.x) # make sure result is _feasible
     if val < best:
         best = val
         print("{0}: time = {1:.1f} best = {2:.8f} f(xmin) = {3:.5f} ineq = {4:.8f} x = {5:s}"

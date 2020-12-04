@@ -23,13 +23,14 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraint
 https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/ODE.adoc[ODE], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/HyperparameterOptimization.adoc[Hyper Parameters] .
+https://github.com/dietmarwo/fast-cma-es/blob/master/DelayedUpdate.adoc[Delayed Update]
 
 === Features
 
 - fcmaes is focused on optimization problems hard to solve.
 - Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
 - Parallel coordinated retry of sequences and random choices of optimization algorithms. See https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions].
-- Parallel objective function evaluation. 
+- Parallel objective function evaluation for CMA-ES and Differential Evolution. 
 - New DE (differential evolution) variant optimized for usage with parallel coordinated retry and the DE->CMA sequence.
 - GCL-DE (differential evolution) variant from Mingcheng Zuo.
 - Fast C++ implementations of CMA-ES, differential evolution, dual annealing and the Harris hawks algorithm.
