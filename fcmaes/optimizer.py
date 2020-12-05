@@ -11,7 +11,7 @@ import time
 import math
 import logging
 
-from fcmaes import cmaes, cmaescpp, decpp, dacpp, hhcpp, gcldecpp, lcldecpp, ldecpp, csmacpp, bitecpp
+from fcmaes import cmaes, de, cmaescpp, decpp, dacpp, hhcpp, gcldecpp, lcldecpp, ldecpp, csmacpp, bitecpp
 
 _logger = None
 
@@ -283,6 +283,26 @@ class De_cpp(Optimizer):
                 rg=rg, runid = self.get_count_runs(store))
         return ret.x, ret.fun, ret.nfev
 
+class De_python(Optimizer):
+    """Differential Evolution Python implementation."""
+    
+    def __init__(self, max_evaluations=50000,
+                 popsize = None, stop_fittness = None, 
+                 keep = 200, f = 0.5, cr = 0.9):        
+        Optimizer.__init__(self, max_evaluations, 'de cpp')
+        self.popsize = popsize
+        self.stop_fittness = stop_fittness
+        self.keep = keep
+        self.f = f
+        self.cr = cr
+
+    def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
+        ret = de.minimize(fun, bounds, self.popsize, self.max_eval_num(store), workers=None,
+                stop_fittness = self.stop_fittness,
+                keep = self.keep, f = self.f, cr = self.cr,
+                rg=rg)
+        return ret.x, ret.fun, ret.nfev
+
 class LDe_cpp(Optimizer):
     """Local Differential Evolution C++ implementation."""
     
@@ -395,7 +415,7 @@ class Csma_cpp(Optimizer):
     """SCMA C++ implementation."""
    
     def __init__(self, max_evaluations=50000,
-                 popsize = 31, guess=None, stop_fittness = None, workers = None):        
+                 popsize = None, guess=None, stop_fittness = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'scma cpp')
         self.popsize = popsize
         self.stop_fittness = stop_fittness
@@ -405,10 +425,8 @@ class Csma_cpp(Optimizer):
     def minimize(self, fun, bounds, guess=None, sdevs=0.16, rg=Generator(MT19937()), 
                  store=None, workers = None):
         ret = csmacpp.minimize(fun, bounds, 
-                self.guess if guess is None else guess,
-                input_sigma=sdevs, 
+                None,
                 max_evaluations = self.max_eval_num(store), 
-                popsize=self.popsize, 
                 stop_fittness = self.stop_fittness,
                 rg=rg, runid = self.get_count_runs(store))     
         return ret.x, ret.fun, ret.nfev

@@ -32,18 +32,18 @@ import multiprocessing as mp
 from collections import deque
 
 def minimize(fun, 
-             bounds=None, 
+             bounds = None, 
              popsize = None, 
              max_evaluations = 100000, 
-             workers = mp.cpu_count(),
+             workers = None,
              stop_fittness = -math.inf, 
              keep = 200, 
-             F = 0.5, 
-             Cr = 0.9, 
+             f = 0.5, 
+             cr = 0.9, 
              rg = Generator(MT19937())):    
 
     de = DE(fun, bounds, popsize, max_evaluations, stop_fittness, 
-            keep, F, Cr, rg)
+            keep, f, cr, rg)
     if workers and workers > 1:
         x, val, evals, iterations, stop = de.do_optimize_delayed_update(workers)
     else:      
@@ -60,7 +60,7 @@ class DE(object):
         self.bounds = bounds
         self.lower = np.asarray(bounds.lb)      
         self.upper = np.asarray(bounds.ub)      
-        self.popsize = popsize  
+        self.popsize = 31 if popsize is None else popsize
         self.stop_fittness = stop_fittness
         self.max_evals = max_evals    
         self.keep = keep 
@@ -243,7 +243,7 @@ class DE(object):
         return self._feasible(self.best_x + ((ui - xi) * 0.5))
 
 
-from fcmaes import decpp, cmaes, cmaescpp
+from fcmaes import decpp, cmaes, cmaescpp, bitecpp, csmacpp
               
 def test_rosen():
     popsize = 16
@@ -253,15 +253,15 @@ def test_rosen():
     sdevs = [0.3]*dim
     
     wrapper = Wrapper(testfun.fun, dim)
-    ret = minimize(wrapper.eval, testfun.bounds, popsize, 3000, workers = 32)
+    ret = minimize(wrapper.eval, testfun.bounds, popsize, 40000, workers = 16)
     #ret = minimize(wrapper.eval, testfun.bounds, popsize, 40000, keep = 200, workers = None)
     #ret = cmaes.minimize(wrapper.eval, testfun.bounds, popsize = popsize, max_evaluations = 40000, workers = None)
     #ret = cmaes.minimize(wrapper.eval, testfun.bounds, popsize = popsize, max_evaluations = 40000, workers = 32, delayed_update=True)
     #ret = cmaescpp.minimize(wrapper.eval, testfun.bounds, popsize = popsize, max_evaluations = 40000, workers = None)
+    #ret = bitecpp.minimize(wrapper.eval, testfun.bounds, popsize = popsize, max_evaluations = 40000)
+    #ret = csmacpp.minimize(wrapper.eval, testfun.bounds, max_evaluations = 40000)
 
-    #ret = de.opt_loop()
-    
-    #ret = decpp.minimize(wrapper.eval, dim, testfun.bounds, popsize, 40000, keep=10000)
+    #ret = decpp.minimize(wrapper.eval, dim, testfun.bounds, popsize, 40000, keep=200)
     
  #  print(str(ret.nfev) + " " + str(ret.fun) + " " + str(ret.x))
     print(str(wrapper.get_count()) + " " + str(wrapper.get_best_y()) + " " + str(wrapper.get_best_x()))

@@ -122,7 +122,7 @@ f_evals = mp.RawValue(ct.c_int, 0)
 t0 = time.perf_counter()
 
 from fcmaes.optimizer import logger
-logger = logger("de16.32n.log")
+logger = logger("house.log")
 
 # Optimization objective 
 
@@ -181,10 +181,6 @@ if hyperopt:
 def obj_f(X):
     return -cv_score([X])
 
-# grid search result
-# bestX = [0.4, 0, 1.5, 0.07, 3, 0.75, 0.45, 0.6]
-# print (obj_f(bestX)) # 0.01289
-
 # Bayesian optimization
 
 if bayesian:
@@ -217,45 +213,26 @@ if bayesian:
 if evolutionary:
 
     from scipy.optimize import Bounds
-    from fcmaes import decpp, cmaescpp, bitecpp, multicma
+    from fcmaes import decpp, cmaescpp, bitecpp, de, cmaes
     from fcmaes import cmaes 
     from fcmaes import de
     
     bounds = Bounds([0.4, 0, 1.5, 0.07, 3, 1e-5, 1e-5, 0.6], [0.8, 0.3, 10, 0.1, 5.99, 0.75, 0.45, 0.95])
  
-# fcmaes optimization methods
+    #ret = bitecpp.minimize(obj_f, bounds, max_evaluations = 20000)
+    
+    # for cmaescpp, cmae and de with multiple workers set n_jobs=1 in XGBRegressor
+    
+    #ret = cmaescpp.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, workers=16)
+    #ret = cmaescpp.minimize(obj_f, bounds, popsize=32, max_evaluations = 20000, workers=32)
+    #ret = decpp.minimize(obj_f, 8, bounds, popsize=16, max_evaluations = 20000)
+    
+    # delayed state update
+    ret = cmaes.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, 
+                          workers=32, delayed_update=True)
+    
+    #ret = de.minimize(obj_f, bounds, popsize = 16, max_evaluations = 20000, workers=32)
 
-from scipy.optimize import Bounds
-from fcmaes import decpp, cmaescpp, bitecpp, de
 
-bounds = Bounds([0.4, 0, 1.5, 0.07, 3, 1e-5, 1e-5, 0.6], [0.8, 0.3, 10, 0.1, 6, 0.75, 0.45, 0.95])
-
-def obj_f(X):
-    return -cv_score([X])
-
-ret = bitecpp.minimize(obj_f, bounds, max_evaluations = 20000)
-# fcmaes optimization methods
-
-from scipy.optimize import Bounds
-from fcmaes import decpp, cmaescpp, bitecpp, de
-
-bounds = Bounds([0.4, 0, 1.5, 0.07, 3, 1e-5, 1e-5, 0.6], [0.8, 0.3, 10, 0.1, 6, 0.75, 0.45, 0.95])
-
-def obj_f(X):
-    return -cv_score([X])
-
-#ret = bitecpp.minimize(obj_f, bounds, max_evaluations = 20000)
-
-# for cmaescpp with multiple workers set n_jobs=1 in XGBRegressor
-
-#ret = cmaescpp.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, workers=16)
-#ret = cmaescpp.minimize(obj_f, bounds, popsize=32, max_evaluations = 20000, workers=32)
-#ret = decpp.minimize(obj_f, 8, bounds, popsize=16, max_evaluations = 20000)
-
-# delayed state update
-ret = cmaes.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, 
-                       workers=32, delayed_update=True)
-
-#ret = de.minimize(obj_f, bounds, popsize = 16, max_evaluations = 20000, workers=32)
     
 
