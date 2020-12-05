@@ -242,33 +242,3 @@ class DE(object):
     def _next_improve(self, ui, xi):
         return self._feasible(self.best_x + ((ui - xi) * 0.5))
 
-
-from fcmaes import decpp, cmaes, cmaescpp, bitecpp, csmacpp
-              
-def test_rosen():
-    popsize = 16
-    dim = 5
-    testfun = Rastrigin(dim)
-    #testfun = Rosen(dim)
-    sdevs = [0.3]*dim
-    
-    wrapper = Wrapper(testfun.fun, dim)
-    ret = minimize(wrapper.eval, testfun.bounds, popsize, 40000, workers = 16)
-    #ret = minimize(wrapper.eval, testfun.bounds, popsize, 40000, keep = 200, workers = None)
-    #ret = cmaes.minimize(wrapper.eval, testfun.bounds, popsize = popsize, max_evaluations = 40000, workers = None)
-    #ret = cmaes.minimize(wrapper.eval, testfun.bounds, popsize = popsize, max_evaluations = 40000, workers = 32, delayed_update=True)
-    #ret = cmaescpp.minimize(wrapper.eval, testfun.bounds, popsize = popsize, max_evaluations = 40000, workers = None)
-    #ret = bitecpp.minimize(wrapper.eval, testfun.bounds, popsize = popsize, max_evaluations = 40000)
-    #ret = csmacpp.minimize(wrapper.eval, testfun.bounds, max_evaluations = 40000)
-
-    #ret = decpp.minimize(wrapper.eval, dim, testfun.bounds, popsize, 40000, keep=200)
-    
- #  print(str(ret.nfev) + " " + str(ret.fun) + " " + str(ret.x))
-    print(str(wrapper.get_count()) + " " + str(wrapper.get_best_y()) + " " + str(wrapper.get_best_x()))
-
-def main():       
-    test_rosen()
-
-if __name__ == '__main__':
-    main()
-    pass
