@@ -160,6 +160,13 @@ def cv_score(X):
     return score
 ----
 
+===== Remark
+The idea using `mp.RawValue` to share state between processes works only when sub-processes are forked
+as it is the default on Linux. Windows only supports spawning new processes, so there will be
+separate instances of `best_f` and `f_evals` if multiple workers are configured with `fcmaes.cmaes` or
+`fcmaes.de`. On Python 3.8 https://docs.python.org/3/library/multiprocessing.shared_memory.html[shared memory]
+could be used instead, but we don't want to require Python 3.8 yet. 
+
 The mean squared error of the parameters obtained by grid search 
 `[0.4, 0, 1.5, 0.07, 3, 0.75, 0.45, 0.6]` is `0.01289`. Lets see if we can improve that
 using 
@@ -265,3 +272,4 @@ ret = bitecpp.minimize(obj_f, bounds, max_evaluations = 20000)
 
 #ret = de.minimize(obj_f, bounds, popsize = 16, max_evaluations = 20000, workers=32)
 ----
+

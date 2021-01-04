@@ -210,7 +210,8 @@ if bayesian:
 
 # standard evolutionary algorithms
 
-if evolutionary:
+if evolutionary and __name__ == '__main__':
+    mp.freeze_support()
 
     from scipy.optimize import Bounds
     from fcmaes import decpp, cmaescpp, bitecpp, de, cmaes
