@@ -41,7 +41,9 @@ def minimize(fun,
              f = 0.5, 
              cr = 0.9, 
              rg = Generator(MT19937())):    
-
+    
+    if popsize is None and not bounds is None:
+        popsize = len(bounds.lb)*15
     de = DE(fun, bounds, popsize, max_evaluations, stop_fittness, 
             keep, f, cr, rg)
     if workers and workers > 1:

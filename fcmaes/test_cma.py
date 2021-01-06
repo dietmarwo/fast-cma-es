@@ -28,7 +28,7 @@ def test_rastrigin_python():
             break
     
     assert(limit > ret.fun) # optimization target not reached
-    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval + popsize >= ret.nfev) # too much function calls
     assert(max_eval / popsize + 2 > ret.nit) # too much iterations
     assert(ret.status == 4) # wrong cma termination code
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
@@ -51,7 +51,7 @@ def test_rosen_python():
             break
     
     assert(limit > ret.fun) # optimization target not reached
-    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval + popsize >= ret.nfev) # too much function calls
     assert(max_eval / popsize + 2 > ret.nit) # too much iterations
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
@@ -81,7 +81,7 @@ def test_rosen_ask_tell():
         if limit > ret.fun:
             break
     assert(limit > ret.fun) # optimization target not reached
-    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval + popsize >= ret.nfev) # too much function calls
     assert(max_eval / popsize + 2 > ret.nit) # too much iterations
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
@@ -102,7 +102,7 @@ def test_rosen_cpp():
             break
 
     assert(limit > ret.fun) # optimization target not reached
-    assert(max_eval + popsize > ret.nfev) # too much function calls 
+    assert(max_eval + popsize >= ret.nfev) # too much function calls 
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
@@ -124,7 +124,7 @@ def test_rosen_parallel():
             break
        
     assert(limit > ret.fun) # optimization target not reached
-    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval + popsize >= ret.nfev) # too much function calls
     assert(max_eval // popsize + 2 > ret.nit) # too much iterations
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
@@ -147,7 +147,7 @@ def test_rosen_delayed():
             break
        
     assert(limit > ret.fun) # optimization target not reached
-    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval + popsize >= ret.nfev) # too much function calls
     assert(max_eval // popsize + 2 > ret.nit) # too much iterations
     #assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
@@ -170,7 +170,7 @@ def test_rosen_cpp_parallel():
             break
        
     assert(limit > ret.fun) # optimization target not reached
-    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval + popsize >= ret.nfev) # too much function calls
     assert(max_eval // popsize + 2 > ret.nit) # too much iterations
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
@@ -191,7 +191,7 @@ def test_rosen_gclde_parallel():
             break
        
     assert(limit > ret.fun) # optimization target not reached
-    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval + popsize >= ret.nfev) # too much function calls
     assert(max_eval // popsize + 2 > ret.nit) # too much iterations
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
@@ -212,7 +212,7 @@ def test_rosen_de():
             break
        
     assert(limit > ret.fun) # optimization target not reached
-    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval + popsize >= ret.nfev) # too much function calls
     assert(max_eval // popsize + 2 > ret.nit) # too much iterations
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
@@ -233,7 +233,7 @@ def test_rosen_de_delayed():
             break
        
     assert(limit > ret.fun) # optimization target not reached
-    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval + popsize >= ret.nfev) # too much function calls
     assert(max_eval // popsize + 2 > ret.nit) # too much iterations
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
@@ -256,7 +256,7 @@ def test_eggholder_python():
             break
    
     assert(limit > ret.fun) # optimization target not reached
-    assert(max_eval + popsize > ret.nfev) # too much function calls
+    assert(max_eval + popsize >= ret.nfev) # too much function calls
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned

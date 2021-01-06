@@ -113,7 +113,7 @@ class Choice(Optimizer):
         opt = self.optimizers[choice]
         return opt.minimize(fun, bounds, guess, sdevs, rg, store)
 
-def de_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
+def de_cma(max_evaluations = 50000, popsize=31, stop_fittness = -math.inf, 
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES."""
 
@@ -121,12 +121,25 @@ def de_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf,
         de_max_evals = int(0.5*max_evaluations)
     if cma_max_evals is None:
         cma_max_evals = int(0.5*max_evaluations)
-    opt1 = De_cpp(max_evaluations = de_max_evals, stop_fittness = stop_fittness)
+    opt1 = De_cpp(popsize=popsize, max_evaluations = de_max_evals, stop_fittness = stop_fittness)
     opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
                    stop_fittness = stop_fittness)
     return Sequence([opt1, opt2])
 
-def de2_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
+def de_cma_py(max_evaluations = 50000, popsize=31, stop_fittness = -math.inf, 
+           de_max_evals = None, cma_max_evals = None):
+    """Sequence differential evolution -> CMA-ES in python."""
+
+    if de_max_evals is None:
+        de_max_evals = int(0.5*max_evaluations)
+    if cma_max_evals is None:
+        cma_max_evals = int(0.5*max_evaluations)
+    opt1 = De_python(popsize=popsize, max_evaluations = de_max_evals, stop_fittness = stop_fittness)
+    opt2 = Cma_python(popsize=popsize, max_evaluations = cma_max_evals, 
+                   stop_fittness = stop_fittness)
+    return Sequence([opt1, opt2])
+
+def de2_cma(max_evaluations = 50000, popsize=31, stop_fittness = -math.inf, 
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES."""
 
@@ -138,7 +151,7 @@ def de2_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf,
     opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fittness = stop_fittness)
     return Sequence([opt1, opt2])
 
-def de3_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
+def de3_cma(max_evaluations = 50000, popsize=31, stop_fittness = -math.inf, 
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES."""
 
@@ -150,7 +163,7 @@ def de3_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf,
     opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fittness = stop_fittness)
     return Sequence([opt1, opt2])
 
-def gclde_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf, 
+def gclde_cma(max_evaluations = 50000, popsize=31, stop_fittness = -math.inf, 
            de_max_evals = None, cma_max_evals = None, workers = None):
     """Sequence G-CL-differential evolution -> CMA-ES."""
 
@@ -164,7 +177,7 @@ def gclde_cma(max_evaluations = 50000, popsize=31, stop_fittness = math.inf,
     return Sequence([opt1, opt2])
 
 def da_cma(max_evaluations = 50000, da_max_evals = None, cma_max_evals = None,
-           popsize=31, stop_fittness = math.inf):
+           popsize=31, stop_fittness = -math.inf):
     """Sequence differential evolution -> CMA-ES."""
 
     if da_max_evals is None:
@@ -289,7 +302,7 @@ class De_python(Optimizer):
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fittness = None, 
                  keep = 200, f = 0.5, cr = 0.9):        
-        Optimizer.__init__(self, max_evaluations, 'de cpp')
+        Optimizer.__init__(self, max_evaluations, 'de py')
         self.popsize = popsize
         self.stop_fittness = stop_fittness
         self.keep = keep
