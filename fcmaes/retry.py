@@ -15,7 +15,7 @@ from scipy.optimize._constraints import new_bounds_to_old
 from scipy.optimize import OptimizeResult, Bounds
 import multiprocessing as mp
 from multiprocessing import Process
-from fcmaes.optimizer import de2_cma, dtime, logger
+from fcmaes.optimizer import de_cma, dtime, logger
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -84,7 +84,7 @@ def minimize(fun,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
     if optimizer is None:
-        optimizer = de2_cma(max_evaluations, popsize, stop_fittness)        
+        optimizer = de_cma(max_evaluations, popsize, stop_fittness)        
     store = Store(bounds, capacity = capacity, logger = logger, statistic_num = statistic_num)
     return retry(fun, store, optimizer.minimize, num_retries, value_limit, workers)
                  
