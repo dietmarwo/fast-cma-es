@@ -222,17 +222,16 @@ if evolutionary and __name__ == '__main__':
  
     #ret = bitecpp.minimize(obj_f, bounds, max_evaluations = 20000)
     
-    # for cmaescpp, cmae and de with multiple workers set n_jobs=1 in XGBRegressor
+    # for cmaescpp, cmaes and de with multiple workers set n_jobs=1 in XGBRegressor
     
-    #ret = cmaescpp.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, workers=16)
-    #ret = cmaescpp.minimize(obj_f, bounds, popsize=32, max_evaluations = 20000, workers=32)
+    #ret = cmaescpp.minimize(obj_f, bounds, popsize=32, max_evaluations = 20000, workers=mp.cpu_count())
     #ret = decpp.minimize(obj_f, 8, bounds, popsize=16, max_evaluations = 20000)
     
     # delayed state update
     ret = cmaes.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, 
-                          workers=32, delayed_update=True)
+                          workers=mp.cpu_count(), delayed_update=True)
     
-    #ret = de.minimize(obj_f, bounds, popsize = 16, max_evaluations = 20000, workers=32)
+    #ret = de.minimize(obj_f, bounds, popsize = 16, max_evaluations = 20000, workers=mp.cpu_count())
 
 
     

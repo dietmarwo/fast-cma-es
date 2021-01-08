@@ -7,7 +7,7 @@
 # Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc
 
 from fcmaes.astro import MessFull, Messenger, Cassini2, Rosetta, Gtoc1, Cassini1, Tandem, Sagas, Cassini1minlp
-from fcmaes.optimizer import logger, de_cma, de2_cma, da_cma, Cma_cpp, De_cpp, Da_cpp, Hh_cpp, Dual_annealing, Differential_evolution
+from fcmaes.optimizer import logger, de_cma, de_cma_py, de2_cma, da_cma, Cma_cpp, De_cpp, Da_cpp, Hh_cpp, Dual_annealing, Differential_evolution
 from fcmaes.advretry import minimize
 
 def messengerFullLoop():    
@@ -15,14 +15,14 @@ def messengerFullLoop():
         problem = MessFull()
         logger().info(problem.name + ' de + cmaes c++')
         minimize(problem.fun, bounds=problem.bounds, num_retries = 60000, 
-            value_limit = 10.0, logger = logger())
+            value_limit = 10.0, logger = logger(), optimizer=de_cma(1500))
         
 problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), MessFull(), Sagas(), Cassini1minlp()]
 
 min_evals = 1500
 
-algos = [ de2_cma(min_evals), de_cma(min_evals), da_cma(min_evals), Cma_cpp(min_evals), De_cpp(min_evals), Hh_cpp(min_evals),
-         Da_cpp(min_evals), Dual_annealing(min_evals), Differential_evolution(min_evals)]
+algos = [ de_cma(min_evals), de2_cma(min_evals), da_cma(min_evals), Cma_cpp(min_evals), De_cpp(min_evals), Hh_cpp(min_evals),
+         Da_cpp(min_evals), Dual_annealing(min_evals), Differential_evolution(min_evals), de_cma_py(min_evals)]
                
 def test_all(num_retries = 10000, num = 10):
     for problem in problems:
