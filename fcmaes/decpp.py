@@ -85,7 +85,7 @@ def minimize(fun,
     upper = np.asarray(bounds.ub)
     n = dim  
     if popsize is None:
-        popsize = n*15
+        popsize = 31
     if lower is None:
         lower = [0]*n
         upper = [0]*n

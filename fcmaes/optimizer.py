@@ -316,6 +316,57 @@ class De_python(Optimizer):
                 rg=rg)
         return ret.x, ret.fun, ret.nfev
 
+class Cma_ask_tell(Optimizer):
+    """CMA ask tell implementation."""
+    
+    def __init__(self, max_evaluations=50000,
+                 popsize = 31, guess=None, stop_fittness = None):        
+        Optimizer.__init__(self, max_evaluations, 'cma at')
+        self.popsize = popsize
+        self.stop_fittness = stop_fittness
+        self.guess = guess
+
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
+        es = cmaes.Cmaes(bounds,
+                popsize = self.popsize, input_sigma = sdevs, rg = rg)       
+        iters = self.max_eval_num(store) // self.popsize
+        evals = 0
+        for j in range(iters):
+            xs = es.ask()
+            ys = [fun(x) for x in xs]
+            evals += len(xs)
+            stop = es.tell(ys)
+            if stop != 0:
+                break 
+        return es.best_x, es.best_value, evals
+
+class De_ask_tell(Optimizer):
+    """Differential Evolution ask tell implementation."""
+    
+    def __init__(self, max_evaluations=50000,
+                 popsize = None, stop_fittness = None, 
+                 keep = 400, f = 0.5, cr = 0.9):        
+        Optimizer.__init__(self, max_evaluations, 'de at')
+        self.popsize = popsize
+        self.stop_fittness = stop_fittness
+        self.keep = keep
+        self.f = f
+        self.cr = cr
+
+    def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
+        dim = len(bounds.lb)
+        popsize = 31 if self.popsize is None else self.popsize
+        es = de.DE(bounds, popsize = popsize, rg = rg)  
+        es.fun = fun  #remove
+        max_evals = self.max_eval_num(store)
+        while es.evals < max_evals:
+            xs = es.ask()
+            ys = [fun(x) for x in xs]
+            stop = es.tell(ys, xs)
+            if stop != 0:
+                break 
+        return es.best_x, es.best_value, es.evals
+
 class LDe_cpp(Optimizer):
     """Local Differential Evolution C++ implementation."""
     
@@ -438,7 +489,7 @@ class Csma_cpp(Optimizer):
     def minimize(self, fun, bounds, guess=None, sdevs=0.16, rg=Generator(MT19937()), 
                  store=None, workers = None):
         ret = csmacpp.minimize(fun, bounds, 
-                None,
+                self.guess if guess is None else guess,
                 max_evaluations = self.max_eval_num(store), 
                 stop_fittness = self.stop_fittness,
                 rg=rg, runid = self.get_count_runs(store))     

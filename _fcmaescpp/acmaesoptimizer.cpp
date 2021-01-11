@@ -88,10 +88,11 @@ class Fitness {
 public:
 
 	Fitness(callback_parallel func_par_, const vec &lower_limit,
-			const vec &upper_limit) {
+			const vec &upper_limit, bool normalize_) {
 		func_par = func_par_;
 		lower = lower_limit;
 		upper = upper_limit;
+        normalize = normalize_ && lower.size() > 0;
 		evaluationCounter = 0;
 		if (lower.size() > 0) { // bounds defined
 			scale = 0.5 * (upper - lower);
@@ -101,7 +102,10 @@ public:
 
 	vec getClosestFeasible(const vec &X) const {
 		if (lower.size() > 0) {
-			return X.cwiseMin(1.0).cwiseMax(-1.0);
+		    if (normalize)
+			    return X.cwiseMin(1.0).cwiseMax(-1.0);
+            else
+                return X.cwiseMin(upper).cwiseMax(lower);
 		}
 		return X;
 	}
@@ -122,37 +126,15 @@ public:
 		evaluationCounter += popsize;
 	}
 
-//	void values(const mat &popX, int popsize, vec &ys) {
-//		for (int p = 0; p < popsize; p++)
-//			ys[p] = value(popX.col(p));
-//	}
-
-//	double eval(const vec &X) {
-//		int n = X.size();
-//		double parg[n];
-//		for (int i = 0; i < n; i++)
-//			parg[i] = X(i);
-//		double res = func(n, parg);
-//		evaluationCounter++;
-//		return res;
-//	}
-
-//	double value(const vec &X) {
-//		if (lower.size() > 0)
-//			return eval(decode(getClosestFeasible(X)));
-//		else
-//			return eval(X);
-//	}
-
 	vec encode(const vec &X) const {
-		if (lower.size() > 0)
+		if (normalize)
 			return (X - typx).array() / scale.array();
 		else
 			return X;
 	}
 
 	vec decode(const vec &X) const {
-		if (lower.size() > 0)
+		if (normalize)
 			return (X.array() * scale.array()).matrix() + typx;
 		else
 			return X;
@@ -169,6 +151,7 @@ private:
 	long evaluationCounter;
 	vec scale;
 	vec typx;
+    bool normalize;
 };
 
 class AcmaesOptimizer {
@@ -569,7 +552,7 @@ extern "C" {
 double* optimizeACMA_C(long runid, callback_parallel func_par, int dim, double *init,
 		double *lower, double *upper, double *sigma, int maxIter, int maxEvals,
 		double stopfitness, int mu, int popsize, double accuracy,
-		bool useTerminate, is_terminate_type isTerminate, long seed, bool isParallel) {
+		bool useTerminate, is_terminate_type isTerminate, long seed, bool isParallel, bool normalize) {
 	int n = dim;
 	double *res = new double[n + 4];
 	vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
@@ -586,7 +569,7 @@ double* optimizeACMA_C(long runid, callback_parallel func_par, int dim, double *
 		lower_limit.resize(0);
 		upper_limit.resize(0);
 	}
-	Fitness fitfun(func_par, lower_limit, upper_limit);
+	Fitness fitfun(func_par, lower_limit, upper_limit, normalize);
 	AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, inputSigma, maxIter,
 			maxEvals, accuracy, stopfitness, useTerminate ? isTerminate : NULL,
 			seed);

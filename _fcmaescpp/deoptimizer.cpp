@@ -58,28 +58,6 @@ static int index_min(vec &v) {
 	return mi;
 }
 
-struct IndexVal {
-	int index;
-	double val;
-};
-
-static bool compareIndexVal(IndexVal i1, IndexVal i2) {
-	return (i1.val < i2.val);
-}
-
-static ivec sort_index(const vec &x) {
-	int size = x.size();
-	IndexVal ivals[size];
-	for (int i = 0; i < size; i++) {
-		ivals[i].index = i;
-		ivals[i].val = x[i];
-	}
-	std::sort(ivals, ivals + size, compareIndexVal);
-	return Eigen::MatrixXi::NullaryExpr(size, 1, [&ivals](int i) {
-		return ivals[i].index;
-	});
-}
-
 // wrapper around the fitness function, scales according to boundaries
 
 class Fitness {
@@ -220,32 +198,33 @@ public:
 				} while (r2 == p || r2 == bestI || r2 == r1);
 
 				int jr = rndInt(dim);
-				vec ui = vec(xi);
+				vec x = vec(xi);
 
 				for (int j = 0; j < dim; j++) {
 					if (j == jr || rnd01() < CRu) {
-						ui[j] = xb[j] + Fu * (popX(j, r1) - popX(j, r2));
-					} if (!fitfun->feasible(j, ui[j]))
-						ui[j] = fitfun->uniformXi(j, *rs);
+						x[j] = xb[j] + Fu * (popX(j, r1) - popX(j, r2));
+                        if (!fitfun->feasible(j, x[j]))
+						    x[j] = fitfun->uniformXi(j, *rs);
+                    }
 				}
-				double eu = fitfun->eval(ui);
-				if (isfinite(eu) && eu < popY[p]) {
+				double y = fitfun->eval(x);
+				if (isfinite(y) && y < popY[p]) {
 					// temporal locality
-					vec uis = fitfun->getClosestFeasible(
-							xb + ((ui - xi) * 0.5));
-					double eus = fitfun->eval(uis);
-					if (isfinite(eus) && eus < eu) {
-						eu = eus;
-						ui = uis;
+					vec x2 = fitfun->getClosestFeasible(
+							xb + ((x - xi) * 0.5));
+					double y2 = fitfun->eval(x2);
+					if (isfinite(y2) && y2 < y) {
+						y = y2;
+						x = x2;
 					}
-					popX.col(p) = ui;
-					popY(p) = eu;
+					popX.col(p) = x;
+					popY(p) = y;
 					popIter[p] = iterations;
-					if (eu < popY[bestI]) {
+					if (y < popY[bestI]) {
 						bestI = p;
-						if (eu < bestY) {
-							bestY = eu;
-							bestX = ui;
+						if (y < bestY) {
+							bestY = y;
+							bestX = x;
 							if (isfinite(stopfitness) && bestY < stopfitness) {
 								stop = 1;
 								return;
@@ -268,9 +247,9 @@ public:
 		popY = vec(popsize);
 		for (int p = 0; p < popsize; p++) {
 			popX.col(p) = fitfun->uniformX(*rs);
-			popY[p] = fitfun->eval(popX.col(p)); // compute fitness
+			popY[p] = DBL_MAX; // compute fitness
 		}
-		bestI = index_min(popY);
+		bestI = 0;
 		bestX = popX.col(bestI);
 		popIter = zeros(popsize);
 	}

@@ -31,7 +31,8 @@ def minimize(fun,
              is_terminate = None, 
              rg = Generator(MT19937()),
              runid=0,
-             workers = None):   
+             workers = None, 
+             normalize = True):   
     """Minimization of a scalar function of one or more variables using a 
     C++ CMA-ES implementation called via ctypes.
      
@@ -73,6 +74,8 @@ def minimize(fun,
     workers : int or None, optional
         If not workers is None, function evaluation is performed in parallel for the whole population. 
         Useful for costly objective functions but is deactivated for parallel retry.      
+    normalize : boolean, optional
+        pheno -> if true geno transformation maps arguments to interval [-1,1] 
            
     Returns
     -------
@@ -107,7 +110,8 @@ def minimize(fun,
     try:
         res = optimizeACMA_C(runid, c_callback_par, n, array_type(*guess), array_type(*lower), array_type(*upper), 
                            array_type(*input_sigma), max_iterations, max_evaluations, stop_fittness, mu, 
-                           popsize, accuracy, use_terminate, c_is_terminate, int(rg.uniform(0, 2**32 - 1)))
+                           popsize, accuracy, use_terminate, c_is_terminate, 
+                           int(rg.uniform(0, 2**32 - 1)), normalize)
 
         x = np.array(np.fromiter(res, dtype=np.float64, count=n))
         val = res[n]
@@ -185,7 +189,7 @@ optimizeACMA_C = libcmalib.optimizeACMA_C
 optimizeACMA_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.POINTER(ct.c_double), ct.c_int, ct.c_int, ct.c_double, ct.c_int, ct.c_int, \
-            ct.c_double, ct.c_bool, is_terminate_type, ct.c_long]
+            ct.c_double, ct.c_bool, is_terminate_type, ct.c_long, ct.c_bool]
 
 optimizeACMA_C.restype = ct.POINTER(ct.c_double)         
 

@@ -43,6 +43,21 @@ class Rosen(object):
     
     def __init__(self, dim):    
         _testfun.__init__(self, 'rosen', _rosen, [-5]*dim, [5]*dim)
+
+class Elli(object):
+    
+    def __init__(self, dim):    
+        _testfun.__init__(self, 'elli', _elli, [-5]*dim, [5]*dim)
+
+class Cigar(object):
+    
+    def __init__(self, dim):    
+        _testfun.__init__(self, 'cigar', _cigar, [-5]*dim, [5]*dim)
+
+class Sphere(object):
+    
+    def __init__(self, dim):    
+        _testfun.__init__(self, 'sphere', _sphere, [-5]*dim, [5]*dim)
   
 class Rastrigin(object):
     
@@ -80,6 +95,27 @@ def _rastrigin(x):
     x = np.asarray(x)
     return 10.0*dim + sum(x*x - 10.0*np.cos(2.0*math.pi*x))
 
+def _cigar(x):
+    """cigar test objective function."""
+    factor = 1E6
+    x = np.asarray(x)
+    return x[0]*x[0] + factor * sum(xi*xi for xi in x);
+
+def _sphere(x):
+    """spere test objective function."""
+    x = np.asarray(x)
+    return sum(xi*xi for xi in x);
+
+def _elli(x):
+    """elli test objective function."""
+    dim = len(x)
+    x = np.asarray(x)
+    factor = 1E6
+    f = 0
+    for i in range(dim):
+        f += factor ** (i / (dim - 1.)) * x[i] * x[i]
+    return f
+ 
 def _modify(x, delta):
     dim = len(x)
     modified = np.asarray(x) + delta * np.random.randn(dim)

@@ -19,7 +19,6 @@
     For expensive objective functions (e.g. machine learning parameter optimization) use the workers
     parameter to parallelize objective function evaluation. This causes delayed population update.
     It is usually preferrable if popsize > workers and workers = mp.cpu_count() to improve CPU utilization.  
-
 """
 
 import numpy as np
@@ -93,9 +92,9 @@ def minimize(fun,
     de = DE(bounds, popsize, stop_fittness, keep, f, cr, rg)
     try:
         if workers and workers > 1:
-            x, val, evals, iterations, stop = de.do_optimize_delayed_update(fun, max_evaluations, workers)
+            x, val, evals, iterations, stop = de._do_optimize_delayed_update(fun, max_evaluations, workers)
         else:      
-            x, val, evals, iterations, stop = de.do_optimize(fun, max_evaluations)
+            x, val, evals, iterations, stop = de._do_optimize(fun, max_evaluations)
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, 
                               success=True)
     except Exception as ex:
@@ -120,16 +119,30 @@ class DE(object):
         self.evals = 0
         self.p = 0
         self.improves = deque()
-        self.init()
+        self._init()
          
     def ask(self):
         """ask for popsize new argument vectors.
             
         Returns
         -------
-        xs : popsize sized list of dim sized argument lists."""
-
-        return [self.ask_one()[1] for _ in range(self.popsize)]
+        xs : popsize sized array of dim sized argument lists."""
+        
+        xs = [None] * self.popsize
+        for i in range(self.popsize):
+            if self.improves:
+                p, x = self.improves[0]
+                if xs[p] is None:
+                    xs[p] = x
+                    self.improves.popleft()
+                else:
+                    break
+            else:
+                break
+        for p in range(self.popsize):
+            if xs[p] is None:
+                _, _, xs[p] = self._next_x(p)      
+        return xs
  
     def tell(self, ys, xs):      
         """tell function values for the argument lists retrieved by ask().
@@ -143,9 +156,9 @@ class DE(object):
         -------
         stop : int termination criteria, if != 0 loop should stop."""
 
-        p0 = self.p
+        self.evals += len(ys)
         for p in range(len(ys)):
-            self.tell_one(ys[p], (p0 + p) % self.popsize, xs[p])
+            self.tell_one(p, ys[p], xs[p])
         return self.stop
 
     def ask_one(self):
@@ -159,16 +172,18 @@ class DE(object):
         if self.improves:
             p, x = self.improves.popleft()
         else:
-            p, x = self._next_x()
+            p = self.p
+            _, _, x = self._next_x(p)
+            self.p = (self.p + 1) % self.popsize
         return p, x
 
-    def tell_one(self, y, p, x):      
+    def tell_one(self, p, y, x):      
         """tell function value for a argument list retrieved by ask_one().
     
         Parameters
         ----------
-        y : function value
         p : int population index 
+        y : function value
         x : dim sized argument list
  
         Returns
@@ -176,7 +191,10 @@ class DE(object):
         stop : int termination criteria, if != 0 loop should stop."""
         
         if (self.y[p] > y):
-            self.improves.append((p, self._next_improve(x, self.x[p])))            
+            # temporal locality
+            if self.iterations > 1:
+                self.improves.append((p, self._next_improve(self.x[self.best_i], x, self.x0[p])))     
+            self.x0[p] = self.x[p]
             self.x[p] = x
             self.y[p] = y
             if self.y[self.best_i] > y:
@@ -187,25 +205,64 @@ class DE(object):
                     if not self.stop_fittness is None and self.stop_fittness > y:
                         self.stop = 1
             self.pop_iter[p] = self.iterations
-
         else:
             if self.rg.uniform(0, self.keep) < self.iterations - self.pop_iter[p]:
                 self.x[p] = self.rg.uniform(self.bounds.lb, self.bounds.ub)
                 self.y[p] = math.inf
         return self.stop 
 
-    def init(self):
+    def _init(self):
         self.x = np.zeros((self.popsize, self.dim))
+        self.x0 = np.zeros((self.popsize, self.dim))
         self.y = np.empty(self.popsize)
         for i in range(self.popsize):
-            self.x[i] = self.rg.uniform(self.bounds.lb, self.bounds.ub)
+            self.x[i] = self.x0[i] = self.rg.uniform(self.bounds.lb, self.bounds.ub)
             self.y[i] = math.inf
         self.best_x = self.x[0]
         self.best_value = math.inf
         self.best_i = 0
         self.pop_iter = np.zeros(self.popsize)
        
-    def do_optimize_delayed_update(self, fun, max_evals, workers=mp.cpu_count()):
+    def _do_optimize(self, fun, max_evals):
+        self.fun = fun
+        self.max_evals = max_evals    
+        self.iterations = 0
+        self.evals = 0
+        while self.evals < self.max_evals:
+            for p in range(self.popsize):
+                xb, xi, x = self._next_x(p)
+                y = self.fun(x)
+                self.evals += 1
+                if y < self.y[p]:
+                    # temporal locality
+                    if self.iterations > 1:
+                        x2 = self._next_improve(xb, x, xi)
+                        y2 = self.fun(x2)
+                        self.evals += 1
+                        if y2 < y:
+                            y = y2
+                            x = x2
+                    self.x[p] = x
+                    self.y[p] = y
+                    self.pop_iter[p] = self.iterations
+                    if y < self.y[self.best_i]:
+                        self.best_i = p;
+                        if y < self.best_value:
+                            self.best_value = y;
+                            self.best_x = x;
+                            if not self.stop_fittness is None and self.stop_fittness > y:
+                                self.stop = 1
+                else:
+                    # reinitialize individual
+                    if self.rg.uniform(0, self.keep) < self.iterations - self.pop_iter[p]:
+                        self.x[p] = self.rg.uniform(self.bounds.lb, self.bounds.ub)
+                        self.y[p] = math.inf
+                if self.evals >= self.max_evals:
+                    break
+
+        return self.best_x, self.best_value, self.evals, self.iterations, self.stop
+
+    def _do_optimize_delayed_update(self, fun, max_evals, workers=mp.cpu_count()):
         self.fun = fun
         self.max_evals = max_evals    
         evaluator = Evaluator(self.fun)
@@ -226,7 +283,7 @@ class DE(object):
             
             p, x = evals_x[evals] # retrieve evaluated x
             del evals_x[evals]
-            self.tell_one(y, p, x) # tell evaluated x
+            self.tell_one(p, y, x) # tell evaluated x
             if self.stop != 0 or self.evals >= self.max_evals:
                 break # shutdown worker if stop criteria met
             
@@ -237,78 +294,12 @@ class DE(object):
             
         evaluator.stop()
         return self.best_x, self.best_value, self.evals, self.iterations, self.stop
-
-    def do_optimize(self, fun, max_evals):
-        self.fun = fun
-        self.max_evals = max_evals    
-        self.iterations = 0
-        self.evals = 0
-        while self.evals < self.max_evals:
-            self.iterations += 1
-            self.Cr = 0.5*self.Cr0 if self.iterations % 2 == 0 else self.Cr0
-            self.F = 0.5*self.F0 if self.iterations % 2 == 0 else self.F0
-            for p in range(self.popsize):
-                while True:
-                    r = self.rg.integers(0, self.popsize, 2)
-                    if r[0] != p and r[0] != self.best_i and r[0] != r[1] \
-                            and r[1] != p and r[1] != self.best_i:
-                        break       
-                xi = self.x[p]
-                xb = self.x[self.best_i]
-                xr0 = self.x[r[0]]
-                xr1 = self.x[r[1]]
-                jr = self.rg.integers(0, self.dim)                
-                x = np.asarray([self._next_x_j(xi, xb, xr0, xr1, j, jr) for j in range(self.dim)])   
-                y = self.fun(x)
-                self.evals += 1
-                if y < self.y[p]:
-                    # temporal locality
-                    x2 = self._feasible(xb + ((x - xi) * 0.5));
-                    y2 = self.fun(x2)
-                    self.evals += 1
-                    if y2 < y:
-                        y = y2
-                        x = x2
-                    self.x[p] = x
-                    self.y[p] = y
-                    self.pop_iter[p] = self.iterations
-                    if y < self.y[self.best_i]:
-                        self.best_i = p;
-                        if y < self.best_value:
-                            self.best_value = y;
-                            self.best_x = x;
-                            if not self.stop_fittness is None and self.stop_fittness > y:
-                                self.stop = 1
-                else:
-                    # reinitialize individual
-                    if self.rg.uniform(0, self.keep) < self.iterations - self.pop_iter[p]:
-                        self.x[p] = self.rg.uniform(self.bounds.lb, self.bounds.ub)
-                        self.y[p] = math.inf
-
-        return self.best_x, self.best_value, self.evals, self.iterations, self.stop
-    
-    def _feasible(self, x):
-        return np.maximum(np.minimum(x, self.upper), self.lower)
-    
-    def _feasible_j(self, j, xj):
-        if xj >= self.lower[j] and xj <= self.upper[j]:
-            return xj
-        else:
-            return self.rg.uniform(self.lower[j], self.upper[j])
-                
-    def _next_x_j(self, xi, xb, xr0, xr1, j, jr):
-        if j == jr or self.rg.uniform(0,1) < self.Cr:
-            return self._feasible_j(j, xb[j] + self.F*(xr0[j] - xr1[j]))
-        else:
-            return xi[j]
-    
-    def _next_x(self):
-        p = self.p
+       
+    def _next_x(self, p):
         if p == 0:
             self.iterations += 1
             self.Cr = 0.5*self.Cr0 if self.iterations % 2 == 0 else self.Cr0
             self.F = 0.5*self.F0 if self.iterations % 2 == 0 else self.F0
-        self.p = (self.p + 1) % self.popsize
         while True:
             r = self.rg.integers(0, self.popsize, 2)
             if r[0] != p and r[0] != self.best_i and r[0] != r[1] \
@@ -318,9 +309,26 @@ class DE(object):
         xb = self.x[self.best_i]
         xr0 = self.x[r[0]]
         xr1 = self.x[r[1]]
-        jr = self.rg.integers(0, self.dim)   
-        return p, np.asarray([self._next_x_j(xi, xb, xr0, xr1, j, jr) for j in range(self.dim)])
+        jr = self.rg.integers(0, self.dim)  
+        return xb, xi, np.asarray([self._next_x_j(xi, xb, xr0, xr1, j, jr) for j in range(self.dim)])
 
-    def _next_improve(self, ui, xi):
-        return self._feasible(self.best_x + ((ui - xi) * 0.5))
+    def _next_improve(self, xb, x, xi):
+        return self._feasible(xb + ((x - xi) * 0.5))
+    
+    def _next_x_j(self, xi, xb, xr0, xr1, j, jr):
+        if j == jr or self.rg.uniform(0,1) < self.Cr:
+            return self._feasible_j(j, xb[j] + self.F*(xr0[j] - xr1[j]))
+        else:
+            return xi[j]
+    
+    def _feasible(self, x):
+        return np.maximum(np.minimum(x, self.upper), self.lower)
+    
+    def _feasible_j(self, j, xj):
+        if xj >= self.lower[j] and xj <= self.upper[j]:
+            return xj
+        else:
+            return self.rg.uniform(self.lower[j], self.upper[j])
+            
+
 

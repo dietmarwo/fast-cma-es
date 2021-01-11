@@ -92,7 +92,7 @@ def minimize(fun,
     lower, upper, guess = _check_bounds(bounds, x0, rg)      
     n = guess.size  
     if popsize is None:
-        popsize = n*15
+        popsize = 31
     if lower is None:
         lower = [0]*n
         upper = [0]*n

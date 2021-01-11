@@ -269,34 +269,34 @@ public:
 				} while (r2 == p || r2 == bestI || r2 == r1);
 
 				int jr = rndInt(dim);
-				vec ui = vec(xi);
+				vec x = vec(xi);
 
 				for (int j = 0; j < dim; j++) {
 					if (j == jr || rnd01() < CRu) {
-						ui[j] = xb[j] + Fu * (popX(j, r1) - popX(j, r2));
-						if (!fitfun->feasible(j, ui[j]))
-							ui[j] = fitfun->normXi(j);
-					}
+						x[j] = xb[j] + Fu * (popX(j, r1) - popX(j, r2));
+                        if (!fitfun->feasible(j, x[j]))
+						    x[j] = fitfun->normXi(j);
+                    }
 				}
-				double eu = fitfun->eval(ui);
-				if (isfinite(eu) && eu < popY[p]) {
+				double y = fitfun->eval(x);
+				if (isfinite(y) && y < popY[p]) {
 					// temporal locality
-					vec uis = fitfun->getClosestFeasible(
-							xb + ((ui - xi) * 0.5));
-					double eus = fitfun->eval(uis);
-					if (isfinite(eus) && eus < eu) {
-						eu = eus;
-						ui = uis;
+					vec x2 = fitfun->getClosestFeasible(
+							xb + ((x - xi) * 0.5));
+					double y2 = fitfun->eval(x2);
+					if (isfinite(y2) && y2 < y) {
+						y = y2;
+						x = x2;
 					}
-					popX.col(p) = ui;
-					popY(p) = eu;
+					popX.col(p) = x;
+					popY(p) = y;
 					popIter[p] = iterations;
-					if (eu < popY[bestI]) {
+					if (y < popY[bestI]) {
 						bestI = p;
-						if (eu < bestY) {
-							fitfun->updateSigma(ui);
-							bestY = eu;
-							bestX = ui;
+						if (y < bestY) {
+							fitfun->updateSigma(x);
+							bestY = y;
+							bestX = x;
 							if (isfinite(stopfitness) && bestY < stopfitness) {
 								stop = 1;
 								return;
@@ -318,17 +318,11 @@ public:
 		popX = mat(dim, popsize);
 		popY = vec(popsize);
 		for (int p = 0; p < popsize; p++) {
-			popX.col(p) = fitfun->normX();
-			popY[p] = fitfun->eval(popX.col(p)); // compute fitness
+			popX.col(p) = fitfun->guess;
+			popY[p] = DBL_MAX; // compute fitness
 		}
-		bestX = fitfun->guess;
-		bestY = fitfun->eval(bestX);
-		bestI = index_min(popY);
-		if (popY[bestI] < bestY) {
-			bestX = popX.col(bestI);
-			bestY = popY[bestI];
-			fitfun->updateSigma(bestX);
-		}
+		bestI = 0;
+		bestX = popX.col(bestI);
 		popIter = zeros(popsize);
 	}
 

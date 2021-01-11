@@ -33,7 +33,8 @@ def minimize(fun,
              is_terminate = None, 
              rg = Generator(MT19937()),
              runid=0,
-             delayed_update = False):    
+             delayed_update = False,
+             normalize = True):    
     """Minimization of a scalar function of one or more variables using CMA-ES.
      
     Parameters
@@ -76,6 +77,8 @@ def minimize(fun,
         id used by the is_terminate callback to identify the CMA-ES run. 
     delayed_update : boolean, optional
         delayed_update if workers > 1. 
+    normalize : boolean, optional
+        pheno -> if true geno transformation maps arguments to interval [-1,1] 
    
     Returns
     -------
@@ -91,7 +94,7 @@ def minimize(fun,
                       input_sigma, popsize, 
                       max_evaluations, max_iterations, 
                       accuracy, stop_fittness, 
-                      is_terminate, rg, np.random.randn, runid, None)
+                      is_terminate, rg, np.random.randn, runid, normalize, fun)
         x, val, evals, iterations, stop = cmaes.do_optimize_delayed_update(fun, workers)
     else:      
         fun = serial(fun) if workers is None else parallel(fun, workers)
@@ -99,7 +102,7 @@ def minimize(fun,
                       input_sigma, popsize, 
                       max_evaluations, max_iterations, 
                       accuracy, stop_fittness, 
-                      is_terminate, rg, np.random.randn, runid, fun)
+                      is_terminate, rg, np.random.randn, runid, normalize, fun)
         x, val, evals, iterations, stop = cmaes.doOptimize()
         if not workers is None:
             fun.stop() # stop all parallel evaluation processes
@@ -121,6 +124,7 @@ class Cmaes(object):
                         rg = Generator(MT19937()), # used if x0 is undefined
                         randn = np.random.randn, # used for random offspring 
                         runid=0, 
+                        normalize = False,
                         fun = None
                         ):
                         
@@ -128,7 +132,7 @@ class Cmaes(object):
         self.runid = runid
     # bounds and guess
         lower, upper, guess = _check_bounds(bounds, x0, rg)   
-        self.fitfun = _Fittness(fun, lower, upper)
+        self.fitfun = _Fittness(fun, lower, upper, normalize)
     # initial guess for the arguments of the fitness function
         self.guess = self.fitfun.encode(guess)
     # random generators    
@@ -615,10 +619,13 @@ def _check_bounds(bounds, guess, rg):
 class _Fittness(object):
     """wrapper around the objective function, scales relative to boundaries."""
      
-    def __init__(self, fun, lower, upper):
+    def __init__(self, fun, lower, upper, normalize = None):
         self.fun = fun
         self.evaluation_counter = 0
         self.lower = lower
+        self.normalize = False
+        if not (lower is None or normalize is None):
+            self.normalize = normalize
         if not lower is None:
             self.upper = upper
             self.scale = 0.5 * (upper - lower)
@@ -633,17 +640,20 @@ class _Fittness(object):
         if self.lower is None:
             return X    
         else:
-            return np.maximum(np.minimum(X, 1.0), -1.0)
+            if self.normalize:
+                return np.maximum(np.minimum(X, 1.0), -1.0)
+            else:
+                return np.maximum(np.minimum(X, self.upper), self.lower)
 
     def encode(self, X):
-        if self.lower is None:
-            return X
-        else:
+        if self.normalize:
             return (X - self.typx) / self.scale
-    
-    def decode(self, X):
-        if self.lower is None:
-            return X
         else:
+            return X
+   
+    def decode(self, X):
+        if self.normalize:
             return (X * self.scale) + self.typx
-    
+        else:
+            return X
+         

@@ -58,12 +58,12 @@ def test_rosen_python():
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
 def test_rosen_ask_tell():    
+    popsize = 31
     dim = 5
     testfun = Rosen(dim)
     sdevs = [1.0]*dim
     max_eval = 100000   
     limit = 0.00001 
-    popsize = 31  
     for _ in range(5):
         wrapper = Wrapper(testfun.fun, dim)
         es = cmaes.Cmaes(testfun.bounds,
