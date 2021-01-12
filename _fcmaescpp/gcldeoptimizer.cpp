@@ -26,6 +26,7 @@ namespace gcl_differential_evolution {
 
 static uniform_real_distribution<> distr_01 = std::uniform_real_distribution<>(
 		0, 1);
+
 static normal_distribution<> gauss_01 = std::normal_distribution<>(0, 1);
 
 static double normreal(pcg64 *rs, double mu, double sdev) {
@@ -43,6 +44,12 @@ static vec constant(int n, double val) {
 static Eigen::MatrixXd uniformVec(int dim, pcg64 &rs) {
 	return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
 		return distr_01(rs);
+	});
+}
+
+static Eigen::MatrixXd normalVec(int dim, pcg64 &rs) {
+	return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
+		return gauss_01(rs);
 	});
 }
 
@@ -80,9 +87,10 @@ class Fitness {
 
 public:
 
-	Fitness(callback_parallel func_par_, const vec &lower_limit,
+	Fitness(callback_parallel func_par_, int dim_, const vec &lower_limit,
 			const vec &upper_limit) {
 		func_par = func_par_;
+		dim = dim_;
 		lower = lower_limit;
 		upper = upper_limit;
 		evaluationCounter = 0;
@@ -113,16 +121,22 @@ public:
 	}
 
 	bool feasible(int i, double x) {
-		return x >= lower[i] && x <= upper[i];
+		return lower.size() == 0 || (x >= lower[i] && x <= upper[i]);
 	}
 
-	vec uniformX(pcg64 &rs) {
-		vec rv = uniformVec(lower.size(), rs);
-		return (rv.array() * scale.array()).matrix() + lower;
+	vec sample(pcg64 &rs) {
+		if (lower.size() > 0) {
+			vec rv = uniformVec(dim, rs);
+			return (rv.array() * scale.array()).matrix() + lower;
+		} else
+			return normalVec(dim, rs);
 	}
 
-	double uniformXi(int i, pcg64 &rs) {
-		return lower[i] + scale[i] * distr_01(rs);
+	double sample_i(int i, pcg64 &rs) {
+		if (lower.size() > 0)
+			return lower[i] + scale[i] * distr_01(rs);
+		else
+			return gauss_01(rs);
 	}
 
 	int getEvaluations() {
@@ -131,6 +145,7 @@ public:
 
 private:
 	callback_parallel func_par;
+	int dim;
 	vec lower;
 	vec upper;
 	long evaluationCounter;
@@ -245,7 +260,7 @@ public:
 							ui[j] = popX(j, r1)
 									+ F * ((popX)(j, r2) - sp[r3 - popsize][j]);
 						if (!fitfun->feasible(j, ui[j]))
-							ui[j] = fitfun->uniformXi(j, *rs);
+							ui[j] = fitfun->sample_i(j, *rs);
 					}
 				}
 				nextX.col(p) = ui;
@@ -270,7 +285,7 @@ public:
 		popF = zeros(popsize);
 		nextX = mat(dim, popsize);
 		for (int p = 0; p < popsize; p++)
-			nextX.col(p) = fitfun->uniformX(*rs);
+			nextX.col(p) = fitfun->sample(*rs);
 		nextY = vec(popsize);
 		fitfun->values(nextX, nextY);
 	}
@@ -335,7 +350,7 @@ double* optimizeGCLDE_C(long runid, callback_parallel func_par, int dim, int see
 		lower_limit.resize(0);
 		upper_limit.resize(0);
 	}
-	Fitness fitfun(func_par, lower_limit, upper_limit);
+	Fitness fitfun(func_par, n, lower_limit, upper_limit);
 	GclDeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, pbest,
 			stopfitness, F0, CR0);
 	try {

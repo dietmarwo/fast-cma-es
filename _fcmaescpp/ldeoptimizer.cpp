@@ -99,12 +99,14 @@ public:
 		xmean = vec(guess);
 		rs = rs_;
 		evaluationCounter = 0;
-		scale = (upper - lower);
+		if (lower.size() > 0) // bounds defined
+			scale = (upper - lower);
+		else
+			scale = constant(dim, 1.0);
 		invScale = scale.cwiseInverse();
 		maxSigma = 0.25*scale;
 		// individual sigma values - initial search volume. inputSigma determines
-		// the initial coordinate wise standard deviations for the search. Setting
-		// SIGMA one third of the initial search region is appropriate.
+		// the initial coordinate wise standard deviations for the search.
 		if (sigma_.size() == 1)
 			sigma0 = 0.5 * (scale.array() * (vec::Constant(dim, sigma_[0])).array()).matrix();
 		else
@@ -138,13 +140,23 @@ public:
 		return nx;
 	}
 
-	vec uniformX() {
-		vec rv = uniformVec(lower.size(), rs);
-		return (rv.array() * scale.array()).matrix() + lower;
+	bool feasible(int i, double x) {
+		return lower.size() == 0 || (x >= lower[i] && x <= upper[i]);
 	}
 
-	double uniformXi(int i) {
-		return lower[i] + scale[i] * distr_01(rs);
+	vec sample() {
+		if (lower.size() > 0) {
+			vec rv = uniformVec(dim, rs);
+			return (rv.array() * scale.array()).matrix() + lower;
+		} else
+			return normX();
+	}
+
+	double sample_i(int i) {
+		if (lower.size() > 0)
+			return lower[i] + scale[i] * distr_01(rs);
+		else
+			return normXi(i);
 	}
 
 	vec getClosestFeasible(const vec &X) const {
@@ -162,19 +174,6 @@ public:
 		double res = func(n, parg);
 		evaluationCounter++;
 		return res;
-	}
-
-	double distance(const vec &x1, const vec &x2) {
-		return ((x1 - x2).array() * invScale.array()).matrix().squaredNorm();
-	}
-
-	bool feasible(int i, double x) {
-		return x >= lower[i] && x <= upper[i];
-	}
-
-	bool feasible(const vec &x) {
-		return (x.array() >= lower.array()).all()
-				&& (x.array() <= upper.array()).all();
 	}
 
 	int getEvaluations() {

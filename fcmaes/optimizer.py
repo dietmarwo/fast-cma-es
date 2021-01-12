@@ -288,7 +288,7 @@ class De_cpp(Optimizer):
         self.cr = cr
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
-        ret = decpp.minimize(fun, len(bounds.lb), bounds, 
+        ret = decpp.minimize(fun, None, bounds, 
                 popsize=self.popsize, 
                 max_evaluations = self.max_eval_num(store), 
                 stop_fittness = self.stop_fittness,
@@ -310,7 +310,8 @@ class De_python(Optimizer):
         self.cr = cr
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
-        ret = de.minimize(fun, bounds, self.popsize, self.max_eval_num(store), workers=None,
+        ret = de.minimize(fun, None, 
+                bounds, self.popsize, self.max_eval_num(store), workers=None,
                 stop_fittness = self.stop_fittness,
                 keep = self.keep, f = self.f, cr = self.cr,
                 rg=rg)

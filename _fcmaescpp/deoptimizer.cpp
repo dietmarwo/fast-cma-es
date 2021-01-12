@@ -30,6 +30,8 @@ namespace differential_evolution {
 static uniform_real_distribution<> distr_01 = std::uniform_real_distribution<>(
 		0, 1);
 
+static normal_distribution<> gauss_01 = std::normal_distribution<>(0, 1);
+
 static vec zeros(int n) {
 	return Eigen::MatrixXd::Zero(n, 1);
 }
@@ -43,6 +45,12 @@ static Eigen::MatrixXd uniform(int dx, int dy, pcg64 &rs) {
 static Eigen::MatrixXd uniformVec(int dim, pcg64 &rs) {
 	return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
 		return distr_01(rs);
+	});
+}
+
+static Eigen::MatrixXd normalVec(int dim, pcg64 &rs) {
+	return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
+		return gauss_01(rs);
 	});
 }
 
@@ -64,9 +72,10 @@ class Fitness {
 
 public:
 
-	Fitness(callback_type pfunc, const vec &lower_limit,
+	Fitness(callback_type pfunc, int dimension, const vec &lower_limit,
 			const vec &upper_limit) {
 		func = pfunc;
+		dim = dimension;
 		lower = lower_limit;
 		upper = upper_limit;
 		evaluationCounter = 0;
@@ -90,28 +99,29 @@ public:
 	}
 
 	vec getClosestFeasible(const vec &X) const {
-		if (lower.size() > 0) {
+		if (lower.size() > 0)
 			return X.cwiseMin(upper).cwiseMax(lower);
-		}
-		return X;
+		else
+			return X;
 	}
 
 	bool feasible(int i, double x) {
-		return x >= lower[i] && x <= upper[i];
+		return lower.size() == 0 || (x >= lower[i] && x <= upper[i]);
 	}
 
-	bool feasible(const vec &x) {
-		return (x.array() >= lower.array()).all()
-				&& (x.array() <= upper.array()).all();
+	vec sample(pcg64 &rs) {
+		if (lower.size() > 0) {
+			vec rv = uniformVec(dim, rs);
+			return (rv.array() * scale.array()).matrix() + lower;
+		} else
+			return normalVec(dim, rs);
 	}
 
-	vec uniformX(pcg64 &rs) {
-		vec rv = uniformVec(lower.size(), rs);
-		return (rv.array() * scale.array()).matrix() + lower;
-	}
-
-	double uniformXi(int i, pcg64 &rs) {
-		return lower[i] + scale[i] * distr_01(rs);
+	double sample_i(int i, pcg64 &rs) {
+		if (lower.size() > 0)
+			return lower[i] + scale[i] * distr_01(rs);
+		else
+			return gauss_01(rs);
 	}
 
 	int getEvaluations() {
@@ -120,6 +130,7 @@ public:
 
 private:
 	callback_type func;
+	int dim;
 	vec lower;
 	vec upper;
 	long evaluationCounter;
@@ -167,11 +178,6 @@ public:
 		return distr_01(*rs);
 	}
 
-	double rnd02() {
-		double rnd = distr_01(*rs);
-		return rnd * rnd;
-	}
-
 	int rndInt(int max) {
 		return (int) (max * distr_01(*rs));
 	}
@@ -204,7 +210,7 @@ public:
 					if (j == jr || rnd01() < CRu) {
 						x[j] = xb[j] + Fu * (popX(j, r1) - popX(j, r2));
                         if (!fitfun->feasible(j, x[j]))
-						    x[j] = fitfun->uniformXi(j, *rs);
+						    x[j] = fitfun->sample_i(j, *rs);
                     }
 				}
 				double y = fitfun->eval(x);
@@ -234,7 +240,7 @@ public:
 				} else {
 					// reinitialize individual
 					if (keep * rnd01() < iterations - popIter[p]) {
-						popX.col(p) = fitfun->uniformX(*rs);
+						popX.col(p) = fitfun->sample(*rs);
 						popY[p] = fitfun->eval(popX.col(p)); // compute fitness
 					}
 				}
@@ -246,7 +252,7 @@ public:
 		popX = mat(dim, popsize);
 		popY = vec(popsize);
 		for (int p = 0; p < popsize; p++) {
-			popX.col(p) = fitfun->uniformX(*rs);
+			popX.col(p) = fitfun->sample(*rs);
 			popY[p] = DBL_MAX; // compute fitness
 		}
 		bestI = 0;
@@ -315,7 +321,7 @@ double* optimizeDE_C(long runid, callback_type func, int dim, int seed,
 		lower_limit.resize(0);
 		upper_limit.resize(0);
 	}
-	Fitness fitfun(func, lower_limit, upper_limit);
+	Fitness fitfun(func, n, lower_limit, upper_limit);
 	DeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, keep,
 			stopfitness, F, CR);
 	try {

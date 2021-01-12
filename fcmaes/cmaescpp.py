@@ -195,3 +195,18 @@ optimizeACMA_C.restype = ct.POINTER(ct.c_double)
 
 freemem = libcmalib.free_mem
 freemem.argtypes = [ct.POINTER(ct.c_double)]
+
+from fcmaes.testfun import Cigar, Elli
+
+def test_de():
+    dim = 50
+    problem = Cigar(dim)
+    ret = minimize(problem.fun, problem.bounds, None,
+    #ret = minimize(problem.fun, problem.bounds, [1]*dim,
+    #ret = minimize(problem.fun, None, [1]*dim,
+             popsize = 30, 
+             max_evaluations = 100000)
+    print( ret )
+    
+if __name__ == '__main__':
+    test_de()

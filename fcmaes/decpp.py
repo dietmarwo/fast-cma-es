@@ -18,11 +18,12 @@ from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
 from fcmaes.cmaescpp import callback, libcmalib, freemem
 from fcmaes.dacpp import call_back_type
+from fcmaes import de
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
 def minimize(fun, 
-             dim,
+             dim = None,
              bounds = None, 
              popsize = None, 
              max_evaluations = 100000, 
@@ -80,10 +81,8 @@ def minimize(fun,
         ``nfev`` the number of function evaluations,
         ``nit`` the number of iterations,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
-                
-    lower = np.asarray(bounds.lb)
-    upper = np.asarray(bounds.ub)
-    n = dim  
+    
+    n, lower, upper = de._check_bounds(bounds, dim)
     if popsize is None:
         popsize = 31
     if lower is None:
@@ -116,4 +115,4 @@ optimizeDE_C.argtypes = [ct.c_long, call_back_type, ct.c_int, ct.c_int, \
             ct.c_double, ct.c_double]
 
 optimizeDE_C.restype = ct.POINTER(ct.c_double)         
- 
+

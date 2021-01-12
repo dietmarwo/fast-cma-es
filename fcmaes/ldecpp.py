@@ -26,7 +26,7 @@ from fcmaes.cmaes import _check_bounds
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
 def minimize(fun, 
-             bounds, 
+             bounds=None, 
              x0=None, 
              input_sigma = 0.3, 
              popsize = None, 
@@ -49,6 +49,11 @@ def minimize(fun,
         where ``x`` is an 1-D array with shape (n,) and ``args``
         is a tuple of the fixed parameters needed to completely
         specify the function.
+    bounds : sequence or `Bounds`, optional
+        Bounds on variables. There are two ways to specify the bounds:
+            1. Instance of the `scipy.Bounds` class.
+            2. Sequence of ``(min, max)`` pairs for each element in `x`. None
+               is used to specify no bound.
     x0 : ndarray, shape (n,)
         Initial guess. Array of real elements of size (n,),
         where 'n' is the number of independent variables.  
@@ -56,11 +61,6 @@ def minimize(fun,
         Initial step size for each dimension.
     popsize : int, optional
         Population size.
-    bounds : sequence or `Bounds`, optional
-        Bounds on variables. There are two ways to specify the bounds:
-            1. Instance of the `scipy.Bounds` class.
-            2. Sequence of ``(min, max)`` pairs for each element in `x`. None
-               is used to specify no bound.
     max_evaluations : int, optional
         Forced termination after ``max_evaluations`` function evaluations.
     stop_fittness : float, optional 
@@ -96,6 +96,8 @@ def minimize(fun,
     if lower is None:
         lower = [0]*n
         upper = [0]*n
+    if np.ndim(input_sigma) == 0:
+        input_sigma = [input_sigma] * n
     if stop_fittness is None:
         stop_fittness = math.inf   
     array_type = ct.c_double * n   
@@ -125,5 +127,3 @@ optimizeLDE_C.argtypes = [ct.c_long, call_back_type, ct.c_int,
             ct.c_double, ct.c_double]
 
 optimizeLDE_C.restype = ct.POINTER(ct.c_double)         
-
-  

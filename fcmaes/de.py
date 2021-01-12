@@ -31,8 +31,9 @@ import multiprocessing as mp
 from collections import deque
 
 def minimize(fun, 
+             dim = None,
              bounds = None, 
-             popsize = None, 
+             popsize = 31, 
              max_evaluations = 100000, 
              workers = None,
              stop_fittness = None, 
@@ -51,6 +52,9 @@ def minimize(fun,
         where ``x`` is an 1-D array with shape (n,) and ``args``
         is a tuple of the fixed parameters needed to completely
         specify the function.
+    dim : int
+        dimension of the argument of the objective function
+        either dim or bounds need to be defined
     bounds : sequence or `Bounds`, optional
         Bounds on variables. There are two ways to specify the bounds:
             1. Instance of the `scipy.Bounds` class.
@@ -87,9 +91,8 @@ def minimize(fun,
         ``nit`` the number of iterations,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
-    if popsize is None and not bounds is None:
-        popsize = len(bounds.lb)*15
-    de = DE(bounds, popsize, stop_fittness, keep, f, cr, rg)
+    
+    de = DE(dim, bounds, popsize, stop_fittness, keep, f, cr, rg)
     try:
         if workers and workers > 1:
             x, val, evals, iterations, stop = de._do_optimize_delayed_update(fun, max_evaluations, workers)
@@ -102,13 +105,10 @@ def minimize(fun,
 
 class DE(object):
     
-    def __init__(self, bounds, popsize, stop_fittness = None, keep = 200, 
+    def __init__(self, dim, bounds, popsize = 31, stop_fittness = None, keep = 200, 
                  F = 0.5, Cr = 0.9, rg = Generator(MT19937())):
-        self.dim = len(bounds.ub)
-        self.bounds = bounds
-        self.lower = np.asarray(bounds.lb)      
-        self.upper = np.asarray(bounds.ub)      
-        self.popsize = 31 if popsize is None else popsize
+        self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
+        self.popsize = popsize
         self.stop_fittness = stop_fittness
         self.keep = keep 
         self.rg = rg
@@ -207,7 +207,7 @@ class DE(object):
             self.pop_iter[p] = self.iterations
         else:
             if self.rg.uniform(0, self.keep) < self.iterations - self.pop_iter[p]:
-                self.x[p] = self.rg.uniform(self.bounds.lb, self.bounds.ub)
+                self.x[p] = self._sample()
                 self.y[p] = math.inf
         return self.stop 
 
@@ -216,7 +216,7 @@ class DE(object):
         self.x0 = np.zeros((self.popsize, self.dim))
         self.y = np.empty(self.popsize)
         for i in range(self.popsize):
-            self.x[i] = self.x0[i] = self.rg.uniform(self.bounds.lb, self.bounds.ub)
+            self.x[i] = self.x0[i] = self._sample()
             self.y[i] = math.inf
         self.best_x = self.x[0]
         self.best_value = math.inf
@@ -255,7 +255,7 @@ class DE(object):
                 else:
                     # reinitialize individual
                     if self.rg.uniform(0, self.keep) < self.iterations - self.pop_iter[p]:
-                        self.x[p] = self.rg.uniform(self.bounds.lb, self.bounds.ub)
+                        self.x[p] = self._sample()
                         self.y[p] = math.inf
                 if self.evals >= self.max_evals:
                     break
@@ -301,34 +301,40 @@ class DE(object):
             self.Cr = 0.5*self.Cr0 if self.iterations % 2 == 0 else self.Cr0
             self.F = 0.5*self.F0 if self.iterations % 2 == 0 else self.F0
         while True:
-            r = self.rg.integers(0, self.popsize, 2)
-            if r[0] != p and r[0] != self.best_i and r[0] != r[1] \
-                    and r[1] != p and r[1] != self.best_i:
+            r1, r2 = self.rg.integers(0, self.popsize, 2)
+            if r1 != p and r1 != self.best_i and r1 != r2 \
+                    and r2 != p and r2 != self.best_i:
                 break
-        xi = self.x[p]
+        xp = self.x[p]
         xb = self.x[self.best_i]
-        xr0 = self.x[r[0]]
-        xr1 = self.x[r[1]]
-        jr = self.rg.integers(0, self.dim)  
-        return xb, xi, np.asarray([self._next_x_j(xi, xb, xr0, xr1, j, jr) for j in range(self.dim)])
+        x1 = self.x[r1]
+        x2 = self.x[r2]
+        x = self._feasible(xb + self.F * (x1 - x2))
+        r = self.rg.integers(0, self.dim)
+        tr = np.array(
+            [i != r and self.rg.random() > self.Cr for i in range(self.dim)])    
+        x[tr] = xp[tr]       
+        return xb, xp, x
 
     def _next_improve(self, xb, x, xi):
         return self._feasible(xb + ((x - xi) * 0.5))
     
-    def _next_x_j(self, xi, xb, xr0, xr1, j, jr):
-        if j == jr or self.rg.uniform(0,1) < self.Cr:
-            return self._feasible_j(j, xb[j] + self.F*(xr0[j] - xr1[j]))
+    def _sample(self):
+        if self.upper is None:
+            return self.rg.normal()
         else:
-            return xi[j]
+            return self.rg.uniform(self.lower, self.upper)
     
     def _feasible(self, x):
-        return np.maximum(np.minimum(x, self.upper), self.lower)
-    
-    def _feasible_j(self, j, xj):
-        if xj >= self.lower[j] and xj <= self.upper[j]:
-            return xj
+        if self.upper is None:
+            return x
         else:
-            return self.rg.uniform(self.lower[j], self.upper[j])
-            
-
-
+            return np.maximum(np.minimum(x, self.upper), self.lower)
+                
+def _check_bounds(bounds, dim):
+    if bounds is None and dim is None:
+        raise ValueError('either dim or bounds need to be defined')
+    if bounds is None:
+        return dim, None, None
+    else:
+        return len(bounds.ub), np.asarray(bounds.lb), np.asarray(bounds.ub)

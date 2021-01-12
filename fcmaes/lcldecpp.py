@@ -23,7 +23,7 @@ from fcmaes.cmaes import parallel, _check_bounds
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
 def minimize(fun, 
-             bounds, 
+             bounds=None, 
              x0=None, 
              input_sigma = 0.3, 
              popsize = None, 
@@ -96,6 +96,8 @@ def minimize(fun,
     if lower is None:
         lower = [0]*n
         upper = [0]*n
+    if np.ndim(input_sigma) == 0:
+        input_sigma = [input_sigma] * n
     if stop_fittness is None:
         stop_fittness = math.inf   
     parfun = None if workers is None else parallel(fun, workers)
@@ -130,4 +132,3 @@ optimizeLCLDE_C.argtypes = [ct.c_long, call_back_par, ct.c_int,
             ct.c_double, ct.c_double]
 
 optimizeLCLDE_C.restype = ct.POINTER(ct.c_double)         
- 

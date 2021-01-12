@@ -17,11 +17,13 @@ from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
 from fcmaes.cmaescpp import callback_par, call_back_par, freemem, libcmalib
 from fcmaes.cmaes import parallel
+from fcmaes import de
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
 def minimize(fun, 
-             bounds, 
+             dim = None,
+             bounds = None, 
              popsize = None, 
              max_evaluations = 100000, 
              stop_fittness = None, 
@@ -43,6 +45,8 @@ def minimize(fun,
         where ``x`` is an 1-D array with shape (n,) and ``args``
         is a tuple of the fixed parameters needed to completely
         specify the function.
+    dim : int
+        dimension of the argument of the objective function
     bounds : sequence or `Bounds`
         Bounds on variables. There are two ways to specify the bounds:
             1. Instance of the `scipy.Bounds` class.
@@ -80,9 +84,7 @@ def minimize(fun,
         ``nit`` the number of iterations,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
                 
-    lower = np.asarray(bounds.lb)
-    upper = np.asarray(bounds.ub)
-    n = len(lower)  
+    n, lower, upper = de._check_bounds(bounds, dim)
     if popsize is None:
         popsize = int(n*8.5+150)
     if lower is None:
@@ -120,4 +122,4 @@ optimizeGCLDE_C.argtypes = [ct.c_long, call_back_par, ct.c_int, ct.c_int, \
             ct.c_double, ct.c_double]
 
 optimizeGCLDE_C.restype = ct.POINTER(ct.c_double)         
-  
+

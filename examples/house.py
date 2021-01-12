@@ -231,7 +231,7 @@ if evolutionary and __name__ == '__main__':
     ret = cmaes.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, 
                           workers=mp.cpu_count(), delayed_update=True)
     
-    #ret = de.minimize(obj_f, bounds, popsize = 16, max_evaluations = 20000, workers=mp.cpu_count())
+    #ret = de.minimize(obj_f, 8, bounds, popsize = 16, max_evaluations = 20000, workers=mp.cpu_count())
 
 
     

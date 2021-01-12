@@ -28,6 +28,7 @@ namespace lcl_differential_evolution {
 
 static uniform_real_distribution<> distr_01 = std::uniform_real_distribution<>(
 		0, 1);
+
 static normal_distribution<> gauss_01 = std::normal_distribution<>(0, 1);
 
 static vec zeros(int n) {
@@ -41,6 +42,12 @@ static vec constant(int n, double val) {
 static Eigen::MatrixXd uniformVec(int dim, pcg64 &rs) {
 	return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
 		return distr_01(rs);
+	});
+}
+
+static Eigen::MatrixXd normalVec(int dim, pcg64 &rs) {
+	return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
+		return gauss_01(rs);
 	});
 }
 
@@ -94,7 +101,10 @@ public:
 		xmean = vec(guess);
 		rs = rs_;
 		evaluationCounter = 0;
-		scale = (upper - lower);
+		if (lower.size() > 0) // bounds defined
+			scale = (upper - lower);
+		else
+			scale = constant(dim, 1.0);
 		invScale = scale.cwiseInverse();
 		maxSigma = 0.25*scale;
 		// individual sigma values - initial search volume. inputSigma determines
@@ -160,16 +170,22 @@ public:
 	}
 
 	bool feasible(int i, double x) {
-		return x >= lower[i] && x <= upper[i];
+		return lower.size() == 0 || (x >= lower[i] && x <= upper[i]);
 	}
 
-	vec uniformX() {
-		vec rv = uniformVec(lower.size(), rs);
-		return (rv.array() * scale.array()).matrix() + lower;
+	vec sample(pcg64 &rs) {
+		if (lower.size() > 0) {
+			vec rv = uniformVec(dim, rs);
+			return (rv.array() * scale.array()).matrix() + lower;
+		} else
+			return normalVec(dim, rs);
 	}
 
-	double uniformXi(int i) {
-		return lower[i] + scale[i] * distr_01(rs);
+	double sample_i(int i, pcg64 &rs) {
+		if (lower.size() > 0)
+			return lower[i] + scale[i] * distr_01(rs);
+		else
+			return gauss_01(rs);
 	}
 
 	int getEvaluations() {
