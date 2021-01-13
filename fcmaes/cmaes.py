@@ -176,8 +176,6 @@ class Cmaes(object):
         self.max_iterations = max_iterations
     # Limit for fitness value.
         self.stop_fitness = stop_fittness
-    # lazy covariance update gap
-        self.update_gap = update_gap
     # Stop if x-changes larger stopTolUpX.
         self.stopTolUpX = 1e3 * self.sigma
     # Stop if x-change smaller stopTolX.
@@ -214,6 +212,9 @@ class Cmaes(object):
         self.chiN = math.sqrt(self.dim) * (1. - 1. / (4. * self.dim) + 1 / (21. * self.dim * self.dim))
         self.ccov1Sep = min(1., self.ccov1 * (self.dim + 1.5) / 3.)
         self.ccovmuSep = min(1. - self.ccov1, self.ccovmu * (self.dim + 1.5) / 3.)        
+    # lazy covariance update gap
+        self.lazy_update_gap = 1. / (self.ccov1 + self.ccovmu + 1e-23) / self.dim / 10 \
+                                    if update_gap is None else update_gap
 
     # CMA internal values - updated each generation
     # Objective variables.
@@ -404,10 +405,7 @@ class Cmaes(object):
         self.xmean = np.transpose(bestArx) @ self.weights
         bestArz = self.arz[bestIndex]
         
-        lazy_update_gap = 1. / (self.ccov1 + self.ccovmu + 1e-23) / self.dim / 10 \
-            if self.update_gap is None else self.update_gap
-
-        if self.iterations >= self.last_update + lazy_update_gap:
+        if self.iterations >= self.last_update + self.lazy_update_gap:
             self.last_update = self.iterations
             zmean = np.transpose(bestArz) @ self.weights
             hsig = self.updateEvolutionPaths(zmean, xold)            
