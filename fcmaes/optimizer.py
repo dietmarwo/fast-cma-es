@@ -193,10 +193,12 @@ class Cma_python(Optimizer):
     """CMA_ES Python implementation."""
     
     def __init__(self, max_evaluations=50000,
-                 popsize = 31, guess=None, stop_fittness = None):        
+                 popsize = 31, guess=None, stop_fittness = None,
+                 update_gap = None):        
         Optimizer.__init__(self, max_evaluations, 'cma py')
         self.popsize = popsize
         self.stop_fittness = stop_fittness
+        self.update_gap = update_gap
         self.guess = guess
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
@@ -206,7 +208,8 @@ class Cma_python(Optimizer):
                 max_evaluations = self.max_eval_num(store), 
                 popsize=self.popsize, 
                 stop_fittness = self.stop_fittness,
-                rg=rg, runid=self.get_count_runs(store))     
+                rg=rg, runid=self.get_count_runs(store),
+                update_gap = self.update_gap)     
         return ret.x, ret.fun, ret.nfev
 
 class Cma_cpp(Optimizer):
