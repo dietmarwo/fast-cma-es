@@ -34,7 +34,8 @@ def minimize(fun,
              rg = Generator(MT19937()),
              runid=0,
              delayed_update = False,
-             normalize = True):    
+             normalize = True,
+             update_gap = None):    
     """Minimization of a scalar function of one or more variables using CMA-ES.
      
     Parameters
@@ -79,6 +80,8 @@ def minimize(fun,
         delayed_update if workers > 1. 
     normalize : boolean, optional
         pheno -> if true geno transformation maps arguments to interval [-1,1] 
+    update_gap : int, optional
+        number of iterations without distribution update
    
     Returns
     -------
@@ -94,7 +97,8 @@ def minimize(fun,
                       input_sigma, popsize, 
                       max_evaluations, max_iterations, 
                       accuracy, stop_fittness, 
-                      is_terminate, rg, np.random.randn, runid, normalize, fun)
+                      is_terminate, rg, np.random.randn, runid, normalize, 
+                      update_gap, fun)
         x, val, evals, iterations, stop = cmaes.do_optimize_delayed_update(fun, workers)
     else:      
         fun = serial(fun) if workers is None else parallel(fun, workers)
@@ -102,7 +106,8 @@ def minimize(fun,
                       input_sigma, popsize, 
                       max_evaluations, max_iterations, 
                       accuracy, stop_fittness, 
-                      is_terminate, rg, np.random.randn, runid, normalize, fun)
+                      is_terminate, rg, np.random.randn, runid, normalize, 
+                      update_gap, fun)
         x, val, evals, iterations, stop = cmaes.doOptimize()
         if not workers is None:
             fun.stop() # stop all parallel evaluation processes
@@ -125,6 +130,7 @@ class Cmaes(object):
                         randn = np.random.randn, # used for random offspring 
                         runid=0, 
                         normalize = False,
+                        update_gap = None,
                         fun = None
                         ):
                         
@@ -170,6 +176,8 @@ class Cmaes(object):
         self.max_iterations = max_iterations
     # Limit for fitness value.
         self.stop_fitness = stop_fittness
+    # lazy covariance update gap
+        self.update_gap = update_gap
     # Stop if x-changes larger stopTolUpX.
         self.stopTolUpX = 1e3 * self.sigma
     # Stop if x-change smaller stopTolX.
@@ -231,6 +239,7 @@ class Cmaes(object):
         self.historySize = 10 + int(3. * 10. * self.dim / popsize)    
         
         self.iterations = 0
+        self.last_update = 0
         self.stop = 0
         self.best_value = sys.float_info.max
         self.best_x = None    
@@ -394,32 +403,38 @@ class Cmaes(object):
         bestArx = self.arx[bestIndex]
         self.xmean = np.transpose(bestArx) @ self.weights
         bestArz = self.arz[bestIndex]
-        zmean = np.transpose(bestArz) @ self.weights
-        hsig = self.updateEvolutionPaths(zmean, xold)            
-        negccov = self.updateCovariance(hsig, bestArx, self.arz, arindex, xold)
-        self.updateBD(negccov)                        
-        # Adapt step size sigma - Eq. (5)
-        self.sigma *= math.exp(min(1.0, (self.normps / self.chiN - 1.) * self.cs / self.damps))            
-        # handle termination criteria
+        
+        lazy_update_gap = 1. / (self.ccov1 + self.ccovmu + 1e-23) / self.dim / 10 \
+            if self.update_gap is None else self.update_gap
+
+        if self.iterations >= self.last_update + lazy_update_gap:
+            self.last_update = self.iterations
+            zmean = np.transpose(bestArz) @ self.weights
+            hsig = self.updateEvolutionPaths(zmean, xold)            
+            negccov = self.updateCovariance(hsig, bestArx, self.arz, arindex, xold)
+            self.updateBD(negccov)                        
+            # Adapt step size sigma - Eq. (5)
+            self.sigma *= math.exp(min(1.0, (self.normps / self.chiN - 1.) * self.cs / self.damps))            
+            # handle termination criteria
+            sqrtDiagC = np.sqrt(np.abs(self.diagC))
+            pcCol = self.pc
+            for i in range(self.dim):
+                if self.sigma * max(abs(pcCol[i]), sqrtDiagC[i]) > self.stopTolX:
+                    break
+                if i == self.dim - 1:
+                    self.stop = 2
+            if self.stop != 0:
+                return            
+            for i in range(self.dim):
+                if self.sigma * sqrtDiagC[i] > self.stopTolUpX:
+                    self.stop = 3
+                    break
+            if self.stop != 0:
+                return 
         if self.stop_fitness != None: # only if stop_fitness is defined
             if best_fitness < self.stop_fitness:
                 self.stop = 1
-                return
-        sqrtDiagC = np.sqrt(np.abs(self.diagC))
-        pcCol = self.pc
-        for i in range(self.dim):
-            if self.sigma * max(abs(pcCol[i]), sqrtDiagC[i]) > self.stopTolX:
-                break
-            if i == self.dim - 1:
-                self.stop = 2
-        if self.stop != 0:
-            return            
-        for i in range(self.dim):
-            if self.sigma * sqrtDiagC[i] > self.stopTolUpX:
-                self.stop = 3
-                break
-        if self.stop != 0:
-            return 
+                return 
         history_best = min(self.fitness_history)
         history_worst = max(self.fitness_history)
         if self.iterations > 2 and max(history_worst, worstFitness) - min(history_best, best_fitness) < self.stopTolFun:
