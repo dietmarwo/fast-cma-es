@@ -160,7 +160,7 @@ public:
 
 	AcmaesOptimizer(long runid_, Fitness *fitfun_, int popsize_, int mu_,
 			const vec &guess_, const vec &inputSigma_, int maxIterations_,
-			int maxEvaluations_, double accuracy_, double stopfitness_,
+			int maxEvaluations_, double accuracy_, double stopfitness_, int update_gap_,
 			is_terminate_type isTerminate_, long seed) {
 		// runid used in isTerminate callback to identify a specific run at different iteration
 		runid = runid_;
@@ -243,7 +243,9 @@ public:
 		chiN = sqrt(dim) * (1. - 1. / (4. * dim) + 1 / (21. * dim * dim));
 		ccov1Sep = min(1., ccov1 * (dim + 1.5) / 3.);
 		ccovmuSep = min(1. - ccov1, ccovmu * (dim + 1.5) / 3.);
-
+        // lazy covariance update gap
+        lazy_update_gap = update_gap_ >= 0 ? update_gap_ :
+                1.0 / (ccov1 + ccovmu + 1e-23) / dim / 10.0;
 		// CMA internal values - updated each generation
 		// objective variables.
 		xmean = fitfun->encode(guess);
@@ -412,37 +414,43 @@ public:
 			mat bestArx = arx(Eigen::all, bestIndex);
 			xmean = bestArx * weights;
 			mat bestArz = arz(Eigen::all, bestIndex);
-			mat zmean = bestArz * weights;
+
+ 		    mat zmean = bestArz * weights;
 			bool hsig = updateEvolutionPaths(zmean, xold);
-			double negccov = updateCovariance(hsig, bestArx, arz, arindex,
-					xold);
-			updateBD(negccov);
-			// adapt step size sigma
-			sigma *= exp(min(1.0, (normps / chiN - 1.) * cs / damps));
-			double bestFitness = fitness(arindex(0));
-			double worstFitness = fitness(arindex(arindex.size() - 1));
-			if (bestValue > bestFitness) {
-				bestValue = bestFitness;
-				bestX = fitfun->decode(bestArx.col(0));
-			}
-			// handle termination criteria
-			if (isfinite(stopfitness) && bestFitness < stopfitness) {
-				stop = 1;
-				break;
-			}
-			vec sqrtDiagC = diagC.cwiseSqrt();
-			vec pcCol = pc;
-			for (int i = 0; i < dim; i++) {
-				if (sigma * (max(abs(pcCol[i]), sqrtDiagC[i])) > stopTolX)
-					break;
-				if (i >= dim - 1)
-					stop = 2;
-			}
-			for (int i = 0; i < dim; i++)
-				if (sigma * sqrtDiagC[i] > stopTolUpX)
-					stop = 3;
-			if (stop > 0)
-				break;
+		    // adapt step size sigma
+		    sigma *= exp(min(1.0, (normps / chiN - 1.) * cs / damps));
+		    double bestFitness = fitness(arindex(0));
+		    double worstFitness = fitness(arindex(arindex.size() - 1));
+		    if (bestValue > bestFitness) {
+			    bestValue = bestFitness;
+			    bestX = fitfun->decode(bestArx.col(0));
+		        if (isfinite(stopfitness) && bestFitness < stopfitness) {
+			        stop = 1;
+			        break;
+		        }
+		    }
+            if (iterations >= last_update + lazy_update_gap) {
+                last_update = iterations;
+			    double negccov = updateCovariance(hsig, bestArx, arz, arindex,
+					    xold);
+			    updateBD(negccov);
+			    // handle termination criteria
+			    vec sqrtDiagC = diagC.cwiseSqrt();
+			    vec pcCol = pc;
+			    for (int i = 0; i < dim; i++) {
+				    if (sigma * (max(abs(pcCol[i]), sqrtDiagC[i])) > stopTolX)
+					    break;
+				    if (i >= dim - 1)
+					    stop = 2;
+			    }
+			    if (stop > 0)
+				    break;
+			    for (int i = 0; i < dim; i++)
+				    if (sigma * sqrtDiagC[i] > stopTolUpX)
+					    stop = 3;
+			    if (stop > 0)
+				    break;
+            }
 			double historyBest = fitnessHistory.minCoeff();
 			double historyWorst = fitnessHistory.maxCoeff();
 			if (iterations > 2
@@ -527,6 +535,7 @@ private:
 	double chiN;
 	double ccov1Sep;
 	double ccovmuSep;
+    double lazy_update_gap = 0;
 	vec xmean;
 	vec pc;
 	vec ps;
@@ -536,7 +545,8 @@ private:
 	mat diagD;
 	mat C;
 	vec diagC;
-	int iterations;
+	int iterations = 0;
+    int last_update = 0;
 	vec fitnessHistory;
 	int historySize;
 	double bestValue;
@@ -552,7 +562,8 @@ extern "C" {
 double* optimizeACMA_C(long runid, callback_parallel func_par, int dim, double *init,
 		double *lower, double *upper, double *sigma, int maxIter, int maxEvals,
 		double stopfitness, int mu, int popsize, double accuracy,
-		bool useTerminate, is_terminate_type isTerminate, long seed, bool isParallel, bool normalize) {
+		bool useTerminate, is_terminate_type isTerminate, long seed, 
+        bool normalize, int update_gap) {
 	int n = dim;
 	double *res = new double[n + 4];
 	vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
@@ -571,7 +582,7 @@ double* optimizeACMA_C(long runid, callback_parallel func_par, int dim, double *
 	}
 	Fitness fitfun(func_par, lower_limit, upper_limit, normalize);
 	AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, inputSigma, maxIter,
-			maxEvals, accuracy, stopfitness, useTerminate ? isTerminate : NULL,
+			maxEvals, accuracy, stopfitness, update_gap, useTerminate ? isTerminate : NULL,
 			seed);
 	try {
 		opt.doOptimize();
