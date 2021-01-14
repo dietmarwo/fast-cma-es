@@ -238,7 +238,6 @@ class Cma_cpp(Optimizer):
                 workers=self.workers if workers is None else workers)     
         return ret.x, ret.fun, ret.nfev
 
-
 class Cma_orig(Optimizer):
     """CMA_ES original implementation."""
    
