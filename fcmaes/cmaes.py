@@ -397,6 +397,10 @@ class Cmaes(object):
         if self.best_value > best_fitness:
             self.best_value = best_fitness
             self.best_x = self.fitfun.decode(self.arx[arindex[0]])    
+            if self.stop_fitness != None: # only if stop_fitness is defined
+                if best_fitness < self.stop_fitness:
+                    self.stop = 1
+                    return 
 
         # Calculate new xmean, this is selection and recombination
         xold = self.xmean # for speed up of Eq. (2) and (3)
@@ -404,15 +408,15 @@ class Cmaes(object):
         bestArx = self.arx[bestIndex]
         self.xmean = np.transpose(bestArx) @ self.weights
         bestArz = self.arz[bestIndex]
+        zmean = np.transpose(bestArz) @ self.weights
+        hsig = self.updateEvolutionPaths(zmean, xold)            
+        # Adapt step size sigma - Eq. (5)
+        self.sigma *= math.exp(min(1.0, (self.normps / self.chiN - 1.) * self.cs / self.damps))            
         
         if self.iterations >= self.last_update + self.lazy_update_gap:
             self.last_update = self.iterations
-            zmean = np.transpose(bestArz) @ self.weights
-            hsig = self.updateEvolutionPaths(zmean, xold)            
             negccov = self.updateCovariance(hsig, bestArx, self.arz, arindex, xold)
             self.updateBD(negccov)                        
-            # Adapt step size sigma - Eq. (5)
-            self.sigma *= math.exp(min(1.0, (self.normps / self.chiN - 1.) * self.cs / self.damps))            
             # handle termination criteria
             sqrtDiagC = np.sqrt(np.abs(self.diagC))
             pcCol = self.pc
@@ -428,10 +432,6 @@ class Cmaes(object):
                     self.stop = 3
                     break
             if self.stop != 0:
-                return 
-        if self.stop_fitness != None: # only if stop_fitness is defined
-            if best_fitness < self.stop_fitness:
-                self.stop = 1
                 return 
         history_best = min(self.fitness_history)
         history_worst = max(self.fitness_history)
@@ -670,17 +670,3 @@ class _Fittness(object):
         else:
             return X
          
-from fcmaes.testfun import Cigar, Elli
-
-def test_de():
-    dim = 50
-    problem = Cigar(dim)
-    ret = minimize(problem.fun, problem.bounds, None,
-    #ret = minimize(problem.fun, problem.bounds, [1]*dim,
-    #ret = minimize(problem.fun, None, [1]*dim,
-             popsize = 30, 
-             max_evaluations = 100000)
-    print( ret )
-    
-if __name__ == '__main__':
-    test_de()

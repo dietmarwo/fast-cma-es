@@ -32,7 +32,8 @@ def minimize(fun,
              rg = Generator(MT19937()),
              runid=0,
              workers = None, 
-             normalize = True):   
+             normalize = True,
+             update_gap = None):   
     """Minimization of a scalar function of one or more variables using a 
     C++ CMA-ES implementation called via ctypes.
      
@@ -76,6 +77,8 @@ def minimize(fun,
         Useful for costly objective functions but is deactivated for parallel retry.      
     normalize : boolean, optional
         pheno -> if true geno transformation maps arguments to interval [-1,1] 
+    update_gap : int, optional
+        number of iterations without distribution update
            
     Returns
     -------
@@ -111,7 +114,7 @@ def minimize(fun,
         res = optimizeACMA_C(runid, c_callback_par, n, array_type(*guess), array_type(*lower), array_type(*upper), 
                            array_type(*input_sigma), max_iterations, max_evaluations, stop_fittness, mu, 
                            popsize, accuracy, use_terminate, c_is_terminate, 
-                           int(rg.uniform(0, 2**32 - 1)), normalize)
+                           int(rg.uniform(0, 2**32 - 1)), normalize, -1 if update_gap is None else update_gap)
 
         x = np.array(np.fromiter(res, dtype=np.float64, count=n))
         val = res[n]
@@ -189,24 +192,10 @@ optimizeACMA_C = libcmalib.optimizeACMA_C
 optimizeACMA_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.POINTER(ct.c_double), ct.c_int, ct.c_int, ct.c_double, ct.c_int, ct.c_int, \
-            ct.c_double, ct.c_bool, is_terminate_type, ct.c_long, ct.c_bool]
+            ct.c_double, ct.c_bool, is_terminate_type, ct.c_long, ct.c_bool, ct.c_int]
 
 optimizeACMA_C.restype = ct.POINTER(ct.c_double)         
 
 freemem = libcmalib.free_mem
 freemem.argtypes = [ct.POINTER(ct.c_double)]
 
-from fcmaes.testfun import Cigar, Elli
-
-def test_de():
-    dim = 50
-    problem = Cigar(dim)
-    ret = minimize(problem.fun, problem.bounds, None,
-    #ret = minimize(problem.fun, problem.bounds, [1]*dim,
-    #ret = minimize(problem.fun, None, [1]*dim,
-             popsize = 30, 
-             max_evaluations = 100000)
-    print( ret )
-    
-if __name__ == '__main__':
-    test_de()

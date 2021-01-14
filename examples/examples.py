@@ -15,7 +15,7 @@ problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), 
 
 max_evals = 50000
 
-algos = [ de2_cma(max_evals), de_cma(max_evals), da_cma(max_evals), Cma_cpp(max_evals), De_cpp(max_evals), Hh_cpp(max_evals),
+algos = [ de_cma(max_evals), de2_cma(max_evals), da_cma(max_evals), Cma_cpp(max_evals), De_cpp(max_evals), Hh_cpp(max_evals),
          Da_cpp(max_evals), Bite_cpp(max_evals), Csma_cpp(max_evals), Dual_annealing(max_evals), Differential_evolution(max_evals)]
                
 def test_all(num_retries = 10000, num = 1):

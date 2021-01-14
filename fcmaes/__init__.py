@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-__version__ = '1.2.6'
+__version__ = '1.2.7'
 
 __all__ = [
     'cmaes',
