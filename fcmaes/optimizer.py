@@ -216,11 +216,13 @@ class Cma_cpp(Optimizer):
     """CMA_ES C++ implementation."""
    
     def __init__(self, max_evaluations=50000,
-                 popsize = 31, guess=None, stop_fittness = None, workers = None):        
+                 popsize = 31, guess=None, stop_fittness = None, 
+                 update_gap = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'cma cpp')
         self.popsize = popsize
         self.stop_fittness = stop_fittness
         self.guess = guess
+        self.update_gap = update_gap
         self.workers = workers
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), 
@@ -232,6 +234,7 @@ class Cma_cpp(Optimizer):
                 popsize=self.popsize, 
                 stop_fittness = self.stop_fittness,
                 rg=rg, runid = self.get_count_runs(store), 
+		update_gap = self.update_gap,
                 workers = self.workers if workers is None else workers)     
         return ret.x, ret.fun, ret.nfev
 
