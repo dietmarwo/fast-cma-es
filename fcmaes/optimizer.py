@@ -225,18 +225,19 @@ class Cma_cpp(Optimizer):
         self.update_gap = update_gap
         self.workers = workers
 
-    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), 
-                 store=None, workers = None):
-        ret = cmaescpp.minimize(fun, bounds, 
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()),
+                 store=None, workers=None):
+        ret = cmaescpp.minimize(fun, bounds,
                 self.guess if guess is None else guess,
-                input_sigma=sdevs, 
-                max_evaluations = self.max_eval_num(store), 
-                popsize=self.popsize, 
-                stop_fittness = self.stop_fittness,
-                rg=rg, runid = self.get_count_runs(store), 
-		update_gap = self.update_gap,
-                workers = self.workers if workers is None else workers)     
+                input_sigma=sdevs,
+                max_evaluations=self.max_eval_num(store),
+                popsize=self.popsize,
+                stop_fittness=self.stop_fittness,
+                rg=rg, runid=self.get_count_runs(store),
+		              update_gap=self.update_gap,
+                workers=self.workers if workers is None else workers)     
         return ret.x, ret.fun, ret.nfev
+
 
 class Cma_orig(Optimizer):
     """CMA_ES original implementation."""
