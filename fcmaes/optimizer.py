@@ -158,10 +158,11 @@ def de3_cma(max_evaluations = 50000, popsize=31, stop_fittness = -math.inf,
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES."""
 
+    deEvals = np.random.uniform(0.1, 0.3)
     if de_max_evals is None:
-        de_max_evals = int(0.5*max_evaluations)
+        de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int(0.5*max_evaluations)
+        cma_max_evals = int((1.0-deEvals)*max_evaluations)
     opt1 =  Choice([GCLDE_cpp(de_max_evals), Cma_cpp(de_max_evals), De_cpp(de_max_evals)])
     opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fittness = stop_fittness)
     return Sequence([opt1, opt2])
