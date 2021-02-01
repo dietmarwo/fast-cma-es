@@ -15,7 +15,7 @@ def messengerFullLoop():
         problem = MessFull()
         logger().info(problem.name + ' de + cmaes c++')
         minimize(problem.fun, bounds=problem.bounds, num_retries = 50000, 
-            value_limit = 10.0, logger = logger(), optimizer=de_cma(1500))
+            value_limit = 12.0, logger = logger(), optimizer=de_cma(1500))
         
 problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), MessFull(), Sagas(), Cassini1minlp()]
 
