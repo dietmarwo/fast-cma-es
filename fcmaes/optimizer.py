@@ -117,10 +117,11 @@ def de_cma(max_evaluations = 50000, popsize=31, stop_fittness = -math.inf,
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES."""
 
+    deEvals = np.random.uniform(0.1, 0.3)
     if de_max_evals is None:
-        de_max_evals = int(0.5*max_evaluations)
+        de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int(0.5*max_evaluations)
+        cma_max_evals = int((1.0-deEvals)*max_evaluations)
     opt1 = De_cpp(popsize=popsize, max_evaluations = de_max_evals, stop_fittness = stop_fittness)
     opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
                    stop_fittness = stop_fittness)
@@ -130,10 +131,11 @@ def de_cma_py(max_evaluations = 50000, popsize=31, stop_fittness = -math.inf,
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES in python."""
 
+    deEvals = np.random.uniform(0.1, 0.3)
     if de_max_evals is None:
-        de_max_evals = int(0.5*max_evaluations)
+        de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int(0.5*max_evaluations)
+        cma_max_evals = int((1.0-deEvals)*max_evaluations)
     opt1 = De_python(popsize=popsize, max_evaluations = de_max_evals, stop_fittness = stop_fittness)
     opt2 = Cma_python(popsize=popsize, max_evaluations = cma_max_evals, 
                    stop_fittness = stop_fittness)
@@ -143,10 +145,11 @@ def de2_cma(max_evaluations = 50000, popsize=31, stop_fittness = -math.inf,
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES."""
 
+    deEvals = np.random.uniform(0.1, 0.3)
     if de_max_evals is None:
-        de_max_evals = int(0.5*max_evaluations)
+        de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int(0.5*max_evaluations)
+        cma_max_evals = int((1.0-deEvals)*max_evaluations)
     opt1 = Choice([GCLDE_cpp(de_max_evals), De_cpp(de_max_evals)])
     opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fittness = stop_fittness)
     return Sequence([opt1, opt2])
@@ -167,10 +170,11 @@ def gclde_cma(max_evaluations = 50000, popsize=31, stop_fittness = -math.inf,
            de_max_evals = None, cma_max_evals = None, workers = None):
     """Sequence G-CL-differential evolution -> CMA-ES."""
 
+    deEvals = np.random.uniform(0.1, 0.3)
     if de_max_evals is None:
-        de_max_evals = int(2.0*max_evaluations/3.0)
+        de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int(max_evaluations/3.0)
+        cma_max_evals = int((1.0-deEvals)*max_evaluations)
     opt1 = GCLDE_cpp(max_evaluations = de_max_evals, stop_fittness = stop_fittness, workers = workers)
     opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
                    stop_fittness = stop_fittness, workers = workers)
@@ -180,10 +184,11 @@ def da_cma(max_evaluations = 50000, da_max_evals = None, cma_max_evals = None,
            popsize=31, stop_fittness = -math.inf):
     """Sequence differential evolution -> CMA-ES."""
 
+    daEvals = np.random.uniform(0.1, 0.3)
     if da_max_evals is None:
-        da_max_evals = int(0.5*max_evaluations)
+        da_max_evals = int(daEvals*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int(0.5*max_evaluations)
+        cma_max_evals = int((1.0-daEvals)*max_evaluations)
     opt1 = Da_cpp(max_evaluations = da_max_evals, stop_fittness = stop_fittness)
     opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
                    stop_fittness = stop_fittness)
