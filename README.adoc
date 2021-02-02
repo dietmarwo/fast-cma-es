@@ -16,8 +16,7 @@ an extension of fcmaes based on https://docs.ray.io/en/master/cluster/index.html
 
 === Documentation
 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions], 
@@ -249,26 +248,49 @@ Example dependencies:
 
 === Performance
 
-On a single AMD 3950x CPU using https://repo.anaconda.com/archive/Anaconda3-2019.10-Linux-x86_64.sh[Anaconda 2019.10] for Linux the parallel coordinated retry mechanism 
-solves ESAs 26-dimensional https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full] problem
-in about 2 hours on average. The Messenger full benchmark models a
+A problem is considered "solved" if you find a solution not worse more than 0.5% compared to the
+best solution known. If an optimizer needs multiple retries, take the average amount of time
+for all retries until the problem is solved. You may use any tool / programming language. The
+solution times given in the tables below are for Linux / AMD 5950x CPU.
+
+.GTOP coordinated retry results for stopVal = 1.005*absolute_best
+[width="80%",cols="2,^2,^2,^2,^2,^2,^2",options="header"]
+|=========================================================
+|problem |runs | absolute best |stopVal |success rate |mean time|sdev time
+|Messenger Full |100 |1.9579 |1.96769 |41% |3497.25s |2508.88s
+|Messenger Full |100 |1.9579 |2.0 |59% |1960.68s |2024.24s
+|=========================================================
+
+Note that 'stopVal' is the value determining success and
+mean time' includes the time for failed runs.
+Execute https://github.com/dietmarwo/fast-cma-es/examples/test_gtop.py[test_gtop.py]
+to reproduce these results. The same optimization algorithm
+was applied for all problems, using the same parameters both for the optimization algorithm and the coordinated retry.
+
+.GTOP coordinated retry results for reaching the absolute best value
+[width="80%",cols="2,^2,^2,^2,^2,^2,^2",options="header"]
+|=========================================================
+|problem |runs |absolute best |stopVal |success rate |mean time|sdev time
+|=========================================================
+
+ESAs 26-dimensional https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full] problem
+in about 2000 seconds on average. The Messenger full benchmark models a
 multi-gravity assist interplanetary space mission from Earth to Mercury. In 2009 the first good solution (6.9 km/s)
 was submitted. It took more than five years to reach 1.959 km/s and three more years until 2017 to find the optimum 1.958 km/s. The picture below shows the progress of the whole science community since 2009:
 
 image::Fsc.png[]  
 
-The following picture shows 173 retry runs, each about 1 hour. 
+The following picture shows 101 coordinated retry runs: 
 
 image::mf3.6000.png[]  
 
-91 out of these 173 runs produced a result better than 2 km/s:
+60 out of these 101 runs produced a result better than 2 km/s:
 
 image::mf3.2000.png[] 
 
-69, more than a third reached the absolute minimum at 1.958 km/s. 
-
-image::mf3.1959.png[] 
-
-For comparison: http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] shows that using 1000 cores of the the Hokudai Supercomputer using Intel Xeon Gold 6148 CPU’s with a clock rate of 2.7 GHz Messenger Full can be solved in about 1 hour using the MXHCP algorithm. https://github.com/dietmarwo/fcmaes-ray/blob/master/README.adoc[fcmaesray] shows how a 5 node cluster using 96 CPU-cores executing fcmaes coordinated retry performs in comparison. 
-
-On a 16 core AMD 3950x fcmaes parallel retry performs > 650000 messenger_full evaluations per second using the `DE->CMA` sequence, and > 900000 evaluations per second using only CMA-ES. 
+For comparison: http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] shows that using 
+1000 cores of the the Hokudai Supercomputer using Intel Xeon Gold 6148 CPU’s with a clock rate of 2.7 GHz Messenger Full 
+can be solved in about 1 hour using the MXHCP algorithm. 
+https://github.com/dietmarwo/fcmaes-ray/blob/master/README.adoc[fcmaesray] shows how a 5 node cluster using 
+96 CPU-cores executing fcmaes coordinated retry performs in comparison. https://github.com/dietmarwo/fcmaes-java/blob/master/README.adoc
+shows that the fcmaes java implementation sharing the same C++ code is significantly faster. 

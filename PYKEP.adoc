@@ -4,7 +4,8 @@
 
 == Solving the PYKEP trajopt/gym Reference Problems
 
-PYKEP provides a number of https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[reference problems] for testing optimization methods, many of them replacing the old problems described in https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc[Results]
+PYKEP provides a number of https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[reference problems] for 
+testing optimization methods, many of them replacing the old GTOP problems.
 The new implementations have many advantages:
 
 - Implemented in Python so they can easily be adapted.
