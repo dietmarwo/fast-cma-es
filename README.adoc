@@ -247,11 +247,12 @@ Example dependencies:
 - pykep: https://esa.github.io/pykep/[pykep]. Install with 'pip install pykep'. 
 
 === Performance
-
-A problem is considered "solved" if you find a solution not worse more than 0.5% compared to the
-best solution known. If an optimizer needs multiple retries, take the average amount of time
-for all retries until the problem is solved. You may use any tool / programming language. The
-solution times given in the tables below are for Linux / AMD 5950x CPU.
+fcmaes provides fast parallel
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[example solvers] for the 
+real world space flight design problems https://www.esa.int/gsp/ACT/projects/gtop[GTOP] and for 
+the https://mintoc.de/index.php/F-8_aircraft[F-8_aircraft] problem based on differential equations. 
+In http://www.midaco-solver.com/index.php/about/benchmarks/gtopx[GTOPX] you can find implementations 
+of the corresponding objective functions using different programming languages.
 
 .GTOP coordinated retry results for stopVal = 1.005*absolute_best
 [width="80%",cols="2,^2,^2,^2,^2,^2,^2",options="header"]
