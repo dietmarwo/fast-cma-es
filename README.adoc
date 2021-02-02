@@ -36,9 +36,7 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/DelayedUpdate.adoc[Delayed 
 - Integrates https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy] and https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt] optimization algorithms for use with the coordinated retry.
 - Parallel retry for https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] algorithms and problems.
 
-image::coord_retry.jpg[]
-
-image::simple_retry.jpg[]
+image::coord.png[]
  
 === Optimization algorithms
 
@@ -289,7 +287,7 @@ image::mf3.6000.png[]
 
 image::mf3.2000.png[] 
 
-For comparison: http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] shows that using 
+http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] shows that using 
 1000 cores of the the Hokudai Supercomputer using Intel Xeon Gold 6148 CPU’s with a clock rate of 2.7 GHz Messenger Full 
 can be solved in about 1 hour using the MXHCP algorithm. 
 https://github.com/dietmarwo/fcmaes-ray/blob/master/README.adoc[fcmaesray] shows how a 5 node cluster using 
