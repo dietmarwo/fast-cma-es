@@ -30,7 +30,7 @@ def minimize(fun,
              popsize = 31, 
              max_evaluations = 50000, 
              capacity = 500,
-             stop_fittness = None,
+             stop_fitness = -math.inf,
              optimizer = None,
              statistic_num = 0
              ):   
@@ -70,7 +70,7 @@ def minimize(fun,
         this setting is defined in the optimizer. 
     capacity : int, optional
         capacity of the evaluation store.
-    stop_fittness : float, optional 
+    stop_fitness : float, optional 
          Limit for fitness value. optimization runs terminate if this value is reached. 
     optimizer : optimizer.Optimizer, optional
         optimizer to use. Default is a sequence of differential evolution and CMA-ES.
@@ -84,15 +84,16 @@ def minimize(fun,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
     if optimizer is None:
-        optimizer = de_cma(max_evaluations, popsize, stop_fittness)        
+        optimizer = de_cma(max_evaluations, popsize, stop_fitness)        
     store = Store(bounds, capacity = capacity, logger = logger, statistic_num = statistic_num)
-    return retry(fun, store, optimizer.minimize, num_retries, value_limit, workers)
+    return retry(fun, store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
                  
-def retry(fun, store, optimize, num_retries, value_limit = math.inf, workers=mp.cpu_count()):
+def retry(fun, store, optimize, num_retries, value_limit = math.inf, 
+          workers=mp.cpu_count(), stop_fitness = -math.inf):
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
-            args=(pid, rgs, fun, store, optimize, num_retries, value_limit)) for pid in range(workers)]
+            args=(pid, rgs, fun, store, optimize, num_retries, value_limit, stop_fitness)) for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
     store.sort()
@@ -278,14 +279,14 @@ class Store(object):
         self.logger.info(message)
 
         
-def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit):
+def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit, stop_fitness = -math.inf):
     
     #reinitialize logging config for windows -  multi threading fix
     if 'win' in sys.platform and not store.logger is None:
         store.logger = logger()
         
     lower = store.lower
-    while store.get_runs_compare_incr(num_retries):        
+    while store.get_runs_compare_incr(num_retries) and store.best_y.value > stop_fitness:      
         try:       
             sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
                                      [random.uniform(0.05, 0.1)]*len(lower), rgs[pid], store)
