@@ -250,7 +250,8 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[exa
 real world space flight design problems https://www.esa.int/gsp/ACT/projects/gtop[GTOP] and for 
 the https://mintoc.de/index.php/F-8_aircraft[F-8_aircraft] problem based on differential equations. 
 In http://www.midaco-solver.com/index.php/about/benchmarks/gtopx[GTOPX] you can find implementations 
-of the corresponding objective functions using different programming languages.
+of the corresponding objective functions using different programming languages. The
+solution times given in the tables below are for Linux / AMD 5950x CPU.
 
 .GTOP coordinated retry results for stopVal = 1.005*absolute_best
 [width="80%",cols="2,^2,^2,^2,^2,^2,^2",options="header"]
