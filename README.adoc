@@ -36,8 +36,38 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/DelayedUpdate.adoc[Delayed 
 - Integrates https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy] and https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt] optimization algorithms for use with the coordinated retry.
 - Parallel retry for https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] algorithms and problems.
 
-image::coord.png[]
- 
+image::coord.png[width=80%]
+
+=== Performance
+
+fcmaes provides fast parallel
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[example solvers] for the 
+real world space flight design problems https://www.esa.int/gsp/ACT/projects/gtop[GTOP] and for 
+the https://mintoc.de/index.php/F-8_aircraft[F-8_aircraft] problem based on differential equations. 
+In http://www.midaco-solver.com/index.php/about/benchmarks/gtopx[GTOPX] you can find implementations 
+of the corresponding objective functions using different programming languages. The
+solution times given in the tables below are for Linux / AMD 5950x CPU.
+
+.GTOP coordinated retry results for stopVal = 1.005*absolute_best
+[width="80%",cols="2,^2,^2,^2,^2,^2,^2",options="header"]
+|=========================================================
+|problem |runs | absolute best |stopVal |success rate |mean time|sdev time
+|Messenger Full |100 |1.9579 |1.96769 |41% |3497.25s |2508.88s
+|Messenger Full |100 |1.9579 |2.0 |59% |1960.68s |2024.24s
+|=========================================================
+
+Note that 'stopVal' is the value determining success and
+'mean time' includes the time for failed runs.
+Execute https://github.com/dietmarwo/fast-cma-es/examples/test_gtop.py[test_gtop.py]
+to reproduce these results. The same optimization algorithm
+was applied for all problems, using the same parameters both for the optimization algorithm and the coordinated retry.
+
+.GTOP coordinated retry results for reaching the absolute best value
+[width="80%",cols="2,^2,^2,^2,^2,^2,^2",options="header"]
+|=========================================================
+|problem |runs |absolute best |stopVal |success rate |mean time|sdev time
+|=========================================================
+
 === Optimization algorithms
 
 - CMA-ES: Implemented both in Python and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[C++]. The https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[Python version] is faster than
@@ -56,7 +86,7 @@ https://www.researchgate.net/publication/309179699_Differential_evolution_for_pr
 - Expressions: There are two operators for constructing expressions over optimization algorithms: Sequence and random choice.
 Not only the four algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. Default method for the parallel retry is the sequence (DE | GLC-DE) -> CMA with the evaluation budget equally distributed. 
 
-image::default_algo.jpg[]
+image::default_algo.jpg[width=80%]
  
 === Installation
 
@@ -244,39 +274,14 @@ Example dependencies:
 
 - pykep: https://esa.github.io/pykep/[pykep]. Install with 'pip install pykep'. 
 
-=== Performance
-fcmaes provides fast parallel
-https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[example solvers] for the 
-real world space flight design problems https://www.esa.int/gsp/ACT/projects/gtop[GTOP] and for 
-the https://mintoc.de/index.php/F-8_aircraft[F-8_aircraft] problem based on differential equations. 
-In http://www.midaco-solver.com/index.php/about/benchmarks/gtopx[GTOPX] you can find implementations 
-of the corresponding objective functions using different programming languages. The
-solution times given in the tables below are for Linux / AMD 5950x CPU.
+=== ESAs Messenger-Full Space Trajectory Design Problem
 
-.GTOP coordinated retry results for stopVal = 1.005*absolute_best
-[width="80%",cols="2,^2,^2,^2,^2,^2,^2",options="header"]
-|=========================================================
-|problem |runs | absolute best |stopVal |success rate |mean time|sdev time
-|Messenger Full |100 |1.9579 |1.96769 |41% |3497.25s |2508.88s
-|Messenger Full |100 |1.9579 |2.0 |59% |1960.68s |2024.24s
-|=========================================================
-
-Note that 'stopVal' is the value determining success and
-mean time' includes the time for failed runs.
-Execute https://github.com/dietmarwo/fast-cma-es/examples/test_gtop.py[test_gtop.py]
-to reproduce these results. The same optimization algorithm
-was applied for all problems, using the same parameters both for the optimization algorithm and the coordinated retry.
-
-.GTOP coordinated retry results for reaching the absolute best value
-[width="80%",cols="2,^2,^2,^2,^2,^2,^2",options="header"]
-|=========================================================
-|problem |runs |absolute best |stopVal |success rate |mean time|sdev time
-|=========================================================
-
-ESAs 26-dimensional https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full] problem
-is solved in about 2000 seconds on average. The Messenger full benchmark models a
-multi-gravity assist interplanetary space mission from Earth to Mercury. In 2009 the first good solution (6.9 km/s)
-was submitted. It took more than five years to reach 1.959 km/s and three more years until 2017 to find the optimum 1.958 km/s. The picture below shows the progress of the whole science community since 2009:
+Because of its famous complexity ESAs 26-dimensional https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full] 
+problem is often referenced in the literature, see for instance http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper].
+fcmaes is the only library capable of solving it using a single CPU - in about 2000 seconds on average using an AMD 5950x.
+The Problem models a multi-gravity assist interplanetary space mission from Earth to Mercury. In 2009 the first good solution (6.9 km/s)
+was submitted. It took more than five years to reach 1.959 km/s and three more years until 2017 to find the optimum 1.958 km/s. 
+The picture below shows the progress of the whole science community since 2009:
 
 image::Fsc.png[]  
 
@@ -288,9 +293,9 @@ image::mf3.6000.png[]
 
 image::mf3.2000.png[] 
 
-http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] shows that using 
-1000 cores of the the Hokudai Supercomputer using Intel Xeon Gold 6148 CPU’s with a clock rate of 2.7 GHz Messenger Full 
-can be solved in about 1 hour using the MXHCP algorithm. 
+About 1.2*10^6 function evaluations per second were performed which shows excellent scaling of the algorithm utilizing all
+16 cores / 32 threads.  
+https://github.com/dietmarwo/fcmaes-java/blob/master/README.adoc shows that the fcmaes java implementation sharing 
+the same C++ code is significantly faster. 
 https://github.com/dietmarwo/fcmaes-ray/blob/master/README.adoc[fcmaesray] shows how a 5 node cluster using 
-96 CPU-cores executing fcmaes coordinated retry performs in comparison. https://github.com/dietmarwo/fcmaes-java/blob/master/README.adoc
-shows that the fcmaes java implementation sharing the same C++ code is significantly faster. 
+96 CPU-cores executing fcmaes coordinated retry performs in comparison.
