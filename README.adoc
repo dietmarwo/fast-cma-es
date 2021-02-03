@@ -40,11 +40,18 @@ image::coord.png[width=80%]
 
 === Performance
 
+In the literature optimization algorithms are often compared by the average result they achieve using a 
+specific number of function evaluations. But in the real world faced with real optimization problems we are
+usually interested in a different metric: How long does it take to compute a reasonable solution, say
+not worse than 0.5% above the absolute optimum, with the given hardware. For an optimization library
+this means: How long does it take to compute a reasonable solution if I choose the best algorithm(s) of
+the library, optimally configured and optimally parallelized on the given hardware.
+
 fcmaes provides fast parallel
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[example solvers] for the 
 real world space flight design problems https://www.esa.int/gsp/ACT/projects/gtop[GTOP] and for 
 the https://mintoc.de/index.php/F-8_aircraft[F-8_aircraft] problem based on differential equations. 
-In http://www.midaco-solver.com/index.php/about/benchmarks/gtopx[GTOPX] you can find implementations 
+On http://www.midaco-solver.com/index.php/about/benchmarks/gtopx[GTOPX] you can find implementations 
 of the corresponding objective functions using different programming languages. The
 solution times given in the tables below are for Linux / AMD 5950x CPU.
 
@@ -52,6 +59,13 @@ solution times given in the tables below are for Linux / AMD 5950x CPU.
 [width="80%",cols="2,^2,^2,^2,^2,^2,^2",options="header"]
 |=========================================================
 |problem |runs | absolute best |stopVal |success rate |mean time|sdev time
+|Cassini1 |100 |4.9307 |4.95535 |98% |7.43s |10.7s
+|Cassini2 |100 |8.383 |8.42491 |97% |55.18s |39.79s
+|Gtoc1 |100 |-1581950 |-1574079.60199 |100% |25.88s |22.15s
+|Messenger |100 |8.6299 |8.67305 |100% |18.12s |15.48s
+|Rosetta |100 |1.3433 |1.35002 |100% |25.05s |10.5s
+|Tandem |100 |-1500.46 |-1492.99502 |68% |519.21s |479.46s
+|Sagas |100 |18.188 |18.27894 |99% |7.59s |6.91s
 |Messenger Full |100 |1.9579 |1.96769 |41% |3497.25s |2508.88s
 |Messenger Full |100 |1.9579 |2.0 |59% |1960.68s |2024.24s
 |=========================================================
@@ -66,6 +80,13 @@ was applied for all problems, using the same parameters both for the optimizatio
 [width="80%",cols="2,^2,^2,^2,^2,^2,^2",options="header"]
 |=========================================================
 |problem |runs |absolute best |stopVal |success rate |mean time|sdev time
+|Cassini1 |100 |4.9307 |4.93075 |98% |8.73s |10.85s
+|Cassini2 |100 |8.383 |8.38305 |44% |310.18s |283.52s
+|Gtoc1 |100 |-1581950 |-1581949 |100% |46.41s |35.57s
+|Messenger |100 |8.6299 |8.62995 |98% |57.91s |39.97s
+|Rosetta |100 |1.3433 |1.34335 |27% |268.18s |207.59s
+|Tandem |100 |-1500.46 |-1500 |65% |564.26s |517.94s
+|Sagas |100 |18.188 |18.189 |99% |8.76s |7.01s
 |=========================================================
 
 === Optimization algorithms
