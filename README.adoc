@@ -56,7 +56,7 @@ of the corresponding objective functions using different programming languages. 
 solution times given in the tables below are for Linux / AMD 5950x CPU.
 
 .GTOP coordinated retry results for stopVal = 1.005*absolute_best
-[width="80%",cols="2,^2,^2,^2,^2,^2,^2",options="header"]
+[width="80%",cols="3,^2,^2,^2,^2,^2,^2",options="header"]
 |=========================================================
 |problem |runs | absolute best |stopVal |success rate |mean time|sdev time
 |Cassini1 |100 |4.9307 |4.95535 |98% |7.43s |10.7s
@@ -64,7 +64,7 @@ solution times given in the tables below are for Linux / AMD 5950x CPU.
 |Gtoc1 |100 |-1581950 |-1574080 |100% |25.88s |22.15s
 |Messenger |100 |8.6299 |8.67305 |100% |18.12s |15.48s
 |Rosetta |100 |1.3433 |1.35002 |100% |25.05s |10.5s
-|Tandem |100 |-1500.46 |-1493 |68% |519.21s |479.46s
+|Tandem EVEES Constrained |100 |-1500.46 |-1493 |68% |519.21s |479.46s
 |Sagas |100 |18.188 |18.279 |99% |7.59s |6.91s
 |Messenger Full |100 |1.9579 |1.96769 |41% |3497.25s |2508.88s
 |Messenger Full |100 |1.9579 |2.0 |59% |1960.68s |2024.24s
