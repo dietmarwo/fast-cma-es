@@ -72,7 +72,7 @@ solution times given in the tables below are for Linux / AMD 5950x CPU.
 
 Note that 'stopVal' is the value determining success and
 'mean time' includes the time for failed runs.
-Execute https://github.com/dietmarwo/fast-cma-es/examples/benchmark_gtop.py[test_gtop.py]
+Execute https://github.com/dietmarwo/blob/master/fast-cma-es/examples/benchmark_gtop.py[benchmark_gtop.py]
 to reproduce these results. The same optimization algorithm
 was applied for all problems, using the same parameters both for the optimization algorithm and the coordinated retry.
 
