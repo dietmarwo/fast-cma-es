@@ -30,6 +30,8 @@ The solution times given in the tables below are for Linux / AMD 3950x CPU.
 |Rosetta |10 |1.3433 |1.35002 |100% |56.91s |18.66s
 |Tandem EVEES Constrained |10 |-1500.46 |-1492.99502 |60% |860.95s |394.26s
 |Sagas |10 |18.188 |18.27894 |100% |5.29s |1.97s
+|Messenger Full |10 |1.9579 |2.0 |60% |2524.69s |1539.72s
+|Messenger Full |10 |1.9579 |1.96769 |20% |8664.12s |1114.35s
 |=========================================================
 
 Note that 'stopVal' is the value determining success and 'mean time' includes the time for failed runs.
@@ -40,10 +42,18 @@ The results prove that https://github.com/esa/pygmo2[pygmo2] provides
 excellent optimization algorithms sufficient to solve the  
 http://www.midaco-solver.com/data/pub/GTOPX_Benchmarks.pdf[GTOPX benchmarks].
 
-Here is a visualization of 10 coordinated retry runs for Tandem EVEES Constrained which was not solved 
+Here is a visualization of the 10 coordinated retry runs for Tandem EVEES Constrained which was not solved 
 until 2013:
 
 image::coordTandem.png[] 
+
+And now the 10 coordinated retry runs for Messenger Full:
+
+image::coordMess.png[] 
+
+Note that the rate PAGMO generates a solution below 2.0 km/s (> one per hour) on a single CPU at 4.0 GHZ is 
+higher than what has been reported in http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] using 1000 cores of the Hokudai Supercomputer using Intel Xeon Gold 6148 CPU’s with a clock rate of 2.7 GHz.  
+It cannot compete with the https://github.com/dietmarwo/fcmaes-java/blob/master/README.adoc[Java variant of fcmaes], but this is an unfair comparison, since the overhead for the coordinated retry meta algorithm is much lower using Java compared to Python. It could be even lower in C++, may be the PAGMO team sees this as a chance to grab the record? 
 
 === Challenge
 Can you reproduce these results without using fcmaes relying on the https://github.com/esa/pygmo2[pygmo2]

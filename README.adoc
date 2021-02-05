@@ -305,9 +305,7 @@ fcmaes is the only library capable of solving it using a single CPU:
 In about 1950 seconds on average using an AMD 5950x (1250 seconds for the 
 https://github.com/dietmarwo/fcmaes-java[java] variant) .
 
-The Problem models a multi-gravity assist interplanetary space mission from Earth to Mercury. In 2009 the first good solution (6.9 km/s)
-was submitted. It took more than five years to reach 1.959 km/s and three more years until 2017 to find the optimum 1.958 km/s. 
-The picture below shows the progress of the whole science community since 2009:
+The Problem models a multi-gravity assist interplanetary space mission from Earth to Mercury. In 2009 the first good solution (6.9 km/s) was submitted. It took more than five years to reach 1.959 km/s and three more years until 2017 to find the optimum 1.958 km/s. The picture below shows the progress of the whole science community since 2009:
 
 image::Fsc.png[]  
 
@@ -319,8 +317,7 @@ image::mf3.6000.png[]
 
 image::mf3.2000.png[] 
 
-About 1.2*10^6 function evaluations per second were performed which shows excellent scaling of the algorithm utilizing all
-16 cores / 32 threads.  
+About 1.2*10^6 function evaluations per second were performed which shows excellent scaling of the algorithm utilizing all 16 cores / 32 threads.  
 https://github.com/dietmarwo/fcmaes-java/blob/master/README.adoc shows that the fcmaes java implementation sharing 
 the same C++ code is significantly faster. 
 https://github.com/dietmarwo/fcmaes-ray/blob/master/README.adoc[fcmaesray] shows how a 5 node cluster using 
