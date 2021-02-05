@@ -36,7 +36,7 @@ The solution times given in the tables below are for Linux / AMD 3950x CPU.
 
 Note that 'stopVal' is the value determining success and 'mean time' includes the time for failed runs.
 Note that these results are preliminary - a 15% slower CPU was used and we did less meta algorithm runs,
-we will replace these soon by more accurate numbers and will add results for Messenger Full.
+we will replace these soon by more accurate numbers.
 
 The results prove that https://github.com/esa/pygmo2[pygmo2] provides
 excellent optimization algorithms sufficient to solve the  
