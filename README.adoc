@@ -17,6 +17,7 @@ an extension of fcmaes based on https://docs.ray.io/en/master/cluster/index.html
 === Documentation
 
 https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/PAGMO.adoc[Pagmo results], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions], 
@@ -45,7 +46,7 @@ specific number of function evaluations. But in the real world faced with real o
 usually interested in a different metric: How long does it take to compute a reasonable solution, say
 not worse than 0.5% above the absolute optimum, with the given hardware. For an optimization library
 this means: How long does it take to compute a reasonable solution if I choose the best algorithm(s) of
-the library, optimally configured and optimally parallelized on the given hardware.
+the library, optimally configured and optimally parallelized on the given hardware?
 
 fcmaes provides fast parallel
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[example solvers] for the 

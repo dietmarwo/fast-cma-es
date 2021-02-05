@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-# Test for fcmaes coordinated retry from https://www.esa.int/gsp/ACT/projects/gtop/
+# Test for fcmaes coordinated retry applied to https://www.esa.int/gsp/ACT/projects/gtop/
 # Generates the log files used to produce the tables in the README. 
 
 from fcmaes.astro import Messenger, Cassini2, Rosetta, Gtoc1, Cassini1, Sagas, Tandem, MessFull
