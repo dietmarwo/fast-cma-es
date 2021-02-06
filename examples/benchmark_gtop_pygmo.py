@@ -9,13 +9,16 @@
 # Please install pygmo before executing this test:
 # pip install pygmo 
 
-from fcmaes.astro import Messenger, Cassini2, Rosetta, Gtoc1, Cassini1, Sagas, Tandem, MessFull
-from fcmaes.optimizer import logger, Optimizer, Sequence
-from fcmaes.advretry import minimize
-import pygmo as pg
-import numpy as np
 import math
+
+from fcmaes.advretry import minimize
+from fcmaes.astro import Messenger, Cassini2, Rosetta, Gtoc1, Cassini1, Sagas, Tandem, MessFull
+from fcmaes.optimizer import logger, Optimizer, Sequence, De_cpp, Cma_cpp
 from numpy.random import MT19937, Generator
+
+import numpy as np
+import pygmo as pg
+
 
 class pygmo_udp(object):
     """Wraps a fcmaes fitness function as pygmo udp."""
@@ -29,7 +32,7 @@ class pygmo_udp(object):
     def get_bounds(self):
         return (self.bounds.lb, self.bounds.ub)
 
-def de_cma_pyg(max_evaluations = 50000, popsize=31, stop_fittness = -math.inf, 
+def de_cma_pyg(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
            de_max_evals = None, cma_max_evals = None):
     """Sequence de1220 -> cmaes pagmo."""
 
@@ -38,18 +41,47 @@ def de_cma_pyg(max_evaluations = 50000, popsize=31, stop_fittness = -math.inf,
         de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
         cma_max_evals = int((1.0-deEvals)*max_evaluations)
-    opt1 = De_pyg(popsize=popsize, max_evaluations = de_max_evals, stop_fittness = stop_fittness)
+    opt1 = De_pyg(popsize=popsize, max_evaluations = de_max_evals, stop_fitness = stop_fitness)
     opt2 = Cma_pyg(popsize=popsize, max_evaluations = cma_max_evals, 
-                   stop_fittness = stop_fittness)
+                   stop_fitness = stop_fitness)
+    return Sequence([opt1, opt2])
+
+def pyg_de_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
+           de_max_evals = None, cma_max_evals = None):
+    """Sequence de1220 -> cmaes c++."""
+
+    deEvals = np.random.uniform(0.1, 0.3)
+    if de_max_evals is None:
+        de_max_evals = int(deEvals*max_evaluations)
+    if cma_max_evals is None:
+        cma_max_evals = int((1.0-deEvals)*max_evaluations)
+    opt1 = De_cpp(popsize=popsize, max_evaluations = de_max_evals, stop_fitness = stop_fitness)
+    opt2 = Cma_pyg(popsize=popsize, max_evaluations = cma_max_evals, 
+                   stop_fitness = stop_fitness)
+    return Sequence([opt1, opt2])
+
+def de_pyg_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
+           de_max_evals = None, cma_max_evals = None):
+    """Sequence de c++ -> cmaes pagmo."""
+
+    deEvals = np.random.uniform(0.1, 0.3)
+    if de_max_evals is None:
+        de_max_evals = int(deEvals*max_evaluations)
+    if cma_max_evals is None:
+        cma_max_evals = int((1.0-deEvals)*max_evaluations)
+    opt1 = De_pyg(popsize=popsize, max_evaluations = de_max_evals, stop_fitness = stop_fitness)
+    opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
+                   stop_fitness = stop_fitness)
     return Sequence([opt1, opt2])
 
 class Cma_pyg(Optimizer):
     """CMA_ES pagmo implementation."""
    
-    def __init__(self, max_evaluations=50000, popsize = 31, guess=None):        
+    def __init__(self, max_evaluations=50000, popsize = 31, guess=None, stop_fitness = -math.inf):        
         Optimizer.__init__(self, max_evaluations, 'cma pagmo')
         self.popsize = popsize
         self.guess = guess
+        self.stop_fitness = stop_fitness
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
         gen = int(self.max_eval_num(store) / self.popsize + 1)       
@@ -70,9 +102,10 @@ class Cma_pyg(Optimizer):
 class De_pyg(Optimizer):
     """Differential Evolution pagmo implementation."""
     
-    def __init__(self, max_evaluations=50000, popsize = None):        
+    def __init__(self, max_evaluations=50000, popsize = None, stop_fitness = -math.inf):        
         Optimizer.__init__(self, max_evaluations, 'de1220 pagmo')
         self.popsize = popsize
+        self.stop_fitness = stop_fitness
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
         gen = int(self.max_eval_num(store) / self.popsize + 1)
@@ -94,6 +127,8 @@ def main():
     numRuns = 10
     min_evals = 1500
     algo = de_cma_pyg(min_evals)
+    #algo = pyg_de_cma(min_evals)
+    #algo = de_pyg_cma(min_evals)
     fac = 1.005
     _test_optimizer(algo, Gtoc1(), num_retries = 10000, num = numRuns, 
                     value_limit = -300000.0, stop_val = -1581950/fac)
