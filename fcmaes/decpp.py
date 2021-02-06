@@ -27,7 +27,7 @@ def minimize(fun,
              bounds = None, 
              popsize = None, 
              max_evaluations = 100000, 
-             stop_fittness = None, 
+             stop_fitness = None, 
              keep = 200,
              f = 0.5,
              cr = 0.9,
@@ -56,7 +56,7 @@ def minimize(fun,
         Population size.
     max_evaluations : int, optional
         Forced termination after ``max_evaluations`` function evaluations.
-    stop_fittness : float, optional 
+    stop_fitness : float, optional 
          Limit for fitness value. If reached minimize terminates.
     keep = float, optional
         changes the reinitialization probability of individuals based on their age. Higher value
@@ -88,15 +88,15 @@ def minimize(fun,
     if lower is None:
         lower = [0]*n
         upper = [0]*n
-    if stop_fittness is None:
-        stop_fittness = math.inf   
+    if stop_fitness is None:
+        stop_fitness = math.inf   
     array_type = ct.c_double * n   
     c_callback = call_back_type(callback(fun))
     seed = int(rg.uniform(0, 2**32 - 1))
     try:
         res = optimizeDE_C(runid, c_callback, n, seed,
                            array_type(*lower), array_type(*upper), 
-                           max_evaluations, keep, stop_fittness,  
+                           max_evaluations, keep, stop_fitness,  
                            popsize, f, cr)
         x = np.array(np.fromiter(res, dtype=np.float64, count=n))
         val = res[n]

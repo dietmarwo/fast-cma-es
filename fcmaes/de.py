@@ -36,7 +36,7 @@ def minimize(fun,
              popsize = 31, 
              max_evaluations = 100000, 
              workers = None,
-             stop_fittness = None, 
+             stop_fitness = None, 
              keep = 200, 
              f = 0.5, 
              cr = 0.9, 
@@ -67,7 +67,7 @@ def minimize(fun,
     workers : int or None, optional
         If not workers is None, function evaluation is performed in parallel for the whole population. 
         Useful for costly objective functions but is deactivated for parallel retry.      
-    stop_fittness : float, optional 
+    stop_fitness : float, optional 
          Limit for fitness value. If reached minimize terminates.
     keep = float, optional
         changes the reinitialization probability of individuals based on their age. Higher value
@@ -92,7 +92,7 @@ def minimize(fun,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
     
-    de = DE(dim, bounds, popsize, stop_fittness, keep, f, cr, rg)
+    de = DE(dim, bounds, popsize, stop_fitness, keep, f, cr, rg)
     try:
         if workers and workers > 1:
             x, val, evals, iterations, stop = de._do_optimize_delayed_update(fun, max_evaluations, workers)
@@ -105,11 +105,11 @@ def minimize(fun,
 
 class DE(object):
     
-    def __init__(self, dim, bounds, popsize = 31, stop_fittness = None, keep = 200, 
+    def __init__(self, dim, bounds, popsize = 31, stop_fitness = None, keep = 200, 
                  F = 0.5, Cr = 0.9, rg = Generator(MT19937())):
         self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
         self.popsize = popsize
-        self.stop_fittness = stop_fittness
+        self.stop_fitness = stop_fitness
         self.keep = keep 
         self.rg = rg
         self.F0 = F
@@ -202,7 +202,7 @@ class DE(object):
                 if self.best_value > y:
                     self.best_x = x
                     self.best_value = y
-                    if not self.stop_fittness is None and self.stop_fittness > y:
+                    if not self.stop_fitness is None and self.stop_fitness > y:
                         self.stop = 1
             self.pop_iter[p] = self.iterations
         else:
@@ -250,7 +250,7 @@ class DE(object):
                         if y < self.best_value:
                             self.best_value = y;
                             self.best_x = x;
-                            if not self.stop_fittness is None and self.stop_fittness > y:
+                            if not self.stop_fitness is None and self.stop_fitness > y:
                                 self.stop = 1
                 else:
                     # reinitialize individual

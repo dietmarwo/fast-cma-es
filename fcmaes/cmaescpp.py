@@ -27,7 +27,7 @@ def minimize(fun,
              max_evaluations = 100000, 
              max_iterations = 100000,  
              accuracy = 1.0, 
-             stop_fittness = None, 
+             stop_fitness = None, 
              is_terminate = None, 
              rg = Generator(MT19937()),
              runid=0,
@@ -63,7 +63,7 @@ def minimize(fun,
         Forced termination after ``max_iterations`` iterations.
     accuracy : float, optional
         values > 1.0 reduce the accuracy.
-    stop_fittness : float, optional 
+    stop_fitness : float, optional 
          Limit for fitness value. If reached minimize terminates.
     is_terminate : callable, optional
         Callback to be used if the caller of minimize wants to 
@@ -99,8 +99,8 @@ def minimize(fun,
     mu = int(popsize/2)
     if np.ndim(input_sigma) == 0:
         input_sigma = [input_sigma] * n
-    if stop_fittness is None:
-        stop_fittness = math.inf   
+    if stop_fitness is None:
+        stop_fitness = math.inf   
     if is_terminate is None:    
         is_terminate=_is_terminate_false
         use_terminate = False 
@@ -112,7 +112,7 @@ def minimize(fun,
     c_is_terminate = is_terminate_type(is_terminate)
     try:
         res = optimizeACMA_C(runid, c_callback_par, n, array_type(*guess), array_type(*lower), array_type(*upper), 
-                           array_type(*input_sigma), max_iterations, max_evaluations, stop_fittness, mu, 
+                           array_type(*input_sigma), max_iterations, max_evaluations, stop_fitness, mu, 
                            popsize, accuracy, use_terminate, c_is_terminate, 
                            int(rg.uniform(0, 2**32 - 1)), normalize, -1 if update_gap is None else update_gap)
 

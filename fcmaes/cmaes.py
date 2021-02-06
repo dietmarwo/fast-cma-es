@@ -29,7 +29,7 @@ def minimize(fun,
              max_iterations = 100000,  
              workers = None,
              accuracy = 1.0, 
-             stop_fittness = np.nan, 
+             stop_fitness = np.nan, 
              is_terminate = None, 
              rg = Generator(MT19937()),
              runid=0,
@@ -67,7 +67,7 @@ def minimize(fun,
         Useful for costly objective functions but is deactivated for parallel retry.      
     accuracy : float, optional
         values > 1.0 reduce the accuracy.
-    stop_fittness : float, optional 
+    stop_fitness : float, optional 
          Limit for fitness value. If reached minimize terminates.
     is_terminate : callable, optional
         Callback to be used if the caller of minimize wants to 
@@ -96,7 +96,7 @@ def minimize(fun,
         cmaes = Cmaes(bounds, x0, 
                       input_sigma, popsize, 
                       max_evaluations, max_iterations, 
-                      accuracy, stop_fittness, 
+                      accuracy, stop_fitness, 
                       is_terminate, rg, np.random.randn, runid, normalize, 
                       update_gap, fun)
         x, val, evals, iterations, stop = cmaes.do_optimize_delayed_update(fun, workers)
@@ -105,7 +105,7 @@ def minimize(fun,
         cmaes = Cmaes(bounds, x0, 
                       input_sigma, popsize, 
                       max_evaluations, max_iterations, 
-                      accuracy, stop_fittness, 
+                      accuracy, stop_fitness, 
                       is_terminate, rg, np.random.randn, runid, normalize, 
                       update_gap, fun)
         x, val, evals, iterations, stop = cmaes.doOptimize()
@@ -124,7 +124,7 @@ class Cmaes(object):
                         max_evaluations = 100000, 
                         max_iterations = 100000,  
                         accuracy = 1.0, 
-                        stop_fittness = np.nan, 
+                        stop_fitness = np.nan, 
                         is_terminate = None, 
                         rg = Generator(MT19937()), # used if x0 is undefined
                         randn = np.random.randn, # used for random offspring 
@@ -138,7 +138,7 @@ class Cmaes(object):
         self.runid = runid
     # bounds and guess
         lower, upper, guess = _check_bounds(bounds, x0, rg)   
-        self.fitfun = _Fittness(fun, lower, upper, normalize)
+        self.fitfun = _fitness(fun, lower, upper, normalize)
     # initial guess for the arguments of the fitness function
         self.guess = self.fitfun.encode(guess)
     # random generators    
@@ -175,7 +175,7 @@ class Cmaes(object):
         self.max_evaluations = max_evaluations
         self.max_iterations = max_iterations
     # Limit for fitness value.
-        self.stop_fitness = stop_fittness
+        self.stop_fitness = stop_fitness
     # Stop if x-changes larger stopTolUpX.
         self.stopTolUpX = 1e3 * self.sigma
     # Stop if x-change smaller stopTolX.
@@ -629,7 +629,7 @@ def _check_bounds(bounds, guess, rg):
         guess = rg.uniform(bounds.lb, bounds.ub)
     return np.asarray(bounds.lb), np.asarray(bounds.ub), np.asarray(guess)
 
-class _Fittness(object):
+class _fitness(object):
     """wrapper around the objective function, scales relative to boundaries."""
      
     def __init__(self, fun, lower, upper, normalize = None):

@@ -26,7 +26,7 @@ def minimize(fun,
              x0=None, 
              popsize = 0, 
              max_evaluations = 100000, 
-             stop_fittness = None, 
+             stop_fitness = None, 
              M = 1,
              rg = Generator(MT19937()),
              runid=0):   
@@ -53,7 +53,7 @@ def minimize(fun,
         CMA-ES population size.
     max_evaluations : int, optional
         Forced termination after ``max_evaluations`` function evaluations.
-    stop_fittness : float, optional 
+    stop_fitness : float, optional 
          Limit for fitness value. If reached minimize terminates.
     M : int, optional 
         Depth to use, 1 for plain CBiteOpt algorithm, >1 for CBiteOptDeep. Expected range is [1; 36].
@@ -78,14 +78,14 @@ def minimize(fun,
     if lower is None:
         lower = [0]*n
         upper = [0]*n
-    if stop_fittness is None:
-        stop_fittness = -math.inf   
+    if stop_fitness is None:
+        stop_fitness = -math.inf   
     array_type = ct.c_double * n 
     c_callback = call_back_type(callback(fun))
     try:
         res = optimizeBite_C(runid, c_callback, n, int(rg.uniform(0, 2**32 - 1)), 
                            array_type(*guess), array_type(*lower), array_type(*upper), 
-                           max_evaluations, stop_fittness, popsize, M)
+                           max_evaluations, stop_fitness, popsize, M)
 
         x = np.array(np.fromiter(res, dtype=np.float64, count=n))
         val = res[n]

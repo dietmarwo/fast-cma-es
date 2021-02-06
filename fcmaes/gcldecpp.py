@@ -26,7 +26,7 @@ def minimize(fun,
              bounds = None, 
              popsize = None, 
              max_evaluations = 100000, 
-             stop_fittness = None, 
+             stop_fitness = None, 
              pbest = 0.7,
              f0 = 0.0,
              cr0 = 0.0,
@@ -55,7 +55,7 @@ def minimize(fun,
         Population size.
     max_evaluations : int, optional
         Forced termination after ``max_evaluations`` function evaluations.
-    stop_fittness : float, optional 
+    stop_fitness : float, optional 
          Limit for fitness value. If reached minimize terminates.
     pbest = float, optional
         use low value 0 < pbest <= 1 to narrow search.
@@ -90,8 +90,8 @@ def minimize(fun,
     if lower is None:
         lower = [0]*n
         upper = [0]*n
-    if stop_fittness is None:
-        stop_fittness = math.inf   
+    if stop_fitness is None:
+        stop_fitness = math.inf   
     parfun = None if workers is None else parallel(fun, workers)
     array_type = ct.c_double * n   
     c_callback_par = call_back_par(callback_par(fun, parfun))
@@ -99,7 +99,7 @@ def minimize(fun,
     try:
         res = optimizeGCLDE_C(runid, c_callback_par, n, seed,
                            array_type(*lower), array_type(*upper), 
-                           max_evaluations, pbest, stop_fittness,  
+                           max_evaluations, pbest, stop_fitness,  
                            popsize, f0, cr0)
         x = np.array(np.fromiter(res, dtype=np.float64, count=n))
         val = res[n]
