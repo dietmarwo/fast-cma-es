@@ -62,7 +62,7 @@ https://esa.github.io/pygmo2/archipelago.html[parallelization mechanisms]?
 
 === Further Improvement
 The result the two PAGMO algorithms could achieve was better than expected. But may be only one of the two algorithms: 
-pg.de1220 and pg.cma, were responsible for this. To check this we tried to combine the PAGMO algorithms with the ones
+pg.de1220 and pg.cmaes, were responsible for this. To check this we tried to combine the PAGMO algorithms with the ones
 from fcmaes. It turned out that the pg.de1220 -> fcmaes.cmaescpp sequence is a winner. This sequence is called `de_pyg_cma` in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/benchmark_gtop_pygmo.py[benchmark_gtop_pygmo.py]. 
 
 .GTOP coordinated retry results for stopVal = 1.005*absolute_best
