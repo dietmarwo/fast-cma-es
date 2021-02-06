@@ -74,7 +74,7 @@ from fcmaes. It turned out that the pg.de1220 -> fcmaes.cmaescpp sequence is a w
 |Gtoc1 |100 |-1581950 |-1574080 |100% |30.39s |25.25s
 |Messenger Reduced|10 |8.6299 |8.67305 |100% |17.07s |7.16s
 |Rosetta |10 |1.3433 |1.35002 |100% |43.16s |10.68s
-|Tandem EVEES Constrained |10 |-1500.46 |-1493 |91% |285.76s |259.57s
+|Tandem EVEES Constrained |10 |-1500.46 |-1493 |90% |285.76s |259.57s
 |Sagas |10 |18.188 |18.27894 |100% |11.52s |7.06s
 |=========================================================
 
