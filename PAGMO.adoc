@@ -11,9 +11,10 @@ The specific implementation of the basic algorithms (DE -> CMA), or the coordina
 To check this we replace the fcmaes versions of DE and CMA by the ones provided by 
 https://github.com/esa/pygmo2[pygmo2] / https://github.com/esa/pagmo2[pagmo2]. 
 It seems it is mostly the meta algorithm, as the results are very similar.
+We choose a sequence of pg.de1220 and pg.cma called `de_cma_pyg` in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/benchmark_gtop_pygmo.py[benchmark_gtop_pygmo.py]. 
 
 === Performance of the PYGMO2/PAGMO2 optimization algorithms
-Install pygmo (`pip install pygmo`) and
+Install pygmo (`pip install pygmo`) and fcmaes (`pip install fcmaes`) and
 execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/benchmark_gtop_pygmo.py[benchmark_gtop_pygmo.py]
 to reproduce the results. The same optimization algorithm
 was applied for all problems, using the same parameters both for the optimization algorithm and the coordinated retry.
@@ -26,7 +27,7 @@ The solution times given in the tables below are for Linux / AMD 3950x CPU.
 |Cassini1 |10 |4.9307 |4.95535 |100% |4.37s |2.37s
 |Cassini2 |10 |8.383 |8.42491 |100% |54.26s |21.24s
 |Gtoc1 |10 |-1581950 |-1574079.60199 |100% |19.12s |12.18s
-|Messenger |10 |8.6299 |8.67305 |100% |23.71s |10.59s
+|Messenger Reduced|10 |8.6299 |8.67305 |100% |23.71s |10.59s
 |Rosetta |10 |1.3433 |1.35002 |100% |56.91s |18.66s
 |Tandem EVEES Constrained |10 |-1500.46 |-1492.99502 |60% |860.95s |394.26s
 |Sagas |10 |18.188 |18.27894 |100% |5.29s |1.97s
@@ -58,3 +59,27 @@ It cannot compete with the https://github.com/dietmarwo/fcmaes-java/blob/master/
 === Challenge
 Can you reproduce these results without using fcmaes relying on the https://github.com/esa/pygmo2[pygmo2]
 https://esa.github.io/pygmo2/archipelago.html[parallelization mechanisms]?
+
+=== Further Improvement
+The result the two PAGMO algorithms could achieve was better than expected. But may be only one of the two algorithms: 
+pg.de1220 and pg.cma, were responsible for this. To check this we tried to combine the PAGMO algorithms with the ones
+from fcmaes. It turned out that the pg.de1220 -> fcmaes.cmaescpp sequence is a winner. This sequence is called `de_pyg_cma` in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/benchmark_gtop_pygmo.py[benchmark_gtop_pygmo.py]. 
+
+.GTOP coordinated retry results for stopVal = 1.005*absolute_best
+[width="80%",cols="3,^2,^2,^2,^2,^2,^2",options="header"]
+|=========================================================
+|problem |runs | absolute best |stopVal |success rate |mean time|sdev time
+|Cassini1 |100 |4.9307 |4.95535 |100% |1.89s |0.75s
+|Cassini2 |100 |8.383 |8.42491 |100% |44.16s |24.59s
+|Gtoc1 |100 |-1581950 |-1574080 |100% |30.39s |25.25s
+|Messenger Reduced|10 |8.6299 |8.67305 |100% |17.07s |7.16s
+|Rosetta |10 |1.3433 |1.35002 |100% |43.16s |10.68s
+|Tandem EVEES Constrained |10 |-1500.46 |-1493 |91% |285.76s |259.57s
+|Sagas |10 |18.188 |18.27894 |100% |11.52s |7.06s
+
+Considering that again the old AMD 3950x was used, specially the Tandem EVEES Constrained result is
+impressive:
+
+image::coordTandem2.png[]
+
+Seems the adaptive de1220 differential evolution variant is worth to get its own fcmaes implementation.
