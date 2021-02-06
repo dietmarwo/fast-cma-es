@@ -76,6 +76,7 @@ from fcmaes. It turned out that the pg.de1220 -> fcmaes.cmaescpp sequence is a w
 |Rosetta |10 |1.3433 |1.35002 |100% |43.16s |10.68s
 |Tandem EVEES Constrained |10 |-1500.46 |-1493 |91% |285.76s |259.57s
 |Sagas |10 |18.188 |18.27894 |100% |11.52s |7.06s
+|=========================================================
 
 Considering that again the old AMD 3950x was used, specially the Tandem EVEES Constrained result is
 impressive:
