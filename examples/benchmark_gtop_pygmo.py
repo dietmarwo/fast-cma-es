@@ -13,12 +13,13 @@ import math
 
 from fcmaes.advretry import minimize
 from fcmaes.astro import Messenger, Cassini2, Rosetta, Gtoc1, Cassini1, Sagas, Tandem, MessFull
-from fcmaes.optimizer import logger, Optimizer, Sequence, De_cpp, Cma_cpp
+from fcmaes.optimizer import logger, dtime, Optimizer, Sequence, De_cpp, Cma_cpp
 from numpy.random import MT19937, Generator
-
+from scipy.optimize import OptimizeResult
+import multiprocessing as mp
 import numpy as np
 import pygmo as pg
-
+import time
 
 class pygmo_udp(object):
     """Wraps a fcmaes fitness function as pygmo udp."""
@@ -123,7 +124,47 @@ def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 10
         ret = minimize(problem.fun, problem.bounds, value_limit, num_retries, log, 
                        optimizer=opt, stop_fitness = stop_val)
 
-def main():
+def _test_archipelago(algo, problem, num = 10000, stop_val = -1E99, log = logger()):   
+    udp = pygmo_udp(problem.fun, problem.bounds)
+    prob = pg.problem(udp) 
+    best_y = math.inf
+    best_x = None
+    t0 = time.perf_counter()
+   
+    for _ in range(num):
+        archi = pg.archipelago(n=mp.cpu_count(), algo=algo, prob=prob, pop_size=64)
+        archi.evolve()  
+        archi.wait()
+        ys = archi.get_champions_f()
+        if not ys is None and len(ys) > 0: 
+            sort = np.argsort([y[0] for y in ys])
+            y = ys[sort[0]][0]
+            if y < best_y:
+                best_y = y
+                best_x = archi.get_champions_x()[sort[0]]
+                message = '{0} {1} {2} {3!s}'.format(
+                    problem.name, dtime(t0), best_y, list(best_x))
+                log.info(message)
+                if best_y < stop_val: 
+                    break
+    return OptimizeResult(x=best_x, fun=best_y, success=True)
+
+def test_archipelago():
+    max_evals = 500000
+    popsize = 32
+    gen = int(max_evals / popsize + 1)
+    algo = pg.algorithm(pg.de1220(gen=gen))
+    fac = 1.005
+    _test_archipelago(algo, Cassini1(), num = 400, stop_val = 4.9307*fac)
+    _test_archipelago(algo, Cassini2(), num = 600, stop_val = 8.383*fac)
+    _test_archipelago(algo, Gtoc1(), num = 1000, stop_val = -1581950/fac)
+    _test_archipelago(algo, Messenger(), num = 800, stop_val = 8.63*fac)
+    _test_archipelago(algo, Rosetta(), num = 400, stop_val = 1.3433*fac)
+    _test_archipelago(algo, Sagas(), num = 400, stop_val = 18.187*fac)
+    _test_archipelago(algo, Tandem(5), num = 2000, stop_val = -1500.6/fac)
+    _test_archipelago(algo, MessFull(), num = 5000, stop_val = 1.959*fac)
+
+def test_coordinated_retry():
     numRuns = 10
     min_evals = 1500
     algo = de_cma_pyg(min_evals)
@@ -146,7 +187,9 @@ def main():
                     value_limit = -300.0, stop_val = -1500.6/fac)
     _test_optimizer(algo, MessFull(), num_retries = 50000, num = numRuns, 
                     value_limit = 12.0, stop_val = 1.959*fac)
- 
+
 if __name__ == '__main__':
-    main()
+    test_coordinated_retry()
+    #test_archipelago()
+
     
