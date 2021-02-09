@@ -71,7 +71,7 @@ solution times given in the tables below are for Linux / AMD 5950x CPU.
 |Messenger Full |100 |1.9579 |2.0 |59% |1960.68s |2024.24s
 |=========================================================
 
-Note that 'stopVal' is the value determining success and
+Note that 'stopVal' is the threshold value determining success and
 'mean time' includes the time for failed runs.
 Execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/benchmark_gtop.py[benchmark_gtop.py]
 to reproduce these results. The same optimization algorithm
