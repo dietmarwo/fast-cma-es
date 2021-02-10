@@ -98,7 +98,7 @@ class Cma_pyg(Optimizer):
                 xi = np.maximum(np.minimum(xi, bounds.ub), bounds.lb)
                 pop.set_x(i, xi)
         pop = algo.evolve(pop)
-        return pop.champion_x, pop.champion_f, prob.get_fevals()
+        return pop.champion_x, pop.champion_f, pop.problem.get_fevals()
 
 class De_pyg(Optimizer):
     """Differential Evolution pagmo implementation."""
@@ -110,12 +110,14 @@ class De_pyg(Optimizer):
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
         gen = int(self.max_eval_num(store) / self.popsize + 1)
-        algo = pg.algorithm(pg.de1220(gen=gen, seed = int(rg.uniform(0, 2**32 - 1))))
+        algo = pg.algorithm(pg.de1220(gen=gen, allowed_variants = [1, 2, 4, 7, 10, 13, 14, 15, 16], 
+                                      variant_adptv = 1, seed = int(rg.uniform(0, 2**32 - 1))))
+#         algo = pg.algorithm(pg.sade(gen=gen, variant_adptv = 1, seed = int(rg.uniform(0, 2**32 - 1))))
         udp = pygmo_udp(fun, bounds)    
         prob = pg.problem(udp) 
         pop = pg.population(prob, self.popsize)
         pop = algo.evolve(pop)
-        return pop.champion_x, pop.champion_f, prob.get_fevals()
+        return pop.champion_x, pop.champion_f, pop.problem.get_fevals()
 
 def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 100.0, 
                     stop_val = -1E99, log = logger()):
