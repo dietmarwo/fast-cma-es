@@ -88,15 +88,19 @@ class Sequence(Optimizer):
             self.name += optimizer.name + ' -> '
             self.max_evaluations += optimizer.max_evaluations
         self.name = self.name[:-4]
-                  
+
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
         evals = 0
+        y = math.inf
         for optimizer in self.optimizers:
             ret = optimizer.minimize(fun, bounds, guess, sdevs, rg, store)
-            guess = ret[0]
+            if ret[1] < y:
+                y = ret[1]
+                x = ret[0]
+            guess = x
             evals += ret[2]
-        return ret[0], ret[1], evals
-
+        return x, y, evals
+                  
 class Choice(Optimizer):
     """Random choice of optimizers."""
     
