@@ -68,7 +68,7 @@ def compute_solar_orbiter():
     problem_stats = multiretry.minimize(fprobs, ids, 256, 0.9, optimizer, logger())
     ps = problem_stats[0] # focus on the best one
     for _ in range(6):
-        logger.info("problem " + ps.prob.name + ' ' + str(ps.id))
+        logger().info("problem " + ps.prob.name + ' ' + str(ps.id))
         ps.retry(optimizer)
     
     pop_champion_x = ps.ret.x
