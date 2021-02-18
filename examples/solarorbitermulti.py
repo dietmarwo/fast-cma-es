@@ -62,9 +62,17 @@ def compute_solar_orbiter():
     
     ids = [names(seq) for seq in seqs]
 
-    ret = multiretry.minimize(fprobs, ids, 256, 0.7, de_cma(1500), logger())
-    pop_champion_x = ret.x
-        
+    logger().info('solar orbiter' + ' de -> cmaes c++ smart retry')    
+    ids = [names(seq) for seq in seqs]
+    optimizer = de_cma(1500)
+    problem_stats = multiretry.minimize(fprobs, ids, 256, 0.9, optimizer, logger())
+    ps = problem_stats[0] # focus on the best one
+    for _ in range(6):
+        logger.info("problem " + ps.prob.name + ' ' + str(ps.id))
+        ps.retry(optimizer)
+    
+    pop_champion_x = ps.ret.x
+    
     solar_orbiter.pretty(pop_champion_x)
     solar_orbiter.plot(pop_champion_x)
     
