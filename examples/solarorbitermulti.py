@@ -39,7 +39,8 @@ def compute_solar_orbiter():
     seq7=[earth, earth, venus, earth, earth, venus, venus, venus, venus]
     seq8=[earth, earth, venus, earth, venus, venus, earth, venus, venus]
     
-    seqs = [seq1,seq2,seq3,seq4,seq5,seq6,seq7,seq8]  
+#     seqs = [seq1,seq2,seq3,seq4,seq5,seq6,seq7,seq8]  
+    seqs = [seq1,seq6, seq8]  
      
     solar_orbiters = [_solar_orbiter_udp([tmin, tmax], seq=seq) for seq in seqs]
     
@@ -55,17 +56,13 @@ def compute_solar_orbiter():
     fprobs = [single_objective(pg.problem(prob)) for prob in probs]
     
     #we replace pagmo pg.sade by fcmaes smart retry:
-     
-    logger().info('solar orbiter' + ' de -> cmaes c++ smart retry')
-#     ret = minimize(fprobs[0].fun, bounds=fprob[0].bounds, num_retries = 6000, 
-#         value_limit = 100000, logger = logger(), optimizer=de_cma(1500))
-    
+         
     ids = [names(seq) for seq in seqs]
 
     logger().info('solar orbiter' + ' de -> cmaes c++ smart retry')    
     ids = [names(seq) for seq in seqs]
     optimizer = de_cma(1500)
-    problem_stats = multiretry.minimize(fprobs, ids, 256, 0.9, optimizer, logger())
+    problem_stats = multiretry.minimize(fprobs, ids, 256, 1.0, optimizer, logger())
     ps = problem_stats[0] # focus on the best one
     for _ in range(6):
         logger().info("problem " + ps.prob.name + ' ' + str(ps.id))
