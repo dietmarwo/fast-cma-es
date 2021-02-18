@@ -38,6 +38,7 @@ class Astrofun(object):
     """Provides access to ESAs GTOP optimization test functions."""
     def __init__(self, name, fun_c, lower, upper):    
         self.name = name 
+        self.fun_c = fun_c 
         self.bounds = Bounds(lower, upper)
         self.fun = python_fun(fun_c, self.bounds)
 
@@ -116,7 +117,7 @@ class Tandem(object):
     """ see https://www.esa.int/gsp/ACT/projects/gtop/tandem/ """
     def __init__(self, i, constrained=True):   
         self.name = ('Tandem ' if constrained else 'Tandem unconstrained ') + str(i+1)
-        self.cfun = "tandemC" if constrained else "tandemCu"
+        self.fun_c = "tandemC" if constrained else "tandemCu"
         self.fun = self.tandem
         self.bounds = Bounds([5475, 2.5, 0, 0, 20, 20, 20, 20, 0.01, 0.01, 0.01, 0.01, 1.05, 1.05, 1.05, -math.pi, -math.pi, -math.pi], 
                              [9132, 4.9, 1, 1, 2500, 2500, 2500, 2500, 0.99, 0.99, 0.99, 0.99, 10, 10, 10, math.pi,  math.pi,  math.pi])
@@ -131,7 +132,7 @@ class Tandem(object):
         n = len(x)
         array_type = ct.c_double * n   
         ints_type = ct.c_int * 5   
-        fun_c = astro_map[self.cfun]      
+        fun_c = astro_map[self.fun_c]      
         fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_int)]
         try: # function is only defined inside bounds
             #x = np.asarray(x).clip(self.bounds.lb, self.bounds.ub)
@@ -146,7 +147,7 @@ class Tandem_minlp(object):
     """ see https://www.esa.int/gsp/ACT/projects/gtop/tandem/ """
     def __init__(self, constrained=True):   
         self.name = ('Tandem minlp ' if constrained else 'Tandem unconstrained minlp ') 
-        self.cfun = "tandemC" if constrained else "tandemCu"
+        self.fun_c = "tandemC" if constrained else "tandemCu"
         self.fun = self.tandem_minlp
         self.bounds = Bounds([5475, 2.5, 0, 0, 20, 20, 20, 20, 0.01, 0.01, 0.01, 0.01, 1.05, 1.05, 1.05, -math.pi, -math.pi, -math.pi,
                               1.51,1.51,1.51], 
@@ -159,7 +160,7 @@ class Tandem_minlp(object):
         seq = [3] + [int(round(xi)) for xi in xs[-3:]] + [6]
         array_type = ct.c_double * n   
         ints_type = ct.c_int * 5   
-        fun_c = astro_map[self.cfun]      
+        fun_c = astro_map[self.fun_c]      
         fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_int)]
         try:
             val = fun_c(n, array_type(*x), ints_type(*seq))

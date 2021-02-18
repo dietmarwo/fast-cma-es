@@ -135,7 +135,7 @@ def de_cma_py(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES in python."""
 
-    deEvals = np.random.uniform(0.1, 0.3)
+    deEvals = np.random.uniform(0.1, 0.5)
     if de_max_evals is None:
         de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
