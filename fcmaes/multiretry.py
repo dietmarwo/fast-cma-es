@@ -71,7 +71,8 @@ def minimize(problems, ids=None, num_retries = min(256, 8*mp.cpu_count()),
             to_remove = 1
         solver.remove_worst(to_remove)
         solver.dump()
-    return solver.all_stats
+    idx = solver.values_all().argsort()
+    return list(np.asarray(solver.all_stats)[idx])
         
 class problem_stats:
 

@@ -1,11 +1,11 @@
 # requires pykep PR branch for 
 # https://github.com/esa/pykep/pull/127
-# requires fcmaes version >= 1.2.13, type 'pip install fcmaes --upgrade'
+
+# plots results of good sequences determined by solarorbitermulti.py,
 
 from math import acos
 import time
 
-import numpy as np
 from numpy import sign
 from numpy.linalg import norm
 from pykep import AU, epoch
@@ -22,52 +22,34 @@ tmax = epoch(time.time() / (24*3600) - 30*365 -7 + 2/24 + 2*365)
 def names(seq):
     return " ".join((p.name) for p in seq)
 
-def compute_solar_orbiter():
-     
+def plot_solar_orbiter():
+    
     earth = jpl_lp("earth")
     venus = jpl_lp("venus")
-    
-    seq1=[earth, venus, venus, earth, venus, venus, venus, venus, venus]
-    seq2=[earth, venus, venus, earth, venus, earth, venus, venus, venus]
-    seq3=[earth, venus, venus, venus, venus, earth, venus, venus, venus]
-    seq4=[earth, venus, venus, venus, earth, earth, venus, venus, venus]
-    seq5=[earth, venus, venus, venus, earth, venus, venus, venus, venus]
-    seq6=[earth, earth, venus, venus, earth, venus, venus, venus, venus]
-    seq7=[earth, earth, venus, earth, earth, venus, venus, venus, venus]
-    seq8=[earth, earth, venus, earth, venus, venus, earth, venus, venus]
-    
-    seqs = [seq1,seq2,seq3,seq4,seq5,seq6,seq7,seq8]  
-    #seqs = [seq1,seq6, seq8]  
-     
-    solar_orbiters = [_solar_orbiter_udp([tmin, tmax], seq=seq) for seq in seqs]
-    
-    # Include delta v, mass and sun distance constraints
-    probs = [pg.unconstrain(solar_orbiter,method="weighted",weights=[1.0, 10.0, 100, 100]) 
-            for solar_orbiter in solar_orbiters]
-    
-    from fcmaes.optimizer import logger, de_cma, single_objective
-    from fcmaes import multiretry
-   
-    fprobs = [single_objective(pg.problem(prob)) for prob in probs]
-    
-    #we replace pagmo pg.sade by fcmaes smart retry:
-         
-    ids = [names(seq) for seq in seqs]
 
-    logger().info('solar orbiter' + ' de -> cmaes c++ smart retry')    
-    ids = [names(seq) for seq in seqs]
-    optimizer = de_cma(1500)
-    problem_stats = multiretry.minimize(fprobs, ids, 512, 0.7, optimizer, logger())
-    values = np.array([ps.value for ps in problem_stats])
-    ps = problem_stats[values.argsort()[0]] # focus on the best one
-    logger().info("continue to optimize best sequence " + ps.prob.name + ' ' + str(ps.id))
-    for _ in range(20):
-        ps.retry(optimizer)
-    solar_orbiter = solar_orbiters[ps.index]
-    logger().info("best sequence is " + 
-                  names(solar_orbiter._seq) + ", fval = " + str(ps.ret.fun))
-    pop_champion_x = ps.ret.x
+    #1.72
+    seq = [earth, earth, venus, earth, venus, venus, earth, venus, venus]
+    pop_champion_x = [7002.958769462786, 730.5123955221125, 272.41965071272784, 74.1806705492443, 171.97750009574423, 375.5928357818143, 682.4987974937061, 93.3897864500331, 341.2809749435019, 0.9207077095318533, 1.0578321216244067]    
+
+    #1.86
+#     seq = [earth, earth, venus, venus, earth, venus, venus, venus, venus]
+#     pop_champion_x = [7938.056736711781, 666.628077582916, 106.09878929364706, 449.4002461984736, 62.505131189084054, 404.2791217115739, 674.0850051741737, 674.0850908654102, 410.89560639110823, 2.175328584308378, 1.05783768709899]
+
+    #1.87
+#     seq = [earth, venus, venus, earth, venus, venus, venus, venus, venus]
+#     pop_champion_x = [7309.955686504108, 242.00305306309562, 403.31913927172866, 80.568048104212, 376.3052464119222, 672.2642026142728, 672.2698205678452, 672.2914624962455, 410.3229994185495, 0.9756176647367582, 1.0578321217798627]
     
+    #2.05
+#     seq = [earth, venus, venus, venus, venus, earth, venus, venus, venus]
+#     pop_champion_x = [7876.843342769882, 232.52423111093282, 432.08683385632736, 432.10172802885165, 432.1101414935594, 387.8659887573876, 81.40752718157002, 671.8630715210193, 410.8561237980522, 2.7335637831912654, 19.244826411431877]
+
+
+    solar_orbiter = _solar_orbiter_udp([tmin, tmax], seq=seq)
+    prob = pg.problem(pg.unconstrain(solar_orbiter,method="weighted",weights=[1.0, 10.0, 100, 100]))
+    fval = prob.fitness(pop_champion_x) 
+    print('sequence ' + names(seq))
+    print('fval = ' + str(fval))
+        
     solar_orbiter.pretty(pop_champion_x)
     solar_orbiter.plot(pop_champion_x)
     
@@ -124,5 +106,5 @@ def compute_solar_orbiter():
     plt.show()
     
 if __name__ == '__main__':
-    compute_solar_orbiter()
+    plot_solar_orbiter()
     pass

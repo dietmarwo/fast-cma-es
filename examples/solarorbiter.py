@@ -30,7 +30,7 @@ def compute_solar_orbiter():
     solar_orbiter = _solar_orbiter_udp([tmin, tmax], seq=seq)
     
     # Include delta v, mass and sun distance constraints
-    prob = pg.unconstrain(pg.problem(solar_orbiter),method="weighted",weights=[1.0, 10.0, 100, 100])
+    prob = pg.unconstrain(solar_orbiter,method="weighted",weights=[1.0, 10.0, 100, 100])
     
     from fcmaes.advretry import minimize
     from fcmaes.optimizer import logger, de_cma, single_objective
