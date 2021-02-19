@@ -57,7 +57,7 @@ def compute_solar_orbiter():
     logger().info('solar orbiter' + ' de -> cmaes c++ smart retry')    
     ids = [names(seq) for seq in seqs]
     optimizer = de_cma(1500)
-    problem_stats = multiretry.minimize(fprobs, ids, 512, 1.0, optimizer, logger())
+    problem_stats = multiretry.minimize(fprobs, ids, 512, 0.7, optimizer, logger())
     ps = problem_stats[0] # focus on the best one
     logger().info("continue to optimize best sequence " + ps.prob.name + ' ' + str(ps.id))
     for _ in range(20):
