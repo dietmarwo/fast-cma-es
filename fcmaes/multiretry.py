@@ -97,33 +97,33 @@ class problem_stats:
 class multiretry:
     
     def __init__(self):
-        self.problems_stats = []
+        self.problem_stats = []
         self.all_stats = []
     
-    def add(self, problem_stats):
-        self.problems_stats.append(problem_stats)
-        self.all_stats.append(problem_stats)
+    def add(self, stats):
+        self.problem_stats.append(stats)
+        self.all_stats.append(stats)
     
     def retry(self, optimizer):
-        for ps in self.problems_stats:
+        for ps in self.problem_stats:
             logger().info("problem " + ps.prob.name + ' ' + str(ps.id))
             ps.retry(optimizer)
     
     def values(self):
-        return np.array([ps.value for ps in self.problems_stats])
+        return np.array([ps.value for ps in self.problem_stats])
      
     def remove_worst(self, n = 1):
         idx = self.values().argsort()
-        self.problems_stats = list(np.asarray(self.problems_stats)[idx])
+        self.problem_stats = list(np.asarray(self.problem_stats)[idx])
         for _ in range(n):
-            self.problems_stats.pop(-1)
+            self.problem_stats.pop(-1)
 
     def size(self):
-        return len(self.problems_stats)
+        return len(self.problem_stats)
                     
     def dump(self):
         for i in range(self.size()):
-            ps = self.problems_stats[i]
+            ps = self.problem_stats[i]
             logger().info(str(ps.id) + ' ' + str(ps.value))
                 
     def values_all(self):
