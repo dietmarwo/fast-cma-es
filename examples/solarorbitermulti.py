@@ -1,26 +1,22 @@
 # requires pykep PR branch for 
 # https://github.com/esa/pykep/pull/127
+# requires fcmaes version >= 1.2.13, type 'pip install fcmaes --upgrade'
 
-from pykep.trajopt import mga_1dsm, launchers
-from pykep.planet import jpl_lp
-from pykep import epoch
-from pykep.core import lambert_problem, propagate_lagrangian, fb_prop
-from pykep import DAY2SEC, DAY2YEAR, AU, RAD2DEG, ic2par
-from pykep.trajopt.gym._solar_orbiter import _solar_orbiter_udp
-
-# Other imports
-import numpy as np
-from numpy.linalg import norm
-from numpy import sign
-from math import acos, asin, cos, exp, log, pi, sin
-import matplotlib.pyplot as plt
-from copy import deepcopy
-import pygmo as pg
+from math import acos
 import time
 
+from numpy import sign
+from numpy.linalg import norm
+from pykep import AU, epoch
+from pykep.planet import jpl_lp
+from pykep.trajopt.gym._solar_orbiter import _solar_orbiter_udp
+
+import matplotlib.pyplot as plt
+import pygmo as pg
+
+# Other imports
 tmin = epoch(time.time() / (24*3600) - 30*365 -7 + 2/24 - 2*365)
 tmax = epoch(time.time() / (24*3600) - 30*365 -7 + 2/24 + 2*365)
-
 
 def names(seq):
     return " ".join((p.name) for p in seq)
@@ -49,7 +45,6 @@ def compute_solar_orbiter():
         pg.problem(solar_orbiter),method="weighted",weights=[1.0, 10.0, 100, 100]) 
             for solar_orbiter in solar_orbiters]
     
-    from fcmaes.advretry import minimize
     from fcmaes.optimizer import logger, de_cma, single_objective
     from fcmaes import multiretry
    
@@ -62,12 +57,14 @@ def compute_solar_orbiter():
     logger().info('solar orbiter' + ' de -> cmaes c++ smart retry')    
     ids = [names(seq) for seq in seqs]
     optimizer = de_cma(1500)
-    problem_stats = multiretry.minimize(fprobs, ids, 256, 0.9, optimizer, logger())
+    problem_stats = multiretry.minimize(fprobs, ids, 512, 1.0, optimizer, logger())
     ps = problem_stats[0] # focus on the best one
-    for _ in range(6):
-        logger().info("problem " + ps.prob.name + ' ' + str(ps.id))
+    logger().info("continue to optimize best sequence " + ps.prob.name + ' ' + str(ps.id))
+    for _ in range(20):
         ps.retry(optimizer)
-    
+    solar_orbiter = solar_orbiters[ps.index]
+    logger().info("best sequence is " + 
+                  names(solar_orbiter._seq) + ", fval = " + str(ps.ret.fun))
     pop_champion_x = ps.ret.x
     
     solar_orbiter.pretty(pop_champion_x)

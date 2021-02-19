@@ -62,7 +62,7 @@ def minimize(problems, ids=None, num_retries = min(256, 8*mp.cpu_count()),
         
     for i in range(n):    
         id = str(i+1) if ids is None else ids[i]   
-        solver.add(problem_stats(problems[i], id, num_retries, logger))
+        solver.add(problem_stats(problems[i], id, i, num_retries, logger))
         
     while solver.size() > 1:    
         solver.retry(optimizer)
@@ -70,12 +70,12 @@ def minimize(problems, ids=None, num_retries = min(256, 8*mp.cpu_count()),
         if to_remove == 0:
             to_remove = 1
         solver.remove_worst(to_remove)
-        solver.dump_all()
+        solver.dump()
     return solver.all_stats
         
 class problem_stats:
 
-    def __init__(self, prob, id, num_retries = 64, logger = logger()):
+    def __init__(self, prob, id, index, num_retries = 64, logger = logger()):
         self.store = advretry.Store(prob.bounds, logger = logger)
         self.prob = prob
         self.name = prob.name
@@ -84,6 +84,7 @@ class problem_stats:
         self.retries = 0
         self.value = 0
         self.id = id
+        self.index = index
         self.ret = None
 
     def retry(self, optimizer):
@@ -133,7 +134,7 @@ class multiretry:
         for i in range(len(self.all_stats)):
             ps = self.all_stats[i]
             logger().info(str(ps.id) + ' ' + str(ps.value))
-        
+    
     def result(self):
         idx = self.values_all().argsort()
         self.all_stats = list(np.asarray(self.all_stats)[idx])
