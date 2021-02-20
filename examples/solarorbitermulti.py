@@ -27,18 +27,17 @@ def compute_solar_orbiter():
     earth = jpl_lp("earth")
     venus = jpl_lp("venus")
     
-    seq1=[earth, venus, venus, earth, venus, venus, venus, venus, venus]
-    seq2=[earth, venus, venus, earth, venus, earth, venus, venus, venus]
-    seq3=[earth, venus, venus, venus, venus, earth, venus, venus, venus]
-    seq4=[earth, venus, venus, venus, earth, earth, venus, venus, venus]
-    seq5=[earth, venus, venus, venus, earth, venus, venus, venus, venus]
-    seq6=[earth, earth, venus, venus, earth, venus, venus, venus, venus]
-    seq7=[earth, earth, venus, earth, earth, venus, venus, venus, venus]
-    seq8=[earth, earth, venus, earth, venus, venus, earth, venus, venus]
-    
-    seqs = [seq1,seq2,seq3,seq4,seq5,seq6,seq7,seq8]  
-    #seqs = [seq1,seq6, seq8]  
-     
+    # all sequences of length 8    
+    def sequences():
+        for p2 in [earth,venus]:
+            for p3 in [earth,venus]:
+                for p4 in [earth,venus]:
+                    for p5 in [earth,venus]:
+                        for p6 in [earth,venus]:
+                            for p7 in [earth,venus]:
+                                yield[earth,p2,p3,p4,p5,p6,p7,venus]
+    seqs = [s for s in sequences()]  
+
     solar_orbiters = [_solar_orbiter_udp([tmin, tmax], seq=seq) for seq in seqs]
     
     # Include delta v, mass and sun distance constraints
@@ -48,16 +47,12 @@ def compute_solar_orbiter():
     from fcmaes.optimizer import logger, de_cma, single_objective
     from fcmaes import multiretry
    
-    fprobs = [single_objective(pg.problem(prob)) for prob in probs]
-    
-    #we replace pagmo pg.sade by fcmaes smart retry:
-         
-    ids = [names(seq) for seq in seqs]
+    fprobs = [single_objective(pg.problem(prob)) for prob in probs]         
 
     logger().info('solar orbiter' + ' de -> cmaes c++ smart retry')    
     ids = [names(seq) for seq in seqs]
     optimizer = de_cma(1500)
-    problem_stats = multiretry.minimize(fprobs, ids, 512, 0.7, optimizer, logger())
+    problem_stats = multiretry.minimize(fprobs, ids, 256, 0.7, optimizer, logger())
     values = np.array([ps.value for ps in problem_stats])
     ps = problem_stats[values.argsort()[0]] # focus on the best one
     logger().info("continue to optimize best sequence " + ps.prob.name + ' ' + str(ps.id))
