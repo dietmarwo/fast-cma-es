@@ -34,7 +34,9 @@ def read_csv(fname):
             for line in lines:
                 try:
                     row = line.split(' ')
-                    if len(row) < 11:
+                    if len(row) < 4:
+                        continue
+                    if row[0] == "solar":
                         continue
                     if row[0] == "problem":
                         seqs = line[line.rfind(']')+2:-1]
@@ -77,6 +79,6 @@ def check_log(fname):
 
 if __name__ == '__main__':
     check_log('logs/*')
-#    check_log('logs/len10.log')
+#     check_log('logs/len2.log')
     
     
