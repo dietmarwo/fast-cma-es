@@ -12,8 +12,12 @@ from pykep.trajopt.gym._solar_orbiter import _solar_orbiter_udp
 
 import matplotlib.pyplot as plt
 import pygmo as pg
+from fcmaes.advretry import minimize
+from fcmaes.optimizer import logger, de_cma, single_objective
+    
+#log to file and stdout
+logger('solarorbiter.log')
 
-# Other imports
 tmin = epoch(time.time() / (24*3600) - 30*365 -7 + 2/24 - 2*365)
 tmax = epoch(time.time() / (24*3600) - 30*365 -7 + 2/24 + 2*365)
 
@@ -21,19 +25,12 @@ def compute_solar_orbiter():
     
     earth = jpl_lp("earth")
     venus = jpl_lp("venus")
-    # sequence determined by solarorbitermulti.py, fopt < 1.7257
-    # good solution = [7004.04428192338, 730.512403549315, 271.4957377598595, 74.05275950690294, 
-    #                  171.95239854165402, 375.5987415297101, 682.5049385756569, 93.39312825703068, 
-    #                  341.27639247609875, 0.9208393924714131, 1.0578321216507054]
-    seq=[earth, earth, venus, earth, venus, venus, earth, venus, venus]
+    seq = [earth, venus, venus, earth, venus, venus, venus, venus, venus]
  
     solar_orbiter = _solar_orbiter_udp([tmin, tmax], seq=seq)
     
     # Include delta v, mass and sun distance constraints
     prob = pg.unconstrain(solar_orbiter,method="weighted",weights=[1.0, 10.0, 100, 100])
-    
-    from fcmaes.advretry import minimize
-    from fcmaes.optimizer import logger, de_cma, single_objective
     
     fprob = single_objective(pg.problem(prob))
     

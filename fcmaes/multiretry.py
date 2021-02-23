@@ -7,13 +7,15 @@
 # then uses cordinated retry to evaluate these.
 
 import numpy as np
+import _pickle as cPickle
+import bz2
 import multiprocessing as mp
 from scipy.optimize import OptimizeResult
-from fcmaes.optimizer import logger, de_cma
+from fcmaes.optimizer import logger, de_cma, eprint
 from fcmaes import advretry
 
 def minimize(problems, ids=None, num_retries = min(256, 8*mp.cpu_count()), 
-             keep = 0.7, optimizer = de_cma(1500), logger = logger()):
+             keep = 0.7, optimizer = de_cma(1500), logger = None, datafile = None):
       
     """Minimization of a list of optimization problems by first applying parallel retry
     to filter the best ones and then applying coordinated retry to evaluate these further. 
@@ -47,7 +49,10 @@ def minimize(problems, ids=None, num_retries = min(256, 8*mp.cpu_count()),
     logger, optional
         logger for log output. If None, logging
         is switched off. Default is a logger which logs both to stdout and
-        appends to a file ``optimizer.log``.    
+        appends to a file.  
+        
+    datafile, optional
+        file to persist / retrieve the internal state of the optimizations. 
      
     Returns
     -------
@@ -57,26 +62,32 @@ def minimize(problems, ids=None, num_retries = min(256, 8*mp.cpu_count()),
         ``fun`` the best function value, ``nfev`` the number of function evaluations,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
-    solver = multiretry()
+    solver = multiretry(logger)
     n = len(problems)
         
     for i in range(n):    
         id = str(i+1) if ids is None else ids[i]   
         solver.add(problem_stats(problems[i], id, i, num_retries, logger))
+    
+    if not datafile is None:
+        solver.load(datafile)
         
     while solver.size() > 1:    
         solver.retry(optimizer)
         to_remove = int(round((1.0 - keep) * solver.size()))
-        if to_remove == 0:
+        if to_remove == 0 and keep < 1.0:
             to_remove = 1
         solver.remove_worst(to_remove)
         solver.dump()
+        if not datafile is None:
+            solver.save(datafile)
+            
     idx = solver.values_all().argsort()
     return list(np.asarray(solver.all_stats)[idx])
         
 class problem_stats:
 
-    def __init__(self, prob, id, index, num_retries = 64, logger = logger()):
+    def __init__(self, prob, id, index, num_retries = 64, logger = None):
         self.store = advretry.Store(prob.bounds, logger = logger)
         self.prob = prob
         self.name = prob.name
@@ -96,9 +107,10 @@ class problem_stats:
  
 class multiretry:
     
-    def __init__(self):
+    def __init__(self, logger = None):
         self.problem_stats = []
         self.all_stats = []
+        self.logger = logger
     
     def add(self, stats):
         self.problem_stats.append(stats)
@@ -106,7 +118,8 @@ class multiretry:
     
     def retry(self, optimizer):
         for ps in self.problem_stats:
-            logger().info("problem " + ps.prob.name + ' ' + str(ps.id))
+            if not self.logger is None:
+                self.logger.info("problem " + ps.prob.name + ' ' + str(ps.id))
             ps.retry(optimizer)
     
     def values(self):
@@ -122,20 +135,22 @@ class multiretry:
         return len(self.problem_stats)
                     
     def dump(self):
-        for i in range(self.size()):
-            ps = self.problem_stats[i]
-            logger().info(str(ps.id) + ' ' + str(ps.value))
+        if not self.logger is None:
+            for i in range(self.size()):
+                ps = self.problem_stats[i]
+                self.logger.info(str(ps.id) + ' ' + str(ps.value))
                 
+    def dump_all(self):
+        if not self.logger is None:
+            idx = self.values_all().argsort()
+            self.all_stats = list(np.asarray(self.all_stats)[idx])
+            for i in range(len(self.all_stats)):
+                ps = self.all_stats[i]
+                self.logger.info(str(ps.id) + ' ' + str(ps.value))
+
     def values_all(self):
         return np.array([ps.value for ps in self.all_stats])
  
-    def dump_all(self):
-        idx = self.values_all().argsort()
-        self.all_stats = list(np.asarray(self.all_stats)[idx])
-        for i in range(len(self.all_stats)):
-            ps = self.all_stats[i]
-            logger().info(str(ps.id) + ' ' + str(ps.value))
-    
     def result(self):
         idx = self.values_all().argsort()
         self.all_stats = list(np.asarray(self.all_stats)[idx])
@@ -146,5 +161,30 @@ class multiretry:
             ret.append([problem, 
                         OptimizeResult(x=store.get_x_best(), fun=store.get_y_best(), 
                           nfev=store.get_count_evals(), success=True)])
+            
+    # persist all stats
+    def save(self, name):
+        try:
+            with bz2.BZ2File(name + '.pbz2', 'w') as f: 
+                cPickle.dump(self.get_data(), f)
+        except Exception as ex:
+            eprint('error writing data file ' + name + '.pbz2 ' + str(ex))
+
+    def load(self, name):
+        try:
+            data = cPickle.load(bz2.BZ2File(name + '.pbz2', 'rb'))
+            self.set_data(data)
+        except Exception as ex:
+            eprint('error reading data file ' + name + '.pbz2 ' + str(ex))
+  
+    def get_data(self):
+        data = []
+        for stats in self.all_stats:            
+            data.append(stats.store.get_data())
+        return data
+        
+    def set_data(self, data):
+        for i in range(len(data)):
+            self.all_stats[i].store.set_data(data[i])
         
     

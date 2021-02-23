@@ -15,6 +15,12 @@ from pykep.trajopt.gym._solar_orbiter import _solar_orbiter_udp
 import matplotlib.pyplot as plt
 import pygmo as pg
 
+from fcmaes.optimizer import logger, de_cma, single_objective
+from fcmaes import multiretry
+   
+#log to file and stdout
+logger('solarorbiter_multi.log')
+
 # Other imports
 tmin = epoch(time.time() / (24*3600) - 30*365 -7 + 2/24 - 2*365)
 tmax = epoch(time.time() / (24*3600) - 30*365 -7 + 2/24 + 2*365)
@@ -44,9 +50,6 @@ def compute_solar_orbiter():
     probs = [pg.unconstrain(solar_orbiter,method="weighted",weights=[1.0, 10.0, 100, 100]) 
             for solar_orbiter in solar_orbiters]
     
-    from fcmaes.optimizer import logger, de_cma, single_objective
-    from fcmaes import multiretry
-   
     fprobs = [single_objective(pg.problem(prob)) for prob in probs]         
 
     logger().info('solar orbiter' + ' de -> cmaes c++ smart retry')    

@@ -8,6 +8,8 @@ import os
 import sys
 import math
 import random
+import _pickle as cPickle
+import bz2
 import ctypes as ct
 import numpy as np
 from numpy.linalg import norm
@@ -37,7 +39,8 @@ def minimize(fun,
              capacity = 500,
              stop_fitness = -math.inf,
              optimizer = None,
-             statistic_num = 0
+             statistic_num = 0,
+             datafile = None
              ):   
     """Minimization of a scalar function of one or more variables using 
     coordinated parallel CMA-ES retry.
@@ -89,6 +92,8 @@ def minimize(fun,
         optimizer to use. Default is a sequence of differential evolution and CMA-ES.
         Since advanced retry sets the initial step size it works best if CMA-ES is 
         used / in the sequence of optimizers. 
+    datafile, optional
+        file to persist / retrieve the internal state of the optimizations. 
     
     Returns
     -------
@@ -102,7 +107,13 @@ def minimize(fun,
         optimizer = de_cma(min_evaluations, popsize, stop_fitness)     
     if max_eval_fac is None:
         max_eval_fac = int(min(50, 1 + num_retries // check_interval))
-    store = Store(bounds, max_eval_fac, check_interval, capacity, logger, num_retries, statistic_num)
+    store = Store(bounds, max_eval_fac, check_interval, capacity, logger, num_retries, 
+                  statistic_num, datafile)
+    if not datafile is None:
+        try:
+            store.load(datafile)
+        except:
+            pass
     return retry(fun, store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
 
 def retry(fun, store, optimize, num_retries, value_limit = math.inf, 
@@ -129,7 +140,8 @@ class Store(object):
                  capacity = 500, # capacity of the evaluation store
                  logger = None, # if None logging is switched off
                  num_retries = None,
-                 statistic_num = 0
+                 statistic_num = 0,
+                 datafile = None
                ):
 
         self.lower, self.upper = _convertBounds(bounds)
@@ -165,13 +177,42 @@ class Store(object):
         self.worst_y = mp.RawValue(ct.c_double, math.inf)  
         self.best_x = mp.RawArray(ct.c_double, self.dim)
         self.statistic_num = statistic_num
+        self.datafile = datafile
  
         if statistic_num > 0:  # enable statistics                          
             self.statistic_num = 1000
             self.time = mp.RawArray(ct.c_double, self.statistic_num)
             self.val = mp.RawArray(ct.c_double, self.statistic_num)
             self.si = mp.RawValue(ct.c_int, 0)
- 
+
+    # persist store
+    def save(self, name):
+        with bz2.BZ2File(name + '.pbz2', 'w') as f: 
+            cPickle.dump(self.get_data(), f)
+
+    def load(self, name):
+        data = cPickle.load(bz2.BZ2File(name + '.pbz2', 'rb'))
+        self.set_data(data)
+  
+    def get_data(self):
+        data = []
+        data.append(self.get_xs())
+        data.append(self.get_ys())
+        data.append(self.get_x_best())
+        data.append(self.get_y_best())
+        data.append(self.num_stored.value)
+        return data
+        
+    def set_data(self, data):
+        xs = data[0]
+        ys = data[1]
+        for i in range(len(ys)):
+            self.replace(i, ys[i], xs[i])
+        self.best_x[:] = data[2][:]
+        self.best_y.value = data[3]
+        self.num_stored.value = data[4]
+        self.sort()
+       
     # store improvement - time and value
     def add_statistics(self):
         if self.statistic_num > 0:
@@ -288,6 +329,9 @@ class Store(object):
                     self.best_x[:] = xs[:]
                     self.add_statistics()
                     self.dump()
+                    if not self.datafile is None:
+                        self.save(self.datafile)
+
                 if self.num_stored.value >= self.capacity - 1:
                     self.sort()
                 ns = self.num_stored.value

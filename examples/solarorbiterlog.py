@@ -58,24 +58,23 @@ def check_log(fname):
         val_map = {}
         for y, x, seq, seqs in data:
             if seqs in val_map:
-                y_, x_, _ = val_map[seqs]
+                y_, x_, _, _ = val_map[seqs]
                 if y < y_:
-                    val_map[seqs] = [y, x, seqs]
+                    val_map[seqs] = [y, x, seqs, seq]
             else:
-                val_map[seqs] = [y, x, seqs]
+                val_map[seqs] = [y, x, seqs, seq]
         values = np.array(list(val_map.values()))
         ys = np.array([v[0] for v in values])
         idx = ys.argsort()
         sorted = values[idx]
         for v in sorted:
-            if v[0] < 3.0:
+            if v[0] < 13.0:
                 seq = '[' + v[2].replace(' ', ', ') + ']'
                 x = str(v[1])
                 y = str(v[0])
                 print('\t' + '[ ' + y + ', ' + seq + ', ' + x + ' ],')         
     except Exception as ex:
-        print(ex)
-        
+        print(ex)        
 
 if __name__ == '__main__':
     check_log('logs/*')
