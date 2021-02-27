@@ -1,4 +1,5 @@
-# This code was posted on https://gitter.im/pagmo2/Lobby and extended by a 
+# This code was posted on https://gitter.im/pagmo2/Lobby by 
+# Markus Märtens @CoolRunning and extended by a 
 # fcmaes parallel differential evolution solver for comparison with the pagmo island concept.
 # requires oagmo (pip install pagmo) for the comparison. Tested with Anaconda 2020.11 
 # https://repo.anaconda.com/archive/ using Python 3.8 on Linux
