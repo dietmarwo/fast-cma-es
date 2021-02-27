@@ -1,9 +1,9 @@
 //$ nocpp
 
 /**
- * @file smaesopt.h
+ * @file spheropt.h
  *
- * @brief The inclusion file for the CSMAESOpt class.
+ * @brief The inclusion file for the CSpherOpt class.
  *
  * @section license License
  *
@@ -30,25 +30,37 @@
  * @version 2021.2
  */
 
-#ifndef SMAESOPT_INCLUDED
-#define SMAESOPT_INCLUDED
+#ifndef SPHEROPT_INCLUDED
+#define SPHEROPT_INCLUDED
 
-#include "biteoptort.h"
+#include "biteaux.h"
 
 /**
- * Original source: https://github.com/avaneev/biteopt/blob/master/smaesopt.h
- * 
- * Sigma Adaptation Evolution Strategy class. Fundamentally similar to CMA-ES,
- * but mainly focuses on sigma adaptation.
+ * "Converging hyper-spheroid" optimizer class. Converges quite fast, but is
+ * not effective for dimensions below 4.
  *
- *  void init( CBiteRnd& rnd, const double* const InitParams = NULL, const double* const sdevs = NULL)
- *  is adapted to take optional initial centroid and sigma. 
- *  void updateDims( const int aParamCount, const int PopSize0 = 0 ) takes optional popsize.
+ * Description is available at https://github.com/avaneev/biteopt
  */
 
-class CSMAESOpt : public CBiteOptBase
+class CSpherOpt : public CBiteOptBase
 {
 public:
+	double CentPow; ///< Centroid power factor.
+		///<
+	double RadPow; ///< Radius power factor.
+		///<
+	double EvalFac; ///< Evaluations factor.
+		///<
+
+	CSpherOpt()
+		: WPopCent( NULL )
+		, WPopRad( NULL )
+	{
+		CentPow = 6.0;
+		RadPow = 18.0;
+		EvalFac = 2.0;
+	}
+
 	/**
 	 * Function updates dimensionality of *this object.
 	 *
@@ -59,7 +71,7 @@ public:
 
 	void updateDims( const int aParamCount, const int PopSize0 = 0 )
 	{
-		const int aPopSize = ( PopSize0 > 0 ? PopSize0 : 13 + aParamCount );
+		const int aPopSize = ( PopSize0 > 0 ? PopSize0 : 14 + aParamCount );
 
 		if( aParamCount == ParamCount && aPopSize == PopSize )
 		{
@@ -69,9 +81,29 @@ public:
 		deleteBuffers();
 		initBaseBuffers( aParamCount, aPopSize );
 
-		EvalFac = 2.0;
+		WPopCent = new double[ PopSize ];
+		WPopRad = new double[ PopSize ];
 
-		Ort.updateDims( ParamCount, PopSize, EvalFac );
+		double s = 0.0;
+		double s2 = 0.0;
+		int i;
+
+		for( i = 0; i < PopSize; i++ )
+		{
+			const double l = 1.0 - (double) i / ( PopSize * EvalFac );
+			const double v = pow( l, CentPow );
+			WPopCent[ i ] = v;
+			s += v;
+			const double v2 = pow( l, RadPow );
+			WPopRad[ i ] = v2;
+			s2 += v2;
+		}
+
+		for( i = 0; i < PopSize; i++ )
+		{
+			WPopCent[ i ] /= s;
+			WPopRad[ i ] /= s2;
+		}
 	}
 
 	/**
@@ -81,13 +113,14 @@ public:
 	 * @param InitParams Initial parameter values.
 	 */
 
-	void init( CBiteRnd& rnd, const double* const InitParams = NULL, const double* const sdevs = NULL)
+	void init( CBiteRnd& rnd, const double* const InitParams = NULL )
 	{
 		getMinValues( MinValues );
 		getMaxValues( MaxValues );
 
 		resetCommonVars();
 
+		Radius = 0.5;
 		curpi = 0;
 		cure = 0;
 
@@ -98,61 +131,8 @@ public:
 
 		for( i = 0; i < ParamCount; i++ )
 		{
-                        CurParams[ 0 ][ i ] = InitParams == NULL ? ( MinValues[ i ] + MaxValues[ i ]) * 0.5 : InitParams[i];
-			const double d = MaxValues[ i ] - MinValues[ i ];
-                        CurParams[ 1 ][ i ] = fabs( MaxValues[ i ] - MinValues[ i ]) * (sdevs == NULL ?  1.0/6.0 : sdevs[i]);
-			DiffValues[ i ] = 1.0 / d;
-		}
-
-		UsePopSize = Ort.init( CurParams[ 0 ], CurParams[ 1 ]);
-	}
-
-	/**
-	 * Function samples a random population vector based on the current
-	 * distribution, with feasibility guarantee.
-	 *
-	 * @param rnd Random number generator.
-	 * @param[out] op Resulting parameter vector.
-	 */
-
-	void sample( CBiteRnd& rnd, double* const op ) const
-	{
-		// Generate vector, check its feasibility, and resample it up to 10
-		// times.
-
-		int infcount = 0;
-		int i;
-
-		while( true )
-		{
-			Ort.sample( rnd, op );
-
-			if( isFeasible( op ))
-			{
-				break;
-			}
-
-			infcount++;
-
-			if( infcount == 10 )
-			{
-				// Force bound constraints.
-
-				for( i = 0; i < ParamCount; i++ )
-				{
-					if( op[ i ] < MinValues[ i ])
-					{
-						op[ i ] = MinValues[ i ];
-					}
-					else
-					if( op[ i ] > MaxValues[ i ])
-					{
-						op[ i ] = MaxValues[ i ];
-					}
-				}
-
-				break;
-			}
+			DiffValues[ i ] = MaxValues[ i ] - MinValues[ i ];
+			CentParams[ i ] = 0.5;
 		}
 	}
 
@@ -172,11 +152,24 @@ public:
 		double* const OutParams = NULL )
 	{
 		double* const Params = CurParams[ curpi ];
+		double s2 = 1e-300;
 		int i;
 
-		sample( rnd, Params );
+		for( i = 0; i < ParamCount; i++ )
+		{
+			Params[ i ] = rnd.getRndValue() - 0.5;
+			s2 += Params[ i ] * Params[ i ];
+		}
 
-		const double NewCost = optcost( Params );
+		const double d = Radius / sqrt( s2 );
+
+		for( i = 0; i < ParamCount; i++ )
+		{
+			Params[ i ] = wrapParam( rnd, CentParams[ i ] + Params[ i ] * d );
+			NewParams[ i ] = getRealValue( Params[ i ], i );
+		}
+
+		const double NewCost = optcost( NewParams );
 
 		if( OutCost != NULL )
 		{
@@ -187,8 +180,7 @@ public:
 		{
 			for( i = 0; i < ParamCount; i++ )
 			{
-				OutParams[ i ] =
-					( Params[ i ] - MinValues[ i ]) * DiffValues[ i ];
+				OutParams[ i ] = Params[ i ];
 			}
 		}
 
@@ -198,19 +190,18 @@ public:
 
 			for( i = 0; i < ParamCount; i++ )
 			{
-				BestParams[ i ] = Params[ i ];
+				BestParams[ i ] = NewParams[ i ];
 			}
 		}
 
-		if( curpi < UsePopSize )
+		if( curpi < PopSize )
 		{
 			insertPopOrder( NewCost, curpi, curpi );
 			curpi++;
 		}
 		else
 		{
-			const int ps1 = UsePopSize - 1;
-			const int sH = PopOrder[ ps1 ];
+			const int sH = PopOrder[ PopSize1 ];
 
 			if( NewCost < CurCosts[ sH ])
 			{
@@ -219,14 +210,14 @@ public:
 					CurParams[ sH ][ i ] = Params[ i ];
 				}
 
-				insertPopOrder( NewCost, sH, ps1 );
+				insertPopOrder( NewCost, sH, PopSize1 );
 			}
 		}
 
 		AvgCost += NewCost;
 		cure++;
 
-		if( cure >= UsePopSize * EvalFac )
+		if( cure >= PopSize * EvalFac )
 		{
 			AvgCost /= cure;
 
@@ -243,45 +234,82 @@ public:
 			AvgCost = 0.0;
 			curpi = 0;
 			cure = 0;
-			UsePopSize = Ort.update( CurParams, PopOrder );
+			update();
 		}
 
 		return( StallCount );
 	}
 
 protected:
-	int UsePopSize; ///< Current population size.
+	double* WPopCent; ///< Weighting coefficients for centroid.
 		///<
-	double EvalFac; ///< Function evalutions factor.
+	double* WPopRad; ///< Weighting coefficients for radius.
 		///<
-	CBiteOptOrt Ort; ///< Rotation vector and orthogonalization calculator.
+	double Radius; ///< Current radius.
 		///<
 	int curpi; ///< Current parameter index.
 		///<
-	int cure; ///< Current evaluation index, equals UsePopSize if population
-		///< distribution needs to be updated.
+	int cure; ///< Current evaluation index.
 		///<
 
 	/**
-	 * Function returns "true" if the supplied vector is feasible.
-	 *
-	 * @param x Vector to check.
+	 * Function deletes previously allocated buffers.
 	 */
 
-	bool isFeasible( const double* const x ) const
+	virtual void deleteBuffers()
 	{
+		CBiteOptBase :: deleteBuffers();
+
+		delete[] WPopCent;
+		delete[] WPopRad;
+	}
+
+	/**
+	 * Function updates centroid and radius.
+	 */
+
+	void update()
+	{
+		const double* ip = CurParams[ PopOrder[ 0 ]];
+		double* const cp = CentParams;
+		double w = WPopCent[ 0 ];
 		int i;
+		int j;
 
 		for( i = 0; i < ParamCount; i++ )
 		{
-			if( x[ i ] < MinValues[ i ] || x[ i ] > MaxValues[ i ])
+			cp[ i ] = ip[ i ] * w;
+		}
+
+		for( j = 1; j < PopSize; j++ )
+		{
+			ip = CurParams[ PopOrder[ j ]];
+			w = WPopCent[ j ];
+
+			for( i = 0; i < ParamCount; i++ )
 			{
-				return( false );
+				cp[ i ] += ip[ i ] * w;
 			}
 		}
 
-		return( true );
+		Radius = 0.0;
+
+		for( j = 0; j < PopSize; j++ )
+		{
+			ip = CurParams[ PopOrder[ j ]];
+			double s = 0.0;
+
+			for( i = 0; i < ParamCount; i++ )
+			{
+				const double d = ip[ i ] - cp[ i ];
+				s += d * d;
+			}
+
+			Radius += s * WPopRad[ j ];
+		}
+
+		Radius = sqrt( Radius );
 	}
 };
 
-#endif // SMAESOPT_INCLUDED
+#endif // SPHEROPT_INCLUDED

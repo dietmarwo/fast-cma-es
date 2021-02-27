@@ -1,15 +1,13 @@
 //$ nocpp
 
 /**
- * Original source: https://github.com/avaneev/biteopt/blob/master/biteopt.h
- * 
  * @file biteopt.h
  *
- * @brief The inclusion file for the CBiteOpt class.
+ * @brief The inclusion file for the CBiteOpt and CBiteOptDeep classes.
  *
  * @section license License
  *
- * Copyright (c) 2016-2018 Aleksey Vaneev
+ * Copyright (c) 2016-2021 Aleksey Vaneev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,13 +26,14 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
+ *
+ * @version 2021.2
  */
 
 #ifndef BITEOPT_INCLUDED
 #define BITEOPT_INCLUDED
 
-#include <math.h>
-#include "biternd.h"
+#include "spheropt.h"
 
 /**
  * BiteOpt optimization class. Implements a stochastic non-linear
@@ -43,7 +42,7 @@
  * Description is available at https://github.com/avaneev/biteopt
  */
 
-class CBiteOpt
+class CBiteOpt : public CBiteOptBase
 {
 public:
 	double RandProb[ 2 ]; ///< Parameter value randomization probability.
@@ -68,6 +67,10 @@ public:
 		///<
 	double PopSizeMult; ///< Dimensional population size multiplier.
 		///<
+	double ParOptProb[ 2 ]; ///< Parallel optimizer's engagement probablity.
+		///<
+	double EntmProb[ 2 ]; ///< "Entropy bit mixing" method probability.
+		///<
 
 	/**
 	 * Constructor.
@@ -76,41 +79,40 @@ public:
 	CBiteOpt()
 		: MantMult( 1LL << MantSize )
 		, MantMultI( 1.0 / ( 1LL << MantSize ))
-		, ParamCount( 0 )
-		, PopSize( 0 )
-		, PopOrder( NULL )
-		, CurParamsBuf( NULL )
-		, CurParams( NULL )
-		, CurCosts( NULL )
-		, CentParams( NULL )
-		, MinValues( NULL )
-		, MaxValues( NULL )
-		, DiffValues( NULL )
-		, BestParams( NULL )
-		, Params( NULL )
-		, NewParams( NULL )
+		, TmpParams( NULL )
 	{
-		// Cost=2.146651
-		RandProb[ 0 ] = 0.40091111;
-		RandProb[ 1 ] = 0.99587547;
-		RandProb2[ 0 ] = 0.26628192;
-		RandProb2[ 1 ] = 0.50869810;
-		AllpProb[ 0 ] = 0.57927824;
-		AllpProb[ 1 ] = 0.99071231;
-		CentProb[ 0 ] = 0.99587644;
-		CentProb[ 1 ] = 0.14482312;
-		CentSpan[ 0 ] = 2.53962698;
-		CentSpan[ 1 ] = 1.08541910;
-		ScutProb = 0.06000000;
-		MantSizeSh = 38.62599250;
-		MantSizeSh2 = 83.99565521;
-		PopSizeBase = 11.02612544;
-		PopSizeMult = 1.92909238;
+		// Cost=2.340515
+		RandProb[ 0 ] = 0.31183247;
+		RandProb[ 1 ] = 0.96389921;
+		RandProb2[ 0 ] = 0.37889711;
+		RandProb2[ 1 ] = 0.32030958;
+		AllpProb[ 0 ] = 0.45959446;
+		AllpProb[ 1 ] = 0.98226970;
+		CentProb[ 0 ] = 0.95205787;
+		CentProb[ 1 ] = 0.19277299;
+		CentSpan[ 0 ] = 2.96375815;
+		CentSpan[ 1 ] = 0.18697579;
+		ScutProb = 0.06575653;
+		MantSizeSh = 20.24787030;
+		MantSizeSh2 = 76.14566404;
+		PopSizeBase = 11.45111332;
+		PopSizeMult = 1.98384173;
+		ParOptProb[ 0 ] = 0.06342471;
+		ParOptProb[ 1 ] = 0.31881036;
+		EntmProb[ 0 ] = 0.16989104;
+		EntmProb[ 1 ] = 0.56884090;
+		ParOpt.CentPow = 9.94313896;
+		ParOpt.RadPow = 29.85162390;
 	}
 
-	~CBiteOpt()
+	/**
+	 * Function returns pointer to the parallel optimizer, used to optimize
+	 * its hyper-parameters.
+	 */
+
+	CSpherOpt* getParOpt()
 	{
-		deleteBuffers();
+		return( &ParOpt );
 	}
 
 	/**
@@ -120,7 +122,7 @@ public:
 	 *
 	 * @param aParamCount The number of parameters being optimized.
 	 * @param PopSize0 The number of elements in population to use. If set to
-	 * 0, the default formula will be used.
+	 * 0 or negative, the default formula will be used.
 	 */
 
 	void updateDims( const int aParamCount, const int PopSize0 = 0 )
@@ -134,39 +136,15 @@ public:
 		}
 
 		deleteBuffers();
+		initBaseBuffers( aParamCount, aPopSize );
 
-		ParamCount = aParamCount;
-		PopSize = aPopSize;
-		PopSize1 = aPopSize - 1;
-		PopSizeI = 1.0 / aPopSize;
-		PopOrder = new int[ PopSize ];
-		CurParamsBuf = new double[ PopSize * ParamCount ];
-		CurParams = new double*[ PopSize ];
-		CurCosts = new double[ PopSize ];
-		CentParams = new double[ ParamCount ];
-		MinValues = new double[ ParamCount ];
-		MaxValues = new double[ ParamCount ];
-		DiffValues = new double[ ParamCount ];
-		BestParams = new double[ ParamCount ];
-		Params = new double[ ParamCount ];
-		NewParams = new double[ ParamCount ];
+		Params = CurParams[ aPopSize ];
+		TmpParams = new uint64_t[ aParamCount ];
 
-		int i;
+		ParOpt.Owner = this;
+		ParOpt.updateDims( ParamCount );
 
-		for( i = 0; i < PopSize; i++ )
-		{
-			CurParams[ i ] = CurParamsBuf + i * ParamCount;
-		}
-	}
-
-	/**
-	 * @return The number of initial objective function evaluations.
-	 * Corresponds to the population size.
-	 */
-
-	int getInitEvals() const
-	{
-		return( PopSize );
+		InitEvals = aPopSize;
 	}
 
 	/**
@@ -187,8 +165,10 @@ public:
 		for( i = 0; i < ParamCount; i++ )
 		{
 			DiffValues[ i ] = MaxValues[ i ] - MinValues[ i ];
-			CentParams[ i ] = 0.0;
 		}
+
+		resetCommonVars();
+		resetCentroid();
 
 		// Initialize solution vectors randomly, calculate objective function
 		// values of these solutions.
@@ -201,11 +181,12 @@ public:
 			{
 				const double r = pow( fabs( rnd.getRndValue() -
 					rnd.getRndValue() ), 0.125 ) *
-					( rnd.getRndValue() < 0.5 ? -0.5 : 0.5 ) + 0.5;
+					( getBit( rnd ) ? -0.5 : 0.5 ) + 0.5;
 
-				const double v = ( j == 0 && InitParams != NULL ?
-					wrapParam( rnd, ( InitParams[ i ] - MinValues[ i ]) /
-					DiffValues[ i ]) : r );
+				const double v = wrapParam( rnd,
+					( j == 0 && InitParams != NULL ?
+					( InitParams[ i ] - MinValues[ i ]) / DiffValues[ i ] :
+					r ));
 
 				CurParams[ j ][ i ] = v;
 				CentParams[ i ] += v / PopSize;
@@ -229,14 +210,17 @@ public:
 		RandCntr2 = rnd.getRndValue();
 		AllpCntr = rnd.getRndValue();
 		CentCntr = rnd.getRndValue();
-		ParamCntr = (int) ( rnd.getRndValue() * ParamCount );
+		EntmCntr = rnd.getRndValue();
+		ParamCountRnd = (double) ParamCount / rnd.getRawScale();
+		ParamCntr = (int) ( rnd.getUniformRaw() * ParamCountRnd );
 		RandSwitch = 0;
-		StallCount = 0;
 
 		CentSpanRnd[ 0 ] = CentSpan[ 0 ] / rnd.getRawScale();
 		CentSpanRnd[ 1 ] = CentSpan[ 1 ] / rnd.getRawScale();
-		ParamCountRnd = (double) ParamCount / rnd.getRawScale();
 		AllpProbDamp = 2.0 / ParamCount;
+
+		ParOpt.init( rnd );
+		ParOptProbM = 1;
 	}
 
 	/**
@@ -259,18 +243,62 @@ public:
 
 	int optimize( CBiteRnd& rnd, CBiteOpt* const PushOpt = NULL )
 	{
+		int i;
+
+		if( rnd.getRndValue() <
+			ParOptProbM * ParOptProb[( RandSwitch >> 6 ) & 1 ])
+		{
+			double NewCost;
+			ParOpt.optimize( rnd, &NewCost, Params );
+
+			const int sH = PopOrder[ PopSize1 ];
+
+			if( NewCost >= CurCosts[ sH ])
+			{
+				RandSwitch &= ~64;
+
+				if( ParOptProbM > 1 )
+				{
+					ParOptProbM--;
+				}
+
+				StallCount++;
+			}
+			else
+			{
+				RandSwitch |= 64;
+
+				if( NewCost < BestCost )
+				{
+					// Record the best solution.
+
+					for( i = 0; i < ParamCount; i++ )
+					{
+						BestParams[ i ] = getRealValue( Params[ i ], i );
+					}
+
+					BestCost = NewCost;
+				}
+
+				updatePop( NewCost, Params, sH );
+				StallCount = 0;
+			}
+
+			return( StallCount );
+		}
+
 		// Random selection between best solutions, reduces sensitivity to
 		// noise.
 
 		const double mp = rnd.getRndValue(); // Also reused later.
 		const double mp2 = mp * mp; // Used later.
-		const int mpi = (int) ( mp * mp2 * 4 );
-		const double* const MinParams = CurParams[ PopOrder[ mpi ]];
+		const double mp3 = mp2 * mp;
+		const int mpi = (int) ( mp3 * 4 );
+		const double* const MinParams = getParamsOrdered( mpi );
 
-		int i;
-
-		int RaiseFlags = 0; // Which RandSwitch flags to raise on
-			// optimization improvement.
+		int UseRandSwitch = RandSwitch; // RandSwitch to use next.
+		int RaiseFlags = 0; // RandSwitch flags to raise on optimization
+			// improvement.
 
 		RandCntr += RandProb[ RandSwitch & 1 ];
 
@@ -291,22 +319,18 @@ public:
 				// solution. "mp*mp" is equivalent of giving more weight to
 				// better solutions.
 
-				const int si = (int) ( mp2 * PopSize );
-				const double* const rp1 = CurParams[ PopOrder[ si ]];
+				const int si1 = (int) ( mp2 * PopSize );
+				const double* const rp1 = getParamsOrdered( si1 );
 
 				for( i = 0; i < ParamCount; i++ )
 				{
-					Params[ i ] = ( rnd.getRndValue() < 0.5 ?
-						CentParams[ i ] :
+					Params[ i ] = ( getBit( rnd ) ? CentParams[ i ] :
 						MinParams[ i ] + ( MinParams[ i ] - rp1[ i ]));
 				}
 			}
 			else
 			{
-				for( i = 0; i < ParamCount; i++ )
-				{
-					Params[ i ] = MinParams[ i ];
-				}
+				memcpy( Params, MinParams, ParamCount * sizeof( Params[ 0 ]));
 
 				// Select a single random parameter or all parameters for
 				// further operations.
@@ -337,21 +361,23 @@ public:
 				// Bitmask inversion operation, works as a "driver" of
 				// optimization process.
 
-				const int64_t imask =
-					MantSizeMask >> (int64_t) ( mp2 * mp2 * MantSizeSh );
+				const int imasks = (int) ( mp2 * mp2 * MantSizeSh );
+				const uint64_t imask =
+					( imasks > 63 ? 0 : MantSizeMask >> imasks );
 
 				const double rr = rnd.getRndValue();
-				const int64_t imask2 =
-					MantSizeMask >> (int64_t) ( rr * rr * MantSizeSh2 );
+				const int imask2s = (int) ( rr * rr * MantSizeSh2 );
+				const uint64_t imask2 =
+					( imask2s > 63 ? 0 : MantSizeMask >> imask2s );
 
-				const int si = (int) ( mp * mp2 * PopSize );
-				const double* const rp0 = CurParams[ PopOrder[ si ]];
+				const int si0 = (int) ( mp3 * PopSize );
+				const double* const rp0 = getParamsOrdered( si0 );
 
 				for( i = a; i <= b; i++ )
 				{
-					const int64_t v1 = (int64_t) ( Params[ i ] * MantMult );
-					const int64_t v2 = (int64_t) ( rp0[ i ] * MantMult );
-					int64_t v0 = (( v1 ^ imask ) + ( v2 ^ imask2 )) >> 1;
+					const uint64_t v1 = (uint64_t) ( Params[ i ] * MantMult );
+					const uint64_t v2 = (uint64_t) ( rp0[ i ] * MantMult );
+					uint64_t v0 = (( v1 ^ imask ) + ( v2 ^ imask2 )) >> 1;
 					Params[ i ] = v0 * MantMultI;
 				}
 
@@ -368,7 +394,7 @@ public:
 					const double m1 = rnd.getTPDFRaw() * CentSpanRnd[ ci ];
 					const double m2 = rnd.getTPDFRaw() * CentSpanRnd[ ci ];
 					const int si = (int) ( mp2 * PopSize );
-					const double* const rp1 = CurParams[ PopOrder[ si ]];
+					const double* const rp1 = getParamsOrdered( si );
 
 					for( i = a; i <= b; i++ )
 					{
@@ -380,36 +406,84 @@ public:
 		}
 		else
 		{
-			// Select worst and a random previous solution from the ordered
-			// list, apply offsets to reduce sensitivity to noise.
+			EntmCntr += EntmProb[( RandSwitch >> 5 ) & 1 ];
 
-			const int si = mpi + (int) ( mp * ( PopSize1 - mpi ));
-			const double* const OrigParams = CurParams[ PopOrder[ si ]];
-			const double* const MaxParams = CurParams[ PopOrder[
-				PopSize1 - mpi ]];
-
-			// Select two more previous solutions to be used in the mix.
-
-			const double r = rnd.getRndValue();
-			const int si2 = (int) ( r * r * PopSize );
-			const double* const rp1 = CurParams[ PopOrder[ si2 ]];
-			const double* const rp2 = CurParams[ PopOrder[ PopSize1 - si2 ]];
-
-			for( i = 0; i < ParamCount; i++ )
+			if( EntmCntr >= 1.0 )
 			{
-				// The "step in the right direction" (Differential Evolution
-				// "mutation") operation towards the best (minimal) and away
-				// from the worst (maximal) parameter vector, plus a
-				// difference of two random vectors.
+				RaiseFlags |= 32;
+				EntmCntr -= 1.0;
 
-				Params[ i ] = MinParams[ i ] -
-					(( MaxParams[ i ] - OrigParams[ i ]) -
-					( rp1[ i ] - rp2[ i ])) * 0.5;
+				// "Entropy bit mixing"-based population cross-over. Slightly
+				// less effective than the DE-based mixing below, but makes
+				// the optimization method more diverse overall.
+
+				int k;
+
+				for( k = 0; k < 7; k++ )
+				{
+					const double r = rnd.getRndValue();
+					const int si = (int) ( r * r * PopSize );
+					const double* const rp = getParamsOrdered( si );
+
+					if( k == 0 )
+					{
+						for( i = 0; i < ParamCount; i++ )
+						{
+							TmpParams[ i ] =
+								(uint64_t) ( rp[ i ] * MantMult );
+						}
+					}
+					else
+					{
+						for( i = 0; i < ParamCount; i++ )
+						{
+							TmpParams[ i ] ^=
+								(uint64_t) ( rp[ i ] * MantMult );
+						}
+					}
+				}
+
+				for( i = 0; i < ParamCount; i++ )
+				{
+					Params[ i ] = TmpParams[ i ] * MantMultI;
+				}
+			}
+			else
+			{
+				// Select worst and a random previous solution from the
+				// ordered list, apply offsets to reduce sensitivity to noise.
+
+				const int si0 = mpi + (int) ( mp * ( PopSize1 - mpi ));
+				const double* const OrigParams = getParamsOrdered( si0 );
+				const double* const MaxParams = getParamsOrdered(
+					PopSize1 - mpi );
+
+				// Select two more previous solutions to be used in the mix.
+
+				const double r = rnd.getRndValue();
+				const int si1 = (int) ( r * r * PopSize );
+				const double* const rp1 = getParamsOrdered( si1 );
+				const double* const rp2 = getParamsOrdered( PopSize1 - si1 );
+
+				for( i = 0; i < ParamCount; i++ )
+				{
+					// The "step in the right direction" (Differential
+					// Evolution "mutation") operation towards the best
+					// (minimal) and away from the worst (maximal) parameter
+					// vector, plus a difference of two random vectors.
+
+					Params[ i ] = MinParams[ i ] -
+						(( MaxParams[ i ] - OrigParams[ i ]) -
+						( rp1[ i ] - rp2[ i ])) * 0.5;
+				}
 			}
 		}
 
-		if( mp < ScutProb )
+		if( rnd.getRndValue() < ScutProb )
 		{
+			UseRandSwitch = 0;
+			RaiseFlags = 16;
+
 			// Low-probability parameter value short-cuts, they considerably
 			// reduce convergence time for some functions while not severely
 			// impacting performance for other functions.
@@ -435,25 +509,9 @@ public:
 
 		const double NewCost = optcost( NewParams );
 
-		if( PushOpt != NULL )
+		if( PushOpt != NULL && PushOpt != this )
 		{
-			const int sH = PushOpt -> PopOrder[ PushOpt -> PopSize1 ];
-
-			if( NewCost <= PushOpt -> CurCosts[ sH ])
-			{
-				double* const rp = PushOpt -> CurParams[ sH ];
-
-				for( i = 0; i < ParamCount; i++ )
-				{
-					PushOpt -> CentParams[ i ] +=
-						( Params[ i ] - rp[ i ]) * PushOpt -> PopSizeI;
-
-					rp[ i ] = Params[ i ];
-				}
-
-				PushOpt -> insertPopOrder( NewCost, sH, PushOpt -> PopSize1 );
-				PushOpt -> RandSwitch = RandSwitch;
-			}
+			PushOpt -> pushParams( NewCost, Params, 0 );
 		}
 
 		const int sH = PopOrder[ PopSize1 ];
@@ -468,9 +526,15 @@ public:
 			}
 			else
 			{
-				RandSwitch |= 1; // Raise RandProb flag. This is not
-					// critically important, but introduces a kind of "order"
-					// useful when optimizing method's hyper-parameters.
+				RandSwitch = UseRandSwitch | 1; // Raise RandProb flag. This
+					// is not critically important, but introduces a kind of
+					// "order" useful when optimizing method's
+					// hyper-parameters.
+			}
+
+			if( ParOptProbM < 3 )
+			{
+				ParOptProbM++;
 			}
 
 			StallCount++;
@@ -478,7 +542,7 @@ public:
 			return( StallCount );
 		}
 
-		RandSwitch |= RaiseFlags;
+		RandSwitch = UseRandSwitch | RaiseFlags;
 
 		if( NewCost < BestCost )
 		{
@@ -492,84 +556,23 @@ public:
 			BestCost = NewCost;
 		}
 
-		// Replace the highest-cost previous solution, update centroid.
+		updatePop( NewCost, Params, sH );
 
-		double* const rp = CurParams[ sH ];
-
-		for( i = 0; i < ParamCount; i++ )
-		{
-			CentParams[ i ] += ( Params[ i ] - rp[ i ]) * PopSizeI;
-			rp[ i ] = Params[ i ];
-		}
-
-		insertPopOrder( NewCost, sH, PopSize1 );
 		StallCount = 0;
 
 		return( StallCount );
 	}
 
-	/**
-	 * @return Best parameter vector.
-	 */
-
-	const double* getBestParams() const
-	{
-		return( BestParams );
-	}
-
-	/**
-	 * @return Cost of the best parameter vector.
-	 */
-
-	double getBestCost() const
-	{
-		return( BestCost );
-	}
-
-	/**
-	 * Virtual function that should fill minimal parameter value vector.
-	 *
-	 * @param[out] p Minimal value vector.
-	 */
-
-	virtual void getMinValues( double* const p ) const = 0;
-
-	/**
-	 * Virtual function that should fill maximal parameter value vector.
-	 *
-	 * @param[out] p Maximal value vector.
-	 */
-
-	virtual void getMaxValues( double* const p ) const = 0;
-
-	/**
-	 * Virtual function (objective function) that should calculate parameter
-	 * vector's optimization cost.
-	 *
-	 * @param p Parameter vector to evaluate.
-	 * @return Optimized cost.
-	 */
-
-	virtual double optcost( const double* const p ) = 0;
-
 protected:
-	static const int64_t MantSize = 54; ///< Mantissa size of the "bitmask
-		///< inversion" operation.
+	static const int MantSize = 54; ///< Mantissa size of the bitmask
+		///< operations.
 		///<
-	static const int64_t MantSizeMask = ( 1LL << MantSize ) - 1; ///< Mask
+	static const uint64_t MantSizeMask = ( 1LL << MantSize ) - 1; ///< Mask
 		///< that corresponds to mantissa.
 		///<
 	double MantMult; ///< Mantissa multiplier (1 << MantSize).
 		///<
 	double MantMultI; ///< =1/MantMult.
-		///<
-	int ParamCount; ///< The total number of internal parameter values in use.
-		///<
-	int PopSize; ///< The size of population in use.
-		///<
-	int PopSize1; ///< = PopSize - 1.
-		///<
-	double PopSizeI; ///< = 1/PopSize.
 		///<
 	double RandCntr; ///< Parameter randomization probability counter.
 		///<
@@ -579,6 +582,8 @@ protected:
 		///<
 	double CentCntr; ///< Centroid move probability counter.
 		///<
+	double EntmCntr; ///< Entropy mixing method probability counter.
+		///<
 	double AllpProbDamp; ///< AllpProb damping that depends on ParamCount.
 		///<
 	int ParamCntr; ///< Parameter randomization index counter.
@@ -586,151 +591,83 @@ protected:
 	int RandSwitch; ///< Index flags for probability values switching.
 		///< State automata-like.
 		///<
-	int StallCount; ///< The number of iterations without improvement.
-		///<
 	double CentSpanRnd[ 2 ]; ///< CentSpan multiplier converted into "raw"
 		///< random value scale.
 		///<
 	double ParamCountRnd; ///< ParamCount converted into "raw" random value
 		///< scale.
 		///<
-	int* PopOrder; ///< The current solution vectors ordering,
-		///< ascending-sorted by cost.
-		///<
-	double* CurParamsBuf; ///< CurParams buffer.
-		///<
-	double** CurParams; ///< Current working parameter vectors.
-		///<
-	double* CurCosts; ///< Best costs of current working parameter vectors.
-		///<
-	double* CentParams; ///< Centroid of the current parameter vectors.
-		///<
-	double* MinValues; ///< Minimal parameter values.
-		///<
-	double* MaxValues; ///< Maximal parameter values.
-		///<
-	double* DiffValues; ///< Difference between maximal and minimal parameter
-		///< values.
-		///<
-	double* BestParams; ///< Best parameter vector.
-		///<
-	double BestCost; ///< Cost of the best parameter vector.
+	uint64_t* TmpParams; ///< Temporary integer value parameter buffer.
 		///<
 	double* Params; ///< Temporary parameter buffer.
 		///<
-	double* NewParams; ///< Temporary new parameter buffer.
+
+	virtual void deleteBuffers()
+	{
+		CBiteOptBase :: deleteBuffers();
+
+		delete[] TmpParams;
+	}
+
+	/**
+	 * Function "pushes" externally-provided parameters to *this object.
+	 *
+	 * @param NewCost Cost of the solution being pushed.
+	 * @param PushParams Parameter vector being "pushed".
+	 * @param NewRandSwitch New "RandSwitch" value.
+	 */
+
+	void pushParams( const double NewCost, const double* const PushParams,
+		const int NewRandSwitch )
+	{
+		const int sH = PopOrder[ PopSize1 ];
+
+		if( NewCost < CurCosts[ sH ])
+		{
+			double* const rp = CurParams[ sH ];
+			int i;
+
+			for( i = 0; i < ParamCount; i++ )
+			{
+				CentParams[ i ] += ( PushParams[ i ] - rp[ i ]) * PopSizeI;
+				rp[ i ] = PushParams[ i ];
+			}
+
+			insertPopOrder( NewCost, sH, PopSize1 );
+			RandSwitch = NewRandSwitch;
+		}
+	}
+
+	/**
+	 * Parallel optimizer class.
+	 */
+
+	class CParOpt : public CSpherOpt
+	{
+	public:
+		CBiteOpt* Owner; ///< Owner object.
+
+		virtual void getMinValues( double* const p ) const
+		{
+			Owner -> getMinValues( p );
+		}
+
+		virtual void getMaxValues( double* const p ) const
+		{
+			Owner -> getMaxValues( p );
+		}
+
+		virtual double optcost( const double* const p )
+		{
+			return( Owner -> optcost( p ));
+		}
+	};
+
+	CParOpt ParOpt; ///< Parallel optimizer.
 		///<
-
-	/**
-	 * Function deletes previously allocated buffers.
-	 */
-
-	void deleteBuffers()
-	{
-		delete[] PopOrder;
-		delete[] CurParamsBuf;
-		delete[] CurParams;
-		delete[] CurCosts;
-		delete[] CentParams;
-		delete[] MinValues;
-		delete[] MaxValues;
-		delete[] DiffValues;
-		delete[] BestParams;
-		delete[] Params;
-		delete[] NewParams;
-	}
-
-	/**
-	 * Function wraps the specified parameter value so that it stays in the
-	 * [0.0; 1.0] range, by wrapping it over the boundaries using random
-	 * operator. This operation improves convergence in comparison to
-	 * clamping.
-	 *
-	 * @param v Parameter value to wrap.
-	 * @return Wrapped parameter value.
-	 */
-
-	static double wrapParam( CBiteRnd& rnd, double v )
-	{
-		if( v < 0.0 )
-		{
-			if( v > -1.0 )
-			{
-				return( rnd.getRndValue() * -v );
-			}
-
-			return( rnd.getRndValue() );
-		}
-
-		if( v > 1.0 )
-		{
-			if( v < 2.0 )
-			{
-				return( 1.0 - rnd.getRndValue() * ( v - 1.0 ));
-			}
-
-			return( rnd.getRndValue() );
-		}
-
-		return( v );
-	}
-
-	/**
-	 * Function returns specified parameter's value taking into account
-	 * minimal and maximal value range.
-	 *
-	 * @param Params Parameter vector of interest.
-	 * @param i Parameter index.
-	 */
-
-	double getRealValue( const double v, const int i ) const
-	{
-		return( MinValues[ i ] + DiffValues[ i ] * v );
-	}
-
-	/**
-	 * Function inserts the specified solution into the PopOrder
-	 * array at the appropriate offset, increasing the number of items by 1.
-	 *
-	 * @param Cost Solution's cost.
-	 * @param f Solution's index.
-	 * @param ItemCount The current number of items in the array.
-	 */
-
-	void insertPopOrder( const double Cost, const int f, const int ItemCount )
-	{
-		CurCosts[ f ] = Cost;
-
-		// Perform binary search.
-
-		int z = 0;
-		int hi = ItemCount;
-
-		while( z < hi )
-		{
-			int mid = ( z + hi ) >> 1;
-
-			if( CurCosts[ PopOrder[ mid ]] >= Cost )
-			{
-				hi = mid;
-			}
-			else
-			{
-				z = mid + 1;
-			}
-		}
-
-		// Insert element at the correct sorted position.
-
-		int i;
-
-		for( i = ItemCount; i > z; i-- )
-		{
-			PopOrder[ i ] = PopOrder[ i - 1 ];
-		}
-
-		PopOrder[ z ] = f;
-	}
+	int ParOptProbM; ///< Parallel optimizer's engagement probablity
+		///< multiplier.
+		///<
 };
 
 /**
@@ -741,7 +678,7 @@ protected:
  * Description is available at https://github.com/avaneev/biteopt
  */
 
-class CBiteOptDeep
+class CBiteOptDeep : public CBiteOptInterface
 {
 public:
 	CBiteOptDeep()
@@ -751,9 +688,32 @@ public:
 	{
 	}
 
-	~CBiteOptDeep()
+	virtual ~CBiteOptDeep()
 	{
 		deleteBuffers();
+	}
+
+	virtual int getInitEvals() const
+	{
+		int ec = 0;
+		int i;
+
+		for( i = 0; i < OptCount; i++ )
+		{
+			ec += Opts[ i ] -> getInitEvals();
+		}
+
+		return( ec );
+	}
+
+	virtual const double* getBestParams() const
+	{
+		return( Opts[ BestOpt ] -> getBestParams() );
+	}
+
+	virtual double getBestCost() const
+	{
+		return( Opts[ BestOpt ] -> getBestCost() );
 	}
 
 	/**
@@ -792,23 +752,6 @@ public:
 			Opts[ i ] = new CBiteOptWrap( this );
 			Opts[ i ] -> updateDims( aParamCount, PopSize0 );
 		}
-	}
-
-	/**
-	 * @return The number of initial objective function evaluations.
-	 */
-
-	int getInitEvals() const
-	{
-		int ec = 0;
-		int i;
-
-		for( i = 0; i < OptCount; i++ )
-		{
-			ec += Opts[ i ] -> getInitEvals();
-		}
-
-		return( ec );
 	}
 
 	/**
@@ -896,50 +839,6 @@ public:
 		return( StallCount );
 	}
 
-	/**
-	 * @return Best parameter vector.
-	 */
-
-	const double* getBestParams() const
-	{
-		return( Opts[ BestOpt ] -> getBestParams() );
-	}
-
-	/**
-	 * @return Cost of the best parameter vector.
-	 */
-
-	double getBestCost() const
-	{
-		return( Opts[ BestOpt ] -> getBestCost() );
-	}
-
-	/**
-	 * Virtual function that should fill minimal parameter value vector.
-	 *
-	 * @param[out] p Minimal value vector.
-	 */
-
-	virtual void getMinValues( double* const p ) const = 0;
-
-	/**
-	 * Virtual function that should fill maximal parameter value vector.
-	 *
-	 * @param[out] p Maximal value vector.
-	 */
-
-	virtual void getMaxValues( double* const p ) const = 0;
-
-	/**
-	 * Virtual function (objective function) that should calculate parameter
-	 * vector's optimization cost.
-	 *
-	 * @param p Parameter vector to evaluate.
-	 * @return Optimized cost.
-	 */
-
-	virtual double optcost( const double* const p ) = 0;
-
 protected:
 	/**
 	 * Wrapper class for CBiteOpt class.
@@ -948,10 +847,10 @@ protected:
 	class CBiteOptWrap : public CBiteOpt
 	{
 	public:
-		CBiteOptDeep* Owner; ///< Owning object.
+		CBiteOptDeep* Owner; ///< Owner object.
 			///<
 
-		CBiteOptWrap( CBiteOptDeep* const aOwner = NULL )
+		CBiteOptWrap( CBiteOptDeep* const aOwner )
 			: Owner( aOwner )
 		{
 		}
