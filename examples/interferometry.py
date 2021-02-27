@@ -118,7 +118,7 @@ def parallel_de():
         t0 = time()
         fprob = single_objective(pg.problem(udp))
         print('interferometer de parallel function evaluation run ' + str(i))
-        ret = de.minimize(fprob.fun, bounds=fprob.bounds, workers=32, popsize=32, max_evaluations=100000)
+        ret = de.minimize(fprob.fun, bounds=fprob.bounds, workers=4, popsize=32, max_evaluations=100000)
         print("best result is " + str(ret.fun) + ' x = ' + ", ".join(str(x) for x in ret.x))
 
 if __name__ == '__main__':
