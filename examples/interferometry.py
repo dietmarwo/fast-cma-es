@@ -19,7 +19,7 @@ from fcmaes import de
 from fcmaes.optimizer import single_objective, eprint
 from time import time
 
-@njit
+@njit(fastmath=True)
 def _get_observed(n_points, im_ft, chromosome):
     r, c = im_ft.shape
     l = 0.01
