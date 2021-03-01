@@ -19,7 +19,7 @@ def optimize():
     ret = de.minimize(fprob.fun, bounds=fprob.bounds, workers=8, popsize=31, max_evaluations=50000)
     
     # Python CMAES implementation, uses ask/tell for parallel function evaluation.
-    #ret = cmaes.minimize(fprob.fun, bounds=fprob.bounds, workers=8, popsize=31, max_evaluations=20000)
+    #ret = cmaes.minimize(fprob.fun, bounds=fprob.bounds, workers=8, popsize=31, max_evaluations=50000)
     
     # Parallel retry using DE    
     #ret = retry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=De_python(20000, popsize=31), workers=8)
