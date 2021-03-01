@@ -139,7 +139,7 @@ class callback(object):
         try:
             fit = self.fun([x[i] for i in range(n)])
             return fit if math.isfinite(fit) else sys.float_info.max
-        except Exception:
+        except Exception as ex:
             return sys.float_info.max
 
 #https://stackoverflow.com/questions/7543675/how-to-convert-pointer-to-c-array-to-python-array
@@ -152,8 +152,6 @@ class callback_par(object):
     
     def __call__(self, popsize, n, xs_, ys_):
         try:
-            #xall = np.array(np.fromiter(xs_, dtype = np.float64, count = popsize*n))
-            
             arrType = ct.c_double*(popsize*n)
             addr = ct.addressof(xs_.contents)
             xall = np.frombuffer(arrType.from_address(addr))
