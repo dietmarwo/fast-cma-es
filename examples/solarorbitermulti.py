@@ -61,65 +61,6 @@ def compute_solar_orbiter():
     logger().info("continue to optimize best sequence " + ps.prob.name + ' ' + str(ps.id))
     for _ in range(20):
         ps.retry(optimizer)
-    solar_orbiter = solar_orbiters[ps.index]
-    logger().info("best sequence is " + 
-                  names(solar_orbiter._seq) + ", fval = " + str(ps.ret.fun))
-    pop_champion_x = ps.ret.x
-    
-    solar_orbiter.pretty(pop_champion_x)
-    solar_orbiter.plot(pop_champion_x)
-    
-    # Plot solar distance in AE
-    timeframe = range(1,5*365)
-    earth = jpl_lp("earth")
-    venus = jpl_lp("venus")
-    
-    distances = []
-    edistances = []
-    vdistances = []
-    
-    for i in timeframe:
-        epoch = pop_champion_x[0]+i
-        pos, vel = solar_orbiter.eph(pop_champion_x, epoch)
-        epos, evel = earth.eph(epoch)
-        vpos, vvel = venus.eph(epoch)
-        distances.append(norm(pos) / AU)
-        edistances.append(norm(epos) / AU)
-        vdistances.append(norm(vpos) / AU)
-    
-    fig, ax = plt.subplots()
-    ax.plot(list(timeframe), distances, label="Solar Orbiter")
-    ax.plot(list(timeframe), edistances, label="Earth")
-    ax.plot(list(timeframe), vdistances, label="Venus")
-    ax.set_xlabel("Days")
-    ax.set_ylabel("AU")
-    ax.set_title("Distance to Sun")
-    ax.legend()
-    
-    # Plot inclination and distance
-    inclinations = []
-    for i in timeframe:
-        epoch = pop_champion_x[0]+i
-        pos, _ = solar_orbiter.eph(pop_champion_x, epoch)
-        inclination = sign(pos[2])*acos(norm(pos[:2]) / norm(pos))
-        inclinations.append(inclination)
-    
-    color = 'tab:red'
-    fig2, ax2 = plt.subplots()
-    ax2.plot(list(timeframe), inclinations, color=color)
-    ax2.set_ylabel("Inclination", color=color)
-    ax2.set_xlabel("Days")
-    ax.set_title("Distance and Inclination")
-    
-    ax3 = ax2.twinx()  # instantiate a second axes that shares the same x-axis
-    
-    color = 'tab:blue'
-    ax3.set_ylabel('AU', color=color)
-    ax3.plot(list(timeframe), distances, color=color)
-    ax3.tick_params(axis='y', labelcolor=color)
-    
-    fig.tight_layout()  # otherwise the right y-label is slightly clipped
-    plt.show()
     
 if __name__ == '__main__':
     compute_solar_orbiter()
