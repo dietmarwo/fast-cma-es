@@ -13,7 +13,8 @@ import multiprocessing as mp
 import math
 import ctypes as ct
 from scipy.optimize import Bounds
-from fcmaes import de, cmaes
+from fcmaes import de, cmaes, retry
+from fcmaes.optimizer import de_cma_py, Cma_python, De_python, De_cpp, logger
 from time import time
 
 @njit(fastmath=True)
@@ -86,6 +87,7 @@ def parallel_de():
         print('interferometer de parallel function evaluation run ' + str(i))
         ret = de.minimize(udp.fitness, bounds=bounds, workers=6, popsize=31, max_evaluations=50000)
         #ret = cmaes.minimize(udp.fitness, bounds=bounds, workers=6, popsize=31, max_evaluations=50000)
+        #ret = retry.minimize(udp.fitness, bounds=bounds, optimizer=Cma_cpp(50000, popsize=31), workers=6)
         print("best result is " + str(ret.fun) + ' x = ' + ", ".join(str(x) for x in ret.x))
 
 if __name__ == '__main__':
