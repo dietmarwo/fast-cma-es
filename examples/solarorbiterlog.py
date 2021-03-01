@@ -9,12 +9,14 @@ Created on Jan 10, 2020
 # for a sequence found in the logs. The best sequence is listed first.   
 
 import glob
-import numpy as np
 import time
-import pygmo as pg
-from pykep import AU, epoch
+
+from pykep import epoch
 from pykep.planet import jpl_lp
 from pykep.trajopt.gym._solar_orbiter import _solar_orbiter_udp
+
+import numpy as np
+import pygmo as pg
 
 tmin = epoch(time.time() / (24*3600) - 30*365 -7 + 2/24 - 2*365)
 tmax = epoch(time.time() / (24*3600) - 30*365 -7 + 2/24 + 2*365)

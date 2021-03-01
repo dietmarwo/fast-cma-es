@@ -2,22 +2,17 @@
 # https://github.com/esa/pykep/pull/127
 # requires fcmaes version >= 1.2.13, type 'pip install fcmaes --upgrade'
 
-from math import acos
 import time
 
-import numpy as np
-from numpy import sign
-from numpy.linalg import norm
-from pykep import AU, epoch
+from fcmaes import multiretry
+from fcmaes.optimizer import logger, de_cma, single_objective
+from pykep import epoch
 from pykep.planet import jpl_lp
 from pykep.trajopt.gym._solar_orbiter import _solar_orbiter_udp
 
-import matplotlib.pyplot as plt
+import numpy as np
 import pygmo as pg
 
-from fcmaes.optimizer import logger, de_cma, single_objective
-from fcmaes import multiretry
-   
 #log to file and stdout
 logger('solarorbiter_multi.log')
 

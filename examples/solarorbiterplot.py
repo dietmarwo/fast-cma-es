@@ -11,10 +11,10 @@ from numpy.linalg import norm
 from pykep import AU, epoch
 from pykep.planet import jpl_lp
 from pykep.trajopt.gym._solar_orbiter import _solar_orbiter_udp
-import unittest as _ut
 
 import matplotlib.pyplot as plt
 import pygmo as pg
+import unittest as _ut
 
 # Other imports
 tmin = epoch(time.time() / (24*3600) - 30*365 -7 + 2/24 - 2*365)
