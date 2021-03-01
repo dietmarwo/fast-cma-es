@@ -13,10 +13,8 @@ from PIL import Image
 import multiprocessing as mp
 import math
 import ctypes as ct
-import pygmo as pg
-
+from scipy.optimize import Bounds
 from fcmaes import de
-from fcmaes.optimizer import single_objective, eprint
 from time import time
 
 @njit(fastmath=True)
@@ -44,10 +42,7 @@ def _get_observed(n_points, im_ft, chromosome):
         obs_uv_matrix[x][y] = 1
 
     return im_ft * obs_uv_matrix
-
-# Sharing values between processes doesn't work well with windows, they are copied instead.
-# But this is only to monitor progress, parallel function evaluation itself works fine. 
-# Nevertheless on windows it is better to use the linux subsystem. 
+ 
 best = mp.RawValue(ct.c_double, math.inf) 
 count = mp.RawValue(ct.c_int, 0) 
 t0 = time()
@@ -57,7 +52,6 @@ class Interferometry():
         self.number_points = number_points
         self.image = image
 
-        #We make sure that it is a power of 2
         assert((image_size & (image_size-1) == 0) and image_size != 0)
         self.image_size_log2 = np.log2(image_size)
         self.image_size = image_size
@@ -73,55 +67,27 @@ class Interferometry():
 
     def fitness(self, x):
         count.value += 1
-        val = math.inf
-        try:
-            observed = _get_observed(self.number_points, self.im_fft, x)
-            im_reconstruct = fft.ifft2(observed).real
-            val = (mean_squared_error(self.im_numpy, im_reconstruct),)
-            if val[0] < best.value:
-                best.value = val[0]
-                print(str(count.value) + ' fval = ' + str(val[0]) + 
-                      " t = " + str(round(time() - t0)) + " s" + " x = " + ", ".join(str(xi) for xi in x))
-        except Exception as ex:
-            eprint('error in fitness ' + str(ex))
-        
+        observed = _get_observed(self.number_points, self.im_fft, x)
+        im_reconstruct = fft.ifft2(observed).real
+        val = mean_squared_error(self.im_numpy, im_reconstruct)
+        if val < best.value:
+            best.value = val
+            print(str(count.value) + ' fval = ' + str(val) + 
+                  " t = " + str(round(time() - t0)) + " s" + " x = " + ", ".join(str(xi) for xi in x))
         return val
-
-def archipelago():    
-    uda = pg.sga(gen = 1000)
-    udp = Interferometry(11, './img/orion.jpg', 512)
-    # instantiate an unconnected archipelago
-    archi = pg.archipelago(t = pg.topologies.unconnected())
-    
-    for _ in range(4):
-        alg = pg.algorithm(uda)
-        alg.set_verbosity(1)
-    
-        udp = Interferometry(11, './img/orion.jpg', 512)
-        prob = pg.problem(udp)
-        pop = pg.population(prob, 20)
-    
-        isl = pg.island(algo=alg, pop=pop)
-        archi.push_back(isl)   
-    
-    t = time()
-    archi.evolve()
-    archi.wait_check()
-    print(f'archi: {time() - t:0.3f}s')
     
 def parallel_de():   
     global best,count,t0
     udp = Interferometry(11, './img/orion.jpg', 512)
+    bounds = Bounds(udp.get_bounds()[0], udp.get_bounds()[1])
     for i in range(10):
         best = mp.RawValue(ct.c_double, math.inf) 
         count = mp.RawValue(ct.c_int, 0) 
         t0 = time()
-        fprob = single_objective(pg.problem(udp))
         print('interferometer de parallel function evaluation run ' + str(i))
-        ret = de.minimize(fprob.fun, bounds=fprob.bounds, workers=6, popsize=32, max_evaluations=100000)
+        ret = de.minimize(udp.fitness, bounds=bounds, workers=6, popsize=32, max_evaluations=50000)
         print("best result is " + str(ret.fun) + ' x = ' + ", ".join(str(x) for x in ret.x))
 
 if __name__ == '__main__':
     parallel_de()
-    #archipelago()
     pass
