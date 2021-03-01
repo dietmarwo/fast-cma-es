@@ -85,9 +85,16 @@ def parallel_de():
         count = mp.RawValue(ct.c_int, 0) 
         t0 = time()
         print('interferometer de parallel function evaluation run ' + str(i))
+        
+        # Python Differential Evolution implementation, uses ask/tell for parallel function evaluation.
         ret = de.minimize(udp.fitness, bounds=bounds, workers=6, popsize=31, max_evaluations=50000)
+        
+        # Python CMAES implementation, uses ask/tell for parallel function evaluation.
         #ret = cmaes.minimize(udp.fitness, bounds=bounds, workers=6, popsize=31, max_evaluations=50000)
+        
+        # parallel retry. We can use the C++ version of CMA since paralellization is at the retry level. 
         #ret = retry.minimize(udp.fitness, bounds=bounds, optimizer=Cma_cpp(50000, popsize=31), workers=6)
+        
         print("best result is " + str(ret.fun) + ' x = ' + ", ".join(str(x) for x in ret.x))
 
 if __name__ == '__main__':
