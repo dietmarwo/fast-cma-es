@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-""" Numpy based implementation of Differential Evolution using on the DE/best/1 strategy.
+""" Numpy based implementation of Differential Evolution using the DE/best/1 strategy.
     Derived from its C++ counterpart 
     https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/deoptimizer.cpp
     

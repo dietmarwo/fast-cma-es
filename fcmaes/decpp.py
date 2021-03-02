@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-"""Eigen based implementation of differential evolution using onl the DE/best/1 strategy.
+"""Eigen based implementation of differential evolution using the DE/best/1 strategy.
     Uses three deviations from the standard DE algorithm:
     a) temporal locality introduced in 
         https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model
