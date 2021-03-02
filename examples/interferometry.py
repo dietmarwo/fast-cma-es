@@ -10,8 +10,8 @@ from interferometryudp import Interferometry
 from fcmaes import de, cmaes, retry, advretry
 from fcmaes.optimizer import single_objective, de_cma_py, Cma_python, De_python, Cma_cpp
 
-#udp = Interferometry(11, './img/orion.jpg', 512)  # scales bad because of CPU cache 
-udp = Interferometry(5, './img/orion.jpg', 32)
+udp = Interferometry(11, './img/orion.jpg', 512) 
+#udp = Interferometry(5, './img/orion.jpg', 32)
 
 def archipelago():    
     print('interferometer sga archipelago')
@@ -36,22 +36,22 @@ def optimize():
     print('interferometer de parallel function evaluation')
     
     # Python Differential Evolution implementation, uses ask/tell for parallel function evaluation.
-    ret = de.minimize(fprob.fun, bounds=fprob.bounds, workers=8, popsize=31, max_evaluations=50000)
+    ret = de.minimize(fprob.fun, bounds=fprob.bounds, workers=16, popsize=32, max_evaluations=50000)
     
     # Python CMAES implementation, uses ask/tell for parallel function evaluation.
-    #ret = cmaes.minimize(fprob.fun, bounds=fprob.bounds, workers=8, popsize=31, max_evaluations=50000)
+    #ret = cmaes.minimize(fprob.fun, bounds=fprob.bounds, workers=16, popsize=32, max_evaluations=50000)
     
     # Parallel retry using DE    
-    #ret = retry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=De_python(20000, popsize=31), workers=8)
+    #ret = retry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=De_python(20000, popsize=31), workers=16)
   
     # Parallel retry using CMA-ES
-    #ret = retry.minimize(udp.fitness, bounds=bounds, optimizer=Cma_cpp(20000, popsize=31), workers=8)
+    #ret = retry.minimize(udp.fitness, bounds=bounds, optimizer=Cma_cpp(20000, popsize=32), workers=16)
  
     # Smart retry using DE
-    #ret = advretry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=De_python(1500, popsize=31), workers=8)
+    #ret = advretry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=De_python(1500, popsize=32), workers=16)
 
     # Smart retry using CMA-ES  
-    #ret = advretry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=Cma_cpp(1500, popsize=31), workers=8)
+    #ret = advretry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=Cma_cpp(1500, popsize=32), workers=16)
      
     print("best result is " + str(ret.fun) + ' x = ' + ", ".join(str(x) for x in ret.x))
 
