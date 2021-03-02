@@ -7,11 +7,12 @@
     Derived from its C++ counterpart 
     https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/deoptimizer.cpp
     
-    Uses two deviations from the standard DE algorithm:
+    Uses three deviations from the standard DE algorithm:
     a) temporal locality introduced in 
     https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model
     b) reinitialization of individuals based on their age. 
-
+    c) oscillating CR/F parameters. 
+    
     You may keep parameters F and Cr at their defaults since this implementation works well with the given settings for most problems,
     since the algorithm oscillates between different F and Cr settings. 
     

@@ -4,11 +4,12 @@
 # LICENSE file in the root directory.
 
 """Eigen based implementation of differential evolution using onl the DE/best/1 strategy.
-    Uses two deviations from the standard DE algorithm:
+    Uses three deviations from the standard DE algorithm:
     a) temporal locality introduced in 
         https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model
-    b) reinitialization of individuals based on their age."""
-
+    b) reinitialization of individuals based on their age.
+    c) oscillating CR/F parameters."""
+    
 import sys
 import os
 import math
