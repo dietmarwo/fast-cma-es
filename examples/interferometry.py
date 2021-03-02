@@ -5,13 +5,33 @@
 # The test image used is here: https://api.optimize.esa.int/data/interferometry/orion.jpg
 
 import pygmo as pg
+from time import time
 from interferometryudp import Interferometry
 from fcmaes import de, cmaes, retry, advretry
 from fcmaes.optimizer import single_objective, de_cma_py, Cma_python, De_python, Cma_cpp
+
+#udp = Interferometry(11, './img/orion.jpg', 512)  # scales bad because of CPU cache 
+udp = Interferometry(5, './img/orion.jpg', 32)
+
+def archipelago():    
+    print('interferometer sga archipelago')
+    uda = pg.sga(gen = 50000)
+    # instantiate an unconnected archipelago
+    archi = pg.archipelago(t = pg.topologies.unconnected())
+    t = time()
+    for _ in range(8):
+        alg = pg.algorithm(uda)
+        #alg.set_verbosity(1)    
+        prob = pg.problem(udp)
+        pop = pg.population(prob, 20)    
+        isl = pg.island(algo=alg, pop=pop)
+        archi.push_back(isl)   
+    
+    archi.evolve()
+    archi.wait_check()
+    print(f'archi: {time() - t:0.3f}s')
     
 def optimize():   
-    #udp = Interferometry(11, './img/orion.jpg', 512) # scales bad because of CPU cache 
-    udp = Interferometry(5, './img/orion.jpg', 32)
     fprob = single_objective(pg.problem(udp))
     print('interferometer de parallel function evaluation')
     
@@ -37,4 +57,5 @@ def optimize():
 
 if __name__ == '__main__':
     optimize()
+    #archipelago()
     pass
