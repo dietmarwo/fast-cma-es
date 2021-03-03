@@ -27,7 +27,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * @version 2021.2
+ * @version 2021.6
  */
 
 #ifndef SMAESOPT_INCLUDED
@@ -36,14 +36,10 @@
 #include "biteoptort.h"
 
 /**
- * Original source: https://github.com/avaneev/biteopt/blob/master/smaesopt.h
- * 
  * Sigma Adaptation Evolution Strategy class. Fundamentally similar to CMA-ES,
  * but mainly focuses on sigma adaptation.
  *
- *  void init( CBiteRnd& rnd, const double* const InitParams = NULL, const double* const sdevs = NULL)
- *  is adapted to take optional initial centroid and sigma. 
- *  void updateDims( const int aParamCount, const int PopSize0 = 0 ) takes optional popsize.
+ * Description is available at https://github.com/avaneev/biteopt
  */
 
 class CSMAESOpt : public CBiteOptBase
@@ -71,17 +67,21 @@ public:
 
 		EvalFac = 2.0;
 
-		Ort.updateDims( ParamCount, PopSize, EvalFac );
+		Ort.updateDims( aParamCount, aPopSize, EvalFac );
 	}
 
 	/**
 	 * Function initializes *this optimizer.
 	 *
 	 * @param rnd Random number generator.
-	 * @param InitParams Initial parameter values.
+	 * @param InitParams Initial parameter values, only used as centroid,
+	 * not evaluated.
+	 * @param InitRadius Initial radius, multiplier relative to the default
+	 * sigma value.
 	 */
 
-	void init( CBiteRnd& rnd, const double* const InitParams = NULL, const double* const sdevs = NULL)
+	void init( CBiteRnd& rnd, const double* const InitParams = NULL,
+		const double InitRadius = 1.0, const double* const sdevs = NULL )
 	{
 		getMinValues( MinValues );
 		getMaxValues( MaxValues );
@@ -91,17 +91,33 @@ public:
 		curpi = 0;
 		cure = 0;
 
-		// Provide initial centroid and sigma (CurParams is used temporarily,
-		// otherwise initially undefined).
+		// Provide initial centroid and sigma (CurParams is used here
+		// temporarily, otherwise initially undefined).
 
+		const double sd = 0.25 * InitRadius;
 		int i;
 
-		for( i = 0; i < ParamCount; i++ )
+		if( InitParams == NULL )
 		{
-                        CurParams[ 0 ][ i ] = InitParams == NULL ? ( MinValues[ i ] + MaxValues[ i ]) * 0.5 : InitParams[i];
-			const double d = MaxValues[ i ] - MinValues[ i ];
-                        CurParams[ 1 ][ i ] = fabs( MaxValues[ i ] - MinValues[ i ]) * (sdevs == NULL ?  1.0/6.0 : sdevs[i]);
-			DiffValues[ i ] = 1.0 / d;
+			for( i = 0; i < ParamCount; i++ )
+			{
+				CurParams[ 0 ][ i ] =
+					( MinValues[ i ] + MaxValues[ i ]) * 0.5;
+
+				const double d = MaxValues[ i ] - MinValues[ i ];
+				CurParams[ 1 ][ i ] = fabs( d ) * (sdevs == NULL ?  sd : sdevs[i]);
+				DiffValues[ i ] = 1.0 / d;
+			}
+		}
+		else
+		{
+			for( i = 0; i < ParamCount; i++ )
+			{
+				CurParams[ 0 ][ i ] = InitParams[ i ];
+				const double d = MaxValues[ i ] - MinValues[ i ];
+				CurParams[ 1 ][ i ] = fabs( d ) * (sdevs == NULL ?  sd : sdevs[i]);
+				DiffValues[ i ] = 1.0 / d;
+			}
 		}
 
 		UsePopSize = Ort.init( CurParams[ 0 ], CurParams[ 1 ]);
@@ -192,15 +208,7 @@ public:
 			}
 		}
 
-		if( NewCost < BestCost )
-		{
-			BestCost = NewCost;
-
-			for( i = 0; i < ParamCount; i++ )
-			{
-				BestParams[ i ] = Params[ i ];
-			}
-		}
+		updateBestCost( NewCost, Params );
 
 		if( curpi < UsePopSize )
 		{
@@ -214,10 +222,8 @@ public:
 
 			if( NewCost < CurCosts[ sH ])
 			{
-				for( i = 0; i < ParamCount; i++ )
-				{
-					CurParams[ sH ][ i ] = Params[ i ];
-				}
+				memcpy( CurParams[ sH ], Params,
+					ParamCount * sizeof( Params[ 0 ]));
 
 				insertPopOrder( NewCost, sH, ps1 );
 			}

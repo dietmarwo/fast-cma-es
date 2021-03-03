@@ -10,9 +10,9 @@ import pygmo as pg
 from time import time
 from interferometryudp import Interferometry
 from fcmaes import de, cmaes, retry, advretry
-from fcmaes.optimizer import single_objective, de_cma_py, Cma_python, De_python, Cma_cpp
+from fcmaes.optimizer import single_objective, de_cma_py, Cma_python, De_python, Cma_cpp, De_cpp, de_cma
 
-udp = Interferometry(11, './img/orion2.jpg', 512) 
+udp = Interferometry(11, './img/orion.jpg', 512) 
 #udp = Interferometry(5, './img/orion.jpg', 32)
 
 def archipelago():    
@@ -35,10 +35,11 @@ def archipelago():
 
 def check_good_solution():
     fprob = single_objective(pg.problem(udp))
-    x = [-0.5525744962819084, -0.43883468127578895, -0.6785398184930235, -0.08114253160789063, -0.8411258059974988, 
-         -0.6056851931956526, -0.5663895555289944, 0.26568007012429795, -0.058986786386966486, -0.6311239695091586, 
-         -1.0, 0.9997028893794696, 0.9994590383759787, 0.9279325579572855, 0.981547346917406, 0.9999999999995614, 
-         0.9961605447057663, 0.9999999984827094, 0.9349754944331856, 0.676027417863097, 0.9998915752821322, 1.0]
+    x = [-0.04207567070575896, -0.12626252701191398, -0.5401832679041176, 0.06388017124828997, 
+                0.1570632365176983, -0.8471357162115598, -0.11259142034225719, -0.08546452239949272, -0.04200221510495139, 
+                -0.6617333706489703, -0.17903139773021548, 0.22614920127948726, 0.2366652945287067, 0.4478005711408385, 
+                0.06300561277443284, 0.425970136090571, -0.32632396425541416, 0.23565240320456504, 0.23239777670514036, 
+                0.076057597284884, 0.41334839654927047, 0.2314875896061321]
     y = fprob.fun(x)
     print('fval = ' + str(y))
     
@@ -53,21 +54,24 @@ def optimize():
     #ret = cmaes.minimize(fprob.fun, bounds=fprob.bounds, workers=16, popsize=32, max_evaluations=50000)
     
     # Parallel retry using DE    
-    #ret = retry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=De_python(20000, popsize=31), workers=16)
+    #ret = retry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=De_cpp(20000, popsize=31), workers=16)
   
     # Parallel retry using CMA-ES
     #ret = retry.minimize(udp.fitness, bounds=bounds, optimizer=Cma_cpp(20000, popsize=32), workers=16)
  
     # Smart retry using DE
-    #ret = advretry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=De_python(1500, popsize=32), workers=16)
+    #ret = advretry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=De_cpp(1500, popsize=32), workers=16)
 
     # Smart retry using CMA-ES  
     #ret = advretry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=Cma_cpp(1500, popsize=32), workers=16)
-     
+ 
+    # Smart retry using DE->CMA sequence  
+    #ret = advretry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=de_cma(1500, popsize=32), workers=16)
+    
     print("best result is " + str(ret.fun) + ' x = ' + ", ".join(str(x) for x in ret.x))
 
 if __name__ == '__main__':
     optimize()
     #archipelago()
-    #check_good_solution()
+    # check_good_solution()
     pass

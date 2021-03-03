@@ -98,7 +98,7 @@ public:
         bestY = DBL_MAX;
         rnd.init(seed_);
         updateDims(dim_, popsize);
-        init(rnd, init_, sdev_);
+        init(rnd, init_, 1.0, sdev_);
     }
 
     ~CsmaOptimizer() {
