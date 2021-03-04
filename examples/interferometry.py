@@ -10,7 +10,7 @@ import pygmo as pg
 from time import time
 from interferometryudp import Interferometry
 from fcmaes import de, cmaes, retry, advretry
-from fcmaes.optimizer import single_objective, de_cma_py, Cma_python, De_python, Cma_cpp, De_cpp, de_cma
+from fcmaes.optimizer import single_objective, de_cma_py, Cma_python, De_python, Cma_cpp, De_cpp, de_cma, Bite_cpp
 
 udp = Interferometry(11, './img/orion.jpg', 512) 
 #udp = Interferometry(5, './img/orion.jpg', 32)
@@ -45,7 +45,7 @@ def check_good_solution():
     
 def optimize():   
     fprob = single_objective(pg.problem(udp))
-    print('interferometer de parallel function evaluation')
+    print('interferometer optimization')
        
     # Python Differential Evolution implementation, uses ask/tell for parallel function evaluation.
     ret = de.minimize(fprob.fun, bounds=fprob.bounds, workers=16, popsize=32, max_evaluations=50000)
@@ -54,10 +54,13 @@ def optimize():
     #ret = cmaes.minimize(fprob.fun, bounds=fprob.bounds, workers=16, popsize=32, max_evaluations=50000)
     
     # Parallel retry using DE    
-    #ret = retry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=De_cpp(20000, popsize=31), workers=16)
-  
+    #ret = retry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=De_cpp(20000, popsize=32), workers=16, num_retries=64)
+
+    # Parallel retry using Bite    
+    # ret = retry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=Bite_cpp(20000, M=1), workers=16, num_retries=64)
+
     # Parallel retry using CMA-ES
-    #ret = retry.minimize(udp.fitness, bounds=bounds, optimizer=Cma_cpp(20000, popsize=32), workers=16)
+    #ret = retry.minimize(udp.fitness, bounds=bounds, optimizer=Cma_cpp(20000, popsize=32), workers=16, num_retries=64)
  
     # Smart retry using DE
     #ret = advretry.minimize(fprob.fun, bounds=fprob.bounds, optimizer=De_cpp(1500, popsize=32), workers=16)
@@ -73,5 +76,5 @@ def optimize():
 if __name__ == '__main__':
     optimize()
     #archipelago()
-    # check_good_solution()
+    #check_good_solution()
     pass

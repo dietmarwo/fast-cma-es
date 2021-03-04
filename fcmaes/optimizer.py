@@ -121,7 +121,7 @@ def de_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES."""
 
-    deEvals = np.random.uniform(0.1, 0.3)
+    deEvals = np.random.uniform(0.1, 0.5)
     if de_max_evals is None:
         de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
@@ -149,7 +149,7 @@ def de2_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES."""
 
-    deEvals = np.random.uniform(0.1, 0.3)
+    deEvals = np.random.uniform(0.1, 0.5)
     if de_max_evals is None:
         de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
@@ -162,7 +162,7 @@ def de3_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES."""
 
-    deEvals = np.random.uniform(0.1, 0.3)
+    deEvals = np.random.uniform(0.1, 0.5)
     if de_max_evals is None:
         de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
@@ -175,7 +175,7 @@ def gclde_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
            de_max_evals = None, cma_max_evals = None, workers = None):
     """Sequence G-CL-differential evolution -> CMA-ES."""
 
-    deEvals = np.random.uniform(0.1, 0.3)
+    deEvals = np.random.uniform(0.1, 0.5)
     if de_max_evals is None:
         de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
@@ -189,7 +189,7 @@ def da_cma(max_evaluations = 50000, da_max_evals = None, cma_max_evals = None,
            popsize=31, stop_fitness = -math.inf):
     """Sequence differential evolution -> CMA-ES."""
 
-    daEvals = np.random.uniform(0.1, 0.3)
+    daEvals = np.random.uniform(0.1, 0.5)
     if da_max_evals is None:
         da_max_evals = int(daEvals*max_evaluations)
     if cma_max_evals is None:
@@ -516,20 +516,22 @@ class Bite_cpp(Optimizer):
     """Bite C++ implementation."""
    
     def __init__(self, max_evaluations=50000,
-                 popsize = 31, guess=None, stop_fitness = None, workers = None):        
+                 popsize = 31, guess=None, stop_fitness = None, M = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'bite cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.guess = guess
+        self.M = 1 if M is None else M 
         self.workers = workers
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), 
                  store=None, workers = None):
+        
         ret = bitecpp.minimize(fun, bounds, 
                 self.guess if guess is None else guess,
                 max_evaluations = self.max_eval_num(store), 
                 popsize=self.popsize, 
-                stop_fitness = self.stop_fitness, M = 8,
+                stop_fitness = self.stop_fitness, M = self.M,
                 rg=rg, runid = self.get_count_runs(store))     
         return ret.x, ret.fun, ret.nfev
         

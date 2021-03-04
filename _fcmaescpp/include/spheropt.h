@@ -27,7 +27,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * @version 2021.4
+ * @version 2021.7
  */
 
 #ifndef SPHEROPT_INCLUDED
@@ -44,24 +44,15 @@
 class CSpherOpt : public CBiteOptBase
 {
 public:
-	double CentPow; ///< Centroid power factor.
-		///<
-	double RadPow; ///< Radius power factor.
-		///<
 	double Jitter; ///< Solution sampling random jitter, improves convergence
-		///< at low dimensions.
-		///<
-	double EvalFac; ///< Evaluations factor.
+		///< at low dimensions. Usually, a fixed value.
 		///<
 
 	CSpherOpt()
 		: WPopCent( NULL )
 		, WPopRad( NULL )
 	{
-		CentPow = 6.0;
-		RadPow = 18.0;
-		Jitter = 2.0;
-		EvalFac = 2.0;
+		Jitter = 2.5;
 	}
 
 	/**
@@ -87,27 +78,6 @@ public:
 		WPopCent = new double[ PopSize ];
 		WPopRad = new double[ PopSize ];
 
-		double s = 0.0;
-		double s2 = 0.0;
-		int i;
-
-		for( i = 0; i < PopSize; i++ )
-		{
-			const double l = 1.0 - (double) i / ( PopSize * EvalFac );
-			const double v = pow( l, CentPow );
-			WPopCent[ i ] = v;
-			s += v;
-			const double v2 = pow( l, RadPow );
-			WPopRad[ i ] = v2;
-			s2 += v2;
-		}
-
-		for( i = 0; i < PopSize; i++ )
-		{
-			WPopCent[ i ] /= s;
-			WPopRad[ i ] /= s2;
-		}
-
 		JitMult = 2.0 * Jitter / aParamCount;
 		JitOffs = 1.0 - JitMult * 0.5;
 	}
@@ -118,7 +88,8 @@ public:
 	 * @param rnd Random number generator.
 	 * @param InitParams If not NULL, initial parameter vector, also used as
 	 * centroid.
-	 * @param InitRadius Initial radius, relative to the default value.
+	 * @param InitRadius Initial radius, multiplier relative to the default
+	 * sigma value.
 	 */
 
 	void init( CBiteRnd& rnd, const double* const InitParams = NULL,
@@ -130,6 +101,7 @@ public:
 		resetCommonVars();
 		updateDiffValues();
 
+		EvalFac = 2.0;
 		Radius = 0.5 * InitRadius;
 		curpi = 0;
 		cure = 0;
@@ -158,6 +130,13 @@ public:
 
 			DoCentEval = true;
 		}
+
+		CentPowHist.reset();
+		RadPowHist.reset();
+		EvalFacHist.reset();
+		cpm = 0;
+		rpm = 0;
+		epm = 0;
 	}
 
 	/**
@@ -185,7 +164,7 @@ public:
 			for( i = 0; i < ParamCount; i++ )
 			{
 				Params[ i ] = CentParams[ i ];
-				NewParams[ i ] = getRealValue( Params, i );
+				NewParams[ i ] = getRealValue( CentParams, i );
 			}
 		}
 		else
@@ -233,26 +212,24 @@ public:
 
 		if( OutParams != NULL )
 		{
-			memcpy( OutParams, Params, ParamCount * sizeof( Params[ 0 ]));
+			memcpy( OutParams, Params, ParamCount * sizeof( OutParams[ 0 ]));
 		}
 
 		updateBestCost( NewCost, NewParams );
 
 		if( curpi < PopSize )
 		{
-			insertPopOrder( NewCost, curpi, curpi );
+			sortPop( NewCost, curpi );
 			curpi++;
 		}
 		else
 		{
-			const int sH = PopOrder[ PopSize1 ];
-
-			if( NewCost < CurCosts[ sH ])
+			if( CurCosts[ PopSize1 ] >= NewCost )
 			{
-				memcpy( CurParams[ sH ], Params,
-					ParamCount * sizeof( Params[ 0 ]));
+				memcpy( CurParams[ PopSize1 ], Params,
+					ParamCount * sizeof( CurParams[ 0 ]));
 
-				insertPopOrder( NewCost, sH, PopSize1 );
+				sortPop( NewCost, PopSize1 );
 			}
 		}
 
@@ -267,11 +244,23 @@ public:
 			{
 				HiBound = AvgCost;
 				StallCount = 0;
+
+				CentPowHist.incr( cpm );
+				RadPowHist.incr( rpm );
+				EvalFacHist.incr( epm );
 			}
 			else
 			{
 				StallCount += cure;
+
+				CentPowHist.decr( cpm );
+				RadPowHist.decr( rpm );
+				EvalFacHist.decr( epm );
 			}
+
+			cpm = CentPowHist.select( rnd );
+			rpm = RadPowHist.select( rnd );
+			epm = EvalFacHist.select( rnd );
 
 			AvgCost = 0.0;
 			curpi = 0;
@@ -292,6 +281,9 @@ protected:
 		///<
 	double JitOffs; ///< Jitter multiplier offset.
 		///<
+	double EvalFac; ///< Function evaluations factor, used for best solution
+		///< selection.
+		///<
 	double Radius; ///< Current radius.
 		///<
 	int curpi; ///< Current parameter index.
@@ -300,6 +292,18 @@ protected:
 		///<
 	bool DoCentEval; ///< "True" if an initial objective function evaluation
 		///< at centroid point is required.
+	CBiteOptHist< 3, 3, 1 > CentPowHist; ///< Centroid power factor histogram.
+		///<
+	CBiteOptHist< 3, 6, 1 > RadPowHist; ///< Radius power factor histogram.
+		///<
+	CBiteOptHist< 3, 3, 1 > EvalFacHist; ///< EvalFac histogram.
+		///<
+	int cpm; ///< Centroid power factor selector.
+		///<
+	int rpm; ///< Radius power factor selector.
+		///<
+	int epm; ///< EvalFac selector.
+		///<
 
 	/**
 	 * Function deletes previously allocated buffers.
@@ -319,21 +323,50 @@ protected:
 
 	void update()
 	{
-		const double* ip = CurParams[ PopOrder[ 0 ]];
-		double* const cp = CentParams;
-		double w = WPopCent[ 0 ];
+		static const double WCent[ 3 ] = { 5.0, 7.5, 10.0 };
+		static const double WRad[ 3 ] = { 16.0, 18.0, 20.0 };
+		static const double EvalFacs[ 3 ] = { 2.0, 1.9, 1.8 };
+
+		const double CentFac = WCent[ cpm ];
+		const double RadFac = WRad[ rpm ];
+		EvalFac = EvalFacs[ epm ];
+
+		double s1 = 0.0;
+		double s2 = 0.0;
 		int i;
-		int j;
+
+		for( i = 0; i < PopSize; i++ )
+		{
+			const double l = 1.0 - i / ( PopSize * EvalFac );
+
+			const double v1 = pow( l, CentFac );
+			WPopCent[ i ] = v1;
+			s1 += v1;
+
+			const double v2 = pow( l, RadFac );
+			WPopRad[ i ] = v2;
+			s2 += v2;
+		}
+
+		s1 = 1.0 / s1;
+		s2 = 1.0 / s2;
+
+		const double* ip = CurParams[ 0 ];
+		double* const cp = CentParams;
+		const double* const wc = WPopCent;
+		double w = wc[ 0 ] * s1;
 
 		for( i = 0; i < ParamCount; i++ )
 		{
 			cp[ i ] = ip[ i ] * w;
 		}
 
+		int j;
+
 		for( j = 1; j < PopSize; j++ )
 		{
-			ip = CurParams[ PopOrder[ j ]];
-			w = WPopCent[ j ];
+			ip = CurParams[ j ];
+			w = wc[ j ] * s1;
 
 			for( i = 0; i < ParamCount; i++ )
 			{
@@ -341,11 +374,12 @@ protected:
 			}
 		}
 
+		const double* const rc = WPopRad;
 		Radius = 0.0;
 
 		for( j = 0; j < PopSize; j++ )
 		{
-			ip = CurParams[ PopOrder[ j ]];
+			ip = CurParams[ j ];
 			double s = 0.0;
 
 			for( i = 0; i < ParamCount; i++ )
@@ -354,7 +388,7 @@ protected:
 				s += d * d;
 			}
 
-			Radius += s * WPopRad[ j ];
+			Radius += s * rc[ j ] * s2;
 		}
 
 		Radius = sqrt( Radius );
