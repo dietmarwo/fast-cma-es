@@ -521,7 +521,7 @@ class Bite_cpp(Optimizer):
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.guess = guess
-        self.M = 1 if M is None else M 
+        self.M = 6 if M is None else M 
         self.workers = workers
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), 

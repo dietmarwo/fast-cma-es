@@ -5,7 +5,6 @@
 # https://repo.anaconda.com/archive/ using Python 3.8 on Linux
 # The test image used is here: https://api.optimize.esa.int/data/interferometry/orion.jpg
 
-import io
 import math
 from time import time
 
@@ -13,7 +12,7 @@ from matplotlib import pyplot
 from numba import njit
 from scipy import fft
 from skimage.metrics import mean_squared_error
-from skimage.transform import rescale, resize, downscale_local_mean
+from skimage.transform import resize
 
 import ctypes as ct
 import multiprocessing as mp

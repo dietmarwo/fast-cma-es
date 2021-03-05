@@ -142,9 +142,13 @@ public:
         // -------------------- Generation Loop --------------------------------
         for (iterations = 1; fitfun->getEvaluations() < maxEvaluations;
                 iterations++) {
-            optimize(rnd);
+            int stallCount = optimize(rnd);
             if (getBestCost() < stopfitness) {
                 stop = 1;
+                break;
+            }
+            if (stallCount > 64*dim) {
+                stop = 2;
                 break;
             }
         }
