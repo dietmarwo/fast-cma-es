@@ -46,7 +46,7 @@ def optimize():
     fprob = single_objective(prob)   
        
     # logger().info('solar orbiter' + ' de -> cmaes c++ smart retry')
-    # ret = advretry.minimize(fprob.fun, bounds=fprob.bounds, num_retries = 3000, 
+    # ret = advretry.minimize(fprob.fun, bounds=fprob.bounds, num_retries = 60000, 
         # logger = logger(), optimizer=de_cma(1500))
     
     logger().info('solar orbiter' + ' BiteOpt parallel retry')
