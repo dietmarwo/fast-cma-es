@@ -6,7 +6,7 @@
 # The code is designed around an "orbit abstraction" class _rvt simplifying the
 # definition of the objective function. 
 #
-# This Python code is about factor 3.3 slower than the equivalent Java code.
+# This Python code is about factor 3.6 slower than the equivalent Java code.
 # https://github.com/dietmarwo/fcmaes-java/tree/master/src/main/java/fcmaes/examples/Solo.java 
 # 
 # This problem is quite a challenge for state of the art optimizers, but
