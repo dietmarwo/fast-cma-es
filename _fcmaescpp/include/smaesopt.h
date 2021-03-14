@@ -27,7 +27,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * @version 2021.13
+ * @version 2021.16
  */
 
 #ifndef SMAESOPT_INCLUDED
@@ -64,9 +64,7 @@ public:
 
 		initBuffers( aParamCount, aPopSize );
 
-		EvalFac = 2.0;
-
-		Ort.updateDims( aParamCount, aPopSize, EvalFac );
+		Ort.updateDims( aParamCount, aPopSize );
 	}
 
 	/**
@@ -85,11 +83,11 @@ public:
 		getMinValues( MinValues );
 		getMaxValues( MaxValues );
 
-		resetCommonVars();
+		updateDiffValues( false );
+		resetCommonVars( rnd );
 
-		curpi = 0;
 		cure = 0;
-		curem = (int) ceil( CurPopSize * EvalFac );
+		curem = (int) ceil( CurPopSize * Ort.EvalFac );
 
 		// Provide initial centroid and sigma (PopParams is used here
 		// temporarily, otherwise initially undefined).
@@ -154,15 +152,7 @@ public:
 
 				for( i = 0; i < ParamCount; i++ )
 				{
-					if( op[ i ] < MinValues[ i ])
-					{
-						op[ i ] = MinValues[ i ];
-					}
-					else
-					if( op[ i ] > MaxValues[ i ])
-					{
-						op[ i ] = MaxValues[ i ];
-					}
+					op[ i ] = wrapParamReal( rnd, op[ i ], i );
 				}
 
 				break;
@@ -185,7 +175,7 @@ public:
 	int optimize( CBiteRnd& rnd, double* const OutCost = NULL,
 		double* const OutValues = NULL )
 	{
-		double* const Params = PopParams[ curpi ];
+		double* const Params = PopParams[ CurPopPos ];
 
 		sample( rnd, Params );
 
@@ -203,10 +193,10 @@ public:
 
 		updateBestCost( NewCost, Params );
 
-		if( curpi < CurPopSize )
+		if( CurPopPos < CurPopSize )
 		{
-			sortPop( NewCost, curpi );
-			curpi++;
+			sortPop( NewCost, CurPopPos );
+			CurPopPos++;
 		}
 		else
 		{
@@ -237,8 +227,9 @@ public:
 			}
 
 			AvgCost = 0.0;
-			curpi = 0;
+			CurPopPos = 0;
 			cure = 0;
+
 			Ort.update( *this );
 		}
 
@@ -246,11 +237,7 @@ public:
 	}
 
 protected:
-	double EvalFac; ///< Function evalutions factor.
-		///<
 	CBiteOptOrt Ort; ///< Rotation vector and orthogonalization calculator.
-		///<
-	int curpi; ///< Current parameter index.
 		///<
 	int cure; ///< Current evaluation index, greater or equal to
 		///< "curem" if population distribution needs to be updated.

@@ -5,7 +5,10 @@
 # sequence which will be removed in later revisions.
 # The code is designed around an "orbit abstraction" class _rvt simplifying the
 # definition of the objective function. 
- 
+#
+# This Python code is about factor 3.3 slower than the equivalent Java code.
+# https://github.com/dietmarwo/fcmaes-java/tree/master/src/main/java/fcmaes/examples/Solo.java 
+# 
 # This problem is quite a challenge for state of the art optimizers, but
 # good solutions fulfilling the requirements can be found.
 # See https://www.esa.int/Science_Exploration/Space_Science/Solar_Orbiter
@@ -235,7 +238,7 @@ class _solar_orbiter_udp:
         """
 
         tof = [[50, 400]] * 3 # only EV and VE transfers
-        self._max_mission_time = 11.6*365.25
+        self._max_mission_time = 11.0*365.25
         self._max_dv0 = 5600
         self._min_beta = -math.pi
         self._max_beta = math.pi
@@ -326,8 +329,11 @@ class _solar_orbiter_udp:
             t0 = rvt0._t
             t1 = rvt1._t
             dt = (t1 - t0) * DAY2SEC
-            transfer_a, transfer_e, _, _, _, E = rvt0.kepler()
+            transfer_a, transfer_e, _, _, _, _ = rvt0.kepler()
             transfer_period = 2 * pi * sqrt(transfer_a ** 3 / rvt0._mu)
+            
+            # print (dt*SEC2DAY, transfer_period*SEC2DAY, 
+                   # transfer_a * (1 + transfer_e)/AU, transfer_a * (1 - transfer_e)/AU, rvt0)
 
             # update min and max sun distance
             if dt > transfer_period:
@@ -337,7 +343,7 @@ class _solar_orbiter_udp:
         # overall time limit
         time_all = (rvt_outs[-1]._t - rvt_outs[0]._t)
         time_val = time_all
-        time_limit = self._max_mission_time # 11.6 years
+        time_limit = self._max_mission_time # 11 years
         if time_val > time_limit:
             time_val += 10 * (time_val - time_limit) 
         
@@ -478,6 +484,8 @@ class _solar_orbiter_udp:
             fig = plt.figure()
             axes = fig.gca(projection="3d")
 
+        plt.xlim([-1, 1])
+        # plt.axis('equal')
         # planets
         for pl, e in zip(self._seq, ep):
             plot_planet(
