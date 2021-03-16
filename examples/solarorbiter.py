@@ -112,8 +112,7 @@ good_solutions = [
 def check_good_solution(index):
     earth = jpl_lp("earth")
     venus = jpl_lp("venus")
-    seq = [earth, venus, venus, earth, venus, venus, venus, venus, venus, venus]
-    solar_orbiter = _solar_orbiter_udp([tmin, tmax], seq=seq)  
+    solar_orbiter = _solar_orbiter_udp([tmin, tmax])  
     prob = pg.problem(solar_orbiter)
     x = good_solutions[index]
     print (prob.fitness(x)) 
@@ -124,9 +123,8 @@ def check_good_solution(index):
 def print_good_solutions():
     earth = jpl_lp("earth")
     venus = jpl_lp("venus")
-    seq = [earth, venus, venus, earth, venus, venus, venus, venus, venus, venus]
     for i in range(len(good_solutions)):
-        solar_orbiter = _solar_orbiter_udp([tmin, tmax], seq=seq)  
+        solar_orbiter = _solar_orbiter_udp([tmin, tmax])  
         lambert_legs = []
         resos = []
         x = good_solutions[i]

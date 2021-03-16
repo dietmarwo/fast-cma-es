@@ -15,6 +15,7 @@
 
 from math import cos, pi, sin, sqrt
 import math
+import time
 from typing import List
 
 from pykep import AU, DAY2SEC, DEG2RAD, RAD2DEG, SEC2DAY, epoch, ic2par
@@ -26,8 +27,6 @@ import multiprocessing as mp
 import numpy as np
 
 bval = mp.RawValue(ct.c_double, 1E99)
-
-safe_distance = 350000
 
 # select lowest dv lambert considering GA at planet
 class lambert_problem_multirev_ga:
@@ -115,8 +114,8 @@ class _rvt:
     
     def rotate(self, k, theta):
         rvt = _rvt(self._r, self._v, self._t, self._mu)
-        rvt._r = rotate_vector(self._r, k, theta)
-        rvt._v = rotate_vector(self._v, k, theta)
+        rvt._r = _rotate_vector(self._r, k, theta)
+        rvt._v = _rotate_vector(self._v, k, theta)
         return rvt 
 
 # determines the best "fitting" resonance orbit      
@@ -137,7 +136,7 @@ class _resonance:
     def __str__(self):
         return str(_resonance) + " " + str(self._dt) + " " + str(self._rvt_out)
        
-    def select(self, beta):
+    def select(self, beta, safe_distance):
         v_out = fb_prop(self._rvt_in._v, self._rvt_pl._v, 
                         self._pl.radius + safe_distance, beta, self._mu)
         self._rvt_out = _rvt(self._rvt_in._r, v_out, self._time, self._rvt_in._mu)
@@ -155,12 +154,12 @@ class _resonance:
         return self._resonance[1] * self._period * SEC2DAY
 
 # propagate rvt_outs, rvt_ins, rvt_pls, dvs using resonance        
-def _compute_resonance(pl, resonances, beta, used_resos, reso_dts, rvt_outs, 
+def _compute_resonance(pl, resonances, beta, safe_distance, used_resos, reso_dts, rvt_outs, 
                        rvt_ins, rvt_pls, dvs, resos = None):
     rvt_in = rvt_ins[-1] # current spaceship
     rvt_pl = rvt_pls[-1] # current planet
     reso = _resonance(pl, rvt_in, rvt_pl, resonances)
-    reso_dt, used_reso = reso.select(beta)
+    reso_dt, used_reso = reso.select(beta, safe_distance)
     if not resos is None:
         resos.append(reso)
     used_resos.append(used_reso)
@@ -201,7 +200,7 @@ def _dv_mga(pl1, pl2, tof, max_revs, rvt_outs, rvt_ins, rvt_pls, dvs, lps = None
     dv = fb_vel(vr_in, vr_out, pl1)
     dvs.append(dv)
 
-def rotate_vector(v, k, theta):
+def _rotate_vector(v, k, theta):
     dP = np.dot(k, v)
     cosTheta = cos(theta)
     sinTheta = sin(theta)
@@ -215,12 +214,11 @@ def rotate_vector(v, k, theta):
 
 class _solar_orbiter_udp:
 
-    earth = jpl_lp("earth")
-    venus = jpl_lp("venus")
 
     def __init__(
         self,
-        t0=[epoch(0), epoch(10000)],
+        t0=[time.time() / (24*3600) - 30*365 -7 + 2/24 - 2*365, 
+            time.time() / (24*3600) - 30*365 -7 + 2/24 + 2*365],
         max_revs: int = 3,
         resos = 
             [[[1,1], [5,4], [4,3]],
@@ -229,7 +227,10 @@ class _solar_orbiter_udp:
             [[4,3], [3,2], [5,3]],
             [[4,3], [3,2], [5,3]],
             [[4,3], [3,2], [5,3]]],
-        seq = [earth, venus, venus, earth, venus, venus, venus, venus, venus, venus],
+        tof_limits = [[50, 420],[50, 400],[50, 400]],
+        safe_distance = 350000,
+        max_mission_time = 11.6*365.25,
+        max_dv0 = 5600,
     ):
         """
         Args:
@@ -237,23 +238,26 @@ class _solar_orbiter_udp:
             - resos: list of allowed resonances for the VV transfers
             - seq (``list``)
         """
-
-        tof = [[50, 400]] * 3 # only EV and VE transfers
-        self._max_mission_time = 11.6*365.25
-        self._max_dv0 = 5600
+        
+        self._safe_distance = safe_distance
+        self._max_mission_time = max_mission_time
+        self._max_dv0 = max_dv0
         self._min_beta = -math.pi
         self._max_beta = math.pi
         
-        self._seq = seq
+        self._earth = jpl_lp("earth")
+        self._venus = jpl_lp("venus")
+        self._seq = [self._earth, self._venus, self._venus, self._earth, self._venus, 
+                     self._venus, self._venus, self._venus, self._venus, self._venus]
         self._resos = resos
         self._t0 = t0
-        self._tof = tof
+        self._tof = tof_limits
         self._max_revs = max_revs       
-        self._n_legs = len(seq) - 1
+        self._n_legs = len(self._seq) - 1
  
         # initialize data to compute heliolatitude
         t_plane_crossing = epoch(7645)
-        rotation_axis = seq[0].eph(t_plane_crossing)[0]
+        rotation_axis = self._seq[0].eph(t_plane_crossing)[0]
         self._rotation_axis = rotation_axis / np.linalg.norm(rotation_axis)
         self._theta = 7.25 * DEG2RAD
          
@@ -276,21 +280,21 @@ class _solar_orbiter_udp:
  
         _dv_mga(self._seq[0], self._seq[1], tof01, self._max_revs, rvt_outs, rvt_ins, rvt_pls, dvs, lps)
          
-        _compute_resonance(self._seq[1], self._resos[0], betas[0], used_resos, reso_dts, 
-                                 rvt_outs, rvt_ins, rvt_pls, dvs, resos)
+        _compute_resonance(self._seq[1], self._resos[0], betas[0], self._safe_distance, 
+                           used_resos, reso_dts, rvt_outs, rvt_ins, rvt_pls, dvs, resos)
         
         _dv_mga(self._seq[2], self._seq[3], tof23, self._max_revs, rvt_outs, rvt_ins, rvt_pls, dvs, lps)
   
         _dv_mga(self._seq[3], self._seq[4], tof34, self._max_revs, rvt_outs, rvt_ins, rvt_pls, dvs, lps)
 
         for i in range(1,6):            
-            _compute_resonance(self._seq[i+3], self._resos[i], betas[i], used_resos, reso_dts, 
-                                     rvt_outs, rvt_ins, rvt_pls, dvs, resos)
+            _compute_resonance(self._seq[i+3], self._resos[i], betas[i], self._safe_distance, 
+                               used_resos, reso_dts, rvt_outs, rvt_ins, rvt_pls, dvs, resos)
         
         rvt_in = rvt_ins[-1] # we arrive
         rvt_pl = rvt_pls[-1] # at planet
         # add GA using betas[6] and safe radius
-        v_out = fb_prop(rvt_in._v, rvt_pl._v, self._seq[8].radius + safe_distance, 
+        v_out = fb_prop(rvt_in._v, rvt_pl._v, self._seq[8].radius + self._safe_distance, 
                         betas[6], self._seq[8].mu_self) 
         rvt_out = _rvt(rvt_in._r, v_out, rvt_in._t, rvt_in._mu)
         # rotate to get inclination respective to solar equator. 
@@ -461,10 +465,10 @@ class _solar_orbiter_udp:
         print("\tEpoch: ", ep[-1], " [mjd2000]")
         print("\tSpacecraft velocity: ", rvt_outs[-1]._v, "[m/s]")
         print("\tBeta: ", x[-1])
-        print("\tr_p: ", self._seq[-1].radius + safe_distance)
+        print("\tr_p: ", self._seq[-1].radius + self._safe_distance)
 
         print("Resulting Solar orbit:")
-        a, e, i, W, w, E = rvt_outs[-1].kepler()
+        a, e, _, _, _, _ = rvt_outs[-1].kepler()
         print("Perihelion: ", (a * (1 - e)) / AU, " AU")
         print("Aphelion: ", (a * (1 + e)) / AU, " AU")
         print("Inclination: ", i * RAD2DEG, " degrees")
