@@ -239,7 +239,9 @@ class _solar_orbiter_udp:
         common_mu = rvt_outs[0]._mu
       
         lambert_indices = [lam.best_i for lam in lambert_legs]
-
+        
+        transfer_ang = _angle(rvt_outs[0]._r, rvt_outs[1]._r)
+  
         print("Multiple Gravity Assist (MGA) + Resonance problem: ")
         print("Planet sequence: ", [pl.name for pl in self._seq])
 
@@ -248,6 +250,7 @@ class _solar_orbiter_udp:
         print("\tSpacecraft velocity: ", b_legs[0][1], "[m/s]")
         print("\tLaunch velocity: ", [Vinfx, Vinfy, Vinfz], "[m/s]")
         _, _, transfer_i, _, _, _ = ic2par(*(b_legs[0]), common_mu)
+        print("\tTransfer Angle: ", np.degrees(transfer_ang), "deg")
         print("\tOutgoing Inclination:", transfer_i * RAD2DEG, "[deg]")
         print("\tNumber of Revolutions:", int((lambert_indices[0] + 1) / 2))
         print("\tLambert Index:", int(lambert_indices[0]))
@@ -263,15 +266,17 @@ class _solar_orbiter_udp:
             rtv_in = rvt_ins[i]
             rtv_out = rvt_outs[i]
             rtv_pl = rvt_pls[i]
+            vr_in = [a - b for a, b in zip(rtv_in._v, rtv_pl._v)]
             vr_out = [a - b for a, b in zip(rtv_out._v, rtv_pl._v)]
             v_inf = np.linalg.norm(vr_out)
-            ca = np.dot(rtv_in._v,rtv_out._v)/np.linalg.norm(rtv_in._v)/np.linalg.norm(rtv_out._v) # -> cosine of the angle
-            transfer_ang = np.arccos(np.clip(ca, -1, 1)) 
+            deflection = _angle(vr_in, vr_out)
+            transfer_ang = _angle(rtv_out._r, rvt_outs[i+1]._r) if i < len(self._seq)-2 else 0 
             print("Fly-by: ", pl.name)
             print("\tEpoch: ", e, " [mjd2000]")
             print("\tDV: ", dv, "[m/s]")
             print("\tV_inf: ", v_inf, "[m/s]")
             print("\tTransfer Angle: ", np.degrees(transfer_ang), "deg")
+            print("\tGA deflection: ", np.degrees(deflection), "deg")
             eph = pl.eph(e)
             if i < len(self._seq)-1: # last one is roteted
                 assert np.linalg.norm([a - b for a, b in zip(leg[0], eph[0])]) < 0.01
@@ -292,7 +297,7 @@ class _solar_orbiter_udp:
         print("\tr_p: ", self._seq[-1].radius + self._safe_distance)
 
         print("Resulting Solar orbit:")
-        a, e, _, _, _, _ = rvt_outs[-1].kepler()
+        a, e, i, _, _, _ = rvt_outs[-1].kepler()
         print("Perihelion: ", (a * (1 - e)) / AU, " AU")
         print("Aphelion: ", (a * (1 + e)) / AU, " AU")
         print("Inclination: ", i * RAD2DEG, " degrees")
@@ -569,3 +574,8 @@ def _rotate_vector(v, k, theta):
         for a, b, c in zip(v, np.cross(k, v), k)
     ]
     return r_rot
+
+def _angle(v1, v2):
+    ca = np.dot(v1, v2)/np.linalg.norm(v1)/np.linalg.norm(v2) # -> cosine of the angle
+    return np.arccos(np.clip(ca, -1, 1)) 
+
