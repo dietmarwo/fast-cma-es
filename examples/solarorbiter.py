@@ -25,6 +25,8 @@ tmax = time.time() / (24*3600) - 30*365 -7 + 2/24 + 2*365
 logger("solarorbiter.log")
 
 good_solutions = [
+    # [7454.820505282011, 399.5883816298621, 161.3293044402143, 336.35353340379817, 0.16706526043179085, -2.926263900573538, 
+         # 2.1707384653871475, 3.068749728236526, 2.6458336313296913, 3.0472278514692377, 2.426804445518446],  
     [7450.239924571399, 406.44188435432005, 163.9173987694902, 333.96146422254833, 0.15828232590808275, -2.9185160114152326, 3.105089438204732, 2.160380932532115, 2.6437386175574833, 3.0487730887836033, 2.4273597927749297],
     [7455.902488746193, 401.0792537265972, 165.14415011815262, 333.6335011066877, 0.16070982867353295, -2.9119761044572483, 3.1051359430519705, 2.157774508684426, 3.0700408052769594, 2.64311521540639, 2.43108916086889],
     [7450.151104684442, 406.63544455841753, 163.97839905907972, 333.86088935030295, 0.15803428249908488, -2.9184400251051157, 3.1050982997255527, 2.1599727858949396, 2.643655675193356, 2.60515815710665, 2.860734661799869],
@@ -110,8 +112,6 @@ good_solutions = [
     ]
 
 def check_good_solution(index):
-    earth = jpl_lp("earth")
-    venus = jpl_lp("venus")
     solar_orbiter = _solar_orbiter_udp([tmin, tmax])  
     prob = pg.problem(solar_orbiter)
     x = good_solutions[index]
@@ -121,8 +121,6 @@ def check_good_solution(index):
     solar_orbiter.plot_distance_and_flybys(x)
 
 def print_good_solutions():
-    earth = jpl_lp("earth")
-    venus = jpl_lp("venus")
     for i in range(len(good_solutions)):
         solar_orbiter = _solar_orbiter_udp([tmin, tmax])  
         lambert_legs = []
@@ -134,10 +132,7 @@ def print_good_solutions():
         print (str(y), str(resos)) 
      
 def optimize():   
-    earth = jpl_lp("earth")
-    venus = jpl_lp("venus")
-    seq = [earth, venus, venus, earth, venus, venus, venus, venus, venus, venus]
-    solar_orbiter = _solar_orbiter_udp([tmin, tmax], seq=seq)  
+    solar_orbiter = _solar_orbiter_udp([tmin, tmax])  
     prob = pg.problem(solar_orbiter)
     fprob = single_objective(prob)   
        
@@ -151,9 +146,9 @@ def optimize():
     return ret
 
 if __name__ == '__main__':
-    # optimize()
-    print_good_solutions() 
-    #check_good_solution(1)  
-    #plt.show()
+    optimize()
+    # print_good_solutions() 
+    # check_good_solution(0)  
+    # plt.show()
 
     pass

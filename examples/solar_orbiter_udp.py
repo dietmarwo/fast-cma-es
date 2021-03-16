@@ -28,190 +28,6 @@ import numpy as np
 
 bval = mp.RawValue(ct.c_double, 1E99)
 
-# select lowest dv lambert considering GA at planet
-class lambert_problem_multirev_ga:
- 
-    def __init__(self, v_in, lp, planet, v_planet):
-        best_i = 0        
-        n = len(lp.get_v1())
-        if n > 0: 
-            best_dv = math.inf           
-            for i in range(n):
-                vin = [a - b for a, b in zip(v_in, v_planet)]
-                vout = [a - b for a, b in zip(lp.get_v1()[i], v_planet)]
-                dv = fb_vel(vin, vout, planet)
-                if dv < best_dv:
-                    best_dv = dv
-                    best_i = i 
-        self.best_i = best_i
-        self.lambert_problem = lp
-        
-    def get_v1(self):
-        return [self.lambert_problem.get_v1()[self.best_i]]
-   
-    def get_v2(self):
-        return [self.lambert_problem.get_v2()[self.best_i]]
-
-    def get_r1(self):
-        return self.lambert_problem.get_r1()  
-
-    def get_r2(self):
-        return self.lambert_problem.get_r2()  
-
-    def get_mu(self):
-        return self.lambert_problem.get_mu()
-
-    def get_x(self):
-        return [self.lambert_problem.get_x()[self.best_i]]
-
-    def get_iters(self):
-        return [self.lambert_problem.get_iters()[self.best_i]]
-
-    def get_tof(self):
-        return self.lambert_problem.get_tof()
-
-    def get_Nmax(self):
-        return self.lambert_problem.get_Nmax()
-
-# keplerian orbit represented by r, v, time and mu    
-class _rvt:
-    
-    def __init__(self, r, v, time, mu):
-        self._r = r
-        self._v = v
-        self._t = time
-        self._mu = mu
-        
-    def __str__(self):
-        a, e, i, _, _, _ = self.kepler()
-        period = 2 * pi * sqrt(a ** 3 / self._mu)
-        apo = a * (1 + e) / AU
-        per = a * (1 - e) / AU
-        return str(self._r) + " " + str(self._v) + " " + str(self._t) + " " +  \
-                str(apo) + " " + str(per) + " " + \
-                str(e) + " " + str(i*RAD2DEG) + " " + str(period*SEC2DAY)
-        
-    def propagate(self, dt):
-        rvt = _rvt(self._r, self._v, self._t, self._mu)
-        rvt._r, rvt._v = propagate_lagrangian(rvt._r, rvt._v, DAY2SEC*dt, self._mu)
-        return rvt
-            
-    def kepler(self):
-        return ic2par(self._r, self._v, self._mu) 
-    
-    
-    def plot(self, tof, N=60, units=AU, color="b", label=None, axes=None):
-        from pykep.orbit_plots import plot_kepler
-        plot_kepler(r0 = self._r, v0 = self._v, tof = DAY2SEC*tof, 
-                    mu = self._mu, N=N, units=units, color=color, 
-                    label=label, axes=axes)
-
-    def period(self):
-        kep = ic2par(self._r, self._v, self._mu) 
-        a = kep[0]
-        meanMotion = sqrt(self._mu / (a*a*a))
-        return 2.0 * math.pi / meanMotion;
-    
-    def rotate(self, k, theta):
-        rvt = _rvt(self._r, self._v, self._t, self._mu)
-        rvt._r = _rotate_vector(self._r, k, theta)
-        rvt._v = _rotate_vector(self._v, k, theta)
-        return rvt 
-
-# determines the best "fitting" resonance orbit      
-class _resonance:
-
-    def __init__(self, pl, rvt_in, rvt_pl, resonances):
-        self._pl = pl
-        self._rvt_in = rvt_in
-        self._rvt_pl = rvt_pl       
-        self._time = rvt_in._t
-        self._resonances = resonances
-        self._period = pl.compute_period(epoch(self._time))
-        self._mu = pl.mu_self
-        self._dt = -1
-        self._rvt_out = None
-        self._resonance = None
- 
-    def __str__(self):
-        return str(_resonance) + " " + str(self._dt) + " " + str(self._rvt_out)
-       
-    def select(self, beta, safe_distance):
-        v_out = fb_prop(self._rvt_in._v, self._rvt_pl._v, 
-                        self._pl.radius + safe_distance, beta, self._mu)
-        self._rvt_out = _rvt(self._rvt_in._r, v_out, self._time, self._rvt_in._mu)
-        period = self._rvt_out.period()
-        self._dt = math.inf
-        for resonance in self._resonances:
-            target = self._period * resonance[1] / resonance[0];
-            dt = abs(period - target)
-            if dt < self._dt:
-                self._resonance = resonance
-                self._dt = dt
-        return self._dt, self._resonance
-    
-    def tof(self):
-        return self._resonance[1] * self._period * SEC2DAY
-
-# propagate rvt_outs, rvt_ins, rvt_pls, dvs using resonance        
-def _compute_resonance(pl, resonances, beta, safe_distance, used_resos, reso_dts, rvt_outs, 
-                       rvt_ins, rvt_pls, dvs, resos = None):
-    rvt_in = rvt_ins[-1] # current spaceship
-    rvt_pl = rvt_pls[-1] # current planet
-    reso = _resonance(pl, rvt_in, rvt_pl, resonances)
-    reso_dt, used_reso = reso.select(beta, safe_distance)
-    if not resos is None:
-        resos.append(reso)
-    used_resos.append(used_reso)
-    reso_dts.append(reso_dt)
-    rvt_outs.append(reso._rvt_out)
-    tof = reso.tof()
-    time2 = reso._time + tof
-    rvt_pl2 = _rvt_planet(pl, time2)
-    rvt_pls.append(rvt_pl2) 
-    rvt_in2 = _rvt(rvt_pl2._r, reso._rvt_out._v, time2, rvt_pl2._mu) # its a resonance, we arrive with same v as we started
-    rvt_ins.append(rvt_in2)
-    dvs.append(0) # # its a resonance, we don't need an impulse
-            
-def _rvt_planet(pl, time):
-    r, v = pl.eph(epoch(time))
-    return _rvt(r, v, time, pl.mu_central_body)
-
-# propagate rvt_outs, rvt_ins, rvt_pls, dvs using MGA / Lambert
-def _dv_mga(pl1, pl2, tof, max_revs, rvt_outs, rvt_ins, rvt_pls, dvs, lps = None):
-    rvt_pl = rvt_pls[-1] # current planet
-    v_in =  rvt_pl._v if rvt_ins[-1] is None else rvt_ins[-1]._v
-    rvt_pl2 = _rvt_planet(pl2, rvt_pl._t + tof)        
-    rvt_pls.append(rvt_pl2)
-    r = rvt_pl._r
-    vpl = rvt_pl._v
-    r2 = rvt_pl2._r
-    lp = lambert_problem(r, r2, tof * DAY2SEC, rvt_pl._mu, False, max_revs)
-    lp = lambert_problem_multirev_ga(v_in, lp, pl1, vpl)
-    if not lps is None:
-        lps.append(lp)
-    v_out = lp.get_v1()[0]
-    rvt_out = _rvt(r, v_out, rvt_pl._t, rvt_pl._mu)
-    rvt_outs.append(rvt_out)
-    rvt_in = _rvt(r2, lp.get_v2()[0], rvt_pl._t + tof, rvt_pl._mu)
-    rvt_ins.append(rvt_in)
-    vr_in = [a - b for a, b in zip(v_in, vpl)]
-    vr_out = [a - b for a, b in zip(v_out, vpl)]
-    dv = fb_vel(vr_in, vr_out, pl1)
-    dvs.append(dv)
-
-def _rotate_vector(v, k, theta):
-    dP = np.dot(k, v)
-    cosTheta = cos(theta)
-    sinTheta = sin(theta)
-    # rotate vector into coordinate system defined by the sun's equatorial plane
-    # using Rodrigues rotation formula
-    r_rot = [
-        a * cosTheta + b * sinTheta + c * (1 - cosTheta) * dP
-        for a, b, c in zip(v, np.cross(k, v), k)
-    ]
-    return r_rot
-
 class _solar_orbiter_udp:
 
 
@@ -422,7 +238,6 @@ class _solar_orbiter_udp:
         ]
         common_mu = rvt_outs[0]._mu
       
-
         lambert_indices = [lam.best_i for lam in lambert_legs]
 
         print("Multiple Gravity Assist (MGA) + Resonance problem: ")
@@ -445,9 +260,18 @@ class _solar_orbiter_udp:
             e = ep[i]
             dv = dvs[i] if i < len(self._seq)-1 else 0
             leg = b_legs[i]
+            rtv_in = rvt_ins[i]
+            rtv_out = rvt_outs[i]
+            rtv_pl = rvt_pls[i]
+            vr_out = [a - b for a, b in zip(rtv_out._v, rtv_pl._v)]
+            v_inf = np.linalg.norm(vr_out)
+            ca = np.dot(rtv_in._v,rtv_out._v)/np.linalg.norm(rtv_in._v)/np.linalg.norm(rtv_out._v) # -> cosine of the angle
+            transfer_ang = np.arccos(np.clip(ca, -1, 1)) 
             print("Fly-by: ", pl.name)
             print("\tEpoch: ", e, " [mjd2000]")
             print("\tDV: ", dv, "[m/s]")
+            print("\tV_inf: ", v_inf, "[m/s]")
+            print("\tTransfer Angle: ", np.degrees(transfer_ang), "deg")
             eph = pl.eph(e)
             if i < len(self._seq)-1: # last one is roteted
                 assert np.linalg.norm([a - b for a, b in zip(leg[0], eph[0])]) < 0.01
@@ -562,3 +386,186 @@ class _solar_orbiter_udp:
         axes.legend()
         return axes
 
+# select lowest dv lambert considering GA at planet
+class lambert_problem_multirev_ga:
+ 
+    def __init__(self, v_in, lp, planet, v_planet):
+        best_i = 0        
+        n = len(lp.get_v1())
+        if n > 0: 
+            best_dv = math.inf           
+            for i in range(n):
+                vin = [a - b for a, b in zip(v_in, v_planet)]
+                vout = [a - b for a, b in zip(lp.get_v1()[i], v_planet)]
+                dv = fb_vel(vin, vout, planet)
+                if dv < best_dv:
+                    best_dv = dv
+                    best_i = i 
+        self.best_i = best_i
+        self.lambert_problem = lp
+        
+    def get_v1(self):
+        return [self.lambert_problem.get_v1()[self.best_i]]
+   
+    def get_v2(self):
+        return [self.lambert_problem.get_v2()[self.best_i]]
+
+    def get_r1(self):
+        return self.lambert_problem.get_r1()  
+
+    def get_r2(self):
+        return self.lambert_problem.get_r2()  
+
+    def get_mu(self):
+        return self.lambert_problem.get_mu()
+
+    def get_x(self):
+        return [self.lambert_problem.get_x()[self.best_i]]
+
+    def get_iters(self):
+        return [self.lambert_problem.get_iters()[self.best_i]]
+
+    def get_tof(self):
+        return self.lambert_problem.get_tof()
+
+    def get_Nmax(self):
+        return self.lambert_problem.get_Nmax()
+
+# keplerian orbit represented by r, v, time and mu    
+class _rvt:
+    
+    def __init__(self, r, v, time, mu):
+        self._r = r
+        self._v = v
+        self._t = time
+        self._mu = mu
+        
+    def __str__(self):
+        a, e, i, _, _, _ = self.kepler()
+        period = 2 * pi * sqrt(a ** 3 / self._mu)
+        apo = a * (1 + e) / AU
+        per = a * (1 - e) / AU
+        return str(self._r) + " " + str(self._v) + " " + str(self._t) + " " +  \
+                str(apo) + " " + str(per) + " " + \
+                str(e) + " " + str(i*RAD2DEG) + " " + str(period*SEC2DAY)
+        
+    def propagate(self, dt):
+        rvt = _rvt(self._r, self._v, self._t, self._mu)
+        rvt._r, rvt._v = propagate_lagrangian(rvt._r, rvt._v, DAY2SEC*dt, self._mu)
+        return rvt
+            
+    def kepler(self):
+        return ic2par(self._r, self._v, self._mu) 
+    
+    
+    def plot(self, tof, N=60, units=AU, color="b", label=None, axes=None):
+        from pykep.orbit_plots import plot_kepler
+        plot_kepler(r0 = self._r, v0 = self._v, tof = DAY2SEC*tof, 
+                    mu = self._mu, N=N, units=units, color=color, 
+                    label=label, axes=axes)
+
+    def period(self):
+        kep = ic2par(self._r, self._v, self._mu) 
+        a = kep[0]
+        meanMotion = sqrt(self._mu / (a*a*a))
+        return 2.0 * math.pi / meanMotion;
+    
+    def rotate(self, k, theta):
+        rvt = _rvt(self._r, self._v, self._t, self._mu)
+        rvt._r = _rotate_vector(self._r, k, theta)
+        rvt._v = _rotate_vector(self._v, k, theta)
+        return rvt 
+
+# determines the best "fitting" resonance orbit      
+class _resonance:
+
+    def __init__(self, pl, rvt_in, rvt_pl, resonances):
+        self._pl = pl
+        self._rvt_in = rvt_in
+        self._rvt_pl = rvt_pl       
+        self._time = rvt_in._t
+        self._resonances = resonances
+        self._period = pl.compute_period(epoch(self._time))
+        self._mu = pl.mu_self
+        self._dt = -1
+        self._rvt_out = None
+        self._resonance = None
+ 
+    def __str__(self):
+        return str(_resonance) + " " + str(self._dt) + " " + str(self._rvt_out)
+       
+    def select(self, beta, safe_distance):
+        v_out = fb_prop(self._rvt_in._v, self._rvt_pl._v, 
+                        self._pl.radius + safe_distance, beta, self._mu)
+        self._rvt_out = _rvt(self._rvt_in._r, v_out, self._time, self._rvt_in._mu)
+        period = self._rvt_out.period()
+        self._dt = math.inf
+        for resonance in self._resonances:
+            target = self._period * resonance[1] / resonance[0];
+            dt = abs(period - target)
+            if dt < self._dt:
+                self._resonance = resonance
+                self._dt = dt
+        return self._dt, self._resonance
+    
+    def tof(self):
+        return self._resonance[1] * self._period * SEC2DAY
+
+# propagate rvt_outs, rvt_ins, rvt_pls, dvs using resonance        
+def _compute_resonance(pl, resonances, beta, safe_distance, used_resos, reso_dts, rvt_outs, 
+                       rvt_ins, rvt_pls, dvs, resos = None):
+    rvt_in = rvt_ins[-1] # current spaceship
+    rvt_pl = rvt_pls[-1] # current planet
+    reso = _resonance(pl, rvt_in, rvt_pl, resonances)
+    reso_dt, used_reso = reso.select(beta, safe_distance)
+    if not resos is None:
+        resos.append(reso)
+    used_resos.append(used_reso)
+    reso_dts.append(reso_dt)
+    rvt_outs.append(reso._rvt_out)
+    tof = reso.tof()
+    time2 = reso._time + tof
+    rvt_pl2 = _rvt_planet(pl, time2)
+    rvt_pls.append(rvt_pl2) 
+    rvt_in2 = _rvt(rvt_pl2._r, reso._rvt_out._v, time2, rvt_pl2._mu) # its a resonance, we arrive with same v as we started
+    rvt_ins.append(rvt_in2)
+    dvs.append(0) # # its a resonance, we don't need an impulse
+            
+def _rvt_planet(pl, time):
+    r, v = pl.eph(epoch(time))
+    return _rvt(r, v, time, pl.mu_central_body)
+
+# propagate rvt_outs, rvt_ins, rvt_pls, dvs using MGA / Lambert
+def _dv_mga(pl1, pl2, tof, max_revs, rvt_outs, rvt_ins, rvt_pls, dvs, lps = None):
+    rvt_pl = rvt_pls[-1] # current planet
+    v_in =  rvt_pl._v if rvt_ins[-1] is None else rvt_ins[-1]._v
+    rvt_pl2 = _rvt_planet(pl2, rvt_pl._t + tof)        
+    rvt_pls.append(rvt_pl2)
+    r = rvt_pl._r
+    vpl = rvt_pl._v
+    r2 = rvt_pl2._r
+    lp = lambert_problem(r, r2, tof * DAY2SEC, rvt_pl._mu, False, max_revs)
+    lp = lambert_problem_multirev_ga(v_in, lp, pl1, vpl)
+    if not lps is None:
+        lps.append(lp)
+    v_out = lp.get_v1()[0]
+    rvt_out = _rvt(r, v_out, rvt_pl._t, rvt_pl._mu)
+    rvt_outs.append(rvt_out)
+    rvt_in = _rvt(r2, lp.get_v2()[0], rvt_pl._t + tof, rvt_pl._mu)
+    rvt_ins.append(rvt_in)
+    vr_in = [a - b for a, b in zip(v_in, vpl)]
+    vr_out = [a - b for a, b in zip(v_out, vpl)]
+    dv = fb_vel(vr_in, vr_out, pl1)
+    dvs.append(dv)
+
+def _rotate_vector(v, k, theta):
+    dP = np.dot(k, v)
+    cosTheta = cos(theta)
+    sinTheta = sin(theta)
+    # rotate vector into coordinate system defined by the sun's equatorial plane
+    # using Rodrigues rotation formula
+    r_rot = [
+        a * cosTheta + b * sinTheta + c * (1 - cosTheta) * dP
+        for a, b, c in zip(v, np.cross(k, v), k)
+    ]
+    return r_rot
