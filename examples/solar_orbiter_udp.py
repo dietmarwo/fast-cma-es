@@ -222,12 +222,13 @@ class _solar_orbiter_udp:
         self,
         t0=[epoch(0), epoch(10000)],
         max_revs: int = 3,
-        resos = [[[1,1], [5,4], [4,3]],
-                [[1,1], [5,4], [4,3]],
-                [[5,4], [4,3], [3,2], [5,3]],
-                [[4,3], [3,2], [5,3]],
-                [[4,3], [3,2], [5,3]],
-                [[3,2], [5,3]]],
+        resos = 
+            [[[1,1], [5,4], [4,3]],
+            [[1,1], [5,4], [4,3]],
+            [[1,1], [5,4], [4,3]],
+            [[4,3], [3,2], [5,3]],
+            [[4,3], [3,2], [5,3]],
+            [[4,3], [3,2], [5,3]]],
         seq = [earth, venus, venus, earth, venus, venus, venus, venus, venus, venus],
     ):
         """
@@ -238,7 +239,7 @@ class _solar_orbiter_udp:
         """
 
         tof = [[50, 400]] * 3 # only EV and VE transfers
-        self._max_mission_time = 11.0*365.25
+        self._max_mission_time = 11.6*365.25
         self._max_dv0 = 5600
         self._min_beta = -math.pi
         self._max_beta = math.pi

@@ -120,6 +120,20 @@ def check_good_solution(index):
     solar_orbiter.pretty(x)
     solar_orbiter.plot(x)
     solar_orbiter.plot_distance_and_flybys(x)
+
+def print_good_solutions():
+    earth = jpl_lp("earth")
+    venus = jpl_lp("venus")
+    seq = [earth, venus, venus, earth, venus, venus, venus, venus, venus, venus]
+    for i in range(len(good_solutions)):
+        solar_orbiter = _solar_orbiter_udp([tmin, tmax], seq=seq)  
+        lambert_legs = []
+        resos = []
+        x = good_solutions[i]
+        solar_orbiter._compute_dvs(x, lambert_legs, resos)
+        y = solar_orbiter.fitness(x)
+        resos = [str(resos[i]._resonance) for i in range(len(resos))]
+        print (str(y), str(resos)) 
      
 def optimize():   
     earth = jpl_lp("earth")
@@ -140,7 +154,8 @@ def optimize():
 
 if __name__ == '__main__':
     # optimize()
-    check_good_solution(1)   
-    plt.show()
+    print_good_solutions() 
+    #check_good_solution(1)  
+    #plt.show()
 
     pass
