@@ -409,7 +409,7 @@ class solo_mgar_udp:
         return axes
 
 
-# propagate_lagrangian rvt_outs, rvt_ins, rvt_pls, dvs using MGA / Lambert
+# propagate rvt_outs, rvt_ins, rvt_pls, dvs using MGA / Lambert
 def _dv_mga(pl1, pl2, tof, max_revs, rvt_outs, rvt_ins, rvt_pls, dvs, lps=None):
     rvt_pl = rvt_pls[-1]  # current planet
     v_in = rvt_pl._v if rvt_ins[-1] is None else rvt_ins[-1]._v
