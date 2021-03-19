@@ -8,7 +8,7 @@
 
 import pygmo as pg
 from time import time
-from interferometryudp import Interferometry
+from interferometry_udp import Interferometry
 from fcmaes import de, cmaes, retry, advretry
 from fcmaes.optimizer import single_objective, de_cma_py, Cma_python, De_python, Cma_cpp, De_cpp, de_cma, Bite_cpp
 
