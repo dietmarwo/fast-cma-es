@@ -46,7 +46,6 @@ class solo_mgar_udp:
         safe_distance=350000,
         max_mission_time=11.0 * 365.25,
         max_dv0=5600,
-        multi_objective=False
     ):
         """
         Args:
@@ -76,7 +75,6 @@ class solo_mgar_udp:
         self._t0 = t0_limits
         self._tof = tof_limits
         self._max_revs = max_revs       
-        self._multi_objective = multi_objective
 
         self._n_legs = len(self._seq) - 1
  
@@ -211,14 +209,10 @@ class solo_mgar_udp:
                   +" " + str(distance_penalty)
                   )
    
-        return ([value]
-            +[time_all] * self._multi_objective
-            +[np.sum(dvs) - 0.1]
-            +[0.28 - min_sun_distance / AU]
-            +[max_sun_distance / AU - 1.2])
+        return ([value])
  
     def get_nobj(self):
-        return self._multi_objective + 1
+        return 1
 
     def get_bounds(self):
         t0 = self._t0
@@ -236,7 +230,7 @@ class solo_mgar_udp:
         return (lb, ub)
 
     def get_nic(self):
-        return 3
+        return 0
 
     def pretty(self, x):
         lambert_legs = []

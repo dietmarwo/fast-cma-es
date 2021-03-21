@@ -12,6 +12,8 @@ import sys
 import os
 import math
 import numpy as np
+from time import time
+import ctypes as ct
 import multiprocessing as mp
 from scipy import linalg
 from scipy.optimize import OptimizeResult
@@ -35,7 +37,8 @@ def minimize(fun,
              runid=0,
              delayed_update = False,
              normalize = True,
-             update_gap = None):    
+             update_gap = None,
+             logger = None):       
     """Minimization of a scalar function of one or more variables using CMA-ES.
      
     Parameters
@@ -82,6 +85,10 @@ def minimize(fun,
         pheno -> if true geno transformation maps arguments to interval [-1,1] 
     update_gap : int, optional
         number of iterations without distribution update
+    logger : logger, optional
+        logger for log output for tell_one, If None, logging
+        is switched off. Default is a logger which logs both to stdout and
+        appends to a file ``optimizer.log``.
    
     Returns
     -------
@@ -98,7 +105,7 @@ def minimize(fun,
                       max_evaluations, max_iterations, 
                       accuracy, stop_fitness, 
                       is_terminate, rg, np.random.randn, runid, normalize, 
-                      update_gap, fun)
+                      update_gap, fun, logger)
         x, val, evals, iterations, stop = cmaes.do_optimize_delayed_update(fun, workers)
     else:      
         fun = serial(fun) if workers is None else parallel(fun, workers)
@@ -107,7 +114,7 @@ def minimize(fun,
                       max_evaluations, max_iterations, 
                       accuracy, stop_fitness, 
                       is_terminate, rg, np.random.randn, runid, normalize, 
-                      update_gap, fun)
+                      update_gap, fun, logger)
         x, val, evals, iterations, stop = cmaes.doOptimize()
         if not workers is None:
             fun.stop() # stop all parallel evaluation processes
@@ -131,7 +138,8 @@ class Cmaes(object):
                         runid=0, 
                         normalize = False,
                         update_gap = None,
-                        fun = None
+                        fun = None,
+                        logger = None
                         ):
                         
     # runid used in is_terminate callback to identify a specific run at different iteration
@@ -187,6 +195,13 @@ class Cmaes(object):
     # selection strategy parameters
     # Number of parents/points for recombination.
         self.mu = int(self.popsize/2)
+    # logger / timing / global best value    
+        if not logger is None:
+            self.logger = logger
+            self.best_y = mp.RawValue(ct.c_double, 1E99)
+            self.n_evals = mp.RawValue(ct.c_long, 0)
+            self.time_0 = time()
+            
     # Array for weighted recombination.    
         self.weights = (np.log(np.arange(1, self.mu+1, 1)) * -1) + math.log(self.mu + 0.5)
         sumw = np.sum(self.weights)
@@ -333,6 +348,16 @@ class Cmaes(object):
             self.arz = None
             self.arx = []
             self.fitness = []
+        
+        if hasattr(self, 'logger'):
+            self.n_evals.value += 1
+            if y < self.best_y.value or self.n_evals.value % 1000 == 999:           
+                if y < self.best_y.value: self.best_y.value = y
+                t = time() - self.time_0
+                c = self.n_evals.value
+                message = '"c/t={0:.2f} c={1:d} t={2:.2f} y={3:.5f} yb={4:.5f} x={5!s}'.format(
+                    c/t, c, t, y, self.best_y.value, x)
+                self.logger.info(message)
         return self.stop                
            
     def newArgs(self):

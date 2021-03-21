@@ -24,6 +24,8 @@
 
 import numpy as np
 import math, sys
+from time import time
+import ctypes as ct
 from fcmaes.testfun import Wrapper, Rosen, Rastrigin, Eggholder
 from numpy.random import Generator, MT19937
 from scipy.optimize import OptimizeResult
@@ -41,7 +43,8 @@ def minimize(fun,
              keep = 200, 
              f = 0.5, 
              cr = 0.9, 
-             rg = Generator(MT19937())):    
+             rg = Generator(MT19937()),
+             logger = None):    
     """Minimization of a scalar function of one or more variables using
     Differential Evolution.
      
@@ -81,6 +84,10 @@ def minimize(fun,
         In the literature this is also known as the crossover probability.     
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
+    logger : logger, optional
+        logger for log output for tell_one, If None, logging
+        is switched off. Default is a logger which logs both to stdout and
+        appends to a file ``optimizer.log``.
             
     Returns
     -------
@@ -93,7 +100,7 @@ def minimize(fun,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
     
-    de = DE(dim, bounds, popsize, stop_fitness, keep, f, cr, rg)
+    de = DE(dim, bounds, popsize, stop_fitness, keep, f, cr, rg, logger)
     try:
         if workers and workers > 1:
             x, val, evals, iterations, stop = de._do_optimize_delayed_update(fun, max_evaluations, workers)
@@ -107,7 +114,7 @@ def minimize(fun,
 class DE(object):
     
     def __init__(self, dim, bounds, popsize = 31, stop_fitness = None, keep = 200, 
-                 F = 0.5, Cr = 0.9, rg = Generator(MT19937())):
+                 F = 0.5, Cr = 0.9, rg = Generator(MT19937()), logger = None):
         self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -121,7 +128,12 @@ class DE(object):
         self.p = 0
         self.improves = deque()
         self._init()
-         
+        if not logger is None:
+            self.logger = logger
+            self.best_y = mp.RawValue(ct.c_double, 1E99)
+            self.n_evals = mp.RawValue(ct.c_long, 0)
+            self.time_0 = time()
+        
     def ask(self):
         """ask for popsize new argument vectors.
             
@@ -210,6 +222,17 @@ class DE(object):
             if self.rg.uniform(0, self.keep) < self.iterations - self.pop_iter[p]:
                 self.x[p] = self._sample()
                 self.y[p] = math.inf
+        
+        if hasattr(self, 'logger'):
+            self.n_evals.value += 1
+            if y < self.best_y.value or self.n_evals.value % 1000 == 999:           
+                if y < self.best_y.value: self.best_y.value = y
+                t = time() - self.time_0
+                c = self.n_evals.value
+                message = '"c/t={0:.2f} c={1:d} t={2:.2f} y={3:.5f} yb={4:.5f} x={5!s}'.format(
+                    c/t, c, t, y, self.best_y.value, x)
+                self.logger.info(message)
+
         return self.stop 
 
     def _init(self):
@@ -280,8 +303,7 @@ class DE(object):
             self.evals += 1
             
         while True: # read from pipe, tell de and create new x
-            evals, y = evaluator.pipe[0].recv()
-            
+            evals, y = evaluator.pipe[0].recv()            
             p, x = evals_x[evals] # retrieve evaluated x
             del evals_x[evals]
             self.tell_one(p, y, x) # tell evaluated x

@@ -15,6 +15,7 @@ from fcmaes.optimizer import logger, de_cma, single_objective, de, Bite_cpp
 
 import matplotlib.pyplot as plt
 import pygmo as pg
+from pykep import RAD2DEG, AU
 
 from solo_mgar_udp import solo_mgar_udp
 
@@ -102,11 +103,38 @@ def optimize():
     
     logger().info('solar orbiter' + ' BiteOpt parallel retry')
     ret = retry.minimize(fprob.fun, bounds=fprob.bounds, num_retries = 32000, 
-                         logger = logger(), optimizer=Bite_cpp(100000, M=6))
+                         logger = logger(), optimizer=Bite_cpp(120000, M=6))
     return ret
+
+def archipelago():    
+    udp = solo_mgar_udp([7000, 8000])  
+    #uda = pg.sga(gen = 6000)
+    uda = pg.sade(memory=True,variant=1,gen=6000)
+    # instantiate an unconnected archipelago
+    for _ in range(1000):
+        archi = pg.archipelago(t = pg.topologies.unconnected())
+        for _ in range(32):
+            alg = pg.algorithm(uda)
+            #alg.set_verbosity(1)    
+            prob = pg.problem(udp)
+            pop = pg.population(prob, 20)    
+            isl = pg.island(algo=alg, pop=pop)
+            archi.push_back(isl)      
+        archi.evolve()
+        archi.wait_check()
+
+def optimize_pagmo():   
+    solo_mgar = solo_mgar_udp([7000, 8000])  
+    for i in range(6000):
+        prob = pg.problem(solo_mgar)   
+        pop = pg.population(prob=prob, size=32)
+        alg = pg.algorithm(pg.sade(memory=True,gen=1))
+        pop = alg.evolve(pop)
+        print(i, pop.champion_f, solo_mgar.fitness(pop.champion_x))
 
 if __name__ == '__main__':
     #optimize()
+    #archipelago()
     ys, xs = read_solutions('data/solo_results.txt')
     #print_good_solutions(xs) 
     #verify(ys, xs)
