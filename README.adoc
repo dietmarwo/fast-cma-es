@@ -33,6 +33,7 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/DelayedUpdate.adoc[Delayed 
 - Parallel objective function evaluation for CMA-ES and Differential Evolution. 
 - New DE (differential evolution) variant optimized for usage with parallel coordinated retry and the DE->CMA sequence.
 - GCL-DE (differential evolution) variant from Mingcheng Zuo.
+- BiteOpt algorithm from Aleksey Vaneev.
 - Fast C++ implementations of CMA-ES, differential evolution, dual annealing and the Harris hawks algorithm.
 - Integrates https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy] and https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt] optimization algorithms for use with the coordinated retry.
 - Parallel retry for https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] algorithms and problems.
@@ -322,3 +323,18 @@ https://github.com/dietmarwo/fcmaes-java/blob/master/README.adoc shows that the 
 the same C++ code is significantly faster. 
 https://github.com/dietmarwo/fcmaes-ray/blob/master/README.adoc[fcmaesray] shows how a 5 node cluster using 
 96 CPU-cores executing fcmaes coordinated retry performs in comparison.
+
+=== Citing
+
+[source]
+----
+@misc{fcmaes2021,
+    author = {Dietmar Wolz},
+    title = {fcmaes - A Python-3 derivative-free optimization library},
+    note = {Python/C++ source code, with description and examples},
+    year = {2021},
+    publisher = {GitHub},
+    journal = {GitHub repository},
+    howpublished = {Available at \url{https://github.com/dietmarwo/fast-cma-es}},
+}
+----
