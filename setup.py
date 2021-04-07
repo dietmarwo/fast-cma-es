@@ -37,6 +37,6 @@ setup(
       "Environment :: Console",
       "License :: OSI Approved :: MIT License",
       ],
-    keywords=["optimization", "CMA-ES", "Harris hawks", "differential evolution", "dual annealing", "fast CMA", "stochastic", "gradient free", "parallel retry"],
+    keywords=["optimization", "CMA-ES", "BiteOpt", "differential evolution", "dual annealing", "stochastic", "gradient free", "parallel retry", , "smart retry"],
     include_package_data=True,
    )
