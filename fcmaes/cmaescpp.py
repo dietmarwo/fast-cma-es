@@ -97,6 +97,8 @@ def minimize(fun,
         lower = [0]*n
         upper = [0]*n
     mu = int(popsize/2)
+    if callable(input_sigma):
+        input_sigma=input_sigma()
     if np.ndim(input_sigma) == 0:
         input_sigma = [input_sigma] * n
     if stop_fitness is None:

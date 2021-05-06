@@ -79,6 +79,8 @@ def minimize(fun,
     if lower is None:
         lower = [0]*n
         upper = [0]*n
+    if callable(input_sigma):
+        input_sigma=input_sigma()
     if np.ndim(input_sigma) == 0:
         input_sigma = [input_sigma] * n
     if stop_fittness is None:

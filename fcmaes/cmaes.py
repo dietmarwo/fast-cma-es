@@ -170,6 +170,8 @@ class Cmaes(object):
     #     Individual sigma values - initial search volume. input_sigma determines
     #     the initial coordinate wise standard deviations for the search. Setting
     #     SIGMA one third of the initial search region is appropriate.   
+        if callable(input_sigma):
+            input_sigma=input_sigma()
         if isinstance(input_sigma, list):
             self.insigma = np.asarray(input_sigma)
         elif np.isscalar(input_sigma):

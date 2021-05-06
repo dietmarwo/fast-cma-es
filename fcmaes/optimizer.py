@@ -204,17 +204,18 @@ class Cma_python(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = 31, guess=None, stop_fitness = None,
-                 update_gap = None):        
+                 update_gap = None, sdevs = None):        
         Optimizer.__init__(self, max_evaluations, 'cma py')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.update_gap = update_gap
         self.guess = guess
+        self.sdevs = sdevs
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
         ret = cmaes.minimize(fun, bounds, 
-                self.guess if guess is None else guess,
-                input_sigma=sdevs, 
+                self.guess if not self.guess is None else guess,
+                input_sigma= self.sdevs if not self.sdevs is None else sdevs,
                 max_evaluations = self.max_eval_num(store), 
                 popsize=self.popsize, 
                 stop_fitness = self.stop_fitness,
@@ -227,19 +228,20 @@ class Cma_cpp(Optimizer):
    
     def __init__(self, max_evaluations=50000,
                  popsize = 31, guess=None, stop_fitness = None, 
-                 update_gap = None, workers = None):        
+                 update_gap = None, workers = None, sdevs = None):        
         Optimizer.__init__(self, max_evaluations, 'cma cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.guess = guess
+        self.sdevs = sdevs
         self.update_gap = update_gap
         self.workers = workers
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()),
                  store=None, workers=None):
         ret = cmaescpp.minimize(fun, bounds,
-                self.guess if guess is None else guess,
-                input_sigma=sdevs,
+                self.guess if not self.guess is None else guess,
+                input_sigma= self.sdevs if not self.sdevs is None else sdevs,
                 max_evaluations=self.max_eval_num(store),
                 popsize=self.popsize,
                 stop_fitness=self.stop_fitness,
@@ -252,19 +254,21 @@ class Cma_orig(Optimizer):
     """CMA_ES original implementation."""
    
     def __init__(self, max_evaluations=50000,
-                 popsize = 31, guess=None, stop_fitness = None):        
+                 popsize = 31, guess=None, stop_fitness = None, sdevs = None):        
         Optimizer.__init__(self, max_evaluations, 'cma orig')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.guess = guess
+        self.sdevs = sdevs
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
         lower = bounds.lb
         upper = bounds.ub
-        guess = self.guess if guess is None else guess
+        guess = self.guess if not self.guess is None else guess
         if guess is None:
             guess = rg.uniform(lower, upper)
         max_evaluations = self.max_eval_num(store)   
+        input_sigma= self.sdevs if not self.sdevs is None else sdevs
         try:
             import cma
         except ImportError as e:
@@ -274,7 +278,7 @@ class Cma_orig(Optimizer):
                                                              'typical_x': guess,
                                                              'scaling_of_variables': scale(lower, upper),
                                                              'popsize': self.popsize,
-                                                             'CMA_stds': sdevs,
+                                                             'CMA_stds': input_sigma,
                                                              'verbose': -1,
                                                              'verb_disp': -1})
             evals = 0
@@ -337,15 +341,18 @@ class Cma_ask_tell(Optimizer):
     """CMA ask tell implementation."""
     
     def __init__(self, max_evaluations=50000,
-                 popsize = 31, guess=None, stop_fitness = None):        
+                 popsize = 31, guess=None, stop_fitness = None, sdevs = None):        
         Optimizer.__init__(self, max_evaluations, 'cma at')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.guess = guess
+        self.sdevs = sdevs
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
         es = cmaes.Cmaes(bounds,
-                popsize = self.popsize, input_sigma = sdevs, rg = rg)       
+                popsize = self.popsize, 
+                input_sigma = self.sdevs if not self.sdevs is None else sdevs, 
+                rg = rg)       
         iters = self.max_eval_num(store) // self.popsize
         evals = 0
         for j in range(iters):
@@ -389,16 +396,20 @@ class LDe_cpp(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fitness = None, 
-                 keep = 200, f = 0.5, cr = 0.9):        
+                 keep = 200, f = 0.5, cr = 0.9, guess = None, sdevs = None):        
         Optimizer.__init__(self, max_evaluations, 'lde cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.keep = keep
         self.f = f
         self.cr = cr
+        self.guess = guess
+        self.sdevs = sdevs
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
-        ret = ldecpp.minimize(fun, bounds, guess, sdevs,
+        ret = ldecpp.minimize(fun, bounds, 
+                self.guess if not self.guess is None else guess, 
+                self.sdevs if not self.sdevs is None else sdevs,
                 popsize=self.popsize, 
                 max_evaluations = self.max_eval_num(store), 
                 stop_fitness = self.stop_fitness,
@@ -436,7 +447,7 @@ class LCLDE_cpp(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fitness = None, 
-                 pbest = 0.7, f0 = 0.0, cr0 = 0.0, workers = None):        
+                 pbest = 0.7, f0 = 0.0, cr0 = 0.0, workers = None, guess = None, sdevs = None):        
         Optimizer.__init__(self, max_evaluations, 'lclde cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -444,10 +455,14 @@ class LCLDE_cpp(Optimizer):
         self.f0 = f0
         self.cr0 = cr0
         self.workers = workers
+        self.guess = guess
+        self.sdevs = sdevs
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), 
                  store=None, workers = None):
-        ret = lcldecpp.minimize(fun, bounds, guess, sdevs,
+        ret = lcldecpp.minimize(fun, bounds, 
+                self.guess if not self.guess is None else guess, 
+                self.sdevs if not self.sdevs is None else sdevs,
                 popsize=self.popsize, 
                 max_evaluations = self.max_eval_num(store), 
                 stop_fitness = self.stop_fitness,
@@ -496,17 +511,19 @@ class Csma_cpp(Optimizer):
     """SCMA C++ implementation."""
    
     def __init__(self, max_evaluations=50000,
-                 popsize = None, guess=None, stop_fitness = None, workers = None):        
+                 popsize = None, guess=None, stop_fitness = None, workers = None, sdevs = None):        
         Optimizer.__init__(self, max_evaluations, 'scma cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.guess = guess
         self.workers = workers
+        self.sdevs = sdevs
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.16, rg=Generator(MT19937()), 
                  store=None, workers = None):
         ret = csmacpp.minimize(fun, bounds, 
                 self.guess if guess is None else guess,
+                self.sdevs if not self.sdevs is None else sdevs,
                 max_evaluations = self.max_eval_num(store), 
                 stop_fitness = self.stop_fitness,
                 rg=rg, runid = self.get_count_runs(store))     
