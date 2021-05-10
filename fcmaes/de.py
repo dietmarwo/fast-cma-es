@@ -103,9 +103,9 @@ def minimize(fun,
     de = DE(dim, bounds, popsize, stop_fitness, keep, f, cr, rg, logger)
     try:
         if workers and workers > 1:
-            x, val, evals, iterations, stop = de._do_optimize_delayed_update(fun, max_evaluations, workers)
+            x, val, evals, iterations, stop = de.do_optimize_delayed_update(fun, max_evaluations, workers)
         else:      
-            x, val, evals, iterations, stop = de._do_optimize(fun, max_evaluations)
+            x, val, evals, iterations, stop = de.do_optimize(fun, max_evaluations)
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, 
                               success=True)
     except Exception as ex:
@@ -247,7 +247,7 @@ class DE(object):
         self.best_i = 0
         self.pop_iter = np.zeros(self.popsize)
        
-    def _do_optimize(self, fun, max_evals):
+    def do_optimize(self, fun, max_evals):
         self.fun = fun
         self.max_evals = max_evals    
         self.iterations = 0
@@ -286,7 +286,7 @@ class DE(object):
 
         return self.best_x, self.best_value, self.evals, self.iterations, self.stop
 
-    def _do_optimize_delayed_update(self, fun, max_evals, workers=mp.cpu_count()):
+    def do_optimize_delayed_update(self, fun, max_evals, workers=mp.cpu_count()):
         self.fun = fun
         self.max_evals = max_evals    
         evaluator = Evaluator(self.fun)

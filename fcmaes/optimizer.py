@@ -433,7 +433,7 @@ class GCLDE_cpp(Optimizer):
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), 
                  store=None, workers = None):
-        ret = gcldecpp.minimize(fun, bounds, 
+        ret = gcldecpp.minimize(fun, None, bounds, 
                 popsize=self.popsize, 
                 max_evaluations = self.max_eval_num(store), 
                 stop_fitness = self.stop_fitness,

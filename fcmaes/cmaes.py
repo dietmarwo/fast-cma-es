@@ -106,7 +106,7 @@ def minimize(fun,
                       accuracy, stop_fitness, 
                       is_terminate, rg, np.random.randn, runid, normalize, 
                       update_gap, fun, logger)
-        x, val, evals, iterations, stop = cmaes.do_optimize_delayed_update(fun, workers)
+        x, val, evals, iterations, stop = cmaes.do_optimize_delayed_update(fun, workers=workers)
     else:      
         fun = serial(fun) if workers is None else parallel(fun, workers)
         cmaes = Cmaes(bounds, x0, 
@@ -370,7 +370,9 @@ class Cmaes(object):
         delta = (self.BD @ self.arz.transpose()) * self.sigma
         self.arx = self.fitfun.closestFeasible(self.xmean + delta.transpose())  
     
-    def do_optimize_delayed_update(self, fun, workers=mp.cpu_count()):
+    def do_optimize_delayed_update(self, fun, max_evals=None, workers=mp.cpu_count()):
+        if not max_evals is None: 
+            self.max_evaluations =  max_evals
         evaluator = Evaluator(fun)
         evaluator.start(workers)
         evals_x = {}

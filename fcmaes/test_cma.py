@@ -140,7 +140,7 @@ def test_rosen_delayed():
     limit = 0.00001   
     for _ in range(5):
         wrapper = Wrapper(testfun.fun, dim)
-        ret = cmaes.minimize(wrapper.eval, testfun.bounds, input_sigma = sdevs, 
+        ret = cmaes.minimize(wrapper.eval, testfun.bounds, None, input_sigma = sdevs, 
                        max_evaluations = max_eval, 
                        popsize=popsize, workers = popsize, delayed_update=True)
         if limit > ret.fun:
@@ -152,6 +152,8 @@ def test_rosen_delayed():
 #     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
 #     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
 #     assert(almost_equal(ret.fun, wrapper.get_best_y())) # wrong best y returned
+
+test_rosen_delayed()
 
 def test_rosen_cpp_parallel():
     popsize = 8
