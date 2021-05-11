@@ -113,7 +113,7 @@ shoot no fox at all, fitness = -40.588063495451664
 shoot a fox every year, fitness = -62.19130394089944
 ----
 Intuitively, shooting a fox each year should maximize the final rabbit population. Lets see
-if and how far we can improve over the `-62.13` result by applying optimization:
+if and how far we can improve over the `-62.19` result by applying optimization:
 
 ===== Smart parallel retry
 
@@ -160,7 +160,7 @@ domains - a fact you can investigate yourself when applying it to the Lotka Volt
 
 The Lotka Volterra control problem is best solved using the smart parallel retry with `De_cpp`. 
 On an AMD 16 core 5950x you see good results < -120 rabbits after about 20 seconds, 
--129 is reached after about 3 minutes, finally we got `fitness < -131` after 30 minutes.
+-129 is reached after about 3 minutes, finally we got `fitness < -132.26`.
 
 [source,python]
 ----
@@ -171,7 +171,7 @@ print("best solution, fitness = ", solution)
 best solution, fitness = -132.26162047412578
 ----
 
-This is way better than to kill a fox each year (`-62.13` rabbits). Experiment with other algorithms, try for instance
+This is way better than to kill a fox each year (`-62.19` rabbits). Experiment with other algorithms, try for instance
 `scipy.minimize`, algorithms from https://esa.github.io/pygmo2/[pygmo] or https://nlopt.readthedocs.io/en/latest/[NLOpt].
 If you find an algorithm improving over the given solution please send me a message. 
 
