@@ -113,8 +113,8 @@ resulting in:
 
 [source,python]
 ----
-shoot no fox at all, fitness = -40.596947632768455
-shoot a fox every year, fitness = -62.130721483665255
+shoot no fox at all, fitness = -40.588063495451664
+shoot a fox every year, fitness = -62.19130394089944
 ----
 Intuitively, shooting a fox each year should maximize the final rabbit population. Lets see
 if and how far we can improve over the `-62.13` result by applying optimization:
@@ -168,13 +168,11 @@ On an AMD 16 core 5950x you see good results < -120 rabbits after about 20 secon
 
 [source,python]
 ----
-solution = [0.776493606751, 4.2642153862710745e-10, -0.0013814584722570949, 1.0, 0.9999999999830551, 
-            0.8778065780789015, -0.9985268317725804, 0.9877828448895982, 0.2169107188152512, -0.16098594083141338, 
-            1.0, 0.7622846184265988, -0.019831274104075647, -0.16136317142770895, -0.9712980904434804, 
-            0.8517517878838309, 5.259681579161679e-15, 1.0, 1.0, 0.15091012069751086]
+solution = [0.776493606911633, 5.313367199186114e-11, -0.01911689944376108, 0.999999999998243, 0.9999999999999777, 0.8778065780316634, -0.9677096355465782, 0.9877828448885166, 0.21691071881497626, -0.1944392073928476, 1.0, 0.7622846184132999, -2.0391328917626546e-06, -0.22780030500674903, -0.6537913248006114, 0.8517517878859682, 1.774349183498689e-16, 1.0, 1.0, 0.1509101207001727]
+
 print("best solution, fitness = ", solution) 
 
-best solution, fitness = -132.261621820961
+best solution, fitness = -132.26162047412578
 ----
 
 This is way better than to kill a fox each year (`-62.13` rabbits). Experiment with other algorithms, try for instance

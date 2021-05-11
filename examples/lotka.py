@@ -67,12 +67,9 @@ def fitness(X):
             pop[1] = max(1, pop[1]-1) 
             I.set_initial_value(pop, ts[i])
     # value is maximal rabbit population during the following 5 years without fox killings
-    dt = 0.1 # check every 0.1 years
-    maxT = t1 + 5 # for 5 years
-    t = t1
+
     max_rabbits = 0
-    while t < maxT:
-        t += dt
+    for t in np.linspace(t1, t1 + 5, 50): # check every 0.1 years for 5 years
         pop = integrate(I, t)
         max_rabbits = max(max_rabbits, pop[0])
     value = -max_rabbits  
@@ -100,10 +97,7 @@ def parallel_improve(opt):
 def parallel_eval(opt = DE(dim, bounds)):
     return opt.do_optimize_delayed_update(fun=fitness, max_evals=5000000)
 
-solution = [0.776493606751, 4.2642153862710745e-10, -0.0013814584722570949, 1.0, 0.9999999999830551, 
-            0.8778065780789015, -0.9985268317725804, 0.9877828448895982, 0.2169107188152512, -0.16098594083141338, 
-            1.0, 0.7622846184265988, -0.019831274104075647, -0.16136317142770895, -0.9712980904434804, 
-            0.8517517878838309, 5.259681579161679e-15, 1.0, 1.0, 0.15091012069751086]
+solution = [0.776493606911633, 5.313367199186114e-11, -0.01911689944376108, 0.999999999998243, 0.9999999999999777, 0.8778065780316634, -0.9677096355465782, 0.9877828448885166, 0.21691071881497626, -0.1944392073928476, 1.0, 0.7622846184132999, -2.0391328917626546e-06, -0.22780030500674903, -0.6537913248006114, 0.8517517878859682, 1.774349183498689e-16, 1.0, 1.0, 0.1509101207001727]
 
 if __name__ == '__main__':
     bval.value = -1E99 
