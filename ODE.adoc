@@ -91,12 +91,8 @@ def fitness(X):
             pop[1] = max(1, pop[1]-1) 
             I.set_initial_value(pop, ts[i])
     # value is maximal rabbit population during the following 5 years without fox killings
-    dt = 0.1 # check every 0.1 years
-    maxT = t1 + 5 # for 5 years
-    t = t1
     max_rabbits = 0
-    while t < maxT:
-        t += dt
+    for t in np.linspace(t1, t1 + 5, 50): # check every 0.1 years for 5 years
         pop = integrate(I, t)
         max_rabbits = max(max_rabbits, pop[0])
     return -max_rabbits  
