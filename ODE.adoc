@@ -4,7 +4,193 @@
 
 == Optimization of functions solving differential equations
 
-This tutorial discusses the example: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/f8.py[f8.py], an implementation of the F-8 aircraft control problem https://mintoc.de/index.php/F-8_aircraft[F-8_aircraft] which aims at controlling an aircraft in a time-optimal way from an initial state to a terminal state.
+=== Rabbits and Foxes
+
+Complete closure of fishery during World War I caused an increase in predatory fish and an decrease
+in prey fish. This counter-intuitive observation led to the independent mathematical conceptualization of 
+prey-predator population dynamics by Alfred Lotka and Vito Volterra back in the 1920s. 
+
+This concept given as a set of differential equations (ODEs) is nicely covered by the scipy tutorial 
+https://scipy-cookbook.readthedocs.io/items/LoktaVolterraTutorial.html[lotka-volterra-tutorial].
+It uses foxes as predators and rabbits as prey. Lets have a look at a visualization of their solution:
+
+image::rabbits_and_foxes_1.png[] 
+
+image::rabbits_and_foxes_2.png[] 
+
+In the literature we find many examples how this concept can be used to formulate an optimal control problem
+to be solved by optimization, see for instance 
+https://link.springer.com/chapter/10.1007%2F3-540-28258-0_17[Numerical Methods for Optimal Control] .
+Our example scenario is a bit simpler, but still represents a quite hard to solve optimization problem. 
+
+Someone might think: "Python is excellent to visualize and investigate ODEs to get a solid intuition what is
+going on. But for optimization? Seriously?". Well, yes, Python is slow - as long as you cannot apply
+http://numba.pydata.org[Numba]. But it all depends whether you can increase the part of the work
+done inside library code implemented in C++. The F8 example below shows that it sometimes may be worth
+implementing the ODEs outside Python to gain speed. But for this example we implement the fitness
+function using scipys `scipy.integrate.ode` applied to the Lotka-Volterra ODEs. 
+The newer `scipy.integrate.solve_ivp` is less well suited here for several reasons:
+
+- `solve_ivp` adds computation overhead which is critical as part of a fitness function called many million times. 
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html[scipy.integrate.ode] shows that
+many integrators are not reentrant, which means they cannot be used with optimizations utilizing parallel retry or parallel
+function evaluation. We reconfigure the used integrator as "dopri5" and relax the accuracy requirements to speed up
+the integration process. 
+
+See https://github.com/dietmarwo/fast-cma-es/blob/master/examples/lotka.py[lotka.py] for the complete examples code.
+
+The rabbit and fox populations are propagated using:
+ 
+[source,python]
+----
+def lotkavolterra(t, pop, a, b, c, d):
+    x, y = pop
+    return [a*x - b*x*y, -c*y + d*x*y]
+----
+ 
+Lets extend the rabbit/fox scenario from above:
+
+- We use the same initial conditions: 10 rabbits and 5 foxes.
+- Each year we may decide whether to hire a fox hunter.
+- Only one fox can be killed each year, but there must be at least one
+  fox left after that.
+- For each year we can freely decide when to hunt - or to leave the foxes alone. 
+
+After following these rules for 20 years we observe the rabbit population for the following
+5 years thereby stopping the fox hunting. Our goal is to maximize the peak rabbit population during these years. 
+Our fitness function works as follows: 
+
+- As input we use a vector of 20 values between -1 and 1 representing the first 20 years. 
+- A value < 0 indicates: No hunting this year
+- A value >= 0 means: The value represents the fraction of the year after we kill a fox. 
+
+First a list of fox kill timings `ts` is derived from the argument vector. 
+Then we propagate the population between these and 
+kill a fox after each propagation. Finally we propagate between year 20 to 25
+to determine the maximal rabbit population during these years:
+
+[source,python]
+----
+# maximal rabbit population after dim years of fox killings 
+def fitness(X):
+    t0 = 0 # start time 
+    t1 = len(X) # end time, check after dim = len(X) years
+    pop = pop0 # initial population 
+    ts = []
+    for year, x in enumerate(X):
+        if x > 0: # should we kill a fox this year? 
+            ts.append(t0 + year + x) # when exactly?
+    ts.append(t1) # append end time
+    I = integrator()
+    I.set_initial_value(pop, t0)
+    for i in range(len(ts)):
+        #propagate rabbit and fox population to ts[i]      
+        pop = integrate(I, ts[i]) 
+        if i < len(ts)-1:           
+            # kill one fox, but keep at least one
+            pop[1] = max(1, pop[1]-1) 
+            I.set_initial_value(pop, ts[i])
+    # value is maximal rabbit population during the following 5 years without fox killings
+    dt = 0.1 # check every 0.1 years
+    maxT = t1 + 5 # for 5 years
+    t = t1
+    max_rabbits = 0
+    while t < maxT:
+        t += dt
+        pop = integrate(I, t)
+        max_rabbits = max(max_rabbits, pop[0])
+    return -max_rabbits  
+----
+
+Lets first check the trivial solutions: 
+
+[source,python]
+----
+    print("shoot no fox at all, fitness = ", fitness([-0.5]*dim)) 
+    print("shoot a fox every year, fitness = ", fitness([0.5]*dim)) 
+----
+resulting in:
+
+[source,python]
+----
+shoot no fox at all, fitness = -40.596947632768455
+shoot a fox every year, fitness = -62.130721483665255
+----
+Intuitively, shooting a fox each year should maximize the final rabbit population. Lets see
+if and how far we can improve over the `-62.13` result by applying optimization:
+
+===== Smart parallel retry
+
+[source,python]
+----
+def smart_retry(opt = De_cpp(1500)):
+    return return advretry.minimize(fitness, bounds, optimizer=opt, num_retries=50000, max_eval_fac=20)
+----
+
+The two algorithms you should try first when applying the smart retry are `de_cma`, a sequence of differential
+evolution and CMA-ES, and De_cpp, pure differential evolution. Our recommendation is to try
+`de_cma` when the problem is in the space flight dynamics domain, and `De_cpp` in all other cases. 
+`De_cpp(1500)` means we start with 1500 evaluations per retry, maximal number of evaluations is
+`max_eval_fac*1500` at the end of `num_retries` optimization runs. The result of each run
+is used to configure the bounds of future runs. 
+
+===== Parallel retry
+
+[source,python]
+----
+def parallel_retry(opt = Bite_cpp(100000, M=8)):
+    return retry.minimize(fitness, bounds, optimizer=opt)
+----
+The three algorithms you should try first when applying the parallel retry are 
+https://github.com/avaneev/biteopt[Bite_cpp] using "BiteOpt = BITmask Evolution OPTimization",
+`De_cpp`, pure differential evolution and `de_cma`, a sequence of differential evolution and CMA-ES.
+This differs from the "Smart parallel retry" recommendation. BiteOpt recently got a significant "boost"
+after being included as part of the fcmaes library. It became the recommended algorithm 
+for parallel retry and as standalone algorithm. For the smart retry it works well, but often not 
+as well as `de_cma` and `De_cpp`. 
+
+===== Parallel function evaluation
+
+[source,python]
+----
+def parallel_eval(opt = DE(dim, bounds)):
+    return opt.do_optimize_delayed_update(fun=fitness, max_evals=500000)
+----
+
+The two algorithms you should try when applying parallel function evaluation are `DE` and `Cmaes`,
+Python implementations of differential evolution and CMA-ES, currently the only fcmaes algorithms
+supporting parallel function evaluation. Try `DE` first, since `Cmaes` only works well for specific
+domains - a fact you can investigate yourself when applying it to the Lotka Volterra control problem. 
+
+The Lotka Volterra control problem is best solved using the smart parallel retry with `De_cpp`. 
+On an AMD 16 core 5950x you see good results < -120 rabbits after about 20 seconds, 
+-129 is reached after about 3 minutes, finally we got `fitness < -131` after 30 minutes.
+
+[source,python]
+----
+solution = [0.776493606751, 4.2642153862710745e-10, -0.0013814584722570949, 1.0, 0.9999999999830551, 
+            0.8778065780789015, -0.9985268317725804, 0.9877828448895982, 0.2169107188152512, -0.16098594083141338, 
+            1.0, 0.7622846184265988, -0.019831274104075647, -0.16136317142770895, -0.9712980904434804, 
+            0.8517517878838309, 5.259681579161679e-15, 1.0, 1.0, 0.15091012069751086]
+print("best solution, fitness = ", solution) 
+
+best solution, fitness = -132.261621820961
+----
+
+This is way better than to kill a fox each year (`-62.13` rabbits). Experiment with other algorithms, try for instance
+`scipy.minimize`, algorithms from https://esa.github.io/pygmo2/[pygmo] or https://nlopt.readthedocs.io/en/latest/[NLOpt].
+If you find an algorithm improving over the given solution please send me a message. 
+
+Parallel function evaluation may be an alternative, you may reach < -125 fast, but only if you are very lucky. Most of the
+time one retry is simply not enough to solve this problem. The fcmaes DE implementation implements an unusual feature: 
+re-initialization of individuals based on their age. Because of this you are never completely stuck at a local minimum,
+you may find improvements even after millions of function evaluations. 
+
+=== F8
+
+The example: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/f8.py[f8.py] represents a new implementation of 
+the F-8 aircraft control problem https://mintoc.de/index.php/F-8_aircraft[F-8_aircraft] which aims at controlling 
+an aircraft in a time-optimal way from an initial state to a terminal state.
 
 It provides the information you need for your own optimization projects involving differential equations in the
 context of parallel retries. The example is described in detail in 
@@ -17,7 +203,7 @@ completely be solved using the oracle penalty method. We will use a fixed penalt
 Integrating differential equations inside the objective function is costly. We should do everything we can
 to speed things up. Scipy provides two interfaces https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html[ode] 
 and https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html[solve_ivp]. 
-We provide an `ode` based implementation for comparison but recommend to use compiled ODEs based on 
+For F8 we provide an `ode` based implementation for comparison but recommend to use compiled ODEs based on 
 the https://github.com/AnyarInc/Ascent[Ascent] library, see
 https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/ascent.cpp[ascent.cpp]
 Using this you see a good solution in less than a second on a fast 16 core machine. 
