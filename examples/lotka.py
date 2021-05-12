@@ -56,16 +56,12 @@ def fitness(X):
     for year, x in enumerate(X):
         if x > 0: # should we kill a fox this year? 
             ts.append(t0 + year + x) # when exactly?
-    ts.append(t1) # append end time
     I = integrator()
     I.set_initial_value(pop, t0)
     for i in range(len(ts)):
-        #propagate rabbit and fox population to ts[i]      
-        pop = integrate(I, ts[i]) 
-        if i < len(ts)-1:           
-            # kill one fox, but keep at least one
-            pop[1] = max(1, pop[1]-1) 
-            I.set_initial_value(pop, ts[i])
+        pop = integrate(I, ts[i]) # propagate rabbit and fox population to ts[i]      
+        pop[1] = max(1, pop[1]-1) # kill one fox, but keep at least one
+        I.set_initial_value(pop, ts[i])
     # value is maximal rabbit population during the following 5 years without fox killings
     value = -max([integrate(I, t)[0] for t in np.linspace(t1, t1 + 5, 50)])
     # book keeping and logging
