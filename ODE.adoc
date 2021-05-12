@@ -37,7 +37,7 @@ many integrators are not reentrant, which means they cannot be used with optimiz
 function evaluation. We reconfigure the used integrator as "dopri5" and relax the accuracy requirements to speed up
 the integration process. 
 
-See https://github.com/dietmarwo/fast-cma-es/blob/master/examples/lotka.py[lotka.py] for the complete examples code.
+See https://github.com/dietmarwo/fast-cma-es/blob/master/examples/lotka.py[lotka.py] for the complete example code.
 
 The rabbit and fox populations are propagated using:
  
