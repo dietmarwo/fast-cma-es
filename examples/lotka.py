@@ -49,13 +49,12 @@ def integrate(I, t):
 
 # maximal rabbit population after dim years of fox killings 
 def fitness(X):
-    pop = pop0 # initial population 
     ts = []
     for year, x in enumerate(X):
         if x > 0: # should we kill a fox this year? 
             ts.append(year + x) # when exactly?
     I = integrator()
-    I.set_initial_value(pop, 0)
+    I.set_initial_value(pop0, 0)
     for i in range(len(ts)):
         pop = integrate(I, ts[i]) # propagate rabbit and fox population to ts[i]      
         pop[1] = max(1, pop[1]-1) # kill one fox, but keep at least one
