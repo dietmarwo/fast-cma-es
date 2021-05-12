@@ -63,7 +63,7 @@ def fitness(X):
     value = -max([integrate(I, t)[0] for t in np.linspace(dim, dim + 5, 50)])
     # book keeping and logging
     evals.value += 1
-    if value < bval.value and value < 1E99:
+    if value < bval.value:
         bval.value = value
         logger().info("nfev = {0}: t = {1:.1f} fval = {2:.3f} fox kill at {3:s} x = {4:s}"
             .format(evals.value, dtime(time0), value, str([round(t,2) for t in ts[:-1]]), str(list(X))))
