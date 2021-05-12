@@ -49,21 +49,19 @@ def integrate(I, t):
 
 # maximal rabbit population after dim years of fox killings 
 def fitness(X):
-    t0 = 0 # start time 
-    t1 = len(X) # end time, check after dim = len(X) years
     pop = pop0 # initial population 
     ts = []
     for year, x in enumerate(X):
         if x > 0: # should we kill a fox this year? 
-            ts.append(t0 + year + x) # when exactly?
+            ts.append(year + x) # when exactly?
     I = integrator()
-    I.set_initial_value(pop, t0)
+    I.set_initial_value(pop, 0)
     for i in range(len(ts)):
         pop = integrate(I, ts[i]) # propagate rabbit and fox population to ts[i]      
         pop[1] = max(1, pop[1]-1) # kill one fox, but keep at least one
         I.set_initial_value(pop, ts[i])
     # value is maximal rabbit population during the following 5 years without fox killings
-    value = -max([integrate(I, t)[0] for t in np.linspace(t1, t1 + 5, 50)])
+    value = -max([integrate(I, t)[0] for t in np.linspace(dim, dim + 5, 50)])
     # book keeping and logging
     evals.value += 1
     if value < bval.value and value < 1E99:
