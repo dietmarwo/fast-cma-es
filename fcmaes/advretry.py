@@ -7,7 +7,6 @@ import time
 import os
 import sys
 import math
-import random
 import _pickle as cPickle
 import bz2
 import ctypes as ct
@@ -43,7 +42,7 @@ def minimize(fun,
              datafile = None
              ):   
     """Minimization of a scalar function of one or more variables using 
-    coordinated parallel CMA-ES retry.
+    smart parallel optimization retry.
      
     Parameters
     ----------
@@ -411,9 +410,10 @@ def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit, stop_f
         if _crossover(fun, store, optimize, rgs[pid]):
             continue
         try:
+            rg = rgs[pid]
             dim = len(store.lower)
             sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
-                                     [random.uniform(0.05, 0.1)]*dim, rgs[pid], store)
+                                     [rg.uniform(0.05, 0.1)]*dim, rg, store)
             store.add_result(y, sol, store.lower, store.upper, evals, value_limit)
         except Exception as ex:
             continue
@@ -421,7 +421,7 @@ def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit, stop_f
 #             store.dump()
  
 def _crossover(fun, store, optimize, rg):
-    if random.random() < 0.5:
+    if rg.uniform(0,1) < 0.5:
         return False
     y0, guess, lower, upper, sdev = store.limits()
     if guess is None:

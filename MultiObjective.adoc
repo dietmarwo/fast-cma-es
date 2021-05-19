@@ -1,0 +1,320 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+== Optimization of functions with multiple objectives
+
+The code for this tutorial is at 
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/moexamples.py[moexamples.py] and uses 
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/moretry.py[moretry.py] . 
+We show:
+
+- How fcmaes single objective optimization algorithms together with a specialized parallel retry implementation
+can be applied to compute the pareto front of multi objective problems.
+- That good performance of easy benchmark problems (which can be solved by random sampling) is no performance 
+indicator for real world problems. 
+- How the weighted sum approach can be applied to compute the pareto front thereby parallelizing function evaluations.
+- That standard algorithms like NGSAII, if not parallelized, can be several orders of magnitude slower than fcmaes multi objective parallel retry for real world problems. Scaling achieved by parallelization is only part of the story. 
+
+=== Experiments with artificial benchmark functions
+
+Lets first investigate some artificial multi-objective benchmark functions from
+https://github.com/DEAP/deap/blob/master/deap/benchmarks/[deap-tests].
+See https://www.sciencedirect.com/science/article/pii/S2352711020300911[MOBOpt]
+for a description of these functions. As in this paper we chose the well known
+benchmark functions Schaffer, Fonseca, Poloni and ZDT1. 
+
+First lets check if we need any optimization algorithms at all by simply evaluating
+500000 random samples. Even a single threaded execution takes only about 5 seconds
+on our AMD 5950x 16 core machine:
+
+[source,python]
+----
+def monte_carlo(fun, bounds, n=500000, value_limits=None):
+    rg = Generator(MT19937())
+    ys = []
+    for _ in range(n):
+        x = rg.uniform(bounds.lb, bounds.ub)
+        y = fun(x)
+        if value_limits is None or all([y[i] < value_limits[i] for i in range(len(y))]):
+            ys.append(y)
+    return np.array(ys)
+----
+
+- Fonseca function random samples:
+
+image::monte_fonseca.png[] 
+
+- Poloni function random samples:
+
+image::monte_poloni.png[] 
+
+Python is surprisingly fast converting these results into a pareto front showing all non-dominated solutions. We change the code above to add this conversion. 
+
+[source,python]
+----
+    ...
+    ys = np.array(ys)
+    pareto = moretry._pareto(ys)
+    return ys[pareto]
+----
+
+- Fonseca function, dim = 20, random samples pareto front, 8.19 sec:
+
+image::monte_fonseca_front.png[] 
+
+- Poloni function, dim = 20, random samples pareto front, 5.81 sec:
+
+image::monte_poloni_front.png[]
+
+Lets try two more benchmark problems:
+
+- Schaffer function, dim = 20, random samples pareto front, 8.19 sec:
+
+image::monte_schaffer_front.png[]
+
+- ZDT1 function, dim = 20, random samples pareto front, 7.34 sec:
+
+image::monte_zdt1_front.png[]
+
+Wait, the ZDT1 result is not what we expected, may be it helps if we take 200 million random samples?
+
+ - ZDT1 function 200 million random samples pareto front:
+
+image::monte_zdt1_200M_front.png[]
+
+We needed 2846 seconds and a lot of memory for this computation and still didn't get a decent result. 
+
+What did we learn so far? For most problems no sophisticated optimization algorithm is needed, we can 
+compute the pareto front in seconds using random samples? Not really, but we learned another 
+interesting fact: These "benchmark" functions are designed to show potential flaws in 
+multi objective optimization algorithms - as we will see later.
+They don't reflect typical real world problems. You should not predict the
+performance of an algorithm for real world problems using these benchmarks. For this reason
+lets switch our focus to a 
+
+=== Real World Multi Objective Scenario
+
+Suppose we work at NASA and our task is the planning of the 
+https://solarsystem.nasa.gov/missions/cassini/overview/[Cassini] mission to Saturn. 
+Fortunately our colleagues at ESA prepared a nice model 
+https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini model] we can adapt to create
+a multi objective fitness function. Our boss told us that the overall 
+mission time should be < 2000 days. He leaves in a few hours for a big planning meeting and
+we need to convince him until then that this is a stupid idea. We need to show him the
+tradeoff between fuel consumption and mission time, which means we have to compute the
+pareto front for these two competing objectives. Not enough time to feed our Supercomputer,
+we only have a fast 16 core desktop (AMD 5950x) available for the analysis. 
+
+We import ESAs single objective Cassini fitness function which determines the overall delta
+velocity, which is more or less equivalent to the fuel consumption. The second
+objective, the travel time, can easily be derived from the input arguments. 
+
+[source,python]
+----
+from fcmaes.astro import Cassini1
+
+class cassini1_mo: 
+
+    def __init__(self):
+        self.base = Cassini1()
+        self.bounds = self.base.bounds
+ 
+    def fun(self, x):
+        dv = self.base.fun(np.array(x)) # delta velocity, original objective (km/s)
+        mission_time = sum(x[1:]) # mission time (days)
+        y = np.empty(2)
+        y[0] = dv       
+        y[1] = mission_time
+        return y
+----
+
+From the https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc[Readme] we know that the first
+objective has an optimal value of 4.93 km/s. It is the easiest of the GTOP problems, solvable 
+in under 10 seconds. Will the multi objective version be as easy to solve?
+Considering the ZDT1 results above we are skeptical if random sampling will lead us anywhere. 
+But since it is single threaded we can start multiple experiments simultaneously. First the 
+result with 500000 random samples. 
+
+- Cassini1 function 500000 random samples, 12.4 sec:
+
+image::monte_cassini1_mo_front.png[]
+
+Oops this is really bad. So lets try 200 million samples:
+
+- Cassini1 function 200 million random samples, 5207.44 sec:
+
+image::monte_cassini1_mo_200M_front.png[]
+
+5207 seconds for this? Not enough to convince our boss. May be the Cassini problem is not as 
+easy as the single objective results may suggest. 
+
+=== NSGA-II Non-dominated Sorting Genetic Algorithm
+
+But there is an alternative, lets try the well known https://pymoo.org/algorithms/nsga2.html[NSGA-II] algorithm. We adapted the code from https://github.com/ppgaluzio/MOBOpt/blob/master/mobopt/_NSGA-II.py[NSGA-II.py] for this experiment. 
+
+[source,python]
+----
+def nsgaII_test(problem, fname, NGEN=2000, MU=100, value_limits = None):
+    time0 = time.perf_counter() # optimization start time
+    name = problem.__class__.__name__ 
+    logger().info('optimize ' + name + ' nsgaII') 
+    pbounds = np.array(list(zip(problem.bounds.lb, problem.bounds.ub)))
+    pop, logbook, front = nsgaII(2, problem.fun, pbounds, NGEN=NGEN, MU=MU) 
+    logger().info(name + ' nsgaII time ' + str(dtime(time0)))    
+    if not value_limits is None:
+        front = np.array(
+            [y for y in front if all([y[i] < value_limits[i] for i in range(len(y))])])
+    moretry.plot(front, 'nsgaII_' + name + fname)
+----
+
+Unfortunately the implementation is single threaded, but NSGA-II solves all our benchmark problems in under 30 seconds:
+
+- Fonseca function, dim = 20, NSGA-II pareto front, NGEN=2000, MU=100, time = 22.38 sec:
+
+image::nsgaII_fonseca_front.png[] 
+
+- Poloni function, dim = 20, NSGA-II pareto front, NGEN=2000, MU=100, time = 20.52 sec:
+
+image::nsgaII_poloni_front.png[]
+
+- Schaffer function, dim = 20, NSGA-II pareto front, NGEN=2000, MU=100, time = 15.01 sec:
+
+image::nsgaII_schaffer_front.png[]
+
+- ZDT1 function, dim = 20, NSGA-II pareto front, NGEN=2000, MU=100, time = 26.39 sec:
+
+image::nsgaII_zdt1_front.png[]
+
+Encouraged by the good and fast results for the artificial benchmarks
+we hope NSGA-II should also solve the Cassini problem. We expect it to be harder, therefore
+we start with 20000 generations and a population size of 200.  
+
+- Cassini1 function NSGA-II pareto front, NGEN=20000, MU=200, time = 1080.23 sec:
+
+image::nsgaII_cassini1_mo_20k200_front.png[]
+
+We already need 1080 sec, but the results are not convincing. So we incrementally
+increase the number of generations further. 
+
+- Cassini1 function NSGA-II pareto front, NGEN=40000, MU=200, time = 2140.0 sec:
+
+image::nsgaII_cassini1_mo_40k200_front.png[]
+
+- Cassini1 function NSGA-II pareto front, NGEN=80000, MU=200, time = 4409.71 sec:
+
+image::nsgaII_cassini1_mo_80k200_front.png[]
+
+- Cassini1 function NSGA-II pareto front, NGEN=120000, MU=200, time = 6587.19 sec:
+
+image::nsgaII_cassini1_mo_120k200_front.png[]
+
+A bit disappointing. Even with 120000 generations and a population size of 200, taking about 6587 seconds,
+we still get a quite mediocre result. 
+
+=== fcmaes multi objective parallel retry
+
+Our boss is leaving soon, we are running out of time. Perhaps there is a way to apply our
+fast - and parallelizable - single objective algorithms. What if we wrap the multi-objective
+function and map it to a single objective one using the weighted sum approach?
+
+[source,python]
+----
+class mo_wrapper(object):
+   
+    def __init__(self, fun, weights, y_exp=2):
+        self.fun = fun  
+        self.nobj = len(weights)
+        self.weights = weights 
+        self.y_exp = y_exp
+ 
+    def eval(self, x):
+        y = self.fun(np.array(x))
+        return sum([self.weights[i] * (y[i]**self.y_exp) 
+                    for i in range(self.nobj)])**(1.0/self.y_exp)
+----
+
+The idea is now to use random weights - inside defined boundaries - for each optimization retry.
+Since these retries are executed in parallel, we can compute much more function evaluations per second
+this way. Why do we need a configurable exponent `y_exp` ?
+For problems where the pareto front contains very different values for the objectives,
+like the Poloni function, we need a low exponent:
+
+- Poloni weighted sum,  y_exp = 1.0, 2000 evals, 1024 retries, 2.7 sec:
+
+image::poloni_1.0_cma_front.png[]
+
+Using a higher exponent we would loose the extreme values at the left.
+For real world problems usually we are not interested in results where one of our objectives
+has a bad value, we prefer balanced results. For the cassini mission there even may be hard limits 
+for both travel time and fuel consumption.  
+
+On the other hand for functions like Fonseca we would have a pareto front "gap"
+in the middle for low exponents, therefore we increase it to 3.0:
+
+- Fonseca weighted sum, y_exp = 3.0, 2000 evals, 1024 retries, 4.9 sec:
+
+image::fonseca_3.0_decma_front.png[]
+
+For real world problems `y_exp = 2.0`, the default value usually is a good choice. 
+
+For Cassini we configure 1024 retries with a maximum of 50000 evaluations. Since our processor supports 32 parallel
+threads we choose a number of retries dividable by 32. 
+
+[source,python]
+----
+def cassini_retry(opt, fname, value_limits = [40, 2100]):
+    time0 = time.perf_counter() # optimization start time
+    problem = cassini1_mo()  
+    logger().info('optimize cassini ' + opt.name) 
+    xs, ys = moretry.minimize(problem.fun,
+             problem.bounds, problem.weight_bounds, 
+             value_limits = value_limits,
+             num_retries = 1024,              
+             optimizer = opt,
+             logger=logger())
+    
+    xs, front = moretry.pareto(xs, ys)
+    logger().info('cassini ' + opt.name + ' time ' + str(dtime(time0))) 
+    moretry.plot(front, fname)
+[source,python]
+----
+
+- Cassini weighted sum, 1024 retries, max 50000 evals, BiteOpt algorithm, time = 43.62 sec:
+
+image::cassini_bite_front.png[]
+ 
+- Cassini weighted sum, 1024 retries, max 50000 evals, DE-CMA sequence, time = 31.94 sec:
+
+image::cassini_decma_front.png[]
+
+Taking only a few seconds fcmaes parallel retry outperforms NGSAII by factor 200 delivering a superior
+result. The only drawback is that we have to extend the function definition by `weight_bounds` which
+sets the bounds for the randomly generated objective weights. The first objective is in m/s, optimum
+about 4.7 m/s, the second one in days, optimum > 1000 days. So we define   
+`weight_bounds = Bounds([10, 0.01], [1000, 1])` to balance the weighted sum: 
+
+[source,python]
+----
+class cassini1_mo: 
+
+    def __init__(self):
+        self.base = Cassini1()
+        self.bounds = self.base.bounds
+        self.weight_bounds = Bounds([10, 0.01], [1000, 1]) # weighting of objectives
+----
+
+Finally we got our Cassini pareto front to convince our boss to allow for a maximal mission time of 2100 days. 
+
+=== Constraints
+
+What if our problem has to fulfill a list of constraints? They can be converted into objectives:
+
+- Equality:  `a = b` can be converted into objective `abs(a-b)`
+- Inequality: `a < b` can be converted into objective `max(0, a-b)`
+
+Use high values as weight bounds, like `[1000, 1000]` allowing for no variation of constraint weights. 
+Sometimes it is useful to add a constant penalty `c`:
+
+- Equality:  `a = b` can be converted into objective `abs(a-b) + c if abs(a-b) > 0 else 0`
+- Inequality: `a < b` can be converted into objective `a-b + c if a-b > 0 else 0`

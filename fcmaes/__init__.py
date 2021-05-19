@@ -20,6 +20,7 @@ __all__ = [
     'retry',
     'advretry',
     'multiretry',
+    'moretry',
     'pygmoretry',
     'optimizer',
     'astro',

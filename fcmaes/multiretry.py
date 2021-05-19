@@ -3,8 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-# parallel retry of a list of problems. Uses retry to  filter the best ones, 
-# then uses cordinated retry to evaluate these.
+# parallel optimization retry of a list of problems. 
 
 import numpy as np
 import _pickle as cPickle

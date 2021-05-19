@@ -3,7 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-import random
 import time
 import math
 import os
@@ -35,7 +34,7 @@ def minimize(fun,
              statistic_num = 0
              ):   
     """Minimization of a scalar function of one or more variables using parallel 
-     CMA-ES retry.
+     optimization retry.
      
     Parameters
     ----------
@@ -222,6 +221,9 @@ class Store(object):
     def get_x_best(self):
         return self.best_x[:]
     
+    def get_xs(self):
+        return [self.get_x(i) for i in range(self.num_stored.value)]
+    
     def get_y(self, pid):
         return self.ys[pid]
 
@@ -288,8 +290,9 @@ def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit, stop_f
     lower = store.lower
     while store.get_runs_compare_incr(num_retries) and store.best_y.value > stop_fitness:      
         try:       
+            rg = rgs[pid]
             sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
-                                     [random.uniform(0.05, 0.1)]*len(lower), rgs[pid], store)
+                                     [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
             store.add_result(y, sol, evals, value_limit)           
         except Exception as ex:
             continue
