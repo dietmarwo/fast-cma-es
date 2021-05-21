@@ -4,7 +4,9 @@
 
 # Solar orbiter is quite a challenge for state of the art optimizers, but
 # good solutions fulfilling the requirements can be found and an example is
-# shown in check_good_solution()
+# shown in check_good_solution() . At 
+# https://gist.github.com/dietmarwo/86f24e1b9a702e18615b767e226e883f you may find good solutions
+# for this and two other solo models.  
 #
 # See https://www.esa.int/Science_Exploration/Space_Science/Solar_Orbiter
 

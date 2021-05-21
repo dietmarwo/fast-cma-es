@@ -376,7 +376,7 @@ image::monte_Tandem_mo 6_200M_front.png[]
 
 Over 6 hours a for a maximal mass of 25 kg. A clear indication that this problem is really hard. 
 
-==== NSGAII
+==== NSGA-II
 
 Since we got no chance using the random sample approach - no surprize - lets try NSGA-II next:
 
@@ -482,3 +482,58 @@ image::tandem_mo_front.png[]
 
 Note that we found the 1500 kg optimum for the constrained problem variant (travel time < 3650 days)
 but still missed the 1673.88 kg unconstrained solution. Tell me if you know an algorithm which finds it reliably. 
+
+=== What if the problem is not solvable even as single objective problem ?
+
+In this case we need a surrogate model. See
+https://www.sciencedirect.com/science/article/pii/S2352711020300911[MOBOpt], 
+but for our example we will use an alternative approach. 
+
+https://github.com/mlooz/pykep/blob/2edc5db4da9bdd5bec7326353a59c5a796d59ab3/pykep/trajopt/gym/_solar_orbiter.py#L753[_solar_orbiter_udp_1dsm] models 
+the https://www.esa.int/Science_Exploration/Space_Science/Solar_Orbiter[Solar Orbiter] mission as a sequence of gravity assist maneuvers with a single deep space maneuver (1DSM) between the planets. Lets assume we use the planet sequence
+
+[source,python]
+----
+seq=[earth, venus, venus, earth, venus, venus, venus, venus, venus, venus]
+----
+
+as in the original mission. The 1DSM solo model is very generic, it allows solutions not considered by the solo
+planning team at ESOC. Unfortunately you need future optimization algorithms combined with an incredible amount of
+computing power to solve it. So our first goal is to establish the correctness of the model by reproducing 
+a number of good solutions we know already from a much simpler model which we fortunately already have here
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/moexamples.py[solo_mgrar_udp.py]. Using 
+this "surrogate" model we can compute solutions which are convertible into solutions of the 1DSM model. 
+The conversion includes a 
+local optimization using the 1dsm model for each surrogate solution because of accuracy issues. 
+https://gist.github.com/dietmarwo/86f24e1b9a702e18615b767e226e883f[Here] we listed solutions for both solo models. 
+There is no chance to apply existing multi-objective algorithms like NSGA-II neither to the 1DSM nor to the surrogate model. 
+
+Solar Orbiter has not only two, but a number of competing primary objectives:
+
+- Minimal delta velocity / fuel consumption
+- Minimal overall travel time
+- Maximal inclination relative to the sun equator - we want to investigate the poles of the sun. 
+- Minimal - but limited - perhelion. We want to come close but avoid burning our equipment. 
+
+Lets choose the following two objectives:
+
+- First objective: maximal inclination in deg.
+- Second objective: minimal travel time in days.
+
+Solar Orbiter 1DSM model, all combined optimization results:
+
+image::solo_mo_all.png[]
+
+- Solar Orbiter 1DSM model, pareto front of all combined optimization results:
+
+image::solo_mo_front.png[]
+
+The pareto front is not very useful here, instead we use all good solutions and select one 
+considering secondary objectives like:
+
+- Do we cross a comet halo? The real solo mission does although this was not part of the planning
+- Start velocity from earth
+- Downlink capability - how fast can data be transferred during the mission
+
+See https://issues.cosmos.esa.int/solarorbiterwiki/download/attachments/44993822/SOL-ESC-RP-05500%20-%20Issue%205r0%2C%20201681029%20-%20Solar%20Orbiter%20CReMA%20Issue%205%20Rev%200.pdf[SOL-ESC-RP-05500] for a detailed description
+of the mission goals. 
