@@ -59,27 +59,27 @@ Python is surprisingly fast converting these results into a pareto front showing
     return ys[pareto]
 ----
 
-- Fonseca function, dim = 20, random samples pareto front, 8.19 sec:
+- Fonseca function, dim = 20, random samples pareto front, time = 8.19 sec:
 
 image::monte_fonseca_front.png[] 
 
-- Poloni function, dim = 20, random samples pareto front, 5.81 sec:
+- Poloni function, dim = 20, random samples pareto front, time = 5.81 sec:
 
 image::monte_poloni_front.png[]
 
 Lets try two more benchmark problems:
 
-- Schaffer function, dim = 20, random samples pareto front, 8.19 sec:
+- Schaffer function, dim = 20, random samples pareto front, time = 8.19 sec:
 
 image::monte_schaffer_front.png[]
 
-- ZDT1 function, dim = 20, random samples pareto front, 7.34 sec:
+- ZDT1 function, dim = 20, random samples pareto front, time = 7.34 sec:
 
 image::monte_zdt1_front.png[]
 
 Wait, the ZDT1 result is not what we expected, may be it helps if we take 200 million random samples?
 
- - ZDT1 function 200 million random samples pareto front:
+ - ZDT1 function 200 million random samples pareto front, time = 2846 sec:
 
 image::monte_zdt1_200M_front.png[]
 
@@ -136,13 +136,13 @@ Considering the ZDT1 results above we are skeptical if random sampling will lead
 But since it is single threaded we can start multiple experiments simultaneously. First the 
 result with 500000 random samples. 
 
-- Cassini1 function 500000 random samples, 12.4 sec:
+- Cassini1 function 500000 random samples, time = 12.4 sec:
 
 image::monte_cassini1_mo_front.png[]
 
 Oops this is really bad. So lets try 200 million samples:
 
-- Cassini1 function 200 million random samples, 5207.44 sec:
+- Cassini1 function 200 million random samples, time = 5207.44 sec:
 
 image::monte_cassini1_mo_200M_front.png[]
 
@@ -258,25 +258,25 @@ image::fonseca_3.0_decma_front.png[]
 
 For real world problems `y_exp = 2.0`, the default value usually is a good choice. 
 
-For Cassini we configure 1024 retries with a maximum of 50000 evaluations. Since our processor supports 32 parallel
-threads we choose a number of retries dividable by 32. 
+We configure 1024 retries with a maximum of 50000 evaluations. Since our processor supports 32 parallel threads we choose a number of retries dividable by 32. 
 
 [source,python]
 ----
-def cassini_retry(opt, fname, value_limits = [40, 2100]):
+def mo_retry(problem, opt, fname, value_limits = None, num_retries = 1024, exp = 2.0):
     time0 = time.perf_counter() # optimization start time
-    problem = cassini1_mo()  
-    logger().info('optimize cassini ' + opt.name) 
+    name = problem.name 
+    logger().info('optimize ' + name + ' ' + opt.name) 
     xs, ys = moretry.minimize(problem.fun,
              problem.bounds, problem.weight_bounds, 
+             value_exp = exp,
              value_limits = value_limits,
-             num_retries = 1024,              
+             num_retries = num_retries,              
              optimizer = opt,
              logger=logger())
-    
+    np.savez_compressed(name + '_' + fname, xs=xs, ys=ys)
     xs, front = moretry.pareto(xs, ys)
-    logger().info('cassini ' + opt.name + ' time ' + str(dtime(time0))) 
-    moretry.plot(front, fname)
+    logger().info(name + ' ' + opt.name + ' time ' + str(dtime(time0))) 
+    moretry.plot(front, name + '_' + fname + '.png')
 [source,python]
 ----
 
@@ -288,8 +288,7 @@ image::cassini_bite_front.png[]
 
 image::cassini_decma_front.png[]
 
-Taking only a few seconds fcmaes parallel retry outperforms NGSAII by factor 200 delivering a superior
-result. The only drawback is that we have to extend the function definition by `weight_bounds` which
+Taking only a few seconds fcmaes parallel retry outperforms NGSAII by factor 200 delivering a superior result. The only drawback is that we have to extend the function definition by `weight_bounds` which
 sets the bounds for the randomly generated objective weights. The first objective is in m/s, optimum
 about 4.7 m/s, the second one in days, optimum > 1000 days. So we define   
 `weight_bounds = Bounds([10, 0.01], [1000, 1])` to balance the weighted sum: 
@@ -306,6 +305,21 @@ class cassini1_mo:
 
 Finally we got our Cassini pareto front to convince our boss to allow for a maximal mission time of 2100 days. 
 
+Note that we write of the optimization results before applying ``moretry.pareto` which
+can be plotted later if needed:
+
+[source,python]
+----
+    with np.load('fname.npz') as data:
+        xs = data['xs']
+        ys = data['ys']
+        moretry.plot(ys, 'fname.png', interp=False)
+----
+
+- Cassini weighted sum, 1024 retries, max 50000 evals, DE-CMA sequence, all optimization results:
+
+image::cassAll.png[]
+
 === Constraints
 
 What if our problem has to fulfill a list of constraints? They can be converted into objectives:
@@ -318,3 +332,153 @@ Sometimes it is useful to add a constant penalty `c`:
 
 - Equality:  `a = b` can be converted into objective `abs(a-b) + c if abs(a-b) > 0 else 0`
 - Inequality: `a < b` can be converted into objective `a-b + c if a-b > 0 else 0`
+
+=== What if the problem is crazy hard ?
+
+Now we will show what you can do if your problem tests the limits of state of the art single
+objective optimizers. Lets have a look at the unconstrained variant
+of ESAs https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem] problem, 
+another interplanetary trajectory with multiple planet gravity assist maneuvers.
+
+Note that it took about 3 years until a 1673.88 kg solution
+was discovered by G. Stracquadanio, A. La Ferla and G. Nicosia at University of Catania, see
+https://www.esa.int/gsp/ACT/projects/gtop/tandem_unc . As usual we import the GTOP probem
+and modify it to take the mission time as second objective into account:
+
+[source,python]
+----
+from fcmaes.astro import Tandem
+
+class tandem_mo: 
+
+    def __init__(self, constrained=False):
+        self.base = Tandem(5, constrained=constrained)
+        self.bounds = self.base.bounds
+        self.weight_bounds = Bounds([1, 0], [1, 0]) # ignore 2nd objective
+        self.name = self.base.name
+ 
+    def fun(self, x):
+        final_mass = self.base.fun(np.array(x)) # original objective (-kg)
+        mission_time = sum(x[4:8]) # mission time (days)
+        y = np.empty(2)
+        y[0] = final_mass       
+        y[1] = mission_time
+        return y
+
+monte(tandem_mo(),'200M_front1.png', value_limits = [0, 10000], n=200000000)
+----
+
+Lets start with 200 million random samples:
+
+- Tandem unconstrained, 200 million random samples, time = 23537 sec
+
+image::monte_Tandem_mo 6_200M_front.png[]
+
+Over 6 hours a for a maximal mass of 25 kg. A clear indication that this problem is really hard. 
+
+==== NSGAII
+
+Since we got no chance using the random sample approach - no surprize - lets try NSGA-II next:
+
+[source,python]
+----
+nsgaII_test(tandem_mo(), '_front.png', NGEN=120000, MU=200, value_limits = [0, 10000])
+----
+
+- Tandem unconstrained, NSGA-II pareto front, NGEN=120000, MU=200, time = 7245 sec
+
+image::nsgaII_Tandem_mo_120k200front.png[]
+
+Took over 2 hours, looks very smooth, but very far away from the real pareto front. Below 3000 days travel
+time there are hardly much better solutions, but no one forced NSGA-II to avoid longer trajectories. 
+The second objective seems to "drag" the algorithm away from good solutions. With the weighted sum approach
+we have the means to fight this issue.  
+
+==== fcmaes parallel retry
+
+[source,python]
+----
+ mo_retry(tandem_mo(), de_cma(100000), '_de_cma_front' + str(i), num_retries=4096, exp=1.0)
+----
+
+- Tandem unconstrained, parallel retry de_cma, 100000 evaluations, 4096 retries, time = 556 sec
+
+image::de_cma_tandem mo_front.png[]
+
+To handle the complexity of the problem we increased the number of evaluations per retry to 100000. 
+To fight the "drag" to low mission time solutions 
+we completely block the second objective `weight_bounds = Bounds([1, 0], [1, 0])`
+and use `exp=1.0` which makes the weighted sum identical to the first objective. This means
+that alternatively we directly could have used the single objective Tandem version. We did
+not to enable the following
+
+==== Excercise
+
+Experiment with other `weight_bounds` and `exp` settings. You will observe that preserving the
+first objective unaltered is crucial to success. Experiment also with other algorithms, 
+Bite_cpp(100000, M=16) probably being the strongest - for many other problems even superior - competitor. 
+
+Since we use only the first objective for optimization, why not try the advanced retry which 
+uses a smart management of the boundaries depending on previous runs. We feed the algorithm with
+`problem.base.fun`, the single objective version of the Tandem problem. 
+The pareto front is computed using `ys = np.array([problem.fun(x) for x in xs])`, the 
+multi objective Tandem function applied to the optimization result.
+
+[source,python]
+----
+from fcmaes import advretry
+
+def mo_adv_retry(problem, opt, fname, value_limit = math.inf, num_retries = 1024):
+    time0 = time.perf_counter() # optimization start time
+    name = problem.name 
+    logger().info('smart optimize ' + name + ' ' + opt.name) 
+    store = advretry.Store(problem.bounds, capacity=500, logger=logger(), 
+                           num_retries=num_retries) 
+    ret = advretry.retry(problem.base.fun, store, opt.minimize, num_retries, value_limit)
+    xs = np.array(store.get_xs())
+    ys = np.array([problem.fun(x) for x in xs])
+    np.savez_compressed(name + '_' + fname, xs=xs, ys=ys)
+    xs, front = moretry.pareto(xs, ys)
+    logger().info(name + ' ' + opt.name + ' time ' + str(dtime(time0))) 
+    moretry.plot(front, name + '_' + fname + '.png')
+
+mo_adv_retry(tandem_mo(), de_cma(1500), '_smart_front'+ str(i), value_limit = 0, num_retries = 20*4096)
+----
+
+- Tandem unconstrained, parallel smart retry de_cma, 20*4096 retries between 1500 and 75000 evaluations, time = 2358 sec
+
+image::smart_tandem mo_front.png[]
+
+==== Joined forces
+
+A single run may be not sufficient for the pareto front, this is the reason we saved the optimization results
+using `np.savez`. Now we can just collect these results to produce the final result using: 
+
+[source,python]
+----
+def plot_all(folder, fname):
+    files = glob.glob(folder + '/*.npz', recursive=True)
+    xs = []
+    ys = []
+    for file in files:
+        with np.load(file) as data:
+            xs += list(data['xs'])
+            ys += list(data['ys'])
+    xs = np.array(xs); ys = np.array(ys)         
+    xs, front = moretry.pareto(xs, ys)
+    moretry.plot(ys, fname + '_all.png', interp=False)
+    moretry.plot(front, fname + '_front.png')
+----
+
+We may distribute the computation over various machines / cluster nodes and combine the results later. 
+
+- Tandem unconstrained, all combined optimization results:
+
+image::tandem_mo_all.png[]
+
+- Tandem unconstrained, pareto front of all combined optimization results:
+
+image::tandem_mo_front.png[]
+
+Note that we found the 1500 kg optimum for the constrained problem variant (travel time < 3650 days)
+but still missed the 1673.88 kg unconstrained solution. Tell me if you know an algorithm which finds it reliably. 
