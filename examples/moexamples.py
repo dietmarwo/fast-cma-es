@@ -270,11 +270,7 @@ def plot_all(folder, fname):
     moretry.plot(front, fname + '_front.png')
 
 if __name__ == '__main__':
-    
-    plot_all("tandem/*", "tandem")
-    import sys
-    sys.exit()
-    
+        
     mo_retry(cassini1_mo(), Bite_cpp(M=16), '_bite_front', value_limits=[40, 2300])
     mo_retry(cassini2_mo(), Bite_cpp(M=16), '_bite_front', value_limits=[40, 2000])
     

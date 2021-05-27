@@ -15,6 +15,7 @@ if sys.platform.startswith('linux'):
 elif 'mac' in sys.platform:
     libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.dylib')  
 else:
+    os.environ['PATH'] = (basepath + '/lib') + os.pathsep + os.environ['PATH']
     libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.dll')
 
 freemem = libgtoplib.free_mem

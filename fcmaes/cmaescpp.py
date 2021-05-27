@@ -182,6 +182,7 @@ if sys.platform.startswith('linux'):
 elif 'mac' in sys.platform:
     libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
 else:
+    os.environ['PATH'] = (basepath + '/lib') + os.pathsep + os.environ['PATH']
     libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')  
 
 call_back_par = ct.CFUNCTYPE(None, ct.c_int, ct.c_int, \

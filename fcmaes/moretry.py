@@ -105,11 +105,14 @@ def _retry_loop(pid, rgs, fun, weight_bounds, y_exp,
     if 'win' in sys.platform and not store.logger is None:
         store.logger = logger()       
     lower = store.lower
+    wlb = np.array(weight_bounds.lb)
+    wub = np.array(weight_bounds.ub)
     while store.get_runs_compare_incr(num_retries):      
         try:       
             rg = rgs[pid]
-            w = rg.uniform(weight_bounds.lb, weight_bounds.ub)
-            w *= sum(weight_bounds.ub)/sum(w) # correct scaling
+            w = rg.uniform(size=len(wub))          
+            w /= _avg_exp(w, y_exp) # correct scaling
+            w = wlb + w * (wub - wlb)
             wrapper = mo_wrapper(fun, w, y_exp)  
             x, y, evals = optimize(wrapper.eval, Bounds(store.lower, store.upper), None, 
                                      [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
@@ -138,13 +141,16 @@ class mo_wrapper(object):
  
     def eval(self, x):
         y = self.fun(np.array(x))
-        return sum([self.weights[i] * (y[i]**self.y_exp) 
-                    for i in range(self.nobj)])**(1.0/self.y_exp)
+        return _avg_exp(self.weights*y, self.y_exp)
 
     def mo_eval(self, x):
         return self.fun(np.array(x))
 
 def plot(front, fname, interp=True):
+    if len(front[0]) == 3:
+        return plot3(front, fname)
+    if len(front[0]) > 3:
+        return plot3(front.T[:3].T, fname)        
     import matplotlib.pyplot as pl
     fig, ax = pl.subplots(1, 1)
     x = front[:, 0]; y = front[:, 1]
@@ -165,6 +171,24 @@ def plot(front, fname, interp=True):
     ax.legend()
     fig.savefig(fname, dpi=300)
     pl.close('all')
+
+def plot3(front, fname):
+    import matplotlib.pyplot as pl
+    fig = pl.figure()
+    ax = fig.add_subplot(projection='3d')
+    x = front[:, 0]; y = front[:, 1]; z = front[:, 2]
+    ax.scatter(x, y, z, label=r"$\chi$", s=1)
+    ax.grid()
+    ax.set_xlabel(r'$f_1$')
+    ax.set_ylabel(r'$f_2$')
+    ax.set_zlabel(r'$f_3$')
+    ax.legend()
+    pl.show()
+    fig.savefig(fname, dpi=300)
+    pl.close('all')
+
+def _avg_exp(y, y_exp):
+    return sum([y[i]**y_exp for i in range(len(y))])**(1.0/y_exp)
 
 def _pareto(ys):
     pareto = np.arange(ys.shape[0])

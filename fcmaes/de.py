@@ -116,6 +116,8 @@ class DE(object):
     def __init__(self, dim, bounds, popsize = 31, stop_fitness = None, keep = 200, 
                  F = 0.5, Cr = 0.9, rg = Generator(MT19937()), logger = None):
         self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
+        if popsize is None:
+            popsize = 31
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.keep = keep 

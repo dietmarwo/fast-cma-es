@@ -380,7 +380,7 @@ class De_ask_tell(Optimizer):
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
         dim = len(bounds.lb)
         popsize = 31 if self.popsize is None else self.popsize
-        es = de.DE(bounds, popsize = popsize, rg = rg)  
+        es = de.DE(dim, bounds, popsize = popsize, rg = rg, keep = self.keep, F = self.f, Cr = self.cr)  
         es.fun = fun  #remove
         max_evals = self.max_eval_num(store)
         while es.evals < max_evals:
