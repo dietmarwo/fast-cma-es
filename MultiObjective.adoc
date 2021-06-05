@@ -2,7 +2,7 @@
 :imagesdir: img
 :cpp: C++
 
-== Optimization of functions with multiple objectives
+== Optimization of multi-objective problems
 
 The code for this tutorial is at 
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/moexamples.py[moexamples.py] and uses 
@@ -16,7 +16,32 @@ indicator for real world problems.
 - How the weighted sum approach can be applied to compute the pareto front thereby parallelizing function evaluations.
 - That standard algorithms like NGSAII, if not parallelized, can be several orders of magnitude slower than fcmaes multi objective parallel retry for real world problems. Scaling achieved by parallelization is only part of the story. 
 
+Note that for real world problems the pareto front is not necessarily what you aim for. If our algorithm produces a result containing good but slightly dominated solutions like this:
+
+image::all_ret.rw-top-trumps-biobj_f2i5d122__de_5k320.png[]
+
+it may be a bad idea to compute the pareto front now:
+
+image::front_ret.rw-top-trumps-biobj_f2i5d122__de_5k320.png[]
+
+because:
+
+- Optimization is usually applied to a slightly inaccurate model. 
+- It may be a surrogate model designed for fast evaluation,
+- or some very expensive to evaluate objectives / constraints are left out, 
+- or the constraints could have changed after an optimization run involving very expensive simulations finished. 
+
+With the first result you may reevaluate the limited number of solution vectors using the more accurate / updated
+model and only then compute the pareto front. A solution which was slightly dominated at first could come up as
+non dominated now. 
+
 === Experiments with artificial benchmark functions
+
+Note that fcmaes doesn't use dedicated multi-objective algorithms but relies instead on the parallel execution of
+single objective algorithms using the weighted sum approach thereby applying random weights. This often works
+surprisingly well, specially if the alternative is the single threaded application of a dedicated MO-algorithm. 
+As we will see below, for many real world MO-problems from the space flight planning domain involving multiple gravity assist maneuvers
+it is the only approach delivering reasonable results.   
 
 Lets first investigate some artificial multi-objective benchmark functions from
 https://github.com/DEAP/deap/blob/master/deap/benchmarks/[deap-tests].
@@ -24,71 +49,119 @@ See https://www.sciencedirect.com/science/article/pii/S2352711020300911[MOBOpt]
 for a description of these functions. As in this paper we chose the well known
 benchmark functions Schaffer, Fonseca, Poloni and ZDT1. 
 
-First lets check if we need any optimization algorithms at all by simply evaluating
-500000 random samples. Even a single threaded execution takes only about 5 seconds
-on our AMD 5950x 16 core machine:
+[source,python]
+----
+class zdt1: 
+
+    def __init__(self, dim):
+        self.fun = db.zdt1
+        self.bounds = Bounds([0]*dim, [1]*dim)
+        self.weight_bounds = Bounds([0.01, 0.01], [1, 1]) 
+        self.name = 'zdt1(' + str(dim) + ')'
+
+class schaffer: 
+
+    def __init__(self, dim):
+        self.fun = db.schaffer_mo
+        self.bounds = Bounds([-1000]*dim, [1000]*dim)
+        self.weight_bounds = Bounds([0.01, 0.01], [1, 1]) 
+        self.name = 'schaffer(' + str(dim) + ')'
+
+class poloni: 
+
+    def __init__(self, dim):
+        self.fun = db.poloni
+        self.bounds = Bounds([-math.pi]*dim, [math.pi]*dim)
+        self.weight_bounds = Bounds([0.01, 0.01], [1, 1]) 
+        self.name = 'poloni(' + str(dim) + ')'
+
+class fonseca: 
+
+    def __init__(self, dim):
+        self.fun = db.fonseca
+        self.bounds = Bounds([-4]*dim, [4]*dim) 
+        self.weight_bounds = Bounds([0.01, 0.01], [1, 1]) 
+        self.name = 'fonseca(' + str(dim) + ')'
+----
+
+The fcmaes library provides convenience functions for testing parallelized algorithms which generate both
+a detailed log file and a diagram showing progress over time / the pareto front: 
 
 [source,python]
 ----
-def monte_carlo(fun, bounds, n=500000, value_limits=None):
-    rg = Generator(MT19937())
-    ys = []
-    for _ in range(n):
-        x = rg.uniform(bounds.lb, bounds.ub)
-        y = fun(x)
-        if value_limits is None or all([y[i] < value_limits[i] for i in range(len(y))]):
-            ys.append(y)
-    return np.array(ys)
+from fcmaes import moretry
+
+def minimize_plot(problem, opt, name, exp = 2.0, num_retries = 1024, value_limits=None):
+    moretry.minimize_plot(problem.name + '_' + name, opt, 
+                          problem.fun, problem.bounds, problem.weight_bounds, 
+                          num_retries = num_retries, exp = exp, value_limits = value_limits)
+
+def adv_minimize_plot(problem, opt, name, value_limit = math.inf, num_retries = 10240):
+    moretry.adv_minimize_plot(problem.name + '_' + name, opt, 
+                              problem.fun, problem.bounds, value_limit = value_limit,
+                              num_retries = num_retries)
 ----
 
-- Fonseca function random samples:
-
-image::monte_fonseca.png[] 
-
-- Poloni function random samples:
-
-image::monte_poloni.png[] 
-
-Python is surprisingly fast converting these results into a pareto front showing all non-dominated solutions. We change the code above to add this conversion. 
+First lets check the random search optimization algorithm, 1024 retries, 50000 evaluations each: 
 
 [source,python]
 ----
-    ...
-    ys = np.array(ys)
-    pareto = moretry._pareto(ys)
-    return ys[pareto]
+mo_retry_plot(zdt1(20), random_search(), '_random')
+mo_retry_plot(schaffer(20), random_search(), '_random')
+mo_retry_plot(poloni(20), random_search(), '_random', exp=1.0)
+mo_retry_plot(fonseca(20), random_search(), '_random', exp=3.0)  
 ----
 
-- Fonseca function, dim = 20, random samples pareto front, time = 8.19 sec:
+- Fonseca function random search, dim = 20, 1024 retries, 50000 evaluations:
 
-image::monte_fonseca_front.png[] 
+image::all_ret.fonseca(20)__random.png[] 
 
-- Poloni function, dim = 20, random samples pareto front, time = 5.81 sec:
+- Poloni function random search, dim = 20, 1024 retries, 50000 evaluations:
 
-image::monte_poloni_front.png[]
+image::all_ret.poloni(20)__random.png[] 
+
+Python is surprisingly fast converting these results into a pareto front showing all non-dominated solutions:
+
+- Fonseca function, random search, dim = 20, 1024 retries, 50000 evaluations, pareto front:
+
+image::front_ret.fonseca(20)__random.png[] 
+
+- Poloni function, random search, dim = 20, 1024 retries, 50000 evaluations, pareto front:
+
+image::front_ret.poloni(20)__random.png[]
 
 Lets try two more benchmark problems:
 
-- Schaffer function, dim = 20, random samples pareto front, time = 8.19 sec:
+- Schaffer function, random search, dim = 20, 1024 retries, 50000 evaluations:
 
-image::monte_schaffer_front.png[]
+image::all_ret.schaffer(20)__random.png[]
 
-- ZDT1 function, dim = 20, random samples pareto front, time = 7.34 sec:
+- Pareto front:
 
-image::monte_zdt1_front.png[]
+image::front_ret.schaffer(20)__random.png[]
 
-Wait, the ZDT1 result is not what we expected, may be it helps if we take 200 million random samples?
+- ZDT1 function, random search, dim = 20, 1024 retries, 50000 evaluations:
 
- - ZDT1 function 200 million random samples pareto front, time = 2846 sec:
+image::all_ret.zdt1(20)__random.png[]
 
-image::monte_zdt1_200M_front.png[]
+- Pareto front:
 
-We needed 2846 seconds and a lot of memory for this computation and still didn't get a decent result. 
+image::front_ret.zdt1(20)__random.png[]
 
-What did we learn so far? For most problems no sophisticated optimization algorithm is needed, we can 
-compute the pareto front in seconds using random samples? Not really, but we learned another 
-interesting fact: These "benchmark" functions are designed to show potential flaws in 
-multi objective optimization algorithms - as we will see later.
+Wait, the ZDT1 result is not what we expected, may be it helps if we choose a better algorithm?
+
+- ZDT1 function, de-cma sequence, dim = 20, 1024 retries, 50000 evaluations:
+
+image::all_ret.zdt1(20)__decma.png[]
+
+- Pareto front:
+
+image::front_ret.zdt1(20)__decma.png[]
+
+What did we learn so far? For most artificial problems 
+no sophisticated optimization algorithm is needed, random search is sufficient.
+These "benchmark" functions are designed to show potential flaws in 
+multi-objective optimization algorithms.
 They don't reflect typical real world problems. You should not predict the
 performance of an algorithm for real world problems using these benchmarks. For this reason
 lets switch our focus to a 
@@ -119,6 +192,8 @@ class cassini1_mo:
     def __init__(self):
         self.base = Cassini1()
         self.bounds = self.base.bounds
+        self.weight_bounds = Bounds([1, 0.01], [100, 1]) # weighting of objectives
+        self.name = self.base.name
  
     def fun(self, x):
         dv = self.base.fun(np.array(x)) # delta velocity, original objective (km/s)
@@ -133,21 +208,6 @@ From the https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc[Readme
 objective has an optimal value of 4.93 km/s. It is the easiest of the GTOP problems, solvable 
 in under 10 seconds. Will the multi objective version be as easy to solve?
 Considering the ZDT1 results above we are skeptical if random sampling will lead us anywhere. 
-But since it is single threaded we can start multiple experiments simultaneously. First the 
-result with 500000 random samples. 
-
-- Cassini1 function 500000 random samples, time = 12.4 sec:
-
-image::monte_cassini1_mo_front.png[]
-
-Oops this is really bad. So lets try 200 million samples:
-
-- Cassini1 function 200 million random samples, time = 5207.44 sec:
-
-image::monte_cassini1_mo_200M_front.png[]
-
-5207 seconds for this? Not enough to convince our boss. May be the Cassini problem is not as 
-easy as the single objective results may suggest. 
 
 === NSGA-II Non-dominated Sorting Genetic Algorithm
 
@@ -170,47 +230,32 @@ def nsgaII_test(problem, fname, NGEN=2000, MU=100, value_limits = None):
 
 Unfortunately the implementation is single threaded, but NSGA-II solves all our benchmark problems in under 30 seconds:
 
-- Fonseca function, dim = 20, NSGA-II pareto front, NGEN=2000, MU=100, time = 22.38 sec:
+- Fonseca function, dim = 20, NSGA-II pareto front, NGEN=2000, MU=100:
 
 image::nsgaII_fonseca_front.png[] 
 
-- Poloni function, dim = 20, NSGA-II pareto front, NGEN=2000, MU=100, time = 20.52 sec:
+- Poloni function, dim = 20, NSGA-II pareto front, NGEN=2000, MU=100:
 
 image::nsgaII_poloni_front.png[]
 
-- Schaffer function, dim = 20, NSGA-II pareto front, NGEN=2000, MU=100, time = 15.01 sec:
+- Schaffer function, dim = 20, NSGA-II pareto front, NGEN=2000, MU=100:
 
 image::nsgaII_schaffer_front.png[]
 
-- ZDT1 function, dim = 20, NSGA-II pareto front, NGEN=2000, MU=100, time = 26.39 sec:
+- ZDT1 function, dim = 20, NSGA-II pareto front, NGEN=2000, MU=100:
 
 image::nsgaII_zdt1_front.png[]
 
 Encouraged by the good and fast results for the artificial benchmarks
 we hope NSGA-II should also solve the Cassini problem. We expect it to be harder, therefore
-we start with 20000 generations and a population size of 200.  
-
-- Cassini1 function NSGA-II pareto front, NGEN=20000, MU=200, time = 1080.23 sec:
-
-image::nsgaII_cassini1_mo_20k200_front.png[]
-
-We already need 1080 sec, but the results are not convincing. So we incrementally
-increase the number of generations further. 
-
-- Cassini1 function NSGA-II pareto front, NGEN=40000, MU=200, time = 2140.0 sec:
-
-image::nsgaII_cassini1_mo_40k200_front.png[]
-
-- Cassini1 function NSGA-II pareto front, NGEN=80000, MU=200, time = 4409.71 sec:
-
-image::nsgaII_cassini1_mo_80k200_front.png[]
+we use 120000 generations and a population size of 200.  
 
 - Cassini1 function NSGA-II pareto front, NGEN=120000, MU=200, time = 6587.19 sec:
 
 image::nsgaII_cassini1_mo_120k200_front.png[]
 
 A bit disappointing. Even with 120000 generations and a population size of 200, taking about 6587 seconds,
-we still get a quite mediocre result. 
+we still miss the non dominated low dv / high travel time solutions. 
 
 === fcmaes multi objective parallel retry
 
@@ -221,17 +266,20 @@ function and map it to a single objective one using the weighted sum approach?
 [source,python]
 ----
 class mo_wrapper(object):
+    """wrapper for multi objective functions applying the weighted sum approach."""
    
     def __init__(self, fun, weights, y_exp=2):
         self.fun = fun  
         self.nobj = len(weights)
         self.weights = weights 
         self.y_exp = y_exp
- 
+
     def eval(self, x):
         y = self.fun(np.array(x))
-        return sum([self.weights[i] * (y[i]**self.y_exp) 
-                    for i in range(self.nobj)])**(1.0/self.y_exp)
+        return _avg_exp(self.weights*y, self.y_exp)
+        
+def _avg_exp(y, y_exp):
+    return sum([y[i]**y_exp for i in range(len(y))])**(1.0/y_exp)
 ----
 
 The idea is now to use random weights - inside defined boundaries - for each optimization retry.
@@ -262,47 +310,42 @@ We configure 1024 retries with a maximum of 50000 evaluations. Since our process
 
 [source,python]
 ----
-def mo_retry(problem, opt, fname, value_limits = None, num_retries = 1024, exp = 2.0):
+def minimize_plot(name, optimizer, fun, bounds, weight_bounds, 
+                  value_limits = None, num_retries = 1024, 
+             exp = 2.0, workers = mp.cpu_count(), logger=logger(), statistic_num = 0):
     time0 = time.perf_counter() # optimization start time
-    name = problem.name 
-    logger().info('optimize ' + name + ' ' + opt.name) 
-    xs, ys = moretry.minimize(problem.fun,
-             problem.bounds, problem.weight_bounds, 
+    name += ' ' + optimizer.name
+    logger.info('optimize ' + name) 
+    xs, ys = minimize(fun, bounds,weight_bounds, 
              value_exp = exp,
              value_limits = value_limits,
              num_retries = num_retries,              
-             optimizer = opt,
-             logger=logger())
-    np.savez_compressed(name + '_' + fname, xs=xs, ys=ys)
-    xs, front = moretry.pareto(xs, ys)
-    logger().info(name + ' ' + opt.name + ' time ' + str(dtime(time0))) 
-    moretry.plot(front, name + '_' + fname + '.png')
-[source,python]
+             optimizer = optimizer,
+             workers = workers,
+             logger=logger, statistic_num = statistic_num)
+    retry.plot(ys, 'all_.' + name + '.png', interp=False)
+    np.savez_compressed(name, xs=xs, ys=ys)
+    xs, front = pareto(xs, ys)
+    logger.info(name + ' time ' + str(dtime(time0))) 
+    retry.plot(front, 'front_.' + name + '.png')
 ----
 
 - Cassini weighted sum, 1024 retries, max 50000 evals, BiteOpt algorithm, time = 43.62 sec:
 
-image::cassini_bite_front.png[]
+image::front_.Cassini1_bite cpp.png[]
  
 - Cassini weighted sum, 1024 retries, max 50000 evals, DE-CMA sequence, time = 31.94 sec:
 
-image::cassini_decma_front.png[]
+image::front_.Cassini1_de_cpp _cma_cpp.png[]
 
-Taking only a few seconds fcmaes parallel retry outperforms NGSAII by factor 200 delivering a superior result. The only drawback is that we have to extend the function definition by `weight_bounds` which
+Finally non-dominated low-dv solutions with > 6000 travel time show up. This dv-optimum is no trivial 
+to find even if formulated as single objective problem. This may be the reason NGSA-II fails here. 
+
+Fcmaes parallel retry outperforms NGSAII by a big margin delivering a superior result. 
+The only drawback is that we have to extend the function definition by `weight_bounds` which
 sets the bounds for the randomly generated objective weights. The first objective is in m/s, optimum
 about 4.7 m/s, the second one in days, optimum > 1000 days. So we define   
-`weight_bounds = Bounds([10, 0.01], [1000, 1])` to balance the weighted sum: 
-
-[source,python]
-----
-class cassini1_mo: 
-
-    def __init__(self):
-        self.base = Cassini1()
-        self.bounds = self.base.bounds
-        self.weight_bounds = Bounds([10, 0.01], [1000, 1]) # weighting of objectives
-----
-
+`weight_bounds = Bounds([1, 0.01], [100, 1])` to balance the weighted sum: 
 Finally we got our Cassini pareto front to convince our boss to allow for a maximal mission time of 2100 days. 
 
 Note that we write of the optimization results before applying ``moretry.pareto` which
@@ -318,7 +361,7 @@ can be plotted later if needed:
 
 - Cassini weighted sum, 1024 retries, max 50000 evals, DE-CMA sequence, all optimization results:
 
-image::cassAll.png[]
+image::all_.Cassini1_de_cpp_cma_cpp.png[]
 
 === Constraints
 
@@ -339,7 +382,7 @@ Now we will show what you can do if your problem tests the limits of state of th
 objective optimizers. Lets have a look at the unconstrained variant
 of ESAs https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem] problem, 
 another interplanetary trajectory with multiple planet gravity assist maneuvers.
-
+nsgaII_cassini1_mo_20k200_front
 Note that it took about 3 years until a 1673.88 kg solution
 was discovered by G. Stracquadanio, A. La Ferla and G. Nicosia at University of Catania, see
 https://www.esa.int/gsp/ACT/projects/gtop/tandem_unc . As usual we import the GTOP probem
@@ -364,17 +407,16 @@ class tandem_mo:
         y[0] = final_mass       
         y[1] = mission_time
         return y
-
-monte(tandem_mo(),'200M_front1.png', value_limits = [0, 10000], n=200000000)
 ----
 
-Lets start with 200 million random samples:
+Lets start with random search :
 
-- Tandem unconstrained, 200 million random samples, time = 23537 sec
+- Tandem unconstrained, 10000 retries 100000 evaluations each:
 
-image::monte_Tandem_mo 6_200M_front.png[]
+image::front_.Tandem unconstrained_ random.png[]
 
-Over 6 hours a for a maximal mass of 25 kg. A clear indication that this problem is really hard. 
+A billion evaluations for a maximal mass of 22 kg. Quite a distance to the 1673.88 kg optimum. 
+A clear indication that this problem is really hard. 
 
 ==== NSGA-II
 
@@ -389,21 +431,21 @@ nsgaII_test(tandem_mo(), '_front.png', NGEN=120000, MU=200, value_limits = [0, 1
 
 image::nsgaII_Tandem_mo_120k200front.png[]
 
-Took over 2 hours, looks very smooth, but very far away from the real pareto front. Below 3000 days travel
-time there are hardly much better solutions, but no one forced NSGA-II to avoid longer trajectories. 
-The second objective seems to "drag" the algorithm away from good solutions. With the weighted sum approach
+Took over 2 hours, looks very smooth, but unfortunately far away from the real pareto front. Below 3000 days travel
+time there are hardly much better solutions, but what caused NSGA-II to avoid longer trajectories? 
+The second objective seems to "drag" the algorithm away from high-final-mass solutions. With the weighted sum approach
 we have the means to fight this issue.  
 
 ==== fcmaes parallel retry
 
 [source,python]
 ----
- mo_retry(tandem_mo(), de_cma(100000), '_de_cma_front' + str(i), num_retries=4096, exp=1.0)
+    minimize_plot(tandem_mo(), de_cma(100000), '100k10k', num_retries=10240, exp=1.0)
 ----
 
 - Tandem unconstrained, parallel retry de_cma, 100000 evaluations, 4096 retries, time = 556 sec
 
-image::de_cma_tandem mo_front.png[]
+image::front_.Tandem unconstrained_6_de_cpp_cma_cpp.png[]
 
 To handle the complexity of the problem we increased the number of evaluations per retry to 100000. 
 To fight the "drag" to low mission time solutions 
@@ -428,26 +470,32 @@ multi objective Tandem function applied to the optimization result.
 ----
 from fcmaes import advretry
 
-def mo_adv_retry(problem, opt, fname, value_limit = math.inf, num_retries = 1024):
+def adv_minimize_plot(name, optimizer, fun, bounds,
+                   value_limit = math.inf, num_retries = 1024, logger=logger(), statistic_num = 0):
     time0 = time.perf_counter() # optimization start time
-    name = problem.name 
-    logger().info('smart optimize ' + name + ' ' + opt.name) 
-    store = advretry.Store(problem.bounds, capacity=500, logger=logger(), 
-                           num_retries=num_retries) 
-    ret = advretry.retry(problem.base.fun, store, opt.minimize, num_retries, value_limit)
+    name += ' ' + optimizer.name
+    logger.info('smart optimize ' + name) 
+    store = advretry.Store(lambda x:fun(x)[0], bounds, capacity=5000, logger=logger, 
+                           num_retries=num_retries, statistic_num = statistic_num) 
+    advretry.retry(store, optimizer.minimize, num_retries, value_limit)
     xs = np.array(store.get_xs())
-    ys = np.array([problem.fun(x) for x in xs])
-    np.savez_compressed(name + '_' + fname, xs=xs, ys=ys)
-    xs, front = moretry.pareto(xs, ys)
-    logger().info(name + ' ' + opt.name + ' time ' + str(dtime(time0))) 
-    moretry.plot(front, name + '_' + fname + '.png')
+    ys = np.array([fun(x) for x in xs])
+    retry.plot(ys, 'all_smart.' + name + '.png', interp=False)
+    np.savez_compressed(name , xs=xs, ys=ys)
+    xs, front = pareto(xs, ys)
+    logger.info(name+ ' time ' + str(dtime(time0))) 
+    retry.plot(front, 'front_smart.' + name + '.png')
 
-mo_adv_retry(tandem_mo(), de_cma(1500), '_smart_front'+ str(i), value_limit = 0, num_retries = 20*4096)
+adv_minimize_plot(tandem_mo(), de_cma(1000), '_' + str(i) + '_smart', value_limit = -500, num_retries = 100000)
 ----
 
-- Tandem unconstrained, parallel smart retry de_cma, 20*4096 retries between 1500 and 75000 evaluations, time = 2358 sec
+- Tandem unconstrained, parallel smart retry de_cma, 100000 retries between 1000 and 50000 evaluations, time = 3360 sec
 
-image::smart_tandem mo_front.png[]
+image::front_smart.Tandem unconstrained 6__2.png[]
+
+Checking all solutions generated we see that the smart parallel retry algorithm found three solutions > 1600 kg. 
+
+image::all_smart.Tandem unconstrained 6__2.png[]
 
 ==== Joined forces
 
@@ -470,25 +518,9 @@ def plot_all(folder, fname):
     moretry.plot(front, fname + '_front.png')
 ----
 
-We may distribute the computation over various machines / cluster nodes and combine the results later. 
-
-- Tandem unconstrained, all combined optimization results:
-
-image::tandem_mo_all.png[]
-
-- Tandem unconstrained, pareto front of all combined optimization results:
-
-image::tandem_mo_front.png[]
-
-Note that we found the 1500 kg optimum for the constrained problem variant (travel time < 3650 days)
-but still missed the 1673.88 kg unconstrained solution. Tell me if you know an algorithm which finds it reliably. 
-
 === What if the problem is not solvable even as single objective problem ?
 
-In this case we need a surrogate model. See
-https://www.sciencedirect.com/science/article/pii/S2352711020300911[MOBOpt], 
-but for our example we will use an alternative approach. 
-
+In this case we need a surrogate model. 
 https://github.com/mlooz/pykep/blob/2edc5db4da9bdd5bec7326353a59c5a796d59ab3/pykep/trajopt/gym/_solar_orbiter.py#L753[_solar_orbiter_udp_1dsm] models 
 the https://www.esa.int/Science_Exploration/Space_Science/Solar_Orbiter[Solar Orbiter] mission as a sequence of gravity assist maneuvers with a single deep space maneuver (1DSM) between the planets. Lets assume we use the planet sequence
 

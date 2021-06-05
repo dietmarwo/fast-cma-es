@@ -332,11 +332,10 @@ private:
 using namespace gcl_differential_evolution;
 
 extern "C" {
-double* optimizeGCLDE_C(long runid, callback_parallel func_par, int dim,
+void optimizeGCLDE_C(long runid, callback_parallel func_par, int dim,
         int seed, double *lower, double *upper, int maxEvals, double pbest,
-        double stopfitness, int popsize, double F0, double CR0) {
+        double stopfitness, int popsize, double F0, double CR0, double* res) {
     int n = dim;
-    double *res = new double[n + 4];
     vec lower_limit(n), upper_limit(n);
     bool useLimit = false;
     for (int i = 0; i < n; i++) {
@@ -362,10 +361,8 @@ double* optimizeGCLDE_C(long runid, callback_parallel func_par, int dim,
         res[n + 1] = fitfun.getEvaluations();
         res[n + 2] = opt.getIterations();
         res[n + 3] = opt.getStop();
-        return res;
     } catch (std::exception &e) {
         cout << e.what() << endl;
-        return res;
     }
 }
 }

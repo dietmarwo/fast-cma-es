@@ -174,11 +174,10 @@ private:
 using namespace csmaopt;
 
 extern "C" {
-double* optimizeCsma_C(long runid, callback_type func, int dim, int seed,
+void optimizeCsma_C(long runid, callback_type func, int dim, int seed,
         double *init, double *lower, double *upper, double *sigma, int maxEvals,
-        double stopfitness, int popsize) {
+        double stopfitness, int popsize, double* res) {
     int n = dim;
-    double *res = new double[n + 4];
     vec lower_limit(n), upper_limit(n);
     bool useLimit = false;
     for (int i = 0; i < n; i++) {
@@ -205,10 +204,8 @@ double* optimizeCsma_C(long runid, callback_type func, int dim, int seed,
         res[n + 1] = fitfun.getEvaluations();
         res[n + 2] = opt.getIterations();
         res[n + 3] = opt.getStop();
-        return res;
     } catch (std::exception &e) {
         cout << e.what() << endl;
-        return res;
     }
 }
 }

@@ -401,12 +401,11 @@ private:
 using namespace lcl_differential_evolution;
 
 extern "C" {
-double* optimizeLCLDE_C(long runid, callback_parallel func_par, int dim,
+void optimizeLCLDE_C(long runid, callback_parallel func_par, int dim,
         double *init, double *sigma, int seed, double *lower, double *upper,
         int maxEvals, double pbest, double stopfitness, int popsize, double F0,
-        double CR0) {
+        double CR0, double* res) {
     int n = dim;
-    double *res = new double[n + 4];
     vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
     ;
     bool useLimit = false;
@@ -437,10 +436,8 @@ double* optimizeLCLDE_C(long runid, callback_parallel func_par, int dim,
         res[n + 1] = fitfun.getEvaluations();
         res[n + 2] = opt.getIterations();
         res[n + 3] = opt.getStop();
-        return res;
     } catch (std::exception &e) {
         cout << e.what() << endl;
-        return res;
     }
 }
 }

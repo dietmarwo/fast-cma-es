@@ -3,12 +3,11 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the root directory.
 
-// Eigen based implementation of differential evolution using the DE/best/1 strategy.
-// Uses three deviations from the standard DE algorithm:
+// Eigen based implementation of differential evolution using on the DE/best/1 strategy.
+// Uses two deviations from the standard DE algorithm:
 // a) temporal locality introduced in 
 // https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model
 // b) reinitialization of individuals based on their age. 
-// c) oscillating CR/F parameters.
 // requires https://github.com/imneme/pcg-cpp
 
 #include <Eigen/Core>
@@ -400,11 +399,10 @@ private:
 using namespace differential_evolution;
 
 extern "C" {
-double* optimizeDE_C(long runid, callback_type func, int dim, int seed,
+void optimizeDE_C(long runid, callback_type func, int dim, int seed,
         double *lower, double *upper, int maxEvals, double keep,
-        double stopfitness, int popsize, double F, double CR) {
+        double stopfitness, int popsize, double F, double CR, double* res) {
     int n = dim;
-    double *res = new double[n + 4];
     vec lower_limit(n), upper_limit(n);
     bool useLimit = false;
     for (int i = 0; i < n; i++) {
@@ -430,10 +428,8 @@ double* optimizeDE_C(long runid, callback_type func, int dim, int seed,
         res[n + 1] = fitfun.getEvaluations();
         res[n + 2] = opt.getIterations();
         res[n + 3] = opt.getStop();
-        return res;
     } catch (std::exception &e) {
         cout << e.what() << endl;
-        return res;
     }
 }
 }

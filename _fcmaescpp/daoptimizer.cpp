@@ -656,11 +656,10 @@ double minimize(Fitness *fun, vec &x0, long seed, bool use_local_search,
 using namespace dual_annealing;
 
 extern "C" {
-double* optimizeDA_C(long runid, callback_type func, int dim, int seed,
+void optimizeDA_C(long runid, callback_type func, int dim, int seed,
         double *init, double *lower, double *upper, int maxEvals,
-        bool use_local_search) {
+        bool use_local_search, double* res) {
     int n = dim;
-    double *res = new double[n + 4];
     vec guess(n), lower_limit(n), upper_limit(n);
     bool useLimit = false;
     for (int i = 0; i < n; i++) {
@@ -689,10 +688,8 @@ double* optimizeDA_C(long runid, callback_type func, int dim, int seed,
         res[n + 1] = fitfun.getEvaluations();
         res[n + 2] = 0;
         res[n + 3] = 0;
-        return res;
     } catch (std::exception &e) {
         cerr << e.what() << endl;
-        return res;
     }
 }
 }

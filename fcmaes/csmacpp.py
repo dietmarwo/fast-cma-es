@@ -16,7 +16,7 @@ import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
 from fcmaes.cmaes import _check_bounds
-from fcmaes.cmaescpp import libcmalib, freemem
+from fcmaes.cmaescpp import libcmalib
 from fcmaes.dacpp import call_back_type
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
@@ -87,17 +87,17 @@ def minimize(fun,
         stop_fittness = -math.inf   
     array_type = ct.c_double * n 
     c_callback = call_back_type(callback(fun))
+    res = np.empty(n+4)
+    res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        res = optimizeCsma_C(runid, c_callback, n, int(rg.uniform(0, 2**32 - 1)), 
-                           array_type(*guess), array_type(*lower), array_type(*upper), 
-                           array_type(*input_sigma), max_evaluations, stop_fittness, popsize)
-
-        x = np.array(np.fromiter(res, dtype=np.float64, count=n))
+        optimizeCsma_C(runid, c_callback, n, int(rg.uniform(0, 2**32 - 1)), 
+                array_type(*guess), array_type(*lower), array_type(*upper), 
+                array_type(*input_sigma), max_evaluations, stop_fittness, popsize, res_p)
+        x = res[:n]
         val = res[n]
         evals = int(res[n+1])
         iterations = int(res[n+2])
         stop = int(res[n+3])
-        freemem(res)
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
@@ -117,6 +117,5 @@ class callback(object):
 optimizeCsma_C = libcmalib.optimizeCsma_C
 optimizeCsma_C.argtypes = [ct.c_long, call_back_type, ct.c_int, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_int]
-
-optimizeCsma_C.restype = ct.POINTER(ct.c_double)         
+            ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_int, ct.POINTER(ct.c_double)]
+        

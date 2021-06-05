@@ -8,6 +8,7 @@ import math
 import os
 import sys
 import ctypes as ct
+from scipy import interpolate
 import numpy as np
 from numpy.random import Generator, MT19937, SeedSequence
 from scipy.optimize._constraints import new_bounds_to_old
@@ -16,6 +17,7 @@ import multiprocessing as mp
 from multiprocessing import Process
 from fcmaes.optimizer import de_cma, dtime, logger
 
+
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
@@ -23,7 +25,7 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 def minimize(fun, 
              bounds = None, 
              value_limit = math.inf,
-             num_retries = 1000,
+             num_retries = 1024,
              logger = None,
              workers = mp.cpu_count(),
              popsize = 31, 
@@ -84,32 +86,95 @@ def minimize(fun,
 
     if optimizer is None:
         optimizer = de_cma(max_evaluations, popsize, stop_fitness)        
-    store = Store(bounds, capacity = capacity, logger = logger, statistic_num = statistic_num)
-    return retry(fun, store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
+    store = Store(fun, bounds, capacity = capacity, logger = logger, statistic_num = statistic_num)
+    return retry(store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
                  
-def retry(fun, store, optimize, num_retries, value_limit = math.inf, 
+def retry(store, optimize, num_retries, value_limit = math.inf, 
           workers=mp.cpu_count(), stop_fitness = -math.inf):
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
-            args=(pid, rgs, fun, store, optimize, num_retries, value_limit, stop_fitness)) for pid in range(workers)]
+            args=(pid, rgs, store, optimize, num_retries, value_limit, stop_fitness)) for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
     store.sort()
     store.dump()
     return OptimizeResult(x=store.get_x_best(), fun=store.get_y_best(), 
                           nfev=store.get_count_evals(), success=True)
+
+def minimize_plot(name, optimizer, fun, bounds, value_limit = math.inf, 
+            plot_limit = math.inf, num_retries = 1024, 
+            workers = mp.cpu_count(), logger=logger(), 
+            stop_fitness = -math.inf, statistic_num = 5000):
+    time0 = time.perf_counter() # optimization start time
+    name += '_' + optimizer.name
+    logger.info('optimize ' + name)       
+    store = Store(fun, bounds, capacity = 500, logger = logger, statistic_num = statistic_num)
+    ret = retry(store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
+    impr = store.get_improvements()
+    np.savez_compressed(name, ys=impr)
+    filtered = np.array([imp for imp in impr if imp[1] < plot_limit])
+    if len(filtered) > 0: impr = filtered
+    logger.info(name + ' time ' + str(dtime(time0))) 
+    plot(impr, 'progress_ret.' + name + '.png', label = name, 
+         xlabel = 'time in sec', ylabel = r'$f$')
+    return ret
+
+def plot(front, fname, interp=True, label=r'$\chi$', 
+         xlabel = r'$f_1$', ylabel = r'$f_2$', zlabel = r'$f_3$'):
+    if len(front[0]) == 3:
+        return plot3(front, fname, label, xlabel, ylabel, zlabel)
+    if len(front[0]) > 3:
+        return plot3(front.T[:3].T, fname)        
+    import matplotlib.pyplot as pl
+    fig, ax = pl.subplots(1, 1)
+    x = front[:, 0]; y = front[:, 1]
+    if interp:
+        xa = np.argsort(x)
+        xs = x[xa]; ys = y[xa]
+        x = []; y = []
+        for i in range(len(xs)): # filter equal x values
+            if i == 0 or xs[i] > xs[i-1] + 1E-5:
+                x.append(xs[i]); y.append(ys[i])
+        tck = interpolate.InterpolatedUnivariateSpline(x,y,k=1)
+        x = np.linspace(min(x),max(x),1000)
+        y = [tck(xi) for xi in x]
+    ax.scatter(x, y, label=label, s=1)
+    ax.grid()
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.legend()
+    fig.savefig(fname, dpi=300)
+    pl.close('all')
+
+def plot3(front, fname, label=r'$\chi$', 
+         xlabel = r'$f_1$', ylabel = r'$f_2$', zlabel = r'$f_3$'):
+    import matplotlib.pyplot as pl
+    fig = pl.figure()
+    ax = fig.add_subplot(projection='3d')
+    x = front[:, 0]; y = front[:, 1]; z = front[:, 2]
+    ax.scatter(x, y, z, label=label, s=1)
+    ax.grid()
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_zlabel(zlabel)
+    ax.legend()
+    pl.show()
+    fig.savefig(fname, dpi=300)
+    pl.close('all')
  
 class Store(object):
     """thread safe storage for optimization retry results."""
        
     def __init__(self, 
+                 fun, # fitness function
                  bounds, # bounds of the objective function arguments
                  check_interval = 10, # sort evaluation memory after check_interval iterations
                  capacity = 500, # capacity of the evaluation store
                  logger = None, # if None logging is switched off
                  statistic_num=0
                 ):    
+        self.fun = fun
         self.lower, self.upper = _convertBounds(bounds)
         self.logger = logger
         self.capacity = capacity
@@ -137,36 +202,47 @@ class Store(object):
 
         # statistics                            
         if statistic_num > 0:  # enable statistics                          
-            self.statistic_num = 1000
+            self.statistic_num = statistic_num
             self.time = mp.RawArray(ct.c_double, self.statistic_num)
             self.val = mp.RawArray(ct.c_double, self.statistic_num)
             self.si = mp.RawValue(ct.c_int, 0)
+            self.sevals = mp.RawValue(ct.c_long, 0)
+            self.bval = mp.RawValue(ct.c_double, math.inf)
 
-    # store improvement - time and value
-    def add_statistics(self):
-        if self.statistic_num > 0:
+    # register improvement - time and value
+    def wrapper(self, x):
+        y = self.fun(x)
+        self.sevals.value += 1
+        if y < self.bval.value:
+            self.bval.value = y
             si = self.si.value
             if si < self.statistic_num - 1:
                 self.si.value = si + 1
             self.time[si] = dtime(self.t0)
-            self.val[si] = self.best_y.value  
-        
+            self.val[si] = y  
+            if not self.logger is None:
+                self.logger.info(str(self.time[si]) + ' '  + 
+                          str(self.sevals.value) + ' ' + 
+                          str(y) + ' ' + 
+                          str(list(x)))
+        return y
+         
     def get_improvements(self):
-        return zip(self.time[:self.si.value], self.val[:self.si.value])
- 
+        return np.array(list(zip(self.time[:self.si.value], self.val[:self.si.value])))
+        
     # get num best values at evenly distributed times
     def get_statistics(self, num):
         ts = self.time[:self.si.value]
-        vs = self.val[:self.si.value]
+        ys = self.val[:self.si.value]
         mt = ts[-1]
         dt = 0.9999999 * mt / num
         conv = []
         ti = 0
-        val = vs[0]
+        val = ys[0]
         for i in range(num):
             while ts[ti] < (i+1) * dt:
                 ti += 1
-                val = vs[ti]
+                val = ys[ti]
             conv.append(val)
         return conv
     
@@ -203,7 +279,6 @@ class Store(object):
                 if y < self.best_y.value:
                     self.best_y.value = y
                     self.best_x[:] = xs[:]
-                    self.add_statistics()
                     self.dump()
                 if self.num_stored.value >= self.capacity-1:
                     self.sort()
@@ -281,8 +356,8 @@ class Store(object):
         self.logger.info(message)
 
         
-def _retry_loop(pid, rgs, fun, store, optimize, num_retries, value_limit, stop_fitness = -math.inf):
-    
+def _retry_loop(pid, rgs, store, optimize, num_retries, value_limit, stop_fitness = -math.inf):
+    fun = store.wrapper if store.statistic_num > 0 else store.fun
     #reinitialize logging config for windows -  multi threading fix
     if 'win' in sys.platform and not store.logger is None:
         store.logger = logger()

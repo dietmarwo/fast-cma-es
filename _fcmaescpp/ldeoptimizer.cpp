@@ -371,11 +371,10 @@ private:
 using namespace l_differential_evolution;
 
 extern "C" {
-double* optimizeLDE_C(long runid, callback_type func, int dim, double *init,
+void optimizeLDE_C(long runid, callback_type func, int dim, double *init,
         double *sigma, int seed, double *lower, double *upper, int maxEvals,
-        double keep, double stopfitness, int popsize, double F, double CR) {
+        double keep, double stopfitness, int popsize, double F, double CR, double* res) {
     int n = dim;
-    double *res = new double[n + 4];
     vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
     bool useLimit = false;
     for (int i = 0; i < n; i++) {
@@ -404,10 +403,8 @@ double* optimizeLDE_C(long runid, callback_type func, int dim, double *init,
         res[n + 1] = fitfun.getEvaluations();
         res[n + 2] = opt.getIterations();
         res[n + 3] = opt.getStop();
-        return res;
     } catch (std::exception &e) {
         cout << e.what() << endl;
-        return res;
     }
 }
 }

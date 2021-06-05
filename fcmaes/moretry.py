@@ -6,14 +6,13 @@
 # parallel optimization retry of a multi-objective problem.
 
 import numpy as np
-import math, sys
+import math, sys, time
 import multiprocessing as mp
 from multiprocessing import Process
 from scipy.optimize import Bounds
-from scipy import interpolate
 from numpy.random import Generator, MT19937, SeedSequence
-from fcmaes.optimizer import de_cma, logger
-from fcmaes import retry
+from fcmaes.optimizer import de_cma, logger, dtime
+from fcmaes import retry, advretry
 
 def minimize(fun,             
              bounds,
@@ -80,7 +79,7 @@ def minimize(fun,
         optimizer = de_cma(max_evaluations, popsize)  
     if capacity is None: 
         capacity = num_retries
-    store = retry.Store(bounds, capacity = capacity, logger = logger, statistic_num = statistic_num)
+    store = retry.Store(fun, bounds, capacity = capacity, logger = logger, statistic_num = statistic_num)
     xs = np.array(mo_retry(fun, weight_bounds, value_exp, 
                            store, optimizer.minimize, num_retries, value_limits, workers))
     ys = np.array([fun(x) for x in xs])
@@ -138,54 +137,48 @@ class mo_wrapper(object):
         self.nobj = len(weights)
         self.weights = weights 
         self.y_exp = y_exp
- 
+
     def eval(self, x):
         y = self.fun(np.array(x))
         return _avg_exp(self.weights*y, self.y_exp)
 
     def mo_eval(self, x):
         return self.fun(np.array(x))
+    
+def minimize_plot(name, optimizer, fun, bounds, weight_bounds, 
+                  value_limits = None, num_retries = 1024, 
+             exp = 2.0, workers = mp.cpu_count(), logger=logger(), statistic_num = 0):
+    time0 = time.perf_counter() # optimization start time
+    name += ' ' + optimizer.name
+    logger.info('optimize ' + name) 
+    xs, ys = minimize(fun, bounds,weight_bounds, 
+             value_exp = exp,
+             value_limits = value_limits,
+             num_retries = num_retries,              
+             optimizer = optimizer,
+             workers = workers,
+             logger=logger, statistic_num = statistic_num)
+    retry.plot(ys, 'all_.' + name + '.png', interp=False)
+    np.savez_compressed(name, xs=xs, ys=ys)
+    xs, front = pareto(xs, ys)
+    logger.info(name + ' time ' + str(dtime(time0))) 
+    retry.plot(front, 'front_.' + name + '.png')
 
-def plot(front, fname, interp=True):
-    if len(front[0]) == 3:
-        return plot3(front, fname)
-    if len(front[0]) > 3:
-        return plot3(front.T[:3].T, fname)        
-    import matplotlib.pyplot as pl
-    fig, ax = pl.subplots(1, 1)
-    x = front[:, 0]; y = front[:, 1]
-    if interp:
-        xa = np.argsort(x)
-        xs = x[xa]; ys = y[xa]
-        x = []; y = []
-        for i in range(len(xs)): # filter equal x values
-            if i == 0 or xs[i] > xs[i-1] + 1E-5:
-                x.append(xs[i]); y.append(ys[i])
-        tck = interpolate.InterpolatedUnivariateSpline(x,y,k=1)
-        x = np.linspace(min(x),max(x),1000)
-        y = [tck(xi) for xi in x]
-    ax.scatter(x, y, label=r"$\chi$", s=1)
-    ax.grid()
-    ax.set_xlabel(r'$f_1$')
-    ax.set_ylabel(r'$f_2$')
-    ax.legend()
-    fig.savefig(fname, dpi=300)
-    pl.close('all')
-
-def plot3(front, fname):
-    import matplotlib.pyplot as pl
-    fig = pl.figure()
-    ax = fig.add_subplot(projection='3d')
-    x = front[:, 0]; y = front[:, 1]; z = front[:, 2]
-    ax.scatter(x, y, z, label=r"$\chi$", s=1)
-    ax.grid()
-    ax.set_xlabel(r'$f_1$')
-    ax.set_ylabel(r'$f_2$')
-    ax.set_zlabel(r'$f_3$')
-    ax.legend()
-    pl.show()
-    fig.savefig(fname, dpi=300)
-    pl.close('all')
+def adv_minimize_plot(name, optimizer, fun, bounds,
+                   value_limit = math.inf, num_retries = 1024, logger=logger(), statistic_num = 0):
+    time0 = time.perf_counter() # optimization start time
+    name += ' ' + optimizer.name
+    logger.info('smart optimize ' + name) 
+    store = advretry.Store(lambda x:fun(x)[0], bounds, capacity=5000, logger=logger, 
+                           num_retries=num_retries, statistic_num = statistic_num) 
+    advretry.retry(store, optimizer.minimize, num_retries, value_limit)
+    xs = np.array(store.get_xs())
+    ys = np.array([fun(x) for x in xs])
+    retry.plot(ys, 'all_smart.' + name + '.png', interp=False)
+    np.savez_compressed(name , xs=xs, ys=ys)
+    xs, front = pareto(xs, ys)
+    logger.info(name+ ' time ' + str(dtime(time0))) 
+    retry.plot(front, 'front_smart.' + name + '.png')
 
 def _avg_exp(y, y_exp):
     return sum([y[i]**y_exp for i in range(len(y))])**(1.0/y_exp)

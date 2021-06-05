@@ -8,9 +8,12 @@
 
 import math
 from fcmaes.astro import MessFull, Messenger, Gtoc1, Cassini1, Cassini2, Rosetta, Tandem, Sagas, Cassini1minlp
-from fcmaes.optimizer import logger, de_cma, de2_cma, da_cma, Cma_cpp, De_cpp, Da_cpp, Csma_cpp, Bite_cpp, Hh_cpp, Dual_annealing, Differential_evolution
-from fcmaes.retry import minimize
-            
+from fcmaes.optimizer import logger, De_python, De_ask_tell, de_cma, de2_cma, da_cma, Cma_cpp, De_cpp, Da_cpp, Csma_cpp, Bite_cpp, Hh_cpp, Dual_annealing, Differential_evolution
+from fcmaes import retry
+
+import numpy as np
+from scipy.optimize import Bounds
+
 problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), MessFull(), Sagas(), Cassini1minlp()]
 
 max_evals = 50000
@@ -26,8 +29,10 @@ def test_all(num_retries = 10000, num = 1):
 def _test_optimizer(opt, problem, num_retries = 32, num = 1):
     log = logger()
     log.info(problem.name + ' ' + opt.name)
-    for _ in range(num):
-        minimize(problem.fun, problem.bounds, math.inf, num_retries, log, optimizer=opt)
+    for i in range(num):
+        name = str(i+1) + ' ' + problem.name if num > 1 else problem.name
+        retry.minimize_plot(name, opt, problem.fun, problem.bounds, 
+                            math.inf, 10.0, num_retries, logger=log)
 
 def main():
         

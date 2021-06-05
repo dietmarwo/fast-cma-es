@@ -3,6 +3,12 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
+# Provides a Python wrapper to the C-version of the 
+# "Easy-to-use Real-world Multi-objective Optimization Problem Suite"
+# https://github.com/ryojitanabe/reproblems
+# https://github.com/ryojitanabe/reproblems/blob/master/doc/re-supplementary_file.pdf
+# https://arxiv.org/abs/2009.12867
+
 import sys
 import math
 import os
@@ -69,16 +75,26 @@ class re_problem(object):
         y = objectives_re(self.name, x, self.numVars, self.numObjs)
         return y
 
-from fcmaes.optimizer import de_cma, Bite_cpp
-from fcmaes import moretry
-from moexamples import mo_retry
+from fcmaes.optimizer import de_cma, Bite_cpp, Cma_cpp, dtime, logger
+from fcmaes import moretry, advretry
+
+def minimize_plot(problem, opt, name, exp = 2.0, num_retries = 1024, value_limits=None):
+    moretry.minimize_plot(problem.name + '_' + name, opt, 
+                          problem.fun, problem.bounds, problem.weight_bounds, 
+                          num_retries = num_retries, exp = exp, value_limits = value_limits)
+
+def adv_minimize_plot(problem, opt, name, value_limit = math.inf, num_retries = 10240):
+    moretry.adv_minimize_plot(problem.name + '_' + name, opt, 
+                              problem.fun, problem.bounds, value_limit = value_limit,
+                              num_retries = num_retries)
 
 def main():
-    rep = re_problem('RE21', weight_bounds = Bounds([0, 10], [0.001, 100]) )
+    #numVars, numObjs, numConstr, lower, upper = bounds_re('RE21')
+    #rep = re_problem('RE21', weight_bounds = Bounds([0, 10], [0.001, 100]) )
     #rep = re_problem('RE31', weight_bounds = Bounds([0.1, 0.0001, 0.1], [1, 0.001, 1]) )
     #rep = re_problem('RE24', weight_bounds = Bounds([0.1, 0.1], [1, 1]) )
-    #rep = re_problem('RE42', weight_bounds = Bounds([0.2, 0.2, 0.2, 1000], [1, 1, 1, 1000]) )
-    mo_retry(rep, de_cma(10000), '_decma_front', num_retries = 3200, exp = 2.0)
+    rep = re_problem('RE42', weight_bounds = Bounds([0.2, 0.2, 0.2, 1000], [1, 1, 1, 1000]) )
+    minimize_plot(rep, de_cma(1000), '_decma', num_retries = 320, exp = 2.0)
 
 if __name__ == '__main__':
     main()

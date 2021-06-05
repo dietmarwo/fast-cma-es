@@ -621,13 +621,12 @@ private:
 using namespace acmaes;
 
 extern "C" {
-double* optimizeACMA_C(long runid, callback_parallel func_par, int dim,
+void optimizeACMA_C(long runid, callback_parallel func_par, int dim,
         double *init, double *lower, double *upper, double *sigma, int maxIter,
         int maxEvals, double stopfitness, int mu, int popsize, double accuracy,
         bool useTerminate, is_terminate_type isTerminate, long seed,
-        bool normalize, int update_gap) {
+        bool normalize, int update_gap, double* res) {
     int n = dim;
-    double *res = new double[n + 4];
     vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
     bool useLimit = false;
     for (int i = 0; i < n; i++) {
@@ -656,16 +655,8 @@ double* optimizeACMA_C(long runid, callback_parallel func_par, int dim,
         res[n + 1] = fitfun.getEvaluations();
         res[n + 2] = opt.getIterations();
         res[n + 3] = opt.getStop();
-        return res;
     } catch (std::exception &e) {
         cout << e.what() << endl;
-        return res;
     }
-}
-}
-
-extern "C" {
-void free_mem(double *a) {
-    delete[] a;
 }
 }

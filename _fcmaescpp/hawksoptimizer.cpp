@@ -353,11 +353,10 @@ private:
 using namespace harris_hawks;
 
 extern "C" {
-double* optimizeHH_C(long runid, callback_type func, int dim, int seed,
+void optimizeHH_C(long runid, callback_type func, int dim, int seed,
         double *lower, double *upper, int maxEvals, double stopfitness,
-        int popsize) {
+        int popsize, double* res) {
     int n = dim;
-    double *res = new double[n + 4];
     vec lower_limit(n), upper_limit(n);
     bool useLimit = false;
     for (int i = 0; i < n; i++) {
@@ -382,10 +381,8 @@ double* optimizeHH_C(long runid, callback_type func, int dim, int seed,
         res[n + 1] = fitfun.getEvaluations();
         res[n + 2] = opt.getIterations();
         res[n + 3] = opt.getStop();
-        return res;
     } catch (std::exception &e) {
         cout << e.what() << endl;
-        return res;
     }
 }
 }

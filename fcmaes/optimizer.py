@@ -10,6 +10,8 @@ import sys
 import time
 import math
 import logging
+import ctypes as ct
+import multiprocessing as mp 
 
 from fcmaes import cmaes, de, cmaescpp, decpp, dacpp, hhcpp, gcldecpp, lcldecpp, ldecpp, csmacpp, bitecpp
 
@@ -61,6 +63,29 @@ def random_x(lower, upper):
 def dtime(t0):
     """time since t0."""
     return round(time.perf_counter() - t0, 2)
+
+class wrapper(object):
+    """Fitness function wrapper for use with parallel retry."""
+
+    def __init__(self, fit, logger = logger()):
+        self.fit = fit
+        self.evals = mp.RawValue(ct.c_int, 0) 
+        self.best_y = mp.RawValue(ct.c_double, math.inf) 
+        self.t0 = time.perf_counter()
+        self.logger = logger
+
+    def __call__(self, x):
+        self.evals.value += 1
+        y = self.fit(x)
+        y0 = y if np.isscalar(y) else sum(y)
+        if y0 < self.best_y.value:
+            self.best_y.value = y0
+            if not logger is None:
+                self.logger.info(str(dtime(self.t0)) + ' '  + 
+                          str(self.evals.value) + ' ' + 
+                          str(self.best_y.value) + ' ' + 
+                          str(list(x)))
+        return y
 
 class Optimizer(object):
     """Provides different optimization methods for use with parallel retry."""
@@ -390,6 +415,27 @@ class De_ask_tell(Optimizer):
             if stop != 0:
                 break 
         return es.best_x, es.best_value, es.evals
+
+class random_search(Optimizer):
+    """Random search."""
+   
+    def __init__(self, max_evaluations=50000):        
+        Optimizer.__init__(self, max_evaluations, 'random')
+ 
+    def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
+        dim, x_min, y_min = len(bounds.lb), None, None
+        max_chunk_size = 1 + 4e4 / dim
+        evals = self.max_eval_num(store)
+        budget = evals
+        while budget > 0:
+            chunk = int(max([1, min([budget, max_chunk_size])]))
+            X = rg.uniform(bounds.lb, bounds.ub, size = [chunk, dim])
+            F = [fun(x) for x in X]
+            index = np.argmin(F) if len(F) else None
+            if index is not None and (y_min is None or F[index] < y_min):
+                x_min, y_min = X[index], F[index]
+            budget -= chunk
+        return x_min, y_min, evals
 
 class LDe_cpp(Optimizer):
     """Local Differential Evolution C++ implementation."""

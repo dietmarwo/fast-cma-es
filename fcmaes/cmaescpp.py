@@ -112,18 +112,18 @@ def minimize(fun,
     array_type = ct.c_double * n 
     c_callback_par = call_back_par(callback_par(fun, parfun))
     c_is_terminate = is_terminate_type(is_terminate)
+    res = np.empty(n+4)
+    res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        res = optimizeACMA_C(runid, c_callback_par, n, array_type(*guess), array_type(*lower), array_type(*upper), 
-                           array_type(*input_sigma), max_iterations, max_evaluations, stop_fitness, mu, 
-                           popsize, accuracy, use_terminate, c_is_terminate, 
-                           int(rg.uniform(0, 2**32 - 1)), normalize, -1 if update_gap is None else update_gap)
-
-        x = np.array(np.fromiter(res, dtype=np.float64, count=n))
+        optimizeACMA_C(runid, c_callback_par, n, array_type(*guess), array_type(*lower), array_type(*upper), 
+                array_type(*input_sigma), max_iterations, max_evaluations, stop_fitness, mu, 
+                popsize, accuracy, use_terminate, c_is_terminate, 
+                int(rg.uniform(0, 2**32 - 1)), normalize, -1 if update_gap is None else update_gap, res_p)
+        x = res[:n]
         val = res[n]
         evals = int(res[n+1])
         iterations = int(res[n+2])
         stop = int(res[n+3])
-        freemem(res)
         if not parfun is None:
             parfun.stop() # stop all parallel evaluation processes
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
@@ -193,10 +193,6 @@ optimizeACMA_C = libcmalib.optimizeACMA_C
 optimizeACMA_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.POINTER(ct.c_double), ct.c_int, ct.c_int, ct.c_double, ct.c_int, ct.c_int, \
-            ct.c_double, ct.c_bool, is_terminate_type, ct.c_long, ct.c_bool, ct.c_int]
+            ct.c_double, ct.c_bool, is_terminate_type, ct.c_long, ct.c_bool, ct.c_int, ct.POINTER(ct.c_double)]
 
-optimizeACMA_C.restype = ct.POINTER(ct.c_double)         
-
-freemem = libcmalib.free_mem
-freemem.argtypes = [ct.POINTER(ct.c_double)]
 

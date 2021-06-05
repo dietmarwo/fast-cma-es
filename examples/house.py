@@ -116,11 +116,6 @@ if grid_search:
     #visualize the best couple of parameters
     print (gsearch.best_params_) 
 
-# shared with all parallel processes
-best_f = mp.RawValue(ct.c_double, -math.inf) 
-f_evals = mp.RawValue(ct.c_int, 0) 
-t0 = time.perf_counter()
-
 from fcmaes.optimizer import logger
 logger = logger("house.log")
 
@@ -142,18 +137,32 @@ def cv_score(X):
                          ), 
                 train_x, train_y, scoring='neg_mean_squared_error').mean()
 
-    score = np.array(score)
-    
-    global f_evals
-    f_evals.value += 1
-    global best_f
-    if best_f.value < score:
-        best_f.value = score
+    return np.array(score)
 
-    logger.info("time = {0:.1f} y = {1:.5f} f(xmin) = {2:.5f} nfev = {3} {4}"
-          .format(dtime(t0), score, best_f.value, f_evals.value, X))
+def obj_f(X):
+    return -cv_score([X])
 
-    return score
+class cv_problem(object):
+
+    def __init__(self, pfun, bounds):
+        self.name = "cv_score"
+        self.dim = len(bounds.lb)
+        self.pfun = pfun
+        self.bounds = bounds
+        self.evals = mp.RawValue(ct.c_int, 0) 
+        self.best_y = mp.RawValue(ct.c_double, math.inf) 
+        self.t0 = time.perf_counter()
+
+    def fun(self, x):
+        self.evals.value += 1
+        y = self.pfun(x)
+        if y < self.best_y.value:
+            self.best_y.value = y
+            logger.info(str(dtime(self.t0)) + ' '  + 
+                          str(self.evals.value) + ' ' + 
+                          str(self.best_y.value) + ' ' + 
+                          str(list(x)))
+        return y
 
 # hyperopt TPE
 
@@ -177,9 +186,6 @@ if hyperopt:
     best = fmin(fn = obj_fmin, space = xgb_space, algo = tpe.suggest, 
                     max_evals = 2000, verbose=False)
 
-
-def obj_f(X):
-    return -cv_score([X])
 
 # Bayesian optimization
 
@@ -220,18 +226,19 @@ if evolutionary and __name__ == '__main__':
     
     bounds = Bounds([0.4, 0, 1.5, 0.07, 3, 1e-5, 1e-5, 0.6], [0.8, 0.3, 10, 0.1, 5.99, 0.75, 0.45, 0.95])
  
-    #ret = bitecpp.minimize(obj_f, bounds, max_evaluations = 20000)
+    problem = cv_problem(obj_f, bounds)
+    #ret = bitecpp.minimize(problem.fun, problem.bounds, max_evaluations = 20000)
     
     # for cmaescpp, cmaes and de with multiple workers set n_jobs=1 in XGBRegressor
     
-    #ret = cmaescpp.minimize(obj_f, bounds, popsize=32, max_evaluations = 20000, workers=mp.cpu_count())
-    #ret = decpp.minimize(obj_f, 8, bounds, popsize=16, max_evaluations = 20000)
+    #ret = cmaescpp.minimize(problem.fun, problem.bounds, popsize=32, max_evaluations = 20000, workers=mp.cpu_count())
+    #ret = decpp.minimize(problem.fun, problem.dim, problem.bounds, popsize=16, max_evaluations = 20000)
     
     # delayed state update
-    ret = cmaes.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, 
+    ret = cmaes.minimize(problem.fun, problem.bounds, popsize=16, max_evaluations = 20000, 
                           workers=mp.cpu_count(), delayed_update=True)
     
-    #ret = de.minimize(obj_f, 8, bounds, popsize = 16, max_evaluations = 20000, workers=mp.cpu_count())
+    #ret = de.minimize(problem.fun, problem.dim, problem.bounds, popsize = 16, max_evaluations = 20000, workers=mp.cpu_count())
 
 
     

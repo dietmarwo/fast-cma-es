@@ -11,9 +11,8 @@ import math
 import time
 import glob
 from scipy.optimize import Bounds
-from numpy.random import Generator, MT19937
-from fcmaes.optimizer import de_cma, Bite_cpp, Cma_cpp, dtime, logger
-from fcmaes import moretry, advretry
+from fcmaes.optimizer import de_cma, Bite_cpp, random_search, dtime, logger
+from fcmaes import moretry, retry
 from deap import base
 from deap import creator
 from deap import tools
@@ -27,7 +26,7 @@ class cassini1_mo:
     def __init__(self):
         self.base = Cassini1()
         self.bounds = self.base.bounds
-        self.weight_bounds = Bounds([10, 0.01], [1000, 1]) # weighting of objectives
+        self.weight_bounds = Bounds([1, 0.01], [100, 1]) # weighting of objectives
         self.name = self.base.name
  
     def fun(self, x):
@@ -43,7 +42,7 @@ class cassini2_mo:
     def __init__(self):
         self.base = Cassini2()
         self.bounds = self.base.bounds
-        self.weight_bounds = Bounds([10, 0.01], [1000, 1]) # weighting of objectives
+        self.weight_bounds = Bounds([1, 0.01], [100, 1]) # weighting of objectives
         self.name = self.base.name
  
     def fun(self, x):
@@ -193,56 +192,6 @@ def nsgaII(NObj, objective, pbounds, seed=None, NGEN=20000, MU=400, CXPB=0.9):
 
     front = np.array([ind.fitness.values for ind in pop])
     return pop, logbook, front
-
-def monte_carlo(fun, bounds, n=500000, value_limits=None):
-    rg = Generator(MT19937())
-    ys = []
-    for _ in range(n):
-        x = rg.uniform(bounds.lb, bounds.ub)
-        y = fun(x)
-        if value_limits is None or all([y[i] < value_limits[i] for i in range(len(y))]):
-            ys.append(y)
-    ys = np.array(ys)
-    pareto = moretry._pareto(ys)
-    return ys[pareto]
-    
-def mo_retry(problem, opt, fname, value_limits = None, num_retries = 1024, exp = 2.0):
-    time0 = time.perf_counter() # optimization start time
-    name = problem.name 
-    logger().info('optimize ' + name + ' ' + opt.name) 
-    xs, ys = moretry.minimize(problem.fun,
-             problem.bounds, problem.weight_bounds, 
-             value_exp = exp,
-             value_limits = value_limits,
-             num_retries = num_retries,              
-             optimizer = opt,
-             logger=logger())
-    np.savez_compressed(name + '_' + fname, xs=xs, ys=ys)
-    xs, front = moretry.pareto(xs, ys)
-    logger().info(name + ' ' + opt.name + ' time ' + str(dtime(time0))) 
-    moretry.plot(front, name + '_' + fname + '.png')
-
-def mo_adv_retry(problem, opt, fname, value_limit = math.inf, num_retries = 1024):
-    time0 = time.perf_counter() # optimization start time
-    name = problem.name 
-    logger().info('smart optimize ' + name + ' ' + opt.name) 
-    store = advretry.Store(problem.bounds, capacity=5000, logger=logger(), 
-                           num_retries=num_retries) 
-    ret = advretry.retry(problem.base.fun, store, opt.minimize, num_retries, value_limit)
-    xs = np.array(store.get_xs())
-    ys = np.array([problem.fun(x) for x in xs])
-    np.savez_compressed(name + '_' + fname, xs=xs, ys=ys)
-    xs, front = moretry.pareto(xs, ys)
-    logger().info(name + ' ' + opt.name + ' time ' + str(dtime(time0))) 
-    moretry.plot(front, name + '_' + fname + '.png')
-
-def monte(problem, fname, n=500000, value_limits = None):
-    time0 = time.perf_counter() # optimization start time
-    name = problem.name 
-    logger().info('monte carlo ' + name) 
-    front = monte_carlo(problem.fun, problem.bounds, n=n, value_limits=value_limits)
-    logger().info(name + ' monte carlo time ' + str(dtime(time0))) 
-    moretry.plot(front, 'monte_' +  name + '_' +  fname)
   
 def nsgaII_test(problem, fname, NGEN=2000, MU=100, value_limits = None):
     time0 = time.perf_counter() # optimization start time
@@ -251,10 +200,11 @@ def nsgaII_test(problem, fname, NGEN=2000, MU=100, value_limits = None):
     pbounds = np.array(list(zip(problem.bounds.lb, problem.bounds.ub)))
     pop, logbook, front = nsgaII(2, problem.fun, pbounds, NGEN=NGEN, MU=MU) 
     logger().info(name + ' nsgaII time ' + str(dtime(time0)))    
+    np.savez_compressed(name, xs=pop, ys=front)
     if not value_limits is None:
         front = np.array(
             [y for y in front if all([y[i] < value_limits[i] for i in range(len(y))])])
-    moretry.plot(front, 'nsgaII_' + name + '_' + fname)
+    retry.plot(front, 'nsgaII_' + str(NGEN) + '_' + str(MU) + name + '_' + fname)
    
 def plot_all(folder, fname):
     files = glob.glob(folder + '/*.npz', recursive=True)
@@ -266,44 +216,70 @@ def plot_all(folder, fname):
             ys += list(data['ys'])
     xs = np.array(xs); ys = np.array(ys)         
     xs, front = moretry.pareto(xs, ys)
-    moretry.plot(ys, fname + '_all.png', interp=False)
-    moretry.plot(front, fname + '_front.png')
+    retry.plot(ys, fname + '_all.png', interp=False)
+    retry.plot(front, fname + '_front.png')
+
+def minimize_plot(problem, opt, name, exp = 2.0, num_retries = 1024, value_limits=None):
+    moretry.minimize_plot(problem.name + '_' + name, opt, 
+                          problem.fun, problem.bounds, problem.weight_bounds, 
+                          num_retries = num_retries, exp = exp, value_limits = value_limits)
+
+def adv_minimize_plot(problem, opt, name, value_limit = math.inf, num_retries = 10240):
+    moretry.adv_minimize_plot(problem.name + '_' + name, opt, 
+                              problem.fun, problem.bounds, value_limit = value_limit,
+                              num_retries = num_retries)
 
 if __name__ == '__main__':
-        
-    mo_retry(cassini1_mo(), Bite_cpp(M=16), '_bite_front', value_limits=[40, 2300])
-    mo_retry(cassini2_mo(), Bite_cpp(M=16), '_bite_front', value_limits=[40, 2000])
     
-    mo_retry(cassini1_mo(), de_cma(), '_decma_front', value_limits=[40, 2300])
-    mo_retry(cassini2_mo(), de_cma(), '_decma_front', value_limits=[40, 2000])
+    #plot_all("data/*", "cassall")
+    # import sys
+    # sys.exit()
+    minimize_plot(zdt1(20), Bite_cpp(M=16), '50k1k')
+    minimize_plot(schaffer(20), Bite_cpp(M=16), '50k1k')
+    minimize_plot(poloni(20), Bite_cpp(M=16), '50k1k', exp=1.0)
+    minimize_plot(fonseca(20), Bite_cpp(M=16), '50k1k', exp=3.0)
+#     
+#     minimize_plot(zdt1(20), de_cma(), '50k1k')
+#     minimize_plot(schaffer(20), de_cma(), '50k1k')
+#     minimize_plot(poloni(20), de_cma(), '50k1k', exp=1.0)
+#     minimize_plot(fonseca(20), de_cma(), '50k1k', exp=3.0)
+#         
+#     minimize_plot(zdt1(20), random_search(), '50k1k')
+#     minimize_plot(schaffer(20), random_search(), '50k1k')
+#     minimize_plot(poloni(20), random_search(), '50k1k', exp=1.0)
+#     minimize_plot(fonseca(20), random_search(), '50k1k', exp=3.0)
+#     
+#     minimize_plot(cassini1_mo(), de_cma(50000), '50k4k', num_retries=4096, value_limits=[40, 7000])    
+#     minimize_plot(cassini1_mo(), Bite_cpp(50000, M=16), '50k4k', num_retries=4096, value_limits=[40, 7000])
+#     minimize_plot(cassini1_mo(), random_search(50000), '50k4k', num_retries=4096, value_limits=[40, 7000])
+#     
+#     minimize_plot(cassini2_mo(), de_cma(50000), '50k4k', num_retries=4096, value_limits=[40, 7000])   
+#     minimize_plot(cassini2_mo(), Bite_cpp(50000, M=16), '50k4k', num_retries=4096, value_limits=[40, 7000])
+#     minimize_plot(cassini2_mo(), random_search(50000), '50k4k', num_retries=4096, value_limits=[40, 7000])
+#     
+#     minimize_plot(tandem_mo(), de_cma(100000), '100k10k', num_retries=10240, exp=1.0)
+#     minimize_plot(tandem_mo(), Bite_cpp(100000, M=16), '100k10k', num_retries=10240, exp=1.0)
+#     minimize_plot(tandem_mo(), random_search(100000), '100k10k', num_retries=10240, exp=1.0)
 
-    mo_retry(zdt1(20), Bite_cpp(M=16), '_bite_front')
-    mo_retry(schaffer(20), Bite_cpp(M=16), '_bite_front')
-    mo_retry(poloni(20), Bite_cpp(M=16), '_bite_front', exp=1.0)
-    mo_retry(fonseca(20), Bite_cpp(M=16), '_bite_front', exp=3.0)
+    # for i in range(1000):
+    #     adv_minimize_plot(tandem_mo(), de_cma(1500), '_' + str(i) + '_smart', value_limit = 0, num_retries = 60000)
 
-    mo_retry(zdt1(20), de_cma(), '_decma_front')
-    mo_retry(schaffer(20), de_cma(), '_decma_front')
-    mo_retry(poloni(20), de_cma(), '_decma_front', exp=1.0)
-    mo_retry(fonseca(20), de_cma(), '_decma_front', exp=3.0)
     
-    mo_retry(zdt1(20), Cma_cpp(), '_cma_front')
-    mo_retry(schaffer(20), Cma_cpp(), '_cma_front')
-    mo_retry(poloni(20), Cma_cpp(), '_cma_front', exp=1.0)
-    mo_retry(fonseca(20), Cma_cpp(), '_cma_front', exp=3.0)
-    
-    monte(zdt1(20), '_front.png')
-    monte(schaffer(20), '_front.png')
-    monte(poloni(20),  '_front.png')
-    monte(fonseca(20), '_front.png')
-
-    nsgaII_test(cassini1_mo(), '_front.png', value_limits = [50, 2300])
-    nsgaII_test(zdt1(20), '_front.png')
-    nsgaII_test(schaffer(20), '_front.png')
-    nsgaII_test(poloni(20),  '_front.png')
-    nsgaII_test(fonseca(20), '_front.png')
-    
-    mo_retry(tandem_mo(), de_cma(100000), '_de_cma_front', num_retries=4096, exp=1.0)
-    # takes some time
+    #
+    # monte(zdt1(20), '_front.png')
+    # monte(schaffer(20), '_front.png')
+    # monte(poloni(20),  '_front.png')
+    # monte(fonseca(20), '_front.png')
+    #
+    # monte(cassini1_mo(), '_front.png', n=20000000, value_limits = [40, 7000])
+    #
+    # #nsgaII_test(cassini1_mo(), '_front.png', value_limits = [40, 7000], NGEN=40000, MU=200)
+    # nsgaII_test(zdt1(20), '_front.png')
+    # nsgaII_test(schaffer(20), '_front.png')
+    # nsgaII_test(poloni(20),  '_front.png')
+    # nsgaII_test(fonseca(20), '_front.png')
+    # #
+    # plot(tandem_mo(), de_cma(100000), '_de_cma_front', num_retries=4096, exp=1.0)
+    # # takes some time
     # mo_adv_retry(tandem_mo(), de_cma(1500), '_smart_front', value_limit = 0, num_retries = 40960)
      

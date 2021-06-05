@@ -17,7 +17,7 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaescpp import callback_par, call_back_par, freemem, libcmalib
+from fcmaes.cmaescpp import callback_par, call_back_par, libcmalib
 from fcmaes.cmaes import parallel, _check_bounds
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
@@ -106,18 +106,19 @@ def minimize(fun,
     array_type = ct.c_double * n   
     c_callback_par = call_back_par(callback_par(fun, parfun))
     seed = int(rg.uniform(0, 2**32 - 1))
+    res = np.empty(n+4)
+    res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        res = optimizeLCLDE_C(runid, c_callback_par, n, 
+        optimizeLCLDE_C(runid, c_callback_par, n, 
                            array_type(*guess), array_type(*input_sigma), seed,
                            array_type(*lower), array_type(*upper), 
                            max_evaluations, pbest, stop_fitness,  
-                           popsize, f0, cr0)
-        x = np.array(np.fromiter(res, dtype=np.float64, count=n))
+                           popsize, f0, cr0, res_p)
+        x = res[:n]
         val = res[n]
         evals = int(res[n+1])
         iterations = int(res[n+2])
         stop = int(res[n+3])
-        freemem(res)
         if not parfun is None:
             parfun.stop() # stop all parallel evaluation processes
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
@@ -131,6 +132,5 @@ optimizeLCLDE_C.argtypes = [ct.c_long, call_back_par, ct.c_int,
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
-            ct.c_double, ct.c_double]
-
-optimizeLCLDE_C.restype = ct.POINTER(ct.c_double)         
+            ct.c_double, ct.c_double, ct.POINTER(ct.c_double)]
+       

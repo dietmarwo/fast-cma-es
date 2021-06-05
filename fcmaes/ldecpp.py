@@ -19,7 +19,7 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaescpp import callback, libcmalib, freemem
+from fcmaes.cmaescpp import callback, libcmalib
 from fcmaes.dacpp import call_back_type
 from fcmaes.cmaes import _check_bounds
 
@@ -105,18 +105,19 @@ def minimize(fun,
     array_type = ct.c_double * n   
     c_callback = call_back_type(callback(fun))
     seed = int(rg.uniform(0, 2**32 - 1))
+    res = np.empty(n+4)
+    res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        res = optimizeLDE_C(runid, c_callback, n, 
+        optimizeLDE_C(runid, c_callback, n, 
                            array_type(*guess), array_type(*input_sigma), seed,
                            array_type(*lower), array_type(*upper), 
                            max_evaluations, keep, stop_fitness,  
-                           popsize, f, cr)
-        x = np.array(np.fromiter(res, dtype=np.float64, count=n))
+                           popsize, f, cr, res_p)
+        x = res[:n]
         val = res[n]
         evals = int(res[n+1])
         iterations = int(res[n+2])
         stop = int(res[n+3])
-        freemem(res)
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
@@ -126,6 +127,5 @@ optimizeLDE_C.argtypes = [ct.c_long, call_back_type, ct.c_int,
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
-            ct.c_double, ct.c_double]
-
-optimizeLDE_C.restype = ct.POINTER(ct.c_double)         
+            ct.c_double, ct.c_double, ct.POINTER(ct.c_double)]
+     
