@@ -239,7 +239,7 @@ x = [16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 11.0, 36.0, 16.
 y = problem.fun(x) = 0.095875
 ----
 
-Note that this result shows a repeated "pattern" which means we could try to reduce the problem to a 4-dimensional one repeating the 4 arguments over the whole solution vector. May be the "freedom" given by allowing 128 different arguments is not needed for an optimal solution. In this case this single-objective TopTrump problem variant is questionable as a benchmark problem. But maybe someone comes up with a superior heterogeneous solution?
+Note that this result shows an almost perfect repeated "pattern" which means we could try to reduce the problem to a 4-dimensional one repeating the 4 arguments over the whole solution vector. In fact many repeated pattern produce a good solution around 0.098, but it seems 0.0958 cannot be reached this way. 
 
 ==== TopTrumps bi-objective function 2, instance 5, NGSA-II, 4000 generations, popsize = 200
 
