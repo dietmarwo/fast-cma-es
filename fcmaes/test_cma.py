@@ -17,7 +17,7 @@ def test_rastrigin_python():
     sdevs = [1.0]*dim
     max_eval = 100000
 
-    limit = 0.00001   
+    limit = 0.0001   
     # stochastic optimization may fail the first time
     for _ in range(5):
         # use a wrapper to monitor function evaluations

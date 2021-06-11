@@ -12,7 +12,7 @@ import time
 import glob
 from scipy.optimize import Bounds
 from fcmaes.optimizer import de_cma, Bite_cpp, random_search, dtime, logger
-from fcmaes import moretry, retry
+from fcmaes import moretry, retry, mode
 from deap import base
 from deap import creator
 from deap import tools
@@ -200,12 +200,13 @@ def nsgaII_test(problem, fname, NGEN=2000, MU=100, value_limits = None):
     pbounds = np.array(list(zip(problem.bounds.lb, problem.bounds.ub)))
     pop, logbook, front = nsgaII(2, problem.fun, pbounds, NGEN=NGEN, MU=MU) 
     logger().info(name + ' nsgaII time ' + str(dtime(time0)))    
+    name = 'nsgaII_' + str(NGEN) + '_' + str(MU) + name + '_' + fname
     np.savez_compressed(name, xs=pop, ys=front)
     if not value_limits is None:
         front = np.array(
             [y for y in front if all([y[i] < value_limits[i] for i in range(len(y))])])
-    retry.plot(front, 'nsgaII_' + str(NGEN) + '_' + str(MU) + name + '_' + fname)
-   
+    retry.plot(front, name)
+       
 def plot_all(folder, fname):
     files = glob.glob(folder + '/*.npz', recursive=True)
     xs = []
@@ -219,6 +220,14 @@ def plot_all(folder, fname):
     retry.plot(ys, fname + '_all.png', interp=False)
     retry.plot(front, fname + '_front.png')
 
+def de_minimize_plot(problem, name, popsize = 64, max_eval = 100000, nobj = 2):
+    mode.minimize_plot(problem.name + '_' + name, problem.fun, problem.bounds, nobj, popsize = popsize, 
+                       max_eval = max_eval, nsga_update=False)
+
+def nsga_minimize_plot(problem, name, popsize = 64, max_eval = 100000, nobj = 2):
+    mode.minimize_plot(problem.name + '_' + name, problem.fun, problem.bounds, nobj, popsize = popsize, 
+                       max_eval = max_eval, nsga_update=True)
+
 def minimize_plot(problem, opt, name, exp = 2.0, num_retries = 1024, value_limits=None):
     moretry.minimize_plot(problem.name + '_' + name, opt, 
                           problem.fun, problem.bounds, problem.weight_bounds, 
@@ -231,55 +240,48 @@ def adv_minimize_plot(problem, opt, name, value_limit = math.inf, num_retries = 
 
 if __name__ == '__main__':
     
-    #plot_all("data/*", "cassall")
-    # import sys
-    # sys.exit()
+    de_minimize_plot(zdt1(20), '100k64')
+    de_minimize_plot(schaffer(20), '100k64')
+    de_minimize_plot(poloni(20), '100k64')
+    de_minimize_plot(fonseca(20), '100k64')
+    
+    nsga_minimize_plot(zdt1(20), '100k64')
+    nsga_minimize_plot(schaffer(20), '100k64')
+    nsga_minimize_plot(poloni(20), '100k64')
+    nsga_minimize_plot(fonseca(20), '100k64')
+        
     minimize_plot(zdt1(20), Bite_cpp(M=16), '50k1k')
     minimize_plot(schaffer(20), Bite_cpp(M=16), '50k1k')
     minimize_plot(poloni(20), Bite_cpp(M=16), '50k1k', exp=1.0)
     minimize_plot(fonseca(20), Bite_cpp(M=16), '50k1k', exp=3.0)
-#     
-#     minimize_plot(zdt1(20), de_cma(), '50k1k')
-#     minimize_plot(schaffer(20), de_cma(), '50k1k')
-#     minimize_plot(poloni(20), de_cma(), '50k1k', exp=1.0)
-#     minimize_plot(fonseca(20), de_cma(), '50k1k', exp=3.0)
-#         
-#     minimize_plot(zdt1(20), random_search(), '50k1k')
-#     minimize_plot(schaffer(20), random_search(), '50k1k')
-#     minimize_plot(poloni(20), random_search(), '50k1k', exp=1.0)
-#     minimize_plot(fonseca(20), random_search(), '50k1k', exp=3.0)
-#     
-#     minimize_plot(cassini1_mo(), de_cma(50000), '50k4k', num_retries=4096, value_limits=[40, 7000])    
-#     minimize_plot(cassini1_mo(), Bite_cpp(50000, M=16), '50k4k', num_retries=4096, value_limits=[40, 7000])
-#     minimize_plot(cassini1_mo(), random_search(50000), '50k4k', num_retries=4096, value_limits=[40, 7000])
-#     
-#     minimize_plot(cassini2_mo(), de_cma(50000), '50k4k', num_retries=4096, value_limits=[40, 7000])   
-#     minimize_plot(cassini2_mo(), Bite_cpp(50000, M=16), '50k4k', num_retries=4096, value_limits=[40, 7000])
-#     minimize_plot(cassini2_mo(), random_search(50000), '50k4k', num_retries=4096, value_limits=[40, 7000])
-#     
-#     minimize_plot(tandem_mo(), de_cma(100000), '100k10k', num_retries=10240, exp=1.0)
-#     minimize_plot(tandem_mo(), Bite_cpp(100000, M=16), '100k10k', num_retries=10240, exp=1.0)
-#     minimize_plot(tandem_mo(), random_search(100000), '100k10k', num_retries=10240, exp=1.0)
-
-    # for i in range(1000):
-    #     adv_minimize_plot(tandem_mo(), de_cma(1500), '_' + str(i) + '_smart', value_limit = 0, num_retries = 60000)
-
-    
-    #
-    # monte(zdt1(20), '_front.png')
-    # monte(schaffer(20), '_front.png')
-    # monte(poloni(20),  '_front.png')
-    # monte(fonseca(20), '_front.png')
-    #
-    # monte(cassini1_mo(), '_front.png', n=20000000, value_limits = [40, 7000])
-    #
-    # #nsgaII_test(cassini1_mo(), '_front.png', value_limits = [40, 7000], NGEN=40000, MU=200)
-    # nsgaII_test(zdt1(20), '_front.png')
-    # nsgaII_test(schaffer(20), '_front.png')
-    # nsgaII_test(poloni(20),  '_front.png')
-    # nsgaII_test(fonseca(20), '_front.png')
-    # #
-    # plot(tandem_mo(), de_cma(100000), '_de_cma_front', num_retries=4096, exp=1.0)
-    # # takes some time
-    # mo_adv_retry(tandem_mo(), de_cma(1500), '_smart_front', value_limit = 0, num_retries = 40960)
      
+    minimize_plot(zdt1(20), de_cma(), '50k1k')
+    minimize_plot(schaffer(20), de_cma(), '50k1k')
+    minimize_plot(poloni(20), de_cma(), '50k1k', exp=1.0)
+    minimize_plot(fonseca(20), de_cma(), '50k1k', exp=3.0)
+         
+    minimize_plot(zdt1(20), random_search(), '50k1k')
+    minimize_plot(schaffer(20), random_search(), '50k1k')
+    minimize_plot(poloni(20), random_search(), '50k1k', exp=1.0)
+    minimize_plot(fonseca(20), random_search(), '50k1k', exp=3.0)
+     
+    minimize_plot(cassini1_mo(), de_cma(50000), '50k4k', num_retries=4096, value_limits=[40, 7000])    
+    minimize_plot(cassini1_mo(), Bite_cpp(50000, M=16), '50k4k', num_retries=4096, value_limits=[40, 7000])
+    minimize_plot(cassini1_mo(), random_search(50000), '50k4k', num_retries=4096, value_limits=[40, 7000])
+     
+    minimize_plot(cassini2_mo(), de_cma(50000), '50k4k', num_retries=4096, value_limits=[40, 7000])   
+    minimize_plot(cassini2_mo(), Bite_cpp(50000, M=16), '50k4k', num_retries=4096, value_limits=[40, 7000])
+    minimize_plot(cassini2_mo(), random_search(50000), '50k4k', num_retries=4096, value_limits=[40, 7000])
+     
+    minimize_plot(tandem_mo(), de_cma(100000), '100k10k', num_retries=10240, exp=1.0)
+    minimize_plot(tandem_mo(), Bite_cpp(100000, M=16), '100k10k', num_retries=10240, exp=1.0)
+    minimize_plot(tandem_mo(), random_search(100000), '100k10k', num_retries=10240, exp=1.0)
+    
+    nsgaII_test(zdt1(20), '_front.png')
+    nsgaII_test(schaffer(20), '_front.png')
+    nsgaII_test(poloni(20),  '_front.png')
+    nsgaII_test(fonseca(20), '_front.png')
+
+    adv_minimize_plot(tandem_mo(), de_cma(1500), '_smart', value_limit = 0, num_retries = 60000)
+
+      

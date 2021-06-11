@@ -70,8 +70,6 @@ def _evaluate(fun, pipe, read_mutex, write_mutex): # worker
         try:
             i, x = msg
             y = fun(x)
-            if not math.isfinite(y):
-                y = sys.float_info.max
         except Exception as ex:
             y =  sys.float_info.max
         with write_mutex:            

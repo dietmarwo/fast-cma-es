@@ -19,6 +19,7 @@ an extension of fcmaes based on https://docs.ray.io/en/master/cluster/index.html
 https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/MultiObjective.adoc[Multi-Objective], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/TopTrumps.adoc[gbea TopTrumps Benchmark], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/NSGAII.adoc[MO-DE-NSGAII], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/PAGMO.adoc[Pagmo results], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints], 

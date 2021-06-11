@@ -149,7 +149,7 @@ def minimize_plot(name, optimizer, fun, bounds, weight_bounds,
                   value_limits = None, num_retries = 1024, 
              exp = 2.0, workers = mp.cpu_count(), logger=logger(), statistic_num = 0):
     time0 = time.perf_counter() # optimization start time
-    name += ' ' + optimizer.name
+    name += '_' + optimizer.name
     logger.info('optimize ' + name) 
     xs, ys = minimize(fun, bounds,weight_bounds, 
              value_exp = exp,
@@ -167,7 +167,7 @@ def minimize_plot(name, optimizer, fun, bounds, weight_bounds,
 def adv_minimize_plot(name, optimizer, fun, bounds,
                    value_limit = math.inf, num_retries = 1024, logger=logger(), statistic_num = 0):
     time0 = time.perf_counter() # optimization start time
-    name += ' ' + optimizer.name
+    name += '_' + optimizer.name
     logger.info('smart optimize ' + name) 
     store = advretry.Store(lambda x:fun(x)[0], bounds, capacity=5000, logger=logger, 
                            num_retries=num_retries, statistic_num = statistic_num) 
