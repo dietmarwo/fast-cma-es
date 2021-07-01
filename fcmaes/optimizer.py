@@ -67,7 +67,7 @@ def dtime(t0):
 class wrapper(object):
     """Fitness function wrapper for use with parallel retry."""
 
-    def __init__(self, fit, logger = logger()):
+    def __init__(self, fit, logger):
         self.fit = fit
         self.evals = mp.RawValue(ct.c_int, 0) 
         self.best_y = mp.RawValue(ct.c_double, math.inf) 

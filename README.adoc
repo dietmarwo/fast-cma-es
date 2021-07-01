@@ -32,6 +32,7 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/DelayedUpdate.adoc[Delayed 
 
 - fcmaes is focused on optimization problems hard to solve.
 - Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
+- New multi-objective/constrained optimization algorithm combining features from NGSA-II and Differential evolution supporting parallel function evaluation (https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py])
 - Parallel coordinated retry of sequences and random choices of optimization algorithms. See https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions].
 - Parallel objective function evaluation for CMA-ES and Differential Evolution. 
 - New DE (differential evolution) variant optimized for usage with parallel coordinated retry and the DE->CMA sequence.

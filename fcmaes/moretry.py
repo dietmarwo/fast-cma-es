@@ -6,7 +6,7 @@
 # parallel optimization retry of a multi-objective problem.
 
 import numpy as np
-import math, sys, time
+import math, sys, time, warnings
 import multiprocessing as mp
 from multiprocessing import Process
 from scipy.optimize import Bounds
@@ -17,6 +17,7 @@ from fcmaes import retry, advretry
 def minimize(fun,             
              bounds,
              weight_bounds,
+             ncon = 0,
              value_exp = 2.0,
              value_limits = None,
              num_retries = 1024,
@@ -46,6 +47,8 @@ def minimize(fun,
                is used to specify no bound.
     weight_bounds : `Bounds`, optional
         Bounds on objective weights.
+    ncon : int, optional
+        number of constraints
     value_exp : float, optional
         exponent applied to the objective values for the weighted sum. 
     value_limits : sequence of floats, optional
@@ -80,17 +83,17 @@ def minimize(fun,
     if capacity is None: 
         capacity = num_retries
     store = retry.Store(fun, bounds, capacity = capacity, logger = logger, statistic_num = statistic_num)
-    xs = np.array(mo_retry(fun, weight_bounds, value_exp, 
+    xs = np.array(mo_retry(fun, weight_bounds, ncon, value_exp, 
                            store, optimizer.minimize, num_retries, value_limits, workers))
     ys = np.array([fun(x) for x in xs])
     return xs, ys
     
-def mo_retry(fun, weight_bounds, y_exp, store, optimize, num_retries, value_limits, 
+def mo_retry(fun, weight_bounds, ncon, y_exp, store, optimize, num_retries, value_limits, 
           workers=mp.cpu_count()):
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
-            args=(pid, rgs, fun, weight_bounds, y_exp, 
+            args=(pid, rgs, fun, weight_bounds, ncon, y_exp, 
                   store, optimize, num_retries, value_limits)) for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
@@ -98,7 +101,7 @@ def mo_retry(fun, weight_bounds, y_exp, store, optimize, num_retries, value_limi
     store.dump()
     return store.get_xs()
 
-def _retry_loop(pid, rgs, fun, weight_bounds, y_exp, 
+def _retry_loop(pid, rgs, fun, weight_bounds, ncon, y_exp, 
                 store, optimize, num_retries, value_limits):
     
     if 'win' in sys.platform and not store.logger is None:
@@ -112,15 +115,21 @@ def _retry_loop(pid, rgs, fun, weight_bounds, y_exp,
             w = rg.uniform(size=len(wub))          
             w /= _avg_exp(w, y_exp) # correct scaling
             w = wlb + w * (wub - wlb)
-            wrapper = mo_wrapper(fun, w, y_exp)  
+            wrapper = mo_wrapper(fun, w, ncon, y_exp)  
             x, y, evals = optimize(wrapper.eval, Bounds(store.lower, store.upper), None, 
                                      [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
             objs = wrapper.mo_eval(x) # retrieve the objective values
             if value_limits is None or all([objs[i] < value_limits[i] for i in range(len(w))]):
                 store.add_result(y, x, evals, math.inf)   
+                name = "moretry_" + str(store.get_count_evals())
+                if store.trace_plots:
+                    xs = np.array(store.get_xs())
+                    ys = np.array([fun(x) for x in xs])
+                    np.savez_compressed(name, xs=xs, ys=ys) 
+                    plot(name, ncon, xs, ys)
         except Exception as ex:
-            continue
-
+            print(str(ex))
+            
 def pareto(xs, ys):
     """pareto front for argument vectors and corresponding function value vectors."""
     par = _pareto(ys)
@@ -132,56 +141,85 @@ def pareto(xs, ys):
 class mo_wrapper(object):
     """wrapper for multi objective functions applying the weighted sum approach."""
    
-    def __init__(self, fun, weights, y_exp=2):
+    def __init__(self, fun, weights, ncon, y_exp=2):
         self.fun = fun  
-        self.nobj = len(weights)
         self.weights = weights 
+        self.ny = len(weights)
+        self.nobj = self.ny - ncon
+        self.ncon = ncon
         self.y_exp = y_exp
 
     def eval(self, x):
         y = self.fun(np.array(x))
-        return _avg_exp(self.weights*y, self.y_exp)
-
+        weighted = _avg_exp(self.weights*y, self.y_exp)
+        if self.ncon > 0: # check constraint violations
+            violations = np.array([i for i in range(self.nobj, self.ny) if y[i] > 0])
+            weighted += sum(self.weights[violations])     
+        return weighted
+            
     def mo_eval(self, x):
         return self.fun(np.array(x))
-    
-def minimize_plot(name, optimizer, fun, bounds, weight_bounds, 
+        
+def minimize_plot(name, optimizer, fun, bounds, weight_bounds, ncon = 0, 
                   value_limits = None, num_retries = 1024, 
              exp = 2.0, workers = mp.cpu_count(), logger=logger(), statistic_num = 0):
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
     logger.info('optimize ' + name) 
-    xs, ys = minimize(fun, bounds,weight_bounds, 
+    xs, ys = minimize(fun, bounds, weight_bounds, ncon,
              value_exp = exp,
              value_limits = value_limits,
              num_retries = num_retries,              
              optimizer = optimizer,
              workers = workers,
              logger=logger, statistic_num = statistic_num)
-    retry.plot(ys, 'all_.' + name + '.png', interp=False)
-    np.savez_compressed(name, xs=xs, ys=ys)
-    xs, front = pareto(xs, ys)
     logger.info(name + ' time ' + str(dtime(time0))) 
-    retry.plot(front, 'front_.' + name + '.png')
+    np.savez_compressed(name, xs=xs, ys=ys) 
+    plot(name, ncon, xs, ys)
+    
+def plot(name, ncon, xs, ys, eps = 1E-2):   
+    try:  
+        if ncon > 0: # select feasible
+            ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])  
+            con = np.sum(ycon, axis=1)
+            nobj = len(ys[0]) - ncon
+            feasible = np.array([i for i in range(len(ys)) if con[i] < eps])
+            if len(feasible) > 0:
+                #yc = [y[nobj:] for y in ys[feasible]]
+                xs, ys = xs[feasible], np.array([ y[:nobj] for y in ys[feasible]])
+        retry.plot(ys, 'all_' + name + '.png', interp=False)
+        xs, front = pareto(xs, ys)
+        retry.plot(front, 'front_' + name + '.png')
+        # for x, y, feas, c, in zip(xs, front, con[feasible], yc):
+        #     print(str(list(y)) + ' ' +  str(feas) + ' ' + 
+        #           str(c) + ' ' + str(feas) + ' ' + str(list(x)))
+        for x, y, feas, in zip(xs, front, con[feasible]):
+            print(str(list(y)) + ' ' +  #str(feas) + ' ' + 
+                str([int(xi) for xi in x]))
+    except Exception as ex:
+        print(str(ex))
 
 def adv_minimize_plot(name, optimizer, fun, bounds,
                    value_limit = math.inf, num_retries = 1024, logger=logger(), statistic_num = 0):
     time0 = time.perf_counter() # optimization start time
-    name += '_' + optimizer.name
+    name += '_smart_' + optimizer.name
     logger.info('smart optimize ' + name) 
     store = advretry.Store(lambda x:fun(x)[0], bounds, capacity=5000, logger=logger, 
                            num_retries=num_retries, statistic_num = statistic_num) 
     advretry.retry(store, optimizer.minimize, num_retries, value_limit)
     xs = np.array(store.get_xs())
     ys = np.array([fun(x) for x in xs])
-    retry.plot(ys, 'all_smart.' + name + '.png', interp=False)
+    retry.plot(ys, '_all_' + name + '.png', interp=False)
     np.savez_compressed(name , xs=xs, ys=ys)
     xs, front = pareto(xs, ys)
     logger.info(name+ ' time ' + str(dtime(time0))) 
-    retry.plot(front, 'front_smart.' + name + '.png')
+    retry.plot(front, '_front_' + name + '.png')
 
 def _avg_exp(y, y_exp):
-    return sum([y[i]**y_exp for i in range(len(y))])**(1.0/y_exp)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        weighted = sum([y[i]**y_exp for i in range(len(y))])**(1.0/y_exp)
+    return weighted
 
 def _pareto(ys):
     pareto = np.arange(ys.shape[0])
