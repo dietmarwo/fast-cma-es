@@ -34,7 +34,7 @@ def minimize(fun,
              stop_fitness = -math.inf,
              optimizer = None,
              statistic_num = 0,
-             trace_plots = False
+             plot_name = None
              ):   
     """Minimization of a scalar function of one or more variables using parallel 
      optimization retry.
@@ -78,8 +78,8 @@ def minimize(fun,
         optimizer to use. Default is a sequence of differential evolution and CMA-ES.
     statistic_num: int, optional
         if > 0 stores the progress of the optimization. Defines the size of this store. 
-    trace_plots : trace_plots, optional
-        flag indicating if the progress id plotted during the optimization to monitor progress.
+    plot_name : String, optional
+        if defined plots are generated during the optimization to monitor progress.
         Requires statistic_num > 100.
 
      
@@ -94,7 +94,7 @@ def minimize(fun,
     if optimizer is None:
         optimizer = de_cma(max_evaluations, popsize, stop_fitness)        
     store = Store(fun, bounds, capacity = capacity, logger = logger, statistic_num = statistic_num, 
-                  trace_plots = trace_plots)
+                  plot_name = plot_name)
     return retry(store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
                  
 def retry(store, optimize, num_retries, value_limit = math.inf, 
@@ -113,11 +113,12 @@ def retry(store, optimize, num_retries, value_limit = math.inf,
 def minimize_plot(name, optimizer, fun, bounds, value_limit = math.inf, 
             plot_limit = math.inf, num_retries = 1024, 
             workers = mp.cpu_count(), logger=logger(), 
-            stop_fitness = -math.inf, statistic_num = 5000):
+            stop_fitness = -math.inf, statistic_num = 5000, plot_name = None):
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
     logger.info('optimize ' + name)       
-    store = Store(fun, bounds, capacity = 500, logger = logger, statistic_num = statistic_num)
+    store = Store(fun, bounds, capacity = 500, logger = logger, 
+                  statistic_num = statistic_num, plot_name = plot_name)
     ret = retry(store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
     impr = store.get_improvements()
     np.savez_compressed(name, ys=impr)
@@ -129,11 +130,15 @@ def minimize_plot(name, optimizer, fun, bounds, value_limit = math.inf,
     return ret
 
 def plot(front, fname, interp=True, label=r'$\chi$', 
-         xlabel = r'$f_1$', ylabel = r'$f_2$', zlabel = r'$f_3$'):
-    if len(front[0]) == 3:
-        return plot3(front, fname, label, xlabel, ylabel, zlabel)
-    if len(front[0]) > 3:
-        return plot3(front.T[:3].T, fname)        
+         xlabel = r'$f_1$', ylabel = r'$f_2$', zlabel = r'$f_3$', plot3d=False):
+    if len(front[0]) == 3 and plot3d:
+        plot3(front, fname, label, xlabel, ylabel, zlabel)
+        return
+    if len(front[0]) >= 3:
+        for i in range(1, len(front[0])):
+            plot(front.T[np.array([0,i])].T, str(i) + '_' + fname, 
+                 interp=interp, ylabel = r'$f_{0}$'.format(i+1))     
+        return   
     import matplotlib.pyplot as pl
     fig, ax = pl.subplots(1, 1)
     x = front[:, 0]; y = front[:, 1]
@@ -167,7 +172,7 @@ def plot3(front, fname, label=r'$\chi$',
     ax.set_ylabel(ylabel)
     ax.set_zlabel(zlabel)
     ax.legend()
-    pl.show()
+    #pl.show()
     fig.savefig(fname, dpi=300)
     pl.close('all')
  
@@ -181,7 +186,7 @@ class Store(object):
                  capacity = 500, # capacity of the evaluation store
                  logger = None, # if None logging is switched off
                  statistic_num = 0,
-                 trace_plots = False # requires statistic_num > 500
+                 plot_name = None # requires statistic_num > 500
                 ):    
         self.fun = fun
         self.lower, self.upper = _convertBounds(bounds)
@@ -208,8 +213,8 @@ class Store(object):
         self.best_y = mp.RawValue(ct.c_double, math.inf) 
         self.best_x = mp.RawArray(ct.c_double, self.dim)
         self.statistic_num = statistic_num
-        self.trace_plots = trace_plots
-
+        self.plot_name = plot_name
+        self.trace_plots = not plot_name is None
         # statistics                            
         if statistic_num > 0:  # enable statistics                          
             self.statistic_num = statistic_num
@@ -379,8 +384,8 @@ def _retry_loop(pid, rgs, store, optimize, num_retries, value_limit, stop_fitnes
             sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
                                      [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
             store.add_result(y, sol, evals, value_limit)   
-            if store.trace_plots:    
-                name = "retry_" + str(store.get_count_evals())
+            if hasattr(store, 'trace_plots') and store.trace_plots:    
+                name = store.plot_name + "_retry_" + str(store.get_count_evals())
                 xs = np.array(store.get_xs())
                 ys = np.array(store.get_ys())
                 np.savez_compressed(name, xs=xs, ys=ys) 

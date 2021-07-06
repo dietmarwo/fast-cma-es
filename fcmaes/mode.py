@@ -59,7 +59,7 @@ def minimize(mofun,
              pareto_update = False,
              rg = Generator(MT19937()),
              logger = None,
-             trace_plots = False):  
+             plot_name = None):  
       
     """Minimization of a multi objjective function of one or more variables using
     Differential Evolution.
@@ -123,7 +123,7 @@ def minimize(mofun,
 
     
     de = DE(dim, nobj, bounds, ncon, popsize, workers if not workers is None else 0, 
-            f, cr, nsga_update, pareto_update, rg, logger, trace_plots)
+            f, cr, nsga_update, pareto_update, rg, logger, plot_name)
     try:
         if workers and workers > 1:
             x, y, evals, iterations, stop = de.do_optimize_delayed_update(mofun, max_evaluations, workers)
@@ -138,7 +138,7 @@ class DE(object):
     
     def __init__(self, dim, nobj, bounds, ncon=0, popsize = 64, workers = 0,
                  F = 0.5, Cr = 0.9, nsga_update = False, pareto_update = False, 
-                 rg = Generator(MT19937()), logger = None, trace_plots = False):
+                 rg = Generator(MT19937()), logger = None, plot_name = None):
         self.nobj = nobj
         self.ncon = ncon
         self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
@@ -157,13 +157,14 @@ class DE(object):
         self.mutex = mp.Lock()
         self.p = 0
         self.best_p = None
+        self.trace_plots = not plot_name is None
         self._init()
         if not logger is None:
             self.logger = logger
             self.n_evals = mp.RawValue(ct.c_long, 0)
             self.time_0 = time.perf_counter()
-            self.trace_plots = trace_plots
-            self.name = '_mode_' + str(popsize) + '_' + \
+            self.name = plot_name if not plot_name is None else ''
+            self.name += '_mode_' + str(popsize) + '_' + \
                 ('nsga_update' if nsga_update else ('de_best_update' if pareto_update else 'de_all_update'))
         
     def ask(self):
@@ -481,12 +482,13 @@ def variation(pop, lower, upper, rg, pro_c = 1, dis_c = 20, pro_m = 1, dis_m = 2
     return offspring
 
 def minimize_plot(name, fun, bounds, nobj, ncon = 0, popsize = 64, max_eval = 100000, nsga_update=False, 
-                  pareto_update=False, workers = mp.cpu_count(), logger=logger()):
+                  pareto_update=False, workers = mp.cpu_count(), logger=logger(), plot_name = None):
     name += '_mode_' + str(popsize) + '_' + \
                 ('nsga_update' if nsga_update else ('de_best_update' if pareto_update else 'de_all_update'))
     logger.info('optimize ' + name) 
     ret = minimize(fun, nobj, bounds = bounds, ncon = ncon, popsize = popsize, max_evaluations = max_eval,
-                   nsga_update = nsga_update, pareto_update = pareto_update, workers=workers, logger=logger)
+                   nsga_update = nsga_update, pareto_update = pareto_update, workers=workers, 
+                   logger=logger, plot_name = plot_name)
     ys = np.array(ret.fun)
     xs = np.array(ret.x)
     np.savez_compressed(name, xs=xs, ys=ys)

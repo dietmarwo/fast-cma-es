@@ -222,11 +222,11 @@ def plot_all(folder, fname):
 
 def de_minimize_plot(problem, name, popsize = 64, max_eval = 100000, nobj = 2):
     mode.minimize_plot(problem.name + '_' + name, problem.fun, problem.bounds, nobj, popsize = popsize, 
-                       max_eval = max_eval, nsga_update=False)
+                       max_eval = max_eval, nsga_update=False, plot_name = "nsga_off")
 
 def nsga_minimize_plot(problem, name, popsize = 64, max_eval = 100000, nobj = 2):
     mode.minimize_plot(problem.name + '_' + name, problem.fun, problem.bounds, nobj, popsize = popsize, 
-                       max_eval = max_eval, nsga_update=True)
+                       max_eval = max_eval, nsga_update=True, plot_name = "nsga_on")
 
 def minimize_plot(problem, opt, name, exp = 2.0, num_retries = 1024, value_limits=None):
     moretry.minimize_plot(problem.name + '_' + name, opt, 

@@ -27,7 +27,8 @@ def minimize(fun,
              max_evaluations = 50000, 
              capacity = None,
              optimizer = None,
-             statistic_num = 0
+             statistic_num = 0,
+             plot_name = None
               ):   
     """Minimization of a multi objective function of one or more variables using parallel 
      optimization retry.
@@ -82,7 +83,8 @@ def minimize(fun,
         optimizer = de_cma(max_evaluations, popsize)  
     if capacity is None: 
         capacity = num_retries
-    store = retry.Store(fun, bounds, capacity = capacity, logger = logger, statistic_num = statistic_num)
+    store = retry.Store(fun, bounds, capacity = capacity, logger = logger, 
+                        statistic_num = statistic_num, plot_name = plot_name)
     xs = np.array(mo_retry(fun, weight_bounds, ncon, value_exp, 
                            store, optimizer.minimize, num_retries, value_limits, workers))
     ys = np.array([fun(x) for x in xs])
@@ -121,7 +123,7 @@ def _retry_loop(pid, rgs, fun, weight_bounds, ncon, y_exp,
             objs = wrapper.mo_eval(x) # retrieve the objective values
             if value_limits is None or all([objs[i] < value_limits[i] for i in range(len(w))]):
                 store.add_result(y, x, evals, math.inf)   
-                name = "moretry_" + str(store.get_count_evals())
+                name = store.plot_name + "_moretry_" + str(store.get_count_evals())
                 if store.trace_plots:
                     xs = np.array(store.get_xs())
                     ys = np.array([fun(x) for x in xs])
@@ -162,7 +164,8 @@ class mo_wrapper(object):
         
 def minimize_plot(name, optimizer, fun, bounds, weight_bounds, ncon = 0, 
                   value_limits = None, num_retries = 1024, 
-             exp = 2.0, workers = mp.cpu_count(), logger=logger(), statistic_num = 0):
+             exp = 2.0, workers = mp.cpu_count(), 
+             logger=logger(), statistic_num = 0, plot_name = None):
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
     logger.info('optimize ' + name) 
@@ -172,7 +175,7 @@ def minimize_plot(name, optimizer, fun, bounds, weight_bounds, ncon = 0,
              num_retries = num_retries,              
              optimizer = optimizer,
              workers = workers,
-             logger=logger, statistic_num = statistic_num)
+             logger=logger, statistic_num = statistic_num, plot_name = plot_name)
     logger.info(name + ' time ' + str(dtime(time0))) 
     np.savez_compressed(name, xs=xs, ys=ys) 
     plot(name, ncon, xs, ys)
@@ -189,13 +192,11 @@ def plot(name, ncon, xs, ys, eps = 1E-2):
                 xs, ys = xs[feasible], np.array([ y[:nobj] for y in ys[feasible]])
         retry.plot(ys, 'all_' + name + '.png', interp=False)
         xs, front = pareto(xs, ys)
-        retry.plot(front, 'front_' + name + '.png')
-        # for x, y, feas, c, in zip(xs, front, con[feasible], yc):
-        #     print(str(list(y)) + ' ' +  str(feas) + ' ' + 
-        #           str(c) + ' ' + str(feas) + ' ' + str(list(x)))
-        for x, y, feas, in zip(xs, front, con[feasible]):
-            print(str(list(y)) + ' ' +  #str(feas) + ' ' + 
-                str([int(xi) for xi in x]))
+        retry.plot(front, 'front_' + name + '.png', interp=False)
+        if ncon > 0:
+            for x, y, feas, in zip(xs, front, con[feasible]):
+                print(str(list(y)) + ' ' +  #str(feas) + ' ' + 
+                    str([int(xi) for xi in x]))
     except Exception as ex:
         print(str(ex))
 
