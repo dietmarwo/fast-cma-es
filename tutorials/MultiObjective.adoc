@@ -114,49 +114,49 @@ mo_retry_plot(fonseca(20), random_search(), '_random', exp=3.0)
 
 - Fonseca function random search, dim = 20, 1024 retries, 50000 evaluations:
 
-image::all_ret.fonseca(20)__random.png[] 
+image::all_ret.fonseca(20)_random.png[] 
 
 - Poloni function random search, dim = 20, 1024 retries, 50000 evaluations:
 
-image::all_ret.poloni(20)__random.png[] 
+image::all_ret.poloni(20)_random.png[] 
 
 Python is surprisingly fast converting these results into a pareto front showing all non-dominated solutions:
 
 - Fonseca function, random search, dim = 20, 1024 retries, 50000 evaluations, pareto front:
 
-image::front_ret.fonseca(20)__random.png[] 
+image::front_ret.fonseca(20)_random.png[] 
 
 - Poloni function, random search, dim = 20, 1024 retries, 50000 evaluations, pareto front:
 
-image::front_ret.poloni(20)__random.png[]
+image::front_ret.poloni(20)_random.png[]
 
 Lets try two more benchmark problems:
 
 - Schaffer function, random search, dim = 20, 1024 retries, 50000 evaluations:
 
-image::all_ret.schaffer(20)__random.png[]
+image::all_ret.schaffer(20)_random.png[]
 
 - Pareto front:
 
-image::front_ret.schaffer(20)__random.png[]
+image::front_ret.schaffer(20)_random.png[]
 
 - ZDT1 function, random search, dim = 20, 1024 retries, 50000 evaluations:
 
-image::all_ret.zdt1(20)__random.png[]
+image::all_ret.zdt1(20)_random.png[]
 
 - Pareto front:
 
-image::front_ret.zdt1(20)__random.png[]
+image::front_ret.zdt1(20)_random.png[]
 
 Wait, the ZDT1 result is not what we expected, may be it helps if we choose a better algorithm?
 
 - ZDT1 function, de-cma sequence, dim = 20, 1024 retries, 50000 evaluations:
 
-image::all_ret.zdt1(20)__decma.png[]
+image::all_ret.zdt1(20)_decma.png[]
 
 - Pareto front:
 
-image::front_ret.zdt1(20)__decma.png[]
+image::front_ret.zdt1(20)_decma.png[]
 
 What did we learn so far? For most artificial problems 
 no sophisticated optimization algorithm is needed, random search is sufficient.
