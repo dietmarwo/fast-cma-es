@@ -1,0 +1,298 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+== Designing a Card Game
+
+The code for this tutorial is at 
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/top_trumps.py[top_trumps.py] and uses 
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/retry.py[retry.py] and
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/moretry.py[moretry.py] . 
+
+The interesting question we want to shed some light on is:
+
+If we are confronted with an expensive simulation based multi-variant fitness function and have a limited testing evaluation budget, how should we proceed to find the most suitable algorithm:
+
+a) Test all variants of the problem at once with very limited budged single threaded.
+b) Test all variants of the problem in parallel.
+c) Choose one variant and test this variant executing multiple retries in parallel. 
+
+It is quite obvious why we should exclude a) with modern many-core CPUs.
+Approach b) fails if the optimization algorithms scale differently with the evaluation budged.
+Then we cannot derive their "high budged" performance from their "low budged" one.
+Approach c) fails if the algorithms show significant different relative performance for the problem variants. 
+
+For a comparison both approaches should be tested. Approach a) and b) are covered by https://github.com/ttusar/coco-gbea[coco-gbea] and its 
+associated competitions, so we will start investigating approach c). 
+
+If the algorithms identified as superior by c) differ from the ones found by b), which algorithms are superior in the real world?
+
+We show:
+
+- How the parallel application of fcmaes single objective optimization algorithms can be used to design a TopTrumps card deck. 
+- How fcmaes single objective optimization algorithms together with a specialized parallel retry implementation can be applied to efficiently compute the pareto front of TopTrumps related multi-objective problems.
+- That optimization algorithms scale differently when increasing the evaluation budget.
+- How budged management influences the performance of optimization algorithms. 
+- We discuss the well established term ERT (Expected Running Time), and show in which way this performance index influences
+the design of optimization algorithms. Question is if it "incentivizes" the best algorithms also for hard real world problems. 
+
+=== coco-gbea
+
+https://github.com/ttusar/coco-gbea[coco-gbea] is derived from the popular black box optimization testing project https://doi.org/10.5281/zenodo.2594848[coco] adding Game-Benchmarks for Evolutionary Algorithms (https://github.com/ttusar/coco-gbea/blob/main/code-experiments/rw-problems/GBEA.md[GBEA])  described in detail in https://www.researchgate.net/publication/334220017_Single-_and_multi-objective_game-benchmark_for_evolutionary_algorithms[Single- and multi-objective game-benchmark for evolutionary algorithms]. We choose to focus on the TopTrumps benchmarks here for the following reasons:
+
+- Efficient reentrant C-implementation of various game design related fitness functions partly based on game simulations. 
+- Even for large dimensions reflecting realistic game scenarios fitness can be evaluated fast. 
+- There are both single- and bi-objective problems. The objectives for the bi-objective problems were
+carefully selected based on an estimation of their conflict using linear regression. 
+- Excellent for demonstrating different budged-scaling of optimization algorithms and to show the
+influence of budget management in a parallel optimization scanario. 
+- It is very good choice to debate ERT (Expected Running Time) as performance indicator, since it perfectly illustrates its flaws.  
+
+Part of the implementation of the TopTrumps testing environment are not very useful if your goal is
+to "solve" the TopTrump problems, specifically: 
+
+- Using a socket based interface to call the C-fitness function single threaded - you need a new port for each parallel execution. It creates unnecessary overhead. Sockets or a REST interface can support 
+distributing load over multiple processing nodes, but there is no need to use them locally. 
+- The design is heavily influenced by the performance indicator (ERT). Using this indicator it is not necessary to support parallel access to the fitness function.  
+
+The socket interface can very easily be replaced in Python by a much simpler ctypes based interface - since "rw_top_trumps.cpp" exposes access to the fitness functions (evaluate_rw_top_trumps) as ```extern "C"```. Since "rw_top_trumps.cpp" is reentrant, this interface implemented in 
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/top_trumps.py[top_trumps.py]
+supports parallel execution. 
+
+=== Expected Running Time
+
+From https://cos.bibl.th-koeln.de/frontdoor/deliver/index/docId/902/file/bart20gcos+(1).pdf[Optimization Benchmarking], page 24:
+
+"The gold standard in (single-objective) continuous optimization is the Expected Running Time
+(ERT), which computes the ratio between the sum of consumed budget across all runs and the number of successful runs http://coco.lri.fr/BBOB-downloads/download11.05/bbobdocexperiment.pdf[Hansen.et.al 2012]".
+
+Unfortunately this definition is inconsistent to what a naive user of an optimization algorithm expects. "Expected Running Time" includes the term "time", not budget. Although back in the old times where single core CPUs were the standard, the relation between time and budget (the number of fitness function evaluations) was closer, today even regular desktop machines have 16 core / 32 thread CPUs and you may 
+rent 64 core / 128 thread CPUs in the cloud. Do you believe in the ERT "gold standard"? You will find the answer by asking yourself the following questions:
+
+- A parallel optimization algorithm enables factor 20 increase of the evaluation rate per second, but also increases the number of evaluations to reach a certain threshold by 20%, do you apply parallelization?
+- You found a surrogate model which is 100 times faster to evaluate than the original model, but it increases the number of evaluations to reach a certain threshold by 20%, do you use the surrogate model?
+- You may choose between two algorithms: The second one has a 20% better ERT, but its algorithm overhead is much higher so that you finally need much more time even for the reduced budged. Do you choose the first one?
+- Does it matter where parallelization is applied: At the fitness function itself, for the evaluation of a whole population in parallel or to execute different optimization retries in parallel when the achieved scaling is very different?    
+- You provide a benchmark suite to test optimization algorithms which executes an expensive simulation based fitness function many million times. As default, do you use compiler optimization (-O2) to speed up the execution of the simulation? Do you design the server executing the simulation to execute fitness function evaluations in parallel or is it sufficient to execute multiple experiments in parallel?
+
+The ERT "gold standard" ignores the evaluation rate, the number of evaluations which can 
+be performed in a specific time. An alternative performance index more consistent with our intuition 
+is the "real running time" (RRT), the time to reach the threshold, considering algorithm overhead and parallelization. Its disadvantage is that it also depends on the capabilities of the used CPU, but we will 
+show below why abstracting from algorithm overhead and parallelization completely is the inferior choice. 
+
+You may argue: Aren't ERT and RRT equivalent for a given hardware and a given level of parallelization? 
+
+- They are indeed equivalent for one specific optimization algorithm only: Random search. For more "serious" algorithms they are not for the following reasons:
+
+- The evaluation rate differs depending on the scaling achieved by parallelization which depends what you parallelize: The fitness function, 
+the evaluation of a whole population, the optimization retries for the same experiment or the whole experiments.
+- Optimal budget management and algorithm selection for an algorithm involving retries will be different in a parallel scenario if you are aiming to minimize RRT. 
+- Parallel optimization retries may exchange information (see for instance the https://github.com/esa/pagmo/blob/master/doc/sphinx/documentation/topology.rst[pagmo archipelago topology]).
+
+Finally you have to choose: Do you tune your (parallel) optimization algorithm for ERT or for RRT for a specific CPU. An ERT tuned algorithm usually will have an inferior RRT and vice versa. Both "tunings" are valid:
+
+- You want to win the gbea competition (or any other coco based competition) : Tune for ERT.
+- You want to solve a real world optimization problem because you need the solution - for TopTrumps this means, you want to produce an exciting card game: Tune for RRT. 
+
+But even if your goal is to tune for ERT, should you really start running a full coco suite with a low budget factor? This would be analogous to a breadth first search which makes sense if two requirements are fulfilled:
+
+- From low budget results you can derive the algorithm performance for higher budgets.
+- You expect different results for different fitness functions in your suite.
+
+If these prerequisites are not fulfilled, it is better to do the equivalent of a depth first search: Choose a typical example problem and try to solve it even if a huge budget is required. Discard the algorithm if this is not possible and continue with the next one. This way you keep algorithms which are "slow" for low budgets but scale well with increasing budget. Random search is an algorithm overrated if tested for a small budget. Deep BITmask Evolution OPTimization 
+https://github.com/avaneev/biteopt[BiteOpt] on the other hand can easily be underrated using an ERT benchmark, since it needs a larger budget, scales much better and diversifies very effectively so that it makes sense to apply many (parallel) retries. In most cases a single run will never reach your target threshold independent from the budged investment.   
+
+=== TopTrumps
+
+The gbea TopTrump benchmark is a carefully designed real world benchmark. Both its single objective and multi-objective fitness functions reflect the requirements of a real world TopTrump card game designer. Its simulation based tests are efficiently implemented, so that it is possible to compare optimization algorithms investing limited CPU time, specially if parallelization is applied. To do so I replaced the socket based interface by a much simpler ctypes based interface - which was easy since "rw_top_trumps.cpp" exposes access to the fitness function (evaluate_rw_top_trumps) as ```extern "C"```. For each problem class (single-objective / bi-objective) We first choose a specific representant to check how different algorithms scale with increasing budget. The test code can be found here https://github.com/dietmarwo/fast-cma-es/blob/master/examples/top_trumps.py[top_trumps.py]. For windows and linux we included the binary, for other OS you have to install https://github.com/ttusar/coco-gbea[coco-gbea] 
+and compile `coco-gbea2/code-experiments/rw-problems/top_trumps` yourself - add -O3 to CXXFLAGS in the Makefile - and copy it
+to `fast-cma-es/fcmaes/lib`. Python class `tt_problem` provides both bounds and fitness function derived via reentrant ctypes based C-calls to `evaluate_rw_top_trumps` and `rw_top_trumps_bounds`. In this tutorial we first focus on two specific 
+simulation based problem instances, one single objective one, the trick difference at end of game:
+
+[source,python]
+----
+    suite = 'rw-top-trumps'
+    function = 5
+    instance = 5
+    dim = 128
+    nobj = 1
+    name = suite + '_f' + str(function) + 'i' + str(instance) + 'd' + str(dim)
+    
+    problem = tt_problem(suite, name, dim, nobj, function, instance)
+----
+
+and one bi-objective with competing objectives: winrate of better player and switches of trick winner:
+
+[source,python]
+----
+    suite = 'rw-top-trumps-biobj'
+    function = 2
+    instance = 5
+    dim = 128
+    nobj = 2
+    name = suite + '_f' + str(function) + 'i' + str(instance) + 'd' + str(dim)
+    problem = tt_problem(suite, name, dim, nobj, function, instance)    
+----
+
+Note that according to https://www.researchgate.net/publication/334220017_Single-_and_multi-objective_game-benchmark_for_evolutionary_algorithms[Single- and multi-objective game-benchmark for evolutionary algorithms]:
+
+- The simulation based functions are noisy. However, the fitness for each solution is reported
+as the average of 2000 simulations, which has been shown in to produce an appropriate balance between computational effort
+and resulting standard deviations. This shows a typical property of real world fitness functions: 
+
+For the model used for optimization there is a tradeoff between accuracy and computational effort. 
+This means the pareto front is not necessarily what you aim for. If our algorithm produces a result containing good but slightly dominated solutions like this:
+
+image::all_.rw-top-trumps-biobj_f2i5d128_4k512_de_cpp.png[]
+
+You may reevaluate the limited number of solution vectors using a more accurate 
+model and only then compute the pareto front. A solution which was slightly dominated at first could come up as
+non dominated now. This may be of less importance for TopTrumps, but for other real word problems were bigger
+compromises are required it could be significant. May be some very expensive to evaluate objectives / constraints 
+had to be left out completely, or the constraints could have changed after an optimization run involving very expensive simulations finished.   
+
+The fcmaes library provides convenience functions for testing parallelized algorithms which generate both
+a detailed log file and a diagram showing progress over time / the pareto front. 
+
+[source,python]
+----
+from fcmaes.optimizer import de_cma, Bite_cpp, Cma_cpp, De_cpp, random_search, wrapper
+from fcmaes import moretry, retry
+
+def mo_minimize_plot(problem, opt, name, exp = 3.0, num_retries = 256):
+    moretry.minimize_plot(name, opt, wrapper(problem.fun), problem.bounds, problem.weight_bounds, 
+                          num_retries = num_retries, exp = exp)
+
+def minimize_plot(problem, opt, name, num_retries = 256):
+    retry.minimize_plot(name, opt, problem.fun, problem.bounds,
+                          num_retries = num_retries)
+----
+
+Note that fcmaes doesn't use dedicated multi-objective algorithms but instead relies on the parallel execution of
+single objective algorithms using the weighted sum approach thereby applying random weights. This often works
+surprisingly well, specially if the alternative is the single threaded application of a dedicated MO-algorithm. 
+For many real world MO-problems from the space flight planning domain involving multiple gravity assist maneuvers
+it is the only approach which works.   
+
+Here are typical optimizer configurations for the chosen single objective problem variant: 
+
+[source,python]
+----
+    budget = 4000
+    retries = 64
+    minimize_plot(problem, random_search(budget), name + '_10k64', num_retries = retries)
+    minimize_plot(problem, Cma_cpp(budget), name + '_10k64', num_retries = retries)
+    minimize_plot(problem, De_cpp(budget), name + '_10k64', num_retries = retries)
+    minimize_plot(problem, Bite_cpp(budget, M=16), name + '_10k64', num_retries = retries)
+----
+
+and for the multi-objective problem variant. Note that more retries are required to generate the pareto front using random weights. 
+
+[source,python]
+----
+    budget = 4000
+    retries = 512
+    mo_minimize_plot(problem, random_search(budget), name + '_4k512', num_retries = retries)
+    mo_minimize_plot(problem, Cma_cpp(budget), name + '_4k512', num_retries = retries)
+    mo_minimize_plot(problem, De_cpp(budget), name + '_4k512', num_retries = retries)
+    mo_minimize_plot(problem, Bite_cpp(budget, M=16), name + '_4k512', num_retries = retries)
+----
+
+All experiments were performed on the same processor, a 16 core AMD 5950x utilizing 32 parallel optimization retries. 
+
+
+==== TopTrumps single-objective function 5, instance 5, dim = 128, 10000 evaluations, 64 retries
+
+- Random search
+
+Even a reasonable budget of 64 * 10000 = 640000 evaluations is not sufficient to find good solutions. But note, that the
+result after 20 seconds (about 6000 evaluations) is better than for all other optimizers. You should never evaluate
+an optimizer after only a few evaluations. 
+
+image::progress_ret.rw-top-trumps_f5i5d128_10k64_random.png[]
+
+CMA-ES works better, reaches its peak result around 0.117 already after 400 seconds, but is not able to improve any further. 
+
+- CMA-ES, popsize = 31
+
+image::progress_ret.rw-top-trumps_f5i5d128_10k64_cma_cpp.png[]
+
+The fcmaes differential evolution variant (DE) crosses 0.12 after about 250 sec, similar to CMA-ES. But it is able to find an improvement late in the optimization process resulting in about 0.113. 
+
+- DE, popsize = 31
+
+image::progress_ret.rw-top-trumps_f5i5d128_10k64_de_cpp.png[]
+
+https://github.com/avaneev/biteopt[Deep Bite optimization] (BiteOpt) is the clear winner here, crossing 0.10 after about 600 sec 
+and improving to an impressive 0.0959 after about 1200 sec. 
+
+- Deep Bite optimization, M=16
+
+image::progress_ret.rw-top-trumps_f5i5d128_10k64_bite_cpp.png[]
+
+Here is the best solution found by the BitOpt algorithm after about 1200 sec on a 16 core CPU executing 32 optimizations in parallel:
+
+[source,python]
+----
+x = [16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 11.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 35.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0, 16.0, 54.0, 12.0, 36.0]
+
+y = problem.fun(x) = 0.095875
+----
+
+Note that this result shows an almost perfect repeated "pattern" which means we could try to reduce the problem to a 4-dimensional one repeating the 4 arguments over the whole solution vector. In fact many repeated pattern produce a good solution around 0.098, but it seems 0.0958 cannot be reached this way. 
+
+==== TopTrumps bi-objective function 2, instance 5, NGSA-II, 4000 generations, popsize = 200
+
+For the bi-objective problem with competing objectives: winrate of better player and switches of trick winner, 
+lets first try the well established NGSA-II algorithm. We use a single threaded implementation, therefore the optimization 
+took about 17.3 hours. 
+
+image::nsgaII_4000_200rw-top-trumps-biobj_f2i5d122_rw-top-trumps-biobj_f2i5d1224k200.png[]
+
+==== TopTrumps bi-objective function 2, instance 5, dim = 128, 4000 evaluations, 512 retries, pareto front
+
+Although the evaluation budged is increased to 4000*512 function calls compared to the 4000*200 calls we used
+for NSGA-II, execution of each of these tests took only about 2.2 hours. This is because of the excellent scaling
+achieved by executing 32 optimizations in parallel on the used 16 core AMD 5950x CPU. Random search is inferior
+to NGSA-II as expected:
+
+- Random search
+
+image::front_.rw-top-trumps-biobj_f2i5d128_4k512_random.png[]
+
+- CMA-ES, popsize = 31
+
+image::front_.rw-top-trumps-biobj_f2i5d128_4k512_cma_cpp.png[]
+
+- DE, popsize = 31
+
+image::front_.rw-top-trumps-biobj_f2i5d128_4k512_de_cpp.png[]
+
+BitOpt is able to find significantly better results for the second (simulation based) objective:
+
+- Deep Bite optimization, M=16
+
+image::front_.rw-top-trumps-biobj_f2i5d128_4k512_bite_cpp.png[]
+
+
+==== TopTrumps bi-objective function 2, instance 5, dim = 128, 4000 evaluations, 512 retries, all results
+
+Here we see the results of the 512 optimization retries used as the basis for the computation of the pareto front.
+
+- Random search
+
+image::all_.rw-top-trumps-biobj_f2i5d128_4k512_random.png[]
+
+- CMA-ES, popsize = 31
+
+image::all_.rw-top-trumps-biobj_f2i5d128_4k512_cma_cpp.png[]
+
+- DE, popsize = 31
+
+image::all_.rw-top-trumps-biobj_f2i5d128_4k512_de_cpp.png[]
+
+- Deep Bite optimization, M=16
+
+image::all_.rw-top-trumps-biobj_f2i5d128_4k512_bite_cpp.png[]
+
+

@@ -1,0 +1,296 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+== Optimization with Expressions
+
+To cite https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt_Algorithms]:
+"For any given optimization problem, it is a good idea to compare several of the available algorithms that are applicable to that problem—in general, one often finds that the "best" algorithm strongly depends upon the problem at hand."
+
+This is true, but it is not the whole story. In the literature we find:
+
+* https://www.sciencedirect.com/science/article/abs/pii/S2210650218301585[Speed up differential evolution]:
+"To do so, CMAES is applied to the best known solution provided by DE. If the solution found by CMAES is better than the solution obtained in the exploration phase by DE, then it replaces the old one"
+
+* https://www.springerprofessional.de/design-of-robust-space-trajectories/1770072[Design of Robust Space Trajectories]: 
+"... a search procedure with an algorithm
+selected among DE, CMA-ES and DIRECT is performed..."
+
+Not always a single optimization algorithm is optimal for a given problem, sometimes it is better to combine different algorithms. Two basic combination-concepts can be derived from the approaches above:
+
+* A sequence of optimization algorithms
+* A random choice between optimization algorithms
+
+To generalize even further: Why not allowing arbitrary expressions with random choice and sequence operators? fcmaes supports this idea:
+
+[source,python]
+----
+from fcmaes.optimizer import Choice, Sequence, Cma_cpp, De_cpp
+from fcmaes import retry
+...
+alg1 = Cma_cpp(50000)
+alg2 = De_cpp(50000)
+alg3 = Sequence([alg2, alg1])
+alg4 = Choice([alg3, alg1])
+
+ret = retry.minimize(fun, bounds, num_retries = 2000, logger = logger(), optimizer = alg4)
+----
+
+These expressions can be forwarded to the parallel or the coordinated parallel retry of fcmaes. 
+Each base algorithm has its own individually assigned evaluation budget - 50000 evaluations in the example above. With the coordinated parallel retry (`from fcmaes import advretry`) these budgets
+are individually incremented, their relation stays the same. 
+
+=== Optimization algorithms for fcmaes parallel retry
+
+There are five types of `basic` algorithms which form the basis of expressions:
+
+* fcmaes native algorithms: `Cma_cpp, De_cpp, GCLDE_cpp, Da_cpp, Hh_cpp, Cma_python`, CMA-ES, differential evolution,  dual annealing and Harris hawks.
+* fcmaes predefined sequences: `de_cma, da_cma`, where `de_cma`, the sequence `(DE | GLC-DE) -> CMA` is the default algorithm used for the parallel retry.  
+* https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy algorithms]: `Dual_annealing, Differential_evolution, Basin_hopping, Minimize, Shgo`
+* https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt algorithms]: `NLopt`, requires `pip install nlopt`
+
+Example: 
+
+[source,python]
+----
+import nlopt
+from fcmaes.optimizer import NLopt
+dim = 18
+dir = nlopt.opt(nlopt.GN_DIRECT_L, dim)
+esch = nlopt.opt(nlopt.GN_ESCH, dim)
+bob = nlopt.opt(nlopt.LN_BOBYQA, dim)
+sbp = nlopt.opt(nlopt.LN_SBPLX, dim)
+algo = Choice([NLopt(dir, 2000), NLopt(esch, 2000), NLopt(bob, 2000), NLopt(sbp, 2000)])
+----
+
+Note that using `NLopt` currently is the only way to use algorithms supporting equality and inequality constraints in combination with the coordinated retry `fcmaes.advretry`. 
+
+* https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[pygmo/pagmo algorithms]
+
+There is no predefined general algorithm wrapper, but you may define individual wrappers:
+
+Example: 
+
+[source,python]
+----
+import pygmo as pg
+from fcmaes.optimizer import Optimizer, de_cma
+
+class SADE_pagmo(Optimizer):
+    """SADE pagmo."""
+   
+    def __init__(self, max_evaluations=50000,
+                 popsize = 20, guess=None, stop_fittness = None):        
+        Optimizer.__init__(self, max_evaluations, 'SADE pagmo')
+        self.popsize = popsize
+
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):       
+        problem = pg.problem(pagmo_problem(fun, bounds, "pagmo function"))
+        maxevals = self.max_eval_num(store)
+        pgalgo = pg.algorithm(
+            pg.sade(maxevals//self.popsize, seed = int(rg.uniform(0, 2**32 - 1))))
+        pop = pg.population(problem, self.popsize)
+        pop = pgalgo.evolve(pop) 
+        return pop.champion_x, pop.champion_f, pop.problem.get_fevals()
+
+algo = Choice([SADE_pagmo(50000), de_cma(50000)])
+----
+
+Note that although https://esa.github.io/pagmo2/[pagmo] algorithm wrappers can only be defined for unconstrained single objective algorithms, https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints] shows two ways to parallelize all `pagmo` algorithms:
+
+- using `pg.archipelago`, pagmos own parallelization method 
+- using `fcmaes.pygmoretry`, a parallel retry mechanism specific for `pagmo` algorithms. 
+
+But for the coordinated retry a wrapper is required. Use `NLopt` instead if you want to apply the coordinated retry with algorithms supporting equality and inequality constraints.
+
+=== Example
+
+As example we choose the https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_tandem.py[Tandem]
+problem already discussed in https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results]. 
+Since we want to test algorithms lets take the much faster old variant using the 6th planet sequence 
+`[earth, venus, earth, earth, saturn]`. For fcmaes the unconstraint variant of this problem is by far the hardest one of all https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] and https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[Pykep Gym] problems. 
+https://www.esa.int/gsp/ACT/projects/gtop/tandem_unc[GTOP result] reports a best score of -1673.88 which is
+from the paper https://www.springerprofessional.de/design-of-robust-space-trajectories/1770072[Design of Robust Space Trajectories]. There an average score of -1654.94 with standard deviation 2.18 is given. Their messenger full
+score of -2.970 km/s is easily improved by fcmaes in about 1000 seconds (see https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc[README]), but with `Tandem 6 unconstraint` fcmaes is without any chance using its default configuration. 
+
+Lets see whether algorithm expressions can help here. 
+
+First lets check the (old) default algorithm Sequence([De_cpp(750), Cma_cpp(750)]). Note that the coordinated retry increments this evaluation budget over time preserving the relations inside the algorithm expression.
+
+[source,python]
+----
+from fcmaes.optimizer import logger
+from fcmaes import advretry
+from fcmaes.astro import Tandem
+
+problem = Tandem(5, False) # unconstrained variant using [earth, venus, earth, earth, saturn]
+
+logger().info("coordinated retry for problem " + problem.name)
+
+ret = advretry.minimize(problem.fun, bounds=problem.bounds, num_retries = 500000,
+	value_limit = 0, logger = logger()) 
+----
+
+----
+...
+882.57 695898 10837 614178960 -1613.001580 -623.32 454 50 
+2479.95 720730 26936 1787376318 -1613.100498 -717.53 455 50 
+2488.52 720869 27024 1793897856 -1613.130654 -717.97 453 50 
+2492.98 721025 27073 1797503032 -1613.162705 -717.97 458 50 
+6543.79 724201 67117 4739022488 -1616.467903 -895.85 451 50 
+8444.96 720532 85391 6084871889 -1617.673672 -976.27 457 50 
+8554.28 720305 86436 6161692972 -1621.994850 -983.19 455 50 
+10521.75 718304 105393 7557819167 -1622.000772 -1074.32 461 50 
+17717.85 711488 173779 12606049822 -1622.019949 -1199.75 459 50 
+----
+
+We only reached value `-1622.02` in this experiment. 
+
+After some research we find https://arxiv.org/abs/1503.03175[Benchmarking NLopt and state-of-art algorithms]
+showing very strong performance for `ISRES evolutionary constrained optimization` implemented in NLopt as `NLOPT_GN_ISRES`.
+You need to do `pip install nlopt` before trying it yourself. 
+
+In the code above we redefine `algo` and increase the initial number of evaluations:
+
+[source,python]
+----
+...
+isres = nlopt.opt(nlopt.GN_ISRES, 18)
+algo = NLopt(isres, 4000)])
+ret = advretry.minimize(problem.fun, bounds=problem.bounds, num_retries = 500000,
+	value_limit = 0, logger = logger(), optimizer = algo)
+...
+----
+
+results in:
+
+----
+...
+807.3 999871 6516 807196000 -700.350634 -212.37 459 50 
+823.69 1000857 6602 824396000 -700.916472 -217.04 451 50 
+1060.65 1012394 7849 1073796000 -701.130025 -277.24 481 50 
+1107.8 1014258 8098 1123596000 -701.410716 -286.40 462 50 
+1568.59 1026651 10532 1610396000 -701.580602 -356.20 466 50 
+2786.26 1038666 16950 2893996000 -737.242943 -450.98 478 50 
+----
+
+That doesn't mean that `GN_ISRES` is a bad algorithm, just that it doesn't do well in the context of fcmaes coordinated retry if 
+used as only algorithm. Neither does DE, but we could "save" it by appending a CMA-ES "afterburner". 
+Lets try the same idea with `GN_ISRES` and add the `DE -> CMA` sequence and pure CMA-ES as alternatives.
+
+[source,python]
+----
+...
+isres = nlopt.opt(nlopt.GN_ISRES, 18)
+algo = Choice([Cma_cpp(4000), 
+               Sequence([NLopt(isres, 2000), Cma_cpp(2000)]),
+               Sequence([De_cpp(2000), Cma_cpp(2000)])
+               ])
+...
+----
+
+We get:
+
+----
+...
+18767.74 871210 123177 16350653331 -1614.771797 -1019.29 485 50 
+19967.4 871267 130891 17396940668 -1621.408110 -807.33 490 50 
+21779.72 869162 142150 18930121124 -1621.858142 -615.66 474 50 
+25585.89 868511 166148 22221645175 -1622.095911 -1115.93 477 50 
+29980.39 866498 193504 25977964924 -1628.134092 -1144.71 452 50 
+32637.82 866088 210275 28267253282 -1629.171843 -1119.40 496 50 
+35451.04 864611 227481 30651393925 -1630.748444 -1126.17 496 50 
+----
+
+We achieved a slight improvement.
+We haven't found a good solution for the Tandem problem yet, but discovered an interesting alternative to our default algorithm. 
+
+The method called SAGES (Self-Adaptive Gaussian Evolution Strategies) used in  https://www.springerprofessional.de/design-of-robust-space-trajectories/1770072[Design of Robust Space Trajectories] is quite similar to fcmaes coordinated retry. It maintains a pool of solution clusters choosing the best one of each cluster for further optimization. It updates the distribution such that the likelihood of previously successful steps to appear again is increased. It randomly chooses between three algorithms Divide RECTangle (DiRECT), CMA-ES and DE. This is something we can emulate with fcmaes in an attempt to improve our result. DiRECT is taken from the NLopt library. Lets try to use this random choice with fcmaes coordinated retry:
+
+[source,python]
+----
+import nlopt
+from fcmaes.optimizer import logger, Sequence, Cma_cpp, De_cpp, NLopt
+...
+
+direct = nlopt.opt(nlopt.GN_DIRECT_L, 18)
+algo = Choice([Cma_cpp(4000), 
+               NLopt(direct, 4000),
+               Sequence([De_cpp(2000), Cma_cpp(2000)])
+               ])
+...
+----
+
+results in: 
+----
+...
+199.53 850724 3111 169745147 -1508.570212 -137.14 458 32 
+233.89 845209 3368 197685937 -1511.974617 -153.34 488 34 
+515.32 848725 5157 437365420 -1519.685510 -293.54 483 50 
+567.1 847719 5433 480741478 -1534.262735 -326.99 466 50 
+585.57 847847 5536 496474064 -1607.173956 -332.31 472 50 
+2746.86 831936 17144 2285213310 -1608.256045 -630.71 470 50 
+4641.75 822709 27006 3818812904 -1611.920858 -694.43 452 50 
+5755.14 821705 32850 4729028676 -1613.165575 -719.05 477 50 
+5937.67 821148 33789 4875709795 -1614.180264 -719.42 499 50 
+6691.3 819925 37720 5486368600 -1614.653847 -727.33 458 50 
+7137.82 818316 39988 5840996752 -1614.742911 -737.81 451 50 
+11530.44 815184 62952 9399438671 -1632.351246 -826.00 480 50 
+12125.71 815357 66080 9886783370 -1633.128410 -837.32 486 50 
+18535.63 811037 99018 15033094461 -1634.685702 -962.98 461 50 
+21017.46 810659 111771 17037997860 -1634.942373 -1018.40 485 50 
+30133.58 808076 158487 24350245249 -1635.085365 -1013.34 451 50 
+33879.88 808542 177865 27393320169 -1665.481867 -872.81 488 50 
+47617.61 807573 247994 38454740925 -1666.421575 -1197.40 498 50 
+53300.71 807856 325977 43923108490 -1670.171993 -1601.40 497 50 
+
+value = -1670.17
+
+x = [8486.653344523314, 3.2175815558740912, 0.5034835357989254, 0.47308860745276826, 1555.9484722076934, 2431.3606712019828, 2476.3277548400843, 2440.981137799489, 0.8876479942944842, 0.9101937511343134, 0.8008007812307147, 0.1298948708051898, 1.0500201811483711, 1.2860810256159876, 1.2999829127716385, -1.9148500728099036, -1.5956309303166005, -1.2100005907976763]
+----
+
+This is the best result so far. Beside the different meta algorithm there are differences in the
+implementations of CMA-ES, DE and DiRECT used. This result is not far below the old -1673.88 Tandem solution. If anyone is able to reproduce the old result 
+or improve it, please leave me a note. 
+
+==== Changing the objective function 
+
+Finally there is a solution to the unconstrained Tandem-6 problem using fcmaes: Lets cheat and modify the objective function. We argue as follows:
+If there is no time constraint and we have up to 2500 days for each planet to planet transfer, it would be quite silly to restrict the Lambert transfers - the coasting phases - from and to the one deep space maneuver to single revolution transfers as done in https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem]. The new Lambert implementation https://github.com/esa/pykep/tree/master/include/keplerian_toolbox/lambert_problem.hpp[PYKEP lambert] returns multiple solutions corresponding to different numbers of revolutions, we can use that instead. Which Lambert solution should we choose now?
+The easiest way is to compute the outgoing delta velocity - which we want to minimize - and use the solution with minimal DV. After "fixing" the objective function this way we can use the standard fcmaes coordinated retry algorithm:
+
+[source,python]
+----
+self.ret = advretry.minimize(problem.fun, bounds=problem.bounds, num_retries = 500000,
+	value_limit = 0, logger = logger()) 
+----
+
+We finally can "beat" -1673.88 after about 5300 sec. 
+
+----
+1.93 598255 231 1154633 -608.636312 inf 0 3
+2.52 604263 265 1522745 -1117.033723 inf 2 
+11.9 729928 655 8686155 -1382.511032 -506.26 28 7 
+13.84 746542 719 10332144 -1491.030544 -506.26 38 8
+25.43 799816 1012 20339337 -1552.110651 -506.26 82 11
+54.02 840285 1527 45392231 -1552.524310 -504.87 191 16 
+70.62 855335 1782 60403788 -1590.377311 -500.36 252 18 
+503.99 883346 5384 445197622 -1602.781555 -795.31 474 50 
+582.69 879553 5888 512507140 -1642.234081 -834.87 471 50 
+613.17 876618 6064 537516346 -1643.002331 -862.13 471 50 
+2333.94 805321 15941 1879572859 -1659.637234 -1195.81 465 50 
+5292.71 742129 31025 3927876955 -1697.817507 -1318.50 454 50 
+
+value = -1697.817507
+
+x = [8985.777208563886, 3.10462480351035, 0.500722851008186, 0.5059749737662897, 1509.0051214068033, 2354.540184529874, 2481.138533788754, 2463.4688848161204, 0.0912162947780331, 0.39667495625374355, 0.505020262110919, 0.11194600083017511, 1.0500000026540122, 1.216447424278298, 1.3308570124291603, -1.1827327050482357, -1.575578932554857, -1.3801957487725152]
+----
+
+This solution gives a very bad value for the original https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem] objective function `value = -0.001128`. Nevertheless it is perfectly fine and can be flown in reality which can be verified when replacing the kepler model by a model based on a taylor integrator. 
+
+Even the best optimizing algorithm cannot save us, if we choose a bad design for our objective function. 
+The original GTOP Tandem implementation artificially made the problem hard to solve. Instead of a "smooth" path to the global solution it was hidden in a very narrow space, because coasting transfers were restricted to single revolution.  
+
+After fixing the flaw of the objective function, even the fcmaes default coordinated retry can solve the problem easily. 
+We performed three more runs, all ended at the same solution with only minor differences. 
+

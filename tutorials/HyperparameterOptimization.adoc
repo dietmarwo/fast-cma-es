@@ -1,0 +1,275 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+== Hyperparameter Tuning
+
+How to choose a set of optimal parameters for a learning algorithm?
+In this domain the parameters are called "hyperparameters", their
+values control the learning process. Parameter optimization is
+relevant also for other domains, but learning algorithms have some specific properties:
+
+- Value of the objective function is usually the mean square error of the prediction for the training data set.
+- Cross validation to determine the mean square error is expensive and usually supports parallel execution. 
+- The optimization algorithm needs not to be parallelized if cross validation is already executed using parallelization.
+- Optimization algorithm performance overhead is less relevant. 
+- Some parameters are discrete values, integers or integer multiples of a real value. 
+
+The Python artificial learning community prefers four different methods:
+
+- https://scikit-learn.org/stable/modules/grid_search.html[Grid Search]
+- https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.RandomizedSearchCV.html[Randomized Search]
+- http://hyperopt.github.io/hyperopt/[Tree of Parzen Estimators (TPE)]
+- https://www.kaggle.com/clair14/tutorial-bayesian-optimization[Bayesian Optimization]
+
+From examples like  https://github.com/dietmarwo/fast-cma-es/blob/master/examples/gear_train.py[gear_train.py]
+we have learned that a discrete parameter value can easily be obtained by
+mapping a real parameter value to a discrete one, therefore standard evolutionary 
+real value optimization algorithms (CMA-ES, DE, BITE) are
+applicable. Still these are mostly ignored - beside some research applying Differential Evolution.  
+
+In this tutorial we try to find out why. Lets have a look at a real world example, 
+https://www.kaggle.com/c/house-prices-advanced-regression-techniques[House Price Prediction]:
+"With 79 explanatory variables describing (almost) every aspect of residential homes in Ames, Iowa, 
+this competition challenges you to predict the final price of each home."
+
+The tutorial code https://github.com/dietmarwo/fast-cma-es/blob/master/examples/house.py[house.py] is based on 
+https://www.kaggle.com/pablocastilla/predict-house-prices-with-xgboost-regression[House Price Tutorial] which
+we extended by alternative hyperparameter tuning methods.
+To execute the example you need to download the
+https://www.kaggle.com/c/house-prices-advanced-regression-techniques/data[house price data].
+
+In the original https://www.kaggle.com/pablocastilla/predict-house-prices-with-xgboost-regression[House Price Tutorial]
+only grid search was used to determine optimal values for eight parameters of 
+https://github.com/dmlc/xgboost/blob/master/python-package/xgboost/sklearn.py[xgboost.XGBRegressor], 
+which is one of the most popular tools used on https://www.kaggle.com/kaggle[kaggle]. Only 'max_depth' is really
+discrete, other parameters are made discrete to speed up grid search. We will keep the given limits for our comparison, 
+but will use continuous values if possible. 
+
+=== https://scikit-learn.org/stable/modules/grid_search.html[Grid Search]
+
+[source,python]
+----
+# grid search
+
+parameters_for_testing = {
+    'colsample_bytree':[0.4,0.6,0.8],
+    'gamma':[0,0.03,0.1,0.3],
+    'min_child_weight':[1.5,6,10],
+    'learning_rate':[0.1,0.07],
+    'max_depth':[3,5],
+    'n_estimators':[10000],
+    'reg_alpha':[1e-5, 1e-2,  0.75],
+    'reg_lambda':[1e-5, 1e-2, 0.45],
+    'subsample':[0.6,0.95]  
+}
+                    
+xgb_model = xgboost.XGBRegressor(learning_rate =0.1, n_estimators=1000, max_depth=5,
+     min_child_weight=1, gamma=0, subsample=0.8, colsample_bytree=0.8, nthread=6, scale_pos_weight=1, seed=27)
+
+gsearch = GridSearchCV(estimator = xgb_model, param_grid = parameters_for_testing, 
+                        n_jobs=6,iid=False, verbose=100, scoring='neg_mean_squared_error')
+gsearch.fit(train_x, train_y)
+
+#visualize the best couple of parameters
+print (gsearch.best_params_) 
+----
+
+Result is the following model used later to generate the output:
+
+[source,python]
+----
+best_xgb_model = xgboost.XGBRegressor(colsample_bytree=0.4,
+                 gamma=0,                 
+                 learning_rate=0.07,
+                 max_depth=3,
+                 min_child_weight=1.5,
+                 n_estimators=10000,                                                                    
+                 reg_alpha=0.75,
+                 reg_lambda=0.45,
+                 subsample=0.6,
+                 seed=42)
+----
+
+=== Results for the other methods
+
+We tested on a single 16 core AMD 3950x CPU. For the CMA-ES tests we utilized the "parallel function evaluation" feature. 
+Therefore for this test we disable parallelism in the XGBRegressor (set n_jobs=1).
+For all other tests XGBRegressor parallelism was enabled. We observed that multi-core scaling is much better
+using parallel function evaluation compared to the XGBRegressor internal parallelism. The number of evaluated function calls
+in a given time more than doubled for CMA-ES. But memory consumption is higher for parallel function evaluation, since
+multiple parallel instances of the XGBRegresso are maintained. 
+From https://homes.cs.washington.edu/~jamieson/hyperband.html[Hyperband] we learn that doubling the number of evaluations 
+means even random search will beat Bayesian Optimization. Note that the idea of the Hyperband algorithm is to improve
+parallelism, but the results here show that even with the same number of evaluations Bayesian Optimization 
+and TPE are inferior to evolutionary algorithms. 
+We failed to find an explanation standard evolutionary methods are ignored by the artificial learning community. 
+Please contact me if you have an example where you think TPE/Bayesian will outperform standard evolutionary methods.  
+
+image::Hyper_Parameter_Optimization.png[] 
+
+In the picture CMA-16 means `popsize=16, workers=16`, CMA-32 means `popsize=32, workers-32`. We observed 
+sub-optimal scaling above 16 parallel function evaluations. This is not the case for parallel optimization runs - 
+there 32 parallel optimizations on this processor is optimal. But XGBRegressor cross validation is too expensive,
+parallel optimization makes no sense here.  
+
+=== Objective function
+
+To test other methods we first have to define a real valued objective function
+computing the 'neg_mean_squared_error' using cross validation. 
+We print the time, best value so far and the number of used evaluations. 
+mp.RawValue is used to make this working even when the objective function is
+called in parallel. Note that for `max_depth=int(X[4])` we map the real valued
+parameter to an integer value by truncating the decimal part.
+
+[source,python]
+----
+# shared with all parallel processes
+best_f = mp.RawValue(ct.c_double, -math.inf) 
+f_evals = mp.RawValue(ct.c_int, 0) 
+t0 = time.perf_counter()
+
+# Optimization objective 
+def cv_score(X):
+    X = X[0]     
+    score = cross_val_score(
+            XGBRegressor(colsample_bytree=X[0],
+                         gamma=X[1],                 
+                         min_child_weight=X[2],
+                         learning_rate=X[3],
+                         max_depth=int(X[4]),
+                         n_estimators=10000,                                                                    
+                         reg_alpha=X[5],
+                         reg_lambda=X[6],
+                         subsample=X[7], 
+                         #n_jobs=1 # required for cmaes with multiple workers
+                         ), 
+                train_x, train_y, scoring='neg_mean_squared_error').mean()
+
+    score = np.array(score)
+    
+    global f_evals
+    f_evals.value += 1
+    global best_f
+    if best_f.value < score:
+        best_f.value = score
+
+    print("time = {0:.1f} y = {1:.5f} f(xmin) = {2:.5f} nfev = {3} {4}"
+          .format(dtime(t0), score, best_f.value, f_evals.value, X))
+
+    return score
+----
+
+===== Remark
+The idea using `mp.RawValue` to share state between processes works only when sub-processes are forked
+as it is the default on Linux. Windows only supports spawning new processes, so there will be
+separate instances of `best_f` and `f_evals` if multiple workers are configured with `fcmaes.cmaes` or
+`fcmaes.de`. On Python 3.8 https://docs.python.org/3/library/multiprocessing.shared_memory.html[shared memory]
+could be used instead, but we don't want to require Python 3.8 yet. 
+
+The mean squared error of the parameters obtained by grid search 
+`[0.4, 0, 1.5, 0.07, 3, 0.75, 0.45, 0.6]` is `0.01289`. Lets see if we can improve that
+using 
+
+=== https://www.kaggle.com/clair14/tutorial-bayesian-optimization[Bayesian Optimization]
+
+Instead of bounds we define the set of feasible parameter values using a domain
+specification `bds`.
+
+[source,python]
+----
+# Bayesian Optimization
+
+from GPyOpt.methods import BayesianOptimization
+
+bds = [        
+        {'name': 'colsample_bytree', 'type': 'continuous', 'domain': (0.4, 0.8)},
+        {'name': 'gamma', 'type': 'continuous', 'domain': (0, 0.3)},
+        {'name': 'min_child_weight', 'type': 'continuous', 'domain': (1.5, 10)},
+        {'name': 'learning_rate', 'type': 'continuous', 'domain': (0.07, 0.1)},
+        {'name': 'max_depth', 'type': 'discrete', 'domain': (3, 5)},
+        {'name': 'reg_alpha', 'type': 'continuous', 'domain': (1e-5, 0.75)},
+        {'name': 'reg_lambda', 'type': 'continuous', 'domain': (1e-5, 0.45)},
+        {'name': 'subsample', 'type': 'continuous', 'domain': (0.6, 0.95)}]
+
+optimizer = BayesianOptimization(f=cv_score, 
+                                 domain=bds,
+                                 model_type='GP',
+                                 acquisition_type ='EI',
+                                 acquisition_jitter = 0.05,
+                                 exact_feval=True, 
+                                 maximize=True)
+ 
+optimizer.run_optimization(max_iter=20000)
+y_bo = np.maximum.accumulate(-optimizer.Y).ravel()
+print(f'Bayesian optimization neg. MSE = {y_bo[-1]:.2f}')
+----
+
+=== http://hyperopt.github.io/hyperopt/[Tree of Parzen Estimators (TPE)]
+
+To support tree search we "discretize" some of the parameters in the domain
+specification `xgb_space`.
+
+[source,python]
+----
+# Parzen Tree Search
+
+from hyperopt import fmin, hp, tpe, STATUS_OK
+
+def obj_fmin(X):
+    return {'loss': -np.asscalar(cv_score([X])), 'status': STATUS_OK }
+ 
+xgb_space = [
+        hp.quniform('colsample_bytree', 0.4, 0.8, 0.05),
+        hp.quniform('gamma', 0, 0.3, 0.05),
+        hp.quniform('min_child_weight', 1.5, 10, 0.5),
+        hp.quniform('learning_rate', 0.07, 0.1, 0.05),
+        hp.choice('max_depth', [3,4,5]),
+        hp.uniform('reg_alpha', 1e-5, 0.75),
+        hp.uniform('reg_lambda', 1e-5, 0.45),
+        hp.uniform('subsample', 0.6, 0.95)]
+ 
+best = fmin(fn = obj_fmin, space = xgb_space, algo = tpe.suggest, 
+                max_evals = 20000, verbose=False)
+----
+
+=== fcmaes Optimization Algorithms
+
+For standard real value optimization algorithms we define real `bounds`.
+Note that since we have `max_depth=int(X[4])`, the real valued
+parameter is mapped to an integer value by truncating the decimal part. This means if defining
+real value boundaries the upper bound should be `6` so that max_depth=5 has
+a corresponding real value interval of size 1.0. When cmaescpp.minimize uses multiple parallel
+workers, we have to disable parallelism in XGBRegressor (set n_jobs=1).
+
+This tutorial is continued in  
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/DelayedUpdate.adoc[delayed update tutorial]
+where we focus on algorithms supporting delayed optimization state update.
+
+[source,python]
+----
+# fcmaes optimization methods
+
+from scipy.optimize import Bounds
+from fcmaes import decpp, cmaescpp, bitecpp, de
+
+bounds = Bounds([0.4, 0, 1.5, 0.07, 3, 1e-5, 1e-5, 0.6], [0.8, 0.3, 10, 0.1, 6, 0.75, 0.45, 0.95])
+
+def obj_f(X):
+    return -cv_score([X])
+
+ret = bitecpp.minimize(obj_f, bounds, max_evaluations = 20000)
+
+# for cmaescpp with multiple workers set n_jobs=1 in XGBRegressor
+
+#ret = cmaescpp.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, workers=16)
+#ret = cmaescpp.minimize(obj_f, bounds, popsize=32, max_evaluations = 20000, workers=32)
+#ret = decpp.minimize(obj_f, 8, bounds, popsize=16, max_evaluations = 20000)
+
+# delayed state update
+#ret = cmaes.minimize(obj_f, bounds, popsize=16, max_evaluations = 20000, 
+#   					workers=32, delayed_update=True)
+
+#ret = de.minimize(obj_f, bounds, popsize = 16, max_evaluations = 20000, workers=32)
+----
+

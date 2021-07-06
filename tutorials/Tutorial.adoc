@@ -1,0 +1,502 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+== How to use fcmaes
+
+Here we use a real world example from the space mission design domain, but there are https://github.com/dietmarwo/fast-cma-es/tree/master/examples[examples] from the mechanical component design domain and how to optimize when solving ODEs in the objective function https://github.com/dietmarwo/fast-cma-es/blob/master/ODE.adoc[ODE].  
+
+Several real world optimization tasks from the space trajectory design domain are made callable via Python in fcmaes: 
+
+- https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1], https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2], https://www.esa.int/gsp/ACT/projects/gtop/rosetta/[Rosetta], https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1], https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/[Messenger reduced], https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full], https://www.esa.int/gsp/ACT/projects/gtop/sagas/[Sagas], and https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem]
+
+The source code can be found here https://www.esa.int/gsp/ACT/doc/INF/Code/globopt/GTOPtoolbox.zip[GTOPToolbox].
+fcmaes adds a python interface in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/astro.py[astro.py]. 
+The tutorial code can be found in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/tutorial.py[tutorial.py]. 
+We focus on https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1] and leave the other problems for you to experiment with. 
+
+=== GTOC1
+
+Lets suppose we are participating in the https://sophia.estec.esa.int/gtoc_portal/?page_id=13[GTOC1] competition, which
+is a complex space mission task to save the earth from an incoming asteroid impact. The first thing we need to do is to simplify
+the task in a way suitable for optimization such that the optimization result is a useful basis to compute a full solution. 
+We can find such an abstraction here https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[ESA-Abstraction] and its
+implementation here https://www.esa.int/gsp/ACT/doc/INF/Code/globopt/GTOPtoolbox.zip[GTOPToolbox].
+Using the ESA-Abstraction we could reach rank 3 
+(https://sophia.estec.esa.int/gtoc_portal/wp-content/uploads/2012/11/ACT-RPT-MAD-GTOC1-ranks.pdf[GTOC1-results]) 
+if we were able to solve the corresponding optimization task.  
+
+The https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[ESA-Abstraction] uses a fixed planet sequence and replaces 
+the ion thruster by a regular impulse (rocket) engine. The cost function is accessible as astro.gtoc1Func, 
+it takes an argument vector X and produces a double value as result. The function is only partly defined, 
+but the given bounds make sure we get a valid value. This value represents the competition score which combines the different objectives using the weighted sum approach. The maximal thrust constraint is solved indirectly: 
+A good score means only "small" impulse maneuvers are necessary which are easily convertible into a low thrust trajectory.   
+
+==== Recommended way to solve GTOC1
+
+First we start with the recommended way to apply fcmaes:
+
+[source,python]
+----
+import math
+import time
+from fcmaes.optimizer import dtime
+from fcmaes import astro, advretry
+
+def test_advretry(problem, num):
+    best = math.inf
+    t0 = time.perf_counter();    
+    for i in range(num):
+        ret = advretry.minimize(problem.fun, bounds = problem.bounds, num_retries = 4000)
+        best = min(ret.fun, best)
+        print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+              .format(i+1, dtime(t0), best, ret.fun))
+          
+if __name__ == '__main__':
+	problem = astro.Gtoc1()
+	test_advretry(problem, 10)
+----
+We perform 10 experiments each using 4000 retries, all other parameters are left at their default. 
+If we run this on a 16 core AMD 3950x the output is something like: 
+----
+1: time = 89.2 best = -1581950.2 f(xmin) = -1581950.2
+2: time = 177.6 best = -1581950.3 f(xmin) = -1581950.3
+3: time = 267.4 best = -1581950.3 f(xmin) = -1581950.3
+4: time = 356.3 best = -1581950.3 f(xmin) = -1581950.3
+5: time = 445.0 best = -1581950.3 f(xmin) = -1581950.3
+6: time = 534.5 best = -1581950.3 f(xmin) = -1581950.2
+7: time = 623.5 best = -1581950.3 f(xmin) = -1581950.3
+8: time = 712.5 best = -1581950.3 f(xmin) = -1581950.3
+9: time = 799.9 best = -1581950.3 f(xmin) = -1581950.3
+10: time = 887.7 best = -1581950.3 f(xmin) = -1567308.5
+----
+In 9 out of 10 cases we got the optimum, each try needs about 90 seconds. 
+So we solved the task, you may ask why we discuss such an "easy problem"?
+In fact at the real GTOC1 competition most teams scored lower, 
+so fcmaes is "hiding" the complexity of this optimization problem. 
+To get a better understanding  we will now try alternative methods to solve 
+the https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[GTOC1] benchmark problem. 
+
+==== Coordinated Retry using CMA-ES
+
+Using the `optimizer` parameter of `advretry.minimize` we can replace 
+the default optimizer used, lets try the CMA-ES optimizer:
+
+[source,python]
+----
+from fcmaes.optimizer import Cma_python, dtime
+...
+        ret = advretry.minimize(problem.fun, bounds = problem.bounds, num_retries = 4000, 
+                   optimizer = Cma_python(2000))
+...
+----
+The parameter given to `Cma_python(2000)` is the maximum number of function evaluations per optimization run 
+the coordinated retry starts with. It will increment this number every 100 runs, but starting with a low
+limit makes sense because it doesn't waste too much evaluations at a time the coordinated retry has no clue 
+where to focus the search. `fcmaes.optimizer` allows to construct optimizers as sequences of other optimizers. 
+In this case the evaluation budget can be distributed between the members of a sequence. `advretry.minimize` will
+increment these limits proportionally. We get:
+
+----
+1: time = 118.2 best = -1559737.6 f(xmin) = -1559737.6
+2: time = 232.0 best = -1570386.7 f(xmin) = -1570386.7
+3: time = 348.5 best = -1570386.7 f(xmin) = -1568160.4
+4: time = 464.0 best = -1570386.7 f(xmin) = -1565316.2
+5: time = 577.6 best = -1581950.2 f(xmin) = -1581950.2
+6: time = 692.8 best = -1581950.2 f(xmin) = -1570386.7
+7: time = 809.8 best = -1581950.2 f(xmin) = -1567308.4
+8: time = 924.9 best = -1581950.2 f(xmin) = -1577088.6
+9: time = 1037.8 best = -1581950.2 f(xmin) = -1581950.2
+10: time = 1152.2 best = -1581950.2 f(xmin) = -1581950.2
+----
+CMA-ES was the default optimizer in earlier versions of fcmaes, we see why it was replaced by a DE->CMA sequence.
+Although not bad, we get only three out of ten "hits". It is slower, but this can be fixed by using 
+`Cma_cpp(2000)`, the {cpp} variant instead.
+
+==== Parallel Retry
+
+The (simple) parallel retry sometimes is the better alternative, specially for high dimensional problems or expensive
+objective functions. 
+
+[source,python]
+----
+from fcmaes import astro, retry
+...
+        ret = retry.minimize(problem.fun, bounds = problem.bounds, 
+                num_retries = 2000, max_evaluations = 100000)
+...
+----
+We increased the (fixed) maximal number of function evaluations to 100000 to show that even with a higher budget
+- `advretry.minimize` limits to 50000 evaluations as default - we get worse results for GTOC1:
+
+----
+1: time = 72.0 best = -1394701.3 f(xmin) = -1394701.3
+2: time = 143.9 best = -1394701.3 f(xmin) = -1349303.4
+3: time = 215.4 best = -1448108.2 f(xmin) = -1448108.2
+4: time = 287.2 best = -1508157.0 f(xmin) = -1508157.0
+5: time = 359.1 best = -1513210.8 f(xmin) = -1513210.8
+6: time = 430.6 best = -1513210.8 f(xmin) = -1489635.2
+7: time = 502.0 best = -1513210.8 f(xmin) = -1506445.5
+8: time = 573.6 best = -1523622.8 f(xmin) = -1523622.8
+9: time = 645.2 best = -1523622.8 f(xmin) = -1503193.3
+10: time = 716.8 best = -1523622.8 f(xmin) = -1519143.8
+----
+
+==== Parallel Retry using CMA-ES
+
+[source,python]
+----
+...
+        ret = retry.minimize(problem.fun, bounds = problem.bounds, 
+                num_retries = 2000, optimizer = Cma_python(100000))
+...
+----
+This time we have to provide the evaluation limit as parameter to `Cma_python(100000)` as with the coordinated retry. 
+The simple retry doesn't increase this limit. 
+
+----
+1: time = 78.1 best = -1404487.1 f(xmin) = -1404487.1
+2: time = 154.2 best = -1404487.1 f(xmin) = -1392344.8
+3: time = 230.4 best = -1503193.1 f(xmin) = -1503193.1
+4: time = 307.9 best = -1503193.1 f(xmin) = -1425075.5
+5: time = 385.7 best = -1503193.1 f(xmin) = -1399988.7
+6: time = 463.0 best = -1542602.2 f(xmin) = -1542602.2
+7: time = 540.3 best = -1579084.3 f(xmin) = -1579084.3
+8: time = 618.0 best = -1579084.3 f(xmin) = -1395664.8
+9: time = 697.0 best = -1579084.3 f(xmin) = -1395664.9
+10: time = 775.3 best = -1579084.3 f(xmin) = -1426918.2
+----
+Without coordinated retry CMA-ES can compete with the default optimizer
+
+==== Logging
+
+Logging can be activated (also for `advretry.minimize`) using
+
+[source,python]
+----
+from fcmaes.optimizer import logger
+...
+        ret = retry.minimize(problem.fun, bounds = problem.bounds, num_retries = 4000, 
+                   logger = logger())
+...
+----
+It will log both to the screen and into a log file. See the https://github.com/dietmarwo/fast-cma-es/blob/master/Readme.adoc[Readme]
+for a description of the log output. Mean and standard deviations of the results of the optimization runs help to evaluate optimization algorithms.
+----
+...
+8.41 1303740 256 10964457 -1512825.931527 -654747.84 297959.56 [-1475105.69, -1306121.73, -1250238.61,
+----
+This means after 8.41 sec we had 256 runs, 10964457 evaluations, 1303740 evaluations/sec, best result was -1512825, mean = -654747 and sdev = 297959. We also see the best 20 results followed by the best solution so far. For `advretry.minimize` the output differs slightly since using a varying number of function evaluations means outputting mean and sdev makes no sense.   
+
+==== Serial Loop using CMA Python
+
+Next lets see what happens if we replace the parallel retry by a simple loop:
+
+[source,python]
+----
+from fcmaes import cmaes
+...
+    best = math.inf
+    t0 = time.perf_counter();
+    for i in range(1000):
+        ret = cmaes.minimize(problem.fun, max_evaluations = 100000, bounds = problem.bounds)
+        if best > ret.fun or i % 100 == 99:
+            print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+              .format(i+1, dtime(t0), best, ret.fun))
+        best = min(ret.fun, best)
+----
+We get:
+----
+1: time = 0.8 best = inf f(xmin) = -84473.9
+3: time = 2.2 best = -84473.9 f(xmin) = -685008.5
+4: time = 3.0 best = -685008.5 f(xmin) = -696421.2
+5: time = 3.7 best = -696421.2 f(xmin) = -864561.8
+22: time = 18.3 best = -864561.8 f(xmin) = -1136598.3
+52: time = 43.3 best = -1136598.3 f(xmin) = -1227708.5
+100: time = 83.8 best = -1227708.5 f(xmin) = -1166085.7
+200: time = 167.8 best = -1227708.5 f(xmin) = -942740.5
+265: time = 220.8 best = -1227708.5 f(xmin) = -1415819.8
+300: time = 248.3 best = -1415819.8 f(xmin) = -43348.4
+317: time = 262.7 best = -1415819.8 f(xmin) = -1467685.3
+400: time = 330.2 best = -1467685.3 f(xmin) = -1109849.9
+500: time = 407.1 best = -1467685.3 f(xmin) = -73631.4
+600: time = 487.4 best = -1467685.3 f(xmin) = -833640.3
+700: time = 573.9 best = -1467685.3 f(xmin) = -411707.5
+800: time = 656.1 best = -1467685.3 f(xmin) = -316534.2
+900: time = 737.3 best = -1467685.3 f(xmin) = -69421.9
+1000: time = 818.2 best = -1467685.3 f(xmin) = -545722.6
+----
+For 1000 retries we need 818 seconds and get a decent result of -1467685.
+
+==== Serial Loop using CMA {cpp}
+
+The Python CMA implementation can easily be replaced by the {cpp} one:
+
+[source,python]
+----
+from fcmaes import cmaescpp
+...
+    best = math.inf
+    t0 = time.perf_counter();
+    for i in range(1000):
+        ret = cmaescpp.minimize(problem.fun, max_evaluations = 100000, bounds = problem.bounds)
+        if best > ret.fun or i % 100 == 99:
+            print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+              .format(i+1, dtime(t0), best, ret.fun))
+        best = min(ret.fun, best)
+----
+We get:
+----
+1: time = 1.1 best = inf f(xmin) = -83800.5
+4: time = 2.6 best = -83800.5 f(xmin) = -1415819.7
+100: time = 52.0 best = -1415819.7 f(xmin) = -787091.1
+200: time = 101.1 best = -1415819.7 f(xmin) = -63063.6
+300: time = 151.4 best = -1415819.7 f(xmin) = -76361.4
+327: time = 164.9 best = -1415819.7 f(xmin) = -1512825.9
+400: time = 201.4 best = -1512825.9 f(xmin) = -423970.3
+500: time = 251.1 best = -1512825.9 f(xmin) = -602149.4
+600: time = 300.2 best = -1512825.9 f(xmin) = -565361.7
+700: time = 349.8 best = -1512825.9 f(xmin) = -589410.0
+800: time = 399.7 best = -1512825.9 f(xmin) = -73190.7
+900: time = 448.1 best = -1512825.9 f(xmin) = -76455.3
+1000: time = 499.1 best = -1512825.9 f(xmin) = -64913.0
+----
+The speed difference to the python variant is suprisingly small. You probably would expect a different result if you have experience with other Python CMA implementations. 
+
+==== The Ask / Tell interface
+The ask / tell gives the calling code full control over the evaluation process. Some optimization frameworks like
+https://github.com/facebookresearch/nevergrad[nevergrad] require this interface for all optimization algorithms it uses
+- including fcmaes.cmaes. 
+
+[source,python]
+----
+from fcmaes import cmaes
+...
+
+    best = math.inf
+    t0 = time.perf_counter();
+    for i in range(num):
+        es = cmaes.Cmaes(bounds = problem.bounds)
+        iters = 3000
+        for j in range(iters):
+            xs = es.ask()
+            ys = [problem.fun(x) for x in xs]
+            stop = es.tell(ys)
+            if stop != 0:
+                break 
+        best = min(es.best_value, best)
+        print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+              .format(i+1, dtime(t0), best, es.best_value))
+----
+Results in:
+----
+1: time = 0.8 best = -29735.1 f(xmin) = -29735.1
+2: time = 1.5 best = -433772.0 f(xmin) = -433772.0
+3: time = 2.5 best = -559867.7 f(xmin) = -559867.7
+4: time = 3.5 best = -1230104.7 f(xmin) = -1230104.7
+...
+----
+
+==== Parallel Objective Function Evaluation
+It makes not much sense for GTOC1, but for very expensive objective functions it may be better to 
+do without parallel retry and instead execute the objective function in parallel in a single
+optimization run. For https://github.com/facebookresearch/nevergrad[nevergrad] this is a feature
+generally available, for fcmaes only the Python variant of CMA-ES supports it:
+
+[source,python]
+----
+from fcmaes import cmaes
+...
+    best = math.inf
+    t0 = time.perf_counter();
+    for i in range(1000):
+        ret = cmaes.minimize(problem.fun, bounds = problem.bounds, workers = mp.cpu_count())
+        if best > ret.fun or i % 100 == 99:
+            print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+              .format(i+1, dtime(t0), best, ret.fun))
+        best = min(ret.fun, best)
+----
+We get:
+----
+1: time = 1.3 best = inf f(xmin) = -68805.8
+2: time = 2.1 best = -68805.8 f(xmin) = -1234368.5
+100: time = 111.7 best = -1234368.5 f(xmin) = -51568.7
+159: time = 172.9 best = -1234368.5 f(xmin) = -1262436.0
+200: time = 218.9 best = -1262436.0 f(xmin) = -494445.5
+284: time = 304.6 best = -1262436.0 f(xmin) = -1307412.3
+300: time = 321.6 best = -1307412.3 f(xmin) = -43115.4
+...
+----
+We don't see any speedup compared to the serial execution. Python's multiprocessing needs to 
+be used carefully, for GTOC1 the overhead for parallelizing objective function calls 
+can outweigh its gain, specially on Windows.
+Use it only for function evaluations which are really expensive (> 0.1 sec), otherwise use parallel
+(coordinated) retry to utilize your processor cores.
+
+==== Serial Loop using Scipy Differential Evolution
+If you are using scipy Differential Evolution is probably the best option for GTOC1.
+We don't limit the number of evaluations to give it a chance.
+
+[source,python]
+----
+from scipy.optimize import differential_evolution
+...
+    best = math.inf
+    t0 = time.perf_counter();
+    for i in range(num):
+        ret = differential_evolution(problem.fun, bounds = problem.bounds)
+        if best > ret.fun or i % 100 == 99:
+            print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+              .format(i+1, dtime(t0), best, ret.fun))
+        best = min(ret.fun, best)
+----
+We get:
+----
+1: time = 7.2 best = inf f(xmin) = -1199635.8
+16: time = 107.4 best = -1199635.8 f(xmin) = -1203199.8
+28: time = 190.2 best = -1203199.8 f(xmin) = -1314267.1
+100: time = 678.1 best = -1314267.1 f(xmin) = -815122.2
+169: time = 1148.7 best = -1314267.1 f(xmin) = -1458167.2
+200: time = 1360.6 best = -1458167.2 f(xmin) = -1268824.3
+240: time = 1639.1 best = -1458167.2 f(xmin) = -1540128.6
+300: time = 2054.4 best = -1540128.6 f(xmin) = -955791.7
+400: time = 2749.1 best = -1540128.6 f(xmin) = -708363.0
+500: time = 3433.1 best = -1540128.6 f(xmin) = -762684.0
+600: time = 4121.4 best = -1540128.6 f(xmin) = -489924.5
+700: time = 4795.7 best = -1540128.6 f(xmin) = -1102244.1
+800: time = 5468.0 best = -1540128.6 f(xmin) = -1003071.6
+900: time = 6154.7 best = -1540128.6 f(xmin) = -623171.3
+1000: time = 6846.3 best = -1540128.6 f(xmin) = -1229926.1
+----
+
+Almost two hours for 1000 runs and a decent but not optimal result.
+Scipy Differential Evolution differs from its fcmaes implementation and is
+not able to solve GTOC1 in a reasonable time. 
+
+==== Serial Loop using Scipy Dual Annealing
+Dual Annealing is the second scipy algorithm which could be recommended for GTOC1:
+
+[source,python]
+----
+from scipy.optimize import dual_annealing
+...
+    best = math.inf
+    lb = problem.bounds.lb
+    ub = problem.bounds.ub
+    t0 = time.perf_counter();
+    for i in range(num):
+        ret = dual_annealing(problem.fun, bounds = list(zip(lb, ub)))
+        if best > ret.fun or i % 100 == 99:
+            print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+              .format(i+1, dtime(t0), best, ret.fun))
+        best = min(ret.fun, best)
+----
+We get:
+----
+1: time = 1.5 best = inf f(xmin) = -478299.5
+2: time = 3.9 best = -478299.5 f(xmin) = -1037793.1
+25: time = 58.6 best = -1037793.1 f(xmin) = -1153125.0
+100: time = 226.7 best = -1153125.0 f(xmin) = -59482.4
+195: time = 449.4 best = -1153125.0 f(xmin) = -1316793.6
+200: time = 460.0 best = -1316793.6 f(xmin) = -481995.4
+300: time = 689.6 best = -1316793.6 f(xmin) = -33647.2
+400: time = 930.7 best = -1316793.6 f(xmin) = -63162.0
+500: time = 1170.7 best = -1316793.6 f(xmin) = -47384.3
+600: time = 1407.1 best = -1316793.6 f(xmin) = -40991.5
+632: time = 1483.0 best = -1316793.6 f(xmin) = -1537477.6
+700: time = 1641.9 best = -1537477.6 f(xmin) = -227272.4
+800: time = 1885.2 best = -1537477.6 f(xmin) = -71036.6
+900: time = 2115.2 best = -1537477.6 f(xmin) = -374102.7
+1000: time = 2348.6 best = -1537477.6 f(xmin) = -537919.7
+----
+Faster than scipy Differential Evolution and a similar result. 
+
+==== Serial Loop using Scipy minimize
+Scipy minimize is meant for local optimization, but it is fast. What happens
+if we perform 200000 retries?
+
+[source,python]
+----
+from scipy.optimize import minimize
+...
+    best = math.inf
+    t0 = time.perf_counter();
+    for i in range(num):
+        guess = random_x(problem.bounds.lb, problem.bounds.ub)
+        ret = minimize(problem.fun, x0 = guess, bounds = problem.bounds)
+        if best > ret.fun or i % 20000 == 19999:
+            print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
+              .format(i+1, dtime(t0), best, ret.fun))
+        best = min(ret.fun, best)
+----
+We get:
+----
+1: time = 0.0 best = inf f(xmin) = -66.1
+5: time = 0.1 best = -66.1 f(xmin) = -144.6
+6: time = 0.1 best = -144.6 f(xmin) = -1439.1
+15: time = 0.2 best = -1439.1 f(xmin) = -30308.5
+37: time = 0.4 best = -30308.5 f(xmin) = -35758.5
+340: time = 4.0 best = -35758.5 f(xmin) = -46205.2
+846: time = 11.1 best = -46205.2 f(xmin) = -258336.1
+2293: time = 30.2 best = -258336.1 f(xmin) = -603667.3
+20000: time = 271.5 best = -603667.3 f(xmin) = -0.2
+40000: time = 545.3 best = -603667.3 f(xmin) = -0.0
+60000: time = 823.7 best = -603667.3 f(xmin) = -0.0
+80000: time = 1097.1 best = -603667.3 f(xmin) = -448.5
+100000: time = 1367.1 best = -603667.3 f(xmin) = -0.0
+120000: time = 1647.0 best = -603667.3 f(xmin) = -75.0
+130210: time = 1786.9 best = -603667.3 f(xmin) = -637330.4
+140000: time = 1918.2 best = -637330.4 f(xmin) = -0.0
+160000: time = 2187.6 best = -637330.4 f(xmin) = -0.0
+180000: time = 2459.2 best = -637330.4 f(xmin) = -8.1
+181671: time = 2481.2 best = -637330.4 f(xmin) = -687313.0
+200000: time = 2728.2 best = -687313.0 f(xmin) = -1952.0
+----
+Even with 200000 retries a local optimizer achieves a bad best result for GTOC1. Not very surprising,
+but we finally can understand that GTOC1 is not as trivial to solve as it seemed in the beginning.
+
+=== Winning the GTOC1 Competition
+
+https://sophia.estec.esa.int/gtoc_portal/?page_id=13[GTOC1] was the first in 
+as series of interesting space trajectory optimization competitions. During the years
+to was almost impossible to beat both ESA and JPL, unsurprisingly the two best participants overall. 
+GTOC1 was organized by ESA and won by JPL with an almost perfect solution. 
+Using the https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[ESA abstraction] 
+we cannot reach the winning score of -1850000 from JPL. Adding more planets to the trajectory
+helps, but there is another issue:
+
+The number of revolutions around the sun is chosen according to the minimal deltaV (delta velocity)
+at departure from a planet. Higher deltaV means we need more fuel. The choice of the
+number of revolutions determines the incoming arc at the next planet 
+and can turn out to be bad if we look at the whole trajectory. To 
+find the optimum we have to perform a search branching over the number of revolutions
+for each planet to planet transfer. The following picture illustrates parts of the
+search tree:
+
+image::revolutions.png[]
+
+We chose the following planet sequence: 
+EVVEVVEESJA (E = Earth, V = Venus, J = Jupiter, S = Saturn, A = incoming asteroid)
+which results in an optimal score of around -1670000 using 
+the old deterministic objective function. 
+
+==== Replacing search by optimization
+
+In most cases the locally optimal number of revolutions is globally optimal. We assign 
+probabilities to the child nodes dependent on the local deltaV. High probabilities are
+assigned to low deltaV (fuel) branches. Then we adapt the objective function to chose
+a number of revolutions according to the assigned probability. This way the objective 
+function becomes noisy / non-deterministic but we avoid the need for a search algorithm. 
+
+Lets check the results. This time another processor is chosen, the 32 core AMD 2990WX, which
+is known to have scaling issues because of its internal design. The coordinated parallel
+retry mechanism scales well even on this processor as the results show:
+
+image::gjo_cma170.png[]
+
+The best solution scores around -1920000. Objective function evaluation takes a bit more time
+since we have ten planet to planet transfers now. We get 970000 evaluations / sec compared 
+to around 600000 on the AMD 3950x we used before. To compute a real GTOC1 solution this 
+impulse based solution has to be converted into a low thrust trajectory. Here is 
+a https://youtu.be/zk75TaJKG_8[video] of a GTOC1 solution using the EVVEVVEESJA sequence
+I computed in 2018 using this method.

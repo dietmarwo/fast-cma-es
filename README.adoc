@@ -1,5 +1,5 @@
 :encoding: utf-8
-:imagesdir: img
+:imagesdir: tutorials/img
 :cpp: C++
 
 = fcmaes - a Python 3 gradient-free optimization library
@@ -16,24 +16,24 @@ an extension of fcmaes based on https://docs.ray.io/en/master/cluster/index.html
 
 === Documentation
 
-https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/MultiObjective.adoc[Multi-Objective], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/TopTrumps.adoc[gbea TopTrumps Benchmark], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/NSGAII.adoc[MO-DE-NSGAII], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/PAGMO.adoc[Pagmo results], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/ODE.adoc[ODE], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/HyperparameterOptimization.adoc[Hyper Parameters] .
-https://github.com/dietmarwo/fast-cma-es/blob/master/DelayedUpdate.adoc[Delayed Update]
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc[Tutorial], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc[Multi-Objective], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc[gbea TopTrumps Benchmark], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/NSGAII.adoc[MO-DE-NSGAII], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PAGMO.adoc[Pagmo results], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PYKEP.adoc[Pykep gym results], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Constraints.adoc[Constraints], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Expressions.adoc[Expressions], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ODE.adoc[ODE], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/HyperparameterOptimization.adoc[Hyper Parameters] .
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/DelayedUpdate.adoc[Delayed Update]
 
 === Features
 
 - fcmaes is focused on optimization problems hard to solve.
 - Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
 - New multi-objective/constrained optimization algorithm combining features from NGSA-II and Differential evolution supporting parallel function evaluation (https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py])
-- Parallel coordinated retry of sequences and random choices of optimization algorithms. See https://github.com/dietmarwo/fast-cma-es/blob/master/Expressions.adoc[Expressions].
+- Parallel coordinated retry of sequences and random choices of optimization algorithms. See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Expressions.adoc[Expressions].
 - Parallel objective function evaluation for CMA-ES and Differential Evolution. 
 - New DE (differential evolution) variant optimized for usage with parallel coordinated retry and the DE->CMA sequence.
 - GCL-DE (differential evolution) variant from Mingcheng Zuo.
@@ -236,7 +236,7 @@ ret = dacpp.minimize(fun, bounds, x0)
 ret = hhcpp.minimize(fun, bounds)
 ----
 
-Check the https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial] for more details. 
+Check the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc[Tutorial] for more details. 
 
 === Log output of the parallel retry
 
@@ -282,7 +282,7 @@ multi-threading with the number of available processor cores.
 populations are solution vectors. This approach gives more control to the user but there is no simple default "minimize" call hiding the complexity. As default parallelism is implemented using multi-threading but it is possible to use multi-processing or even distributed CPUs.  
 - Exchange of information between parallel PAGMO threads is based on exchanging population members, which doesn't fit well with CMA-ES which recreates its whole population each generation.  
 
-PYGMO/PAGMO has direct support of constraints and multiple objectives. fcmaes supports parallel retry of PYGMO problems and algorithms, see https://github.com/dietmarwo/fast-cma-es/blob/master/Constraints.adoc[Constraints Tutorial].
+PYGMO/PAGMO has direct support of constraints and multiple objectives. fcmaes supports parallel retry of PYGMO problems and algorithms, see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Constraints.adoc[Constraints Tutorial].
 
 === Dependencies
 
