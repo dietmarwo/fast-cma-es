@@ -111,7 +111,7 @@ https://www.researchgate.net/publication/309179699_Differential_evolution_for_pr
 - Dual Annealing: Eigen based implementation in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/daoptimizer.cpp[C++]. Use the https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html[scipy implementation] if you prefer a pure python variant or need more configuration options. 
 
 - Expressions: There are two operators for constructing expressions over optimization algorithms: Sequence and random choice.
-Not only the four algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. 
+Not only the five single objective algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. 
  
 === Installation
 

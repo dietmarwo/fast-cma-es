@@ -5,7 +5,7 @@
 === Update
 The mechanism described here for parallel fitness function evaluation are now used 
 in most of the fcmaes algorithms: MO-DE, DE and CMA-ES both in the C++ and in the
-Python implementation. Therefor the 'delayed_update' parameter is no longer needed.
+Python implementation. Therefore the 'delayed_update' parameter is no longer needed.
 If 'workers > 1' delayed update / parallel function evaluation is used. 
 
 == Delayed State Update
