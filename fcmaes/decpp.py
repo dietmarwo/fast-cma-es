@@ -17,8 +17,6 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaescpp import callback, libcmalib
-from fcmaes.dacpp import call_back_type
 from fcmaes import de
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
@@ -33,6 +31,7 @@ def minimize(fun,
              f = 0.5,
              cr = 0.9,
              rg = Generator(MT19937()),
+             workers = 1,
              runid=0):  
      
     """Minimization of a scalar function of one or more variables using a 
@@ -70,6 +69,9 @@ def minimize(fun,
         In the literature this is also known as the crossover probability.     
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
+    workers : int or None, optional
+        If not workers is None, function evaluation is performed in parallel for the whole population. 
+        Useful for costly objective functions but is deactivated for parallel retry.      
     runid : int, optional
         id used to identify the run for debugging / logging. 
             
@@ -89,10 +91,12 @@ def minimize(fun,
     if lower is None:
         lower = [0]*n
         upper = [0]*n
+    if workers is None:
+        workers = 0
     if stop_fitness is None:
         stop_fitness = math.inf   
     array_type = ct.c_double * n   
-    c_callback = call_back_type(callback(fun))
+    c_callback = mo_call_back_type(callback(fun, n))
     seed = int(rg.uniform(0, 2**32 - 1))
     res = np.empty(n+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
@@ -100,7 +104,7 @@ def minimize(fun,
         optimizeDE_C(runid, c_callback, n, seed,
                            array_type(*lower), array_type(*upper), 
                            max_evaluations, keep, stop_fitness,  
-                           popsize, f, cr, res_p)
+                           popsize, f, cr, workers, res_p)
         x = res[:n]
         val = res[n]
         evals = int(res[n+1])
@@ -109,11 +113,63 @@ def minimize(fun,
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
+
+class callback(object):
+    
+    def __init__(self, fun, dim):
+        self.fun = fun
+        self.dim = dim
+        self.nobj = 1
+    
+    def __call__(self, dim, x, y):
+        try:
+            arrTypeX = ct.c_double*(self.dim)
+            xaddr = ct.addressof(x.contents)
+            xbuf = np.frombuffer(arrTypeX.from_address(xaddr))
+            arrTypeY = ct.c_double*(self.nobj)
+            yaddr = ct.addressof(y.contents)   
+            ybuf = np.frombuffer(arrTypeY.from_address(yaddr))  
+            fit = self.fun(xbuf)
+            ybuf[0] = fit if math.isfinite(fit) else sys.float_info.max
+        except Exception as ex:
+            print (ex)
+            return sys.float_info.max
+
+class callback_mo(object):
+    
+    def __init__(self, fun, dim, nobj):
+        self.fun = fun
+        self.dim = dim
+        self.nobj = nobj
+    
+    def __call__(self, dim, x, y):
+        try:
+            arrTypeX = ct.c_double*(self.dim)
+            xaddr = ct.addressof(x.contents)
+            xbuf = np.frombuffer(arrTypeX.from_address(xaddr))
+            arrTypeY = ct.c_double*(self.nobj)
+            yaddr = ct.addressof(y.contents)   
+            ybuf = np.frombuffer(arrTypeY.from_address(yaddr))  
+            ybuf[:] = self.fun(xbuf)[:]
+        except Exception as ex:
+            print (ex)
+            return sys.float_info.max
+
+mo_call_back_type = ct.CFUNCTYPE(None, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))  
+
+basepath = os.path.dirname(os.path.abspath(__file__))
+
+if sys.platform.startswith('linux'):
+    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.so')  
+elif 'mac' in sys.platform:
+    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
+else:
+    os.environ['PATH'] = (basepath + '/lib') + os.pathsep + os.environ['PATH']
+    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')  
       
 optimizeDE_C = libcmalib.optimizeDE_C
-optimizeDE_C.argtypes = [ct.c_long, call_back_type, ct.c_int, ct.c_int, \
+optimizeDE_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
-            ct.c_double, ct.c_double, ct.POINTER(ct.c_double)]
-      
-
+            ct.c_double, ct.c_double, ct.c_int, ct.POINTER(ct.c_double)]
+    

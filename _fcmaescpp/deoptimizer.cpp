@@ -9,6 +9,15 @@
 // https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model
 // b) reinitialization of individuals based on their age. 
 // requires https://github.com/imneme/pcg-cpp
+//
+// Supports parallel fitness function evaluation. 
+// 
+// You may keep parameters F and CR at their defaults since this implementation works well with the given settings for most problems,
+// since the algorithm oscillates between different F and CR settings.
+//
+// For expensive objective functions (e.g. machine learning parameter optimization) use the workers
+// parameter to parallelize objective function evaluation. The workers parameter is limited by the
+// population size.
 
 #include <Eigen/Core>
 #include <iostream>
@@ -19,126 +28,11 @@
 #include <queue>
 #include <tuple>
 #include "pcg_random.hpp"
+#include "evaluator.h"
 
 using namespace std;
 
-typedef Eigen::Matrix<double, Eigen::Dynamic, 1> vec;
-typedef Eigen::Matrix<int, Eigen::Dynamic, 1> ivec;
-typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> mat;
-
-typedef double (*callback_type)(int, double[]);
-
 namespace differential_evolution {
-
-static uniform_real_distribution<> distr_01 = std::uniform_real_distribution<>(
-        0, 1);
-
-static normal_distribution<> gauss_01 = std::normal_distribution<>(0, 1);
-
-static vec zeros(int n) {
-    return Eigen::MatrixXd::Zero(n, 1);
-}
-
-static Eigen::MatrixXd uniform(int dx, int dy, pcg64 &rs) {
-    return Eigen::MatrixXd::NullaryExpr(dx, dy, [&]() {
-        return distr_01(rs);
-    });
-}
-
-static Eigen::MatrixXd uniformVec(int dim, pcg64 &rs) {
-    return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
-        return distr_01(rs);
-    });
-}
-
-static Eigen::MatrixXd normalVec(int dim, pcg64 &rs) {
-    return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
-        return gauss_01(rs);
-    });
-}
-
-static int index_min(vec &v) {
-    double minv = DBL_MAX;
-    int mi = -1;
-    for (int i = 0; i < v.size(); i++) {
-        if (v[i] < minv) {
-            mi = i;
-            minv = v[i];
-        }
-    }
-    return mi;
-}
-
-// wrapper around the fitness function, scales according to boundaries
-
-class Fitness {
-
-public:
-
-    Fitness(callback_type pfunc, int dimension, const vec &lower_limit,
-            const vec &upper_limit) {
-        func = pfunc;
-        dim = dimension;
-        lower = lower_limit;
-        upper = upper_limit;
-        evaluationCounter = 0;
-        if (lower.size() > 0) // bounds defined
-            scale = (upper - lower);
-    }
-
-    double eval(const vec &X) {
-        int n = X.size();
-        double parg[n];
-        for (int i = 0; i < n; i++)
-            parg[i] = X(i);
-        double res = func(n, parg);
-        evaluationCounter++;
-        return res;
-    }
-
-    void values(const mat &popX, int popsize, vec &ys) {
-        for (int p = 0; p < popsize; p++)
-            ys[p] = eval(popX.col(p));
-    }
-
-    vec getClosestFeasible(const vec &X) const {
-        if (lower.size() > 0)
-            return X.cwiseMin(upper).cwiseMax(lower);
-        else
-            return X;
-    }
-
-    bool feasible(int i, double x) {
-        return lower.size() == 0 || (x >= lower[i] && x <= upper[i]);
-    }
-
-    vec sample(pcg64 &rs) {
-        if (lower.size() > 0) {
-            vec rv = uniformVec(dim, rs);
-            return (rv.array() * scale.array()).matrix() + lower;
-        } else
-            return normalVec(dim, rs);
-    }
-
-    double sample_i(int i, pcg64 &rs) {
-        if (lower.size() > 0)
-            return lower[i] + scale[i] * distr_01(rs);
-        else
-            return gauss_01(rs);
-    }
-
-    int getEvaluations() {
-        return evaluationCounter;
-    }
-
-private:
-    callback_type func;
-    int dim;
-    vec lower;
-    vec upper;
-    long evaluationCounter;
-    vec scale;
-};
 
 class DeOptimizer {
 
@@ -213,7 +107,7 @@ public:
         return fitfun->getClosestFeasible(xb + ((x - xi) * 0.5));
     }
 
-    vec ask_one(int &p) {
+    vec ask(int &p) {
         // ask for one new argument vector.
         if (improvesX.empty()) {
             p = pos;
@@ -229,7 +123,7 @@ public:
         }
     }
 
-    int tell_one(double y, const vec &x, int p) {
+    int tell(double y, const vec &x, int p) {
         //tell function value for a argument list retrieved by ask_one().
         if (isfinite(y) && y < popY[p]) {
             if (iterations > 1) {
@@ -263,7 +157,7 @@ public:
     void doOptimize() {
 
         // -------------------- Generation Loop --------------------------------
-        for (iterations = 1; fitfun->getEvaluations() < maxEvaluations;
+        for (iterations = 1; fitfun->evaluations() < maxEvaluations;
                 iterations++) {
 
             CR = iterations % 2 == 0 ? 0.5 * CR0 : CR0;
@@ -272,9 +166,6 @@ public:
             for (int p = 0; p < popsize; p++) {
                 vec xp = popX.col(p);
                 vec xb = popX.col(bestI);
-
-//                vec x = nextX(p, xp, xb);
-
                 int r1, r2;
                 do {
                     r1 = rndInt(popsize);
@@ -294,11 +185,11 @@ public:
                     }
                 }
 
-                double y = fitfun->eval(x);
+                double y = fitfun->eval(x)(0);
                 if (isfinite(y) && y < popY[p]) {
                     // temporal locality
                     vec x2 = next_improve(xb, x, xp);
-                    double y2 = fitfun->eval(x2);
+                    double y2 = fitfun->eval(x2)(0);
                     if (isfinite(y2) && y2 < y) {
                         y = y2;
                         x = x2;
@@ -327,6 +218,34 @@ public:
             }
         }
     }
+
+    void do_optimize_delayed_update(int workers) {
+    	 iterations = 0;
+    	 fitfun->resetEvaluations();
+         workers = std::min(workers, popsize); // workers <= popsize
+    	 evaluator eval(fitfun, 1, workers);
+    	 vec evals_x[popsize];
+	     // fill eval queue with initial population
+    	 for (int i = 0; i < workers; i++) {
+    		 int p;
+    		 vec x = ask(p);
+    		 eval.evaluate(x, p);
+    		 evals_x[p] = x;
+    	 }
+    	 while (fitfun->evaluations() < maxEvaluations) {
+    		 vec_id* vid = eval.result();
+    		 vec y = vec(vid->_v);
+    		 int p = vid->_id;
+    		 delete vid;
+    		 vec x = evals_x[p];
+    		 tell(y(0), x, p); // tell evaluated x
+    		 if (fitfun->evaluations() >= maxEvaluations)
+    			 break;
+    		 x = ask(p);
+    		 eval.evaluate(x, p);
+    		 evals_x[p] = x;
+    	 }
+	}
 
     void init() {
         popX = mat(dim, popsize);
@@ -392,8 +311,6 @@ private:
     int pos;
 };
 
-// see https://cvstuff.wordpress.com/2014/11/27/wraping-c-code-with-python-ctypes-memory-and-pointers/
-
 }
 
 using namespace differential_evolution;
@@ -401,7 +318,7 @@ using namespace differential_evolution;
 extern "C" {
 void optimizeDE_C(long runid, callback_type func, int dim, int seed,
         double *lower, double *upper, int maxEvals, double keep,
-        double stopfitness, int popsize, double F, double CR, double* res) {
+        double stopfitness, int popsize, double F, double CR, int workers, double* res) {
     int n = dim;
     vec lower_limit(n), upper_limit(n);
     bool useLimit = false;
@@ -415,17 +332,20 @@ void optimizeDE_C(long runid, callback_type func, int dim, int seed,
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
-    Fitness fitfun(func, n, lower_limit, upper_limit);
+    Fitness fitfun(func, n, 1, lower_limit, upper_limit);
     DeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, keep,
             stopfitness, F, CR);
     try {
-        opt.doOptimize();
+        if (workers <= 1)
+            opt.doOptimize();
+        else
+            opt.do_optimize_delayed_update(workers);
         vec bestX = opt.getBestX();
         double bestY = opt.getBestValue();
         for (int i = 0; i < n; i++)
             res[i] = bestX[i];
         res[n] = bestY;
-        res[n + 1] = fitfun.getEvaluations();
+        res[n + 1] = fitfun.evaluations();
         res[n + 2] = opt.getIterations();
         res[n + 3] = opt.getStop();
     } catch (std::exception &e) {

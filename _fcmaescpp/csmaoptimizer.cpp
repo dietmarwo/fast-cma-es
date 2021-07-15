@@ -10,64 +10,11 @@
 #include <random>
 #include "pcg_random.hpp"
 #include "smaesopt.h"
+#include "evaluator.h"
 
 using namespace std;
 
-typedef Eigen::Matrix<double, Eigen::Dynamic, 1> vec;
-typedef Eigen::Matrix<int, Eigen::Dynamic, 1> ivec;
-typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> mat;
-
-typedef double (*callback_type)(int, double[]);
-
 namespace csmaopt {
-
-// wrapper around the Fitness function, scales according to boundaries
-
-class Fitness {
-
-public:
-
-    Fitness(callback_type pfunc, const vec &lower_limit,
-            const vec &upper_limit) {
-        func = pfunc;
-        lower = lower_limit;
-        upper = upper_limit;
-        evaluationCounter = 0;
-        if (lower.size() > 0) // bounds defined
-            scale = (upper - lower);
-    }
-
-    double eval(const double *const p) {
-        int n = lower.size();
-        double parg[n];
-        for (int i = 0; i < n; i++)
-            parg[i] = p[i];
-        double res = func(n, parg);
-        evaluationCounter++;
-        return res;
-    }
-
-    int getEvaluations() {
-        return evaluationCounter;
-    }
-
-    void getMinValues(double *const p) const {
-        for (int i = 0; i < lower.size(); i++)
-            p[i] = lower[i];
-    }
-
-    void getMaxValues(double *const p) const {
-        for (int i = 0; i < upper.size(); i++)
-            p[i] = upper[i];
-    }
-
-private:
-    callback_type func;
-    vec lower;
-    vec upper;
-    long evaluationCounter;
-    vec scale;
-};
 
 class CsmaOptimizer: public CSMAESOpt {
 
@@ -114,7 +61,7 @@ public:
     }
 
     virtual double optcost(const double *const p) {
-        return fitfun->eval(p);
+        return fitfun->eval(p)(0);
     }
 
     vec getBestX() {
@@ -140,7 +87,7 @@ public:
     void doOptimize() {
 
         // -------------------- Generation Loop --------------------------------
-        for (iterations = 1; fitfun->getEvaluations() < maxEvaluations;
+        for (iterations = 1; fitfun->evaluations() < maxEvaluations;
                 iterations++) {
             int stallCount = optimize(rnd);
             if (getBestCost() < stopfitness) {
@@ -190,7 +137,7 @@ void optimizeCsma_C(long runid, callback_type func, int dim, int seed,
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
-    Fitness fitfun(func, lower_limit, upper_limit);
+    Fitness fitfun(func, dim, 1, lower_limit, upper_limit);
     CsmaOptimizer opt(runid, &fitfun, dim, init, sigma, seed, popsize, maxEvals,
             stopfitness);
 
@@ -201,7 +148,7 @@ void optimizeCsma_C(long runid, callback_type func, int dim, int seed,
         for (int i = 0; i < n; i++)
             res[i] = bestX[i];
         res[n] = bestY;
-        res[n + 1] = fitfun.getEvaluations();
+        res[n + 1] = fitfun.evaluations();
         res[n + 2] = opt.getIterations();
         res[n + 3] = opt.getStop();
     } catch (std::exception &e) {

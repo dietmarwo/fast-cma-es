@@ -13,7 +13,7 @@ import logging
 import ctypes as ct
 import multiprocessing as mp 
 
-from fcmaes import cmaes, de, cmaescpp, decpp, dacpp, hhcpp, gcldecpp, lcldecpp, ldecpp, csmacpp, bitecpp
+from fcmaes import cmaes, de, cmaescpp, decpp, dacpp, gcldecpp, lcldecpp, ldecpp, csmacpp, bitecpp
 
 _logger = None
 
@@ -534,23 +534,6 @@ class Da_cpp(Optimizer):
                             max_evaluations = self.max_eval_num(store), 
                             use_local_search = self.use_local_search,
                             rg=rg, runid = self.get_count_runs(store))
-        return ret.x, ret.fun, ret.nfev
-
-class Hh_cpp(Optimizer):
-    """Harris hawks C++ implementation."""
-    
-    def __init__(self, max_evaluations=50000,
-                 popsize = 31, stop_fitness = None):        
-        Optimizer.__init__(self, max_evaluations, 'hh cpp')
-        self.popsize = popsize
-        self.stop_fitness = stop_fitness
-
-    def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
-        ret = hhcpp.minimize(fun, len(bounds.lb), bounds, 
-                popsize=self.popsize, 
-                max_evaluations = self.max_eval_num(store), 
-                stop_fitness = self.stop_fitness,
-                rg=rg, runid = self.get_count_runs(store))
         return ret.x, ret.fun, ret.nfev
 
 class Csma_cpp(Optimizer):

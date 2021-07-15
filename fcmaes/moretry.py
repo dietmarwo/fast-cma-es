@@ -190,6 +190,8 @@ def plot(name, ncon, xs, ys, eps = 1E-2):
             if len(feasible) > 0:
                 #yc = [y[nobj:] for y in ys[feasible]]
                 xs, ys = xs[feasible], np.array([ y[:nobj] for y in ys[feasible]])
+            else:
+                return
         retry.plot(ys, 'all_' + name + '.png', interp=False)
         xs, front = pareto(xs, ys)
         retry.plot(front, 'front_' + name + '.png', interp=False)

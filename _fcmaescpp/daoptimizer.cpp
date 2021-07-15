@@ -28,7 +28,7 @@ typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> mat;
 
 namespace dual_annealing {
 
-typedef double (*callback_type)(int, double[]);
+typedef double (*callback_type)(int, const double*);
 
 // wrapper around the fitness function, scales according to boundaries
 
@@ -96,10 +96,7 @@ public:
 
     double eval(const vec &X) {
         int n = X.size();
-        double parg[n];
-        for (int i = 0; i < n; i++)
-            parg[i] = X(i);
-        double res = func(n, parg);
+        double res = func(n, X.data());
         evaluationCounter++;
         return res;
     }

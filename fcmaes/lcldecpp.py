@@ -17,8 +17,10 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaescpp import callback_par, call_back_par, libcmalib
-from fcmaes.cmaes import parallel, _check_bounds
+from fcmaes.ldecpp import callback_par, call_back_par
+from fcmaes.decpp import libcmalib
+from fcmaes.cmaes import _check_bounds
+from fcmaes.gcldecpp import parallel
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 

@@ -4,7 +4,14 @@
 // LICENSE file in the root directory.
 
 // Eigen based implementation of active CMA-ES
-// derived from http://cma.gforge.inria.fr/cmaes.m which follows
+
+// Supports parallel fitness function evaluation. 
+// 
+// For expensive objective functions (e.g. machine learning parameter optimization) use the workers
+// parameter to parallelize objective function evaluation. The workers parameter should be limited
+// the population size because otherwize poulation update is delayed. 
+
+// Derived from http://cma.gforge.inria.fr/cmaes.m which follows
 // https://www.researchgate.net/publication/227050324_The_CMA_Evolution_Strategy_A_Comparing_Review
 // Requires Eigen version >= 3.3.90 because new slicing capabilities are used, see
 // https://eigen.tuxfamily.org/dox-devel/group__TutorialSlicingIndexing.html
@@ -18,21 +25,13 @@
 #include <stdint.h>
 #include <ctime>
 #include "pcg_random.hpp"
+#include "evaluator.h"
 
 using namespace std;
 
-typedef Eigen::Matrix<double, Eigen::Dynamic, 1> vec;
-typedef Eigen::Matrix<int, Eigen::Dynamic, 1> ivec;
-typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> mat;
-
-typedef void (*callback_parallel)(int, int, double[], double[]);
 typedef bool (*is_terminate_type)(long, int, double); // runid, iter, value -> isTerminate
 
 namespace acmaes {
-
-static vec zeros(int n) {
-    return Eigen::MatrixXd::Zero(n, 1);
-}
 
 static ivec inverse(const ivec &indices) {
     ivec inverse = ivec(indices.size());
@@ -51,115 +50,6 @@ static vec sequence(double start, double end, double step) {
     }
     return d;
 }
-
-struct IndexVal {
-    int index;
-    double val;
-};
-
-static bool compareIndexVal(IndexVal i1, IndexVal i2) {
-    return (i1.val < i2.val);
-}
-
-static ivec sort_index(const vec &x) {
-    int size = x.size();
-    IndexVal ivals[size];
-    for (int i = 0; i < size; i++) {
-        ivals[i].index = i;
-        ivals[i].val = x[i];
-    }
-    std::sort(ivals, ivals + size, compareIndexVal);
-    return Eigen::MatrixXi::NullaryExpr(size, 1, [&ivals](int i) {
-        return ivals[i].index;
-    });
-}
-
-static normal_distribution<> gauss_01 = std::normal_distribution<>(0, 1);
-
-static Eigen::MatrixXd normal(int dx, int dy, pcg64 &rs) {
-    return Eigen::MatrixXd::NullaryExpr(dx, dy, [&]() {
-        return gauss_01(rs);
-    });
-}
-
-static Eigen::MatrixXd normalVec(int dim, pcg64 &rs) {
-    return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
-        return gauss_01(rs);
-    });
-}
-
-// wrapper around the fitness function, scales according to boundaries
-
-class Fitness {
-
-public:
-
-    Fitness(callback_parallel func_par_, const vec &lower_limit,
-            const vec &upper_limit, bool normalize_) {
-        func_par = func_par_;
-        lower = lower_limit;
-        upper = upper_limit;
-        normalize = normalize_ && lower.size() > 0;
-        evaluationCounter = 0;
-        if (lower.size() > 0) { // bounds defined
-            scale = 0.5 * (upper - lower);
-            typx = 0.5 * (upper + lower);
-        }
-    }
-
-    vec getClosestFeasible(const vec &X) const {
-        if (lower.size() > 0) {
-            if (normalize)
-                return X.cwiseMin(1.0).cwiseMax(-1.0);
-            else
-                return X.cwiseMin(upper).cwiseMax(lower);
-        }
-        return X;
-    }
-
-    void values(const mat &popX, vec &ys) {
-        int popsize = popX.cols();
-        int n = popX.rows();
-        double pargs[popsize * n];
-        double res[popsize];
-        for (int p = 0; p < popX.cols(); p++) {
-            vec x = decode(getClosestFeasible(popX.col(p)));
-            for (int i = 0; i < n; i++)
-                pargs[p * n + i] = x[i];
-        }
-        func_par(popsize, n, pargs, res);
-        for (int p = 0; p < popX.cols(); p++)
-            ys[p] = res[p];
-        evaluationCounter += popsize;
-    }
-
-    vec encode(const vec &X) const {
-        if (normalize)
-            return (X - typx).array() / scale.array();
-        else
-            return X;
-    }
-
-    vec decode(const vec &X) const {
-        if (normalize)
-            return (X.array() * scale.array()).matrix() + typx;
-        else
-            return X;
-    }
-
-    int getEvaluations() {
-        return evaluationCounter;
-    }
-
-private:
-    callback_parallel func_par;
-    vec lower;
-    vec upper;
-    long evaluationCounter;
-    vec scale;
-    vec typx;
-    bool normalize;
-};
 
 class AcmaesOptimizer {
 
@@ -405,7 +295,7 @@ public:
         fitness = vec(popsize);
     }
 
-    vec ask_one() {
+    vec ask() {
         // ask for one new argument vector.
         vec arz1 = normalVec(dim, *rs);
         vec delta = (BD * arz1) * sigma;
@@ -413,7 +303,7 @@ public:
         return fitfun->decode(arx1);
     }
 
-    int tell_one(double y, const vec &x) {
+    int tell(double y, const vec &x) {
         //tell function value for a argument list retrieved by ask_one().
         if (told == 0) {
             fitness = vec(popsize);
@@ -526,12 +416,12 @@ public:
         // -------------------- Generation Loop --------------------------------
         for (iterations = 1;
                 iterations <= maxIterations
-                        && fitfun->getEvaluations() < maxEvaluations;
+                        && fitfun->evaluations() < maxEvaluations;
                 iterations++) {
             // generate and evaluate popsize offspring
             newArgs();
-            fitfun->values(arx, fitness);
             for (int k = 0; k < popsize; k++) {
+                fitness[k] = fitfun->eval(fitfun->decode(arx.col(k)))(0);
                 if (!isfinite(fitness[k]))
                     fitness[k] = DBL_MAX;
             }
@@ -540,6 +430,32 @@ public:
                 return;
         }
     }
+
+    void do_optimize_delayed_update(int workers) {
+    	 iterations = 0;
+    	 fitfun->resetEvaluations();
+    	 evaluator eval(fitfun, 1, workers);
+    	 vec evals_x[workers];
+	     // fill eval queue with initial population
+    	 for (int i = 0; i < workers; i++) {
+    		 vec x = ask();
+    		 eval.evaluate(x, i);
+    		 evals_x[i] = x;
+    	 }
+    	 while (fitfun->evaluations() < maxEvaluations) {
+    		 vec_id* vid = eval.result();
+    		 vec y = vec(vid->_v);
+    		 int p = vid->_id;
+    		 delete vid;
+    		 vec x = evals_x[p];
+    		 tell(y(0), x); // tell evaluated x
+    		 if (fitfun->evaluations() >= maxEvaluations)
+    			 break;
+    		 x = ask();
+    		 eval.evaluate(x, p);
+    		 evals_x[p] = x;
+    	 }
+	}
 
     vec getBestX() {
         return bestX;
@@ -621,11 +537,11 @@ private:
 using namespace acmaes;
 
 extern "C" {
-void optimizeACMA_C(long runid, callback_parallel func_par, int dim,
+void optimizeACMA_C(long runid, callback_type func, int dim,
         double *init, double *lower, double *upper, double *sigma, int maxIter,
         int maxEvals, double stopfitness, int mu, int popsize, double accuracy,
         bool useTerminate, is_terminate_type isTerminate, long seed,
-        bool normalize, int update_gap, double* res) {
+        bool normalize, int update_gap, int workers, double* res) {
     int n = dim;
     vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
     bool useLimit = false;
@@ -641,18 +557,22 @@ void optimizeACMA_C(long runid, callback_parallel func_par, int dim,
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
-    Fitness fitfun(func_par, lower_limit, upper_limit, normalize);
+    Fitness fitfun(func, n, 1, lower_limit, upper_limit);
+    fitfun.setNormalize(normalize);
     AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, inputSigma, maxIter,
             maxEvals, accuracy, stopfitness, update_gap,
             useTerminate ? isTerminate : NULL, seed);
     try {
-        opt.doOptimize();
+        if (workers <= 1)
+            opt.doOptimize();
+        else
+            opt.do_optimize_delayed_update(workers);
         vec bestX = opt.getBestX();
         double bestY = opt.getBestValue();
         for (int i = 0; i < n; i++)
             res[i] = bestX[i];
         res[n] = bestY;
-        res[n + 1] = fitfun.getEvaluations();
+        res[n + 1] = fitfun.evaluations();
         res[n + 2] = opt.getIterations();
         res[n + 3] = opt.getStop();
     } catch (std::exception &e) {

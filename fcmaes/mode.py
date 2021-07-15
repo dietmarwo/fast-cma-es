@@ -4,22 +4,18 @@
 # LICENSE file in the root directory.
 
 """ Numpy based implementation of multi objective
-    Differential Evolution using the DE/pareto/1 strategy. 
-    Derived and adapted for MO from its C++ counterpart 
-    https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/deoptimizer.cpp
-    
+    Differential Evolution using the DE/all/1 strategy. 
+     
     Can switch to NSGA-II like population update via parameter 'nsga_update'.
     Then it works essentially like NSGA-II but instead of the tournament selection
     the whole population is sorted and the best individuals survive. To do this
     efficiently the crowd distance ordering is slightly inaccurate - each objective
     is ordered separately. 
     
-    Compared to most Python NSGA-II implementations it supports parallel fitness function 
-    evaluation. 
+    Supports parallel fitness function evaluation. 
     
     Enables the comparison of DE and NSGA-II population update mechanism with everything else
     kept completely identical.
-    
     
     Requires python 3.5 or higher. 
     
@@ -30,11 +26,12 @@
     since the algorithm oscillates between different F and CR settings. 
     
     For expensive objective functions (e.g. machine learning parameter optimization) use the workers
-    parameter to parallelize objective function evaluation. This causes delayed population update.
-    It is usually preferrable if popsize > workers and workers = mp.cpu_count() to improve CPU utilization.  
+    parameter to parallelize objective function evaluation. The workers parameter is limited by the 
+    population size.
 """
 
 import numpy as np
+import os
 import sys
 import time
 import ctypes as ct
@@ -44,6 +41,8 @@ from fcmaes.evaluator import Evaluator
 import multiprocessing as mp
 from fcmaes.optimizer import dtime, logger
 from fcmaes import retry, moretry
+
+os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
 def minimize(mofun, 
              nobj,
@@ -254,8 +253,6 @@ class DE(object):
                 self.x[self.popsize + p] = x
                 self.evals += 1
             self.pop_update()
-            if self.evals >= self.max_evals:
-                break
         x, y = filter(self.x, self.y)
         return x, y, self.evals, self.iterations, self.stop
 
@@ -461,7 +458,8 @@ def variation(pop, lower, upper, rg, pro_c = 1, dis_c = 20, pro_m = 1, dis_m = 2
     beta[mu > 0.5] = np.power(2 * mu[mu > 0.5], -1 / (dis_c + 1))
     beta = beta * ((-1)** rg.integers(2, size=(n // 2, d)))
     beta[rg.random((n // 2, d)) < 0.5] = 1
-    beta[np.tile(rg.random((n // 2, 1)) > pro_c, (1, d))] = 1
+    if pro_c < 1.0:
+        beta[np.tile(rg.random((n // 2, 1)) > pro_c, (1, d))] = 1
     offspring = np.vstack(((parent_1 + parent_2) / 2 + beta * (parent_1 - parent_2) / 2,
                                (parent_1 + parent_2) / 2 - beta * (parent_1 - parent_2) / 2))
     site = rg.random((n, d)) < pro_m / d

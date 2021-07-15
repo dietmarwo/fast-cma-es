@@ -8,11 +8,13 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 
 fcmaes complements https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy optimize] by providing 
 additional optimization methods, faster {cpp}/Eigen based implementations and a coordinated parallel retry mechanism. 
-It supports the multi threaded application of different gradient free optimization algorithms. The coordinated retry
-can be viewed as a new meta algorithm operating on a population of user defined optimization runs. Its default
-optimization algorithm is a sequence of differential evolution and CMA-ES well suited for many ill conditioned,
-non-continuous objective functions. For optimization on a cluster see https://github.com/dietmarwo/fcmaes-ray/[fcmaesray],
-an extension of fcmaes based on https://docs.ray.io/en/master/cluster/index.html[ray].
+It supports the multi threaded application of different gradient free optimization algorithms. 
+
+fcmaes started with a fast CMA-ES implementation combined with a new smart parallel retry mechanism aimed to solve
+hard optimization problems from the space flight planning domain. It evolved to a general library of
+state-of-the-art gradient free optimization algorithms applicable to all kind of real world problems covering
+multi-objective and constrained problems. Its main algorithms are implemented both in Python and C++ and
+support parallel fitness function evaluation. 
 
 === Documentation
 
@@ -30,19 +32,13 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/DelayedUpdate.ado
 
 === Features
 
-- fcmaes is focused on optimization problems hard to solve.
+- fcmaes is focused on optimization problems hard to solve utilizing modern many-core CPUs.
+- Parallel fitness function evaluation and different parallel retry mechanisms. 
 - Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
-- New multi-objective/constrained optimization algorithm combining features from NGSA-II and Differential evolution supporting parallel function evaluation (https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py])
-- Parallel coordinated retry of sequences and random choices of optimization algorithms. See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Expressions.adoc[Expressions].
-- Parallel objective function evaluation for CMA-ES and Differential Evolution. 
-- New DE (differential evolution) variant optimized for usage with parallel coordinated retry and the DE->CMA sequence.
-- GCL-DE (differential evolution) variant from Mingcheng Zuo.
+- New multi-objective/constrained optimization algorithm combining features from NGSA and Differential evolution supporting parallel function evaluation.
 - BiteOpt algorithm from Aleksey Vaneev.
-- Fast C++ implementations of CMA-ES, differential evolution, dual annealing and the Harris hawks algorithm.
-- Integrates https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy] and https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt] optimization algorithms for use with the coordinated retry.
-- Parallel retry for https://esa.github.io/pagmo2/docs/cpp/cpp_docs.html#implemented-algorithms[PAGMO2] algorithms and problems.
-
-image::coord.png[width=80%]
+- New DE (differential evolution) variant optimized for usage with parallel retry.
+- GCL-DE (differential evolution) variant from Mingcheng Zuo.
 
 === Performance
 
@@ -97,34 +93,31 @@ was applied for all problems, using the same parameters both for the optimizatio
 
 === Optimization algorithms
 
-- CMA-ES: Implemented both in Python and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[C++]. The https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[Python version] is faster than
-https://github.com/CMA-ES/pycma/tree/master/cma[CMA] but slower than the https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[{cpp} variant]. The Python variant provides an ask/tell interface and supports parallel function evaluation. Both CMA variants provide less configurability than https://github.com/CMA-ES/pycma/blob/master/cma[CMA].
-The Python implementation supports the ask/tell interface and parallel function evaluation.
+To utilize modern many-core processors all single-objective algorithms should be used with the parallel retry for cheap fitness functions, otherwise use parallel function evaluation.  
+
+- MO-DE: A new multi-objective optimization algorithm merging concepts from differential evolution and NSGA. 
+Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[C++]. Provides an ask/tell interface and supports constraints and parallel function evaluation. 
+Can also be applied to single-objective problems with constraints. 
+
+- BiteOpt algorithm from Aleksey Vaneev https://github.com/avaneev/biteopt[BiteOpt]. Only a C++ version is provided. If your problem is single objective and if you have no clue what algorithm to apply, try this first. Works well with almost all problems. For constraints you have to use weighted penalties.
+
+- Differential Evolution: Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/de.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/deoptimizer.cpp[C++]. Additional concepts implemented are 
+https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model[temporal locality], stochastic reinitialization of individuals based on their age and oscillating CR/F parameters. Provides an ask/tell interface and supports parallel function evaluation. 
+
+- CMA-ES: Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[C++]. Provides an ask/tell interface and supports parallel function evaluation.
  
-- Differential Evolution: Implemented both in Python and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/deoptimizer.cpp[C++]. 
-Additional concepts implemented here are 
-https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model[temporal locality], 
-stochastic reinitialization of individuals based on their age and oscillating CR/F parameters. The Python implementation supports the ask/tell interface and
-parallel function evaluation. 
-
 - GCL-DE: Eigen based implementation in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/gcldeoptimizer.cpp[C++]. See "A case learning-based differential evolution algorithm for global optimization of interplanetary trajectory design, Mingcheng Zuo, Guangming Dai, Lei Peng, Maocai Wang, Zhengquan Liu", https://doi.org/10.1016/j.asoc.2020.106451[doi].
-
-- BiteOpt algorithm from Aleksey Vaneev https://github.com/avaneev/biteopt[BiteOpt].
 
 - Dual Annealing: Eigen based implementation in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/daoptimizer.cpp[C++]. Use the https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html[scipy implementation] if you prefer a pure python variant or need more configuration options. 
 
-- Harris' hawks: Eigen based implementation in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/hawksoptimizer.cpp[C++]. Use https://github.com/7ossam81/EvoloPy/blob/master/optimizers/HHO.py[HHO] if you prefer a pure python variant. See Harris' hawks optimization: Algorithm and applications Ali Asghar Heidari, Seyedali Mirjalili, Hossam Faris, Ibrahim Aljarah, Majdi Mafarja, Huiling Chen, Future Generation Computer Systems,  DOI: https://doi.org/10.1016/j.future.2019.02.028 .
-
 - Expressions: There are two operators for constructing expressions over optimization algorithms: Sequence and random choice.
-Not only the four algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. Default method for the parallel retry is the sequence (DE | GLC-DE) -> CMA with the evaluation budget equally distributed. 
-
-image::default_algo.jpg[width=80%]
+Not only the four algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. 
  
 === Installation
 
 ==== Linux
  
-* `pip install fcmaes`
+* `pip install fcmaes`. In case of issues with dependent libraries on old systems all dependent so-files are in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/lib. 
 
 ==== Windows
 
@@ -150,21 +143,7 @@ The Linux subsystem can read/write NTFS, so you can do your development on a NTF
 
 Usage is similar to https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html[scipy.optimize.minimize].
 
-For coordinated parallel retry use:
-
-[source,python]
-----
-from fcmaes.optimizer import logger
-from fcmaes import advretry
-ret = advretry.minimize(fun, bounds, logger=logger())
-----
-
-`advretry.minimize` has many parameters for fine tuning, but in most of the cases the default settings work well. 
-
-In https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[tutorial.py] and https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[advexamples.py] you find examples for the coordinated retry. 
-Parallel retry does not support initial guess `x0` and initial step size `input_sigma` parameters because it
-uses generated guesses and step size values. The optional logger logs both into a file and to stdout. 
-For easy problems it is sometimes better to use the simple parallel retry:
+For parallel retry use:
 
 [source,python]
 ----
@@ -173,76 +152,28 @@ from fcmaes import retry
 ret = retry.minimize(fun, bounds, logger=logger())
 ----
 
-The simple retry logs mean and standard deviation of the results, so it can be used to test and compare optimization algorithms:
+The retry logs mean and standard deviation of the results, so it can be used to test and compare optimization algorithms:
+You may choose different algorithms for the retry:
 
 [source,python]
 ----
-from fcmaes.optimizer import logger, De_cpp, Cma_cpp, Sequence
+from fcmaes.optimizer import logger, Bite_cpp, De_cpp, Cma_cpp, Sequence
+ret = retry.minimize(fun, bounds, logger=logger(), optimizer=Bite_cpp(100000))
 ret = retry.minimize(fun, bounds, logger=logger(), optimizer=De_cpp(100000))
 ret = retry.minimize(fun, bounds, logger=logger(), optimizer=Cma_cpp(100000))
 ret = retry.minimize(fun, bounds, logger=logger(), optimizer=Sequence([De_cpp(50000), Cma_cpp(50000)]))
 ----
 
-Here https://github.com/dietmarwo/fast-cma-es/blob/master/examples/examples.py[examples.py] you find examples for the simple retry.
-
-The single threaded Python CMA-ES implementation is used as follows:
-
-[source,python]
-----
-from fcmaes import cmaes
-ret = cmaes.minimize(fun, bounds, x0)
-print (ret.x, ret.fun, ret.nfev)
-----
-
-If the initial guess x0 is undefined,
-a feasible uniformly distributed random value is automatically generated. It is recommended to define
-bounds, since CMA-ES uses them for internal scaling. Additional parameters are:
-
-- `popsize` (default 31) - Size of the population used. Instead of increasing this parameter for hard problems, it is often better to use parallel retry instead. Reduce `popsize` for a narrower search if your budget is restricted.
-- `input_sigma` (default 0.3) - The initial step size. Can be defined for each dimension separately. Both parallel retry mechanism
-  set this parameter together with the initial guess automatically. 
-- `workers` (default None): int or None.
-If not workers is None, function evaluation is performed in parallel for the whole population. Useful for costly 
-objective functions but is deactivated for parallel retry.      
-
-  
-For the {cpp} variant use instead:
-
-[source,python]
-----
-from fcmaes import cmaescpp
-ret = cmaescpp.minimize(fun, bounds, x0)
-----
-
-Alternatively there is an ask/tell interface to interact with CMA-ES:
-
-[source,python]
-----
-es = cmaes.Cmaes(bounds, x0)
-for i in range(iterNum):
-    xs = es.ask()
-    ys = [fun(x) for x in xs]
-    status = es.tell(ys)
-    if status != 0:
-        break 
-----
-
-Differential evolution (fcmaes.decpp), Dual Annealing (fcmaes.dacpp) and Harris hawks (fcmaes.hhcpp) provide similar interfaces. 
-[source,python]
-----
-from fcmaes import decpp, dacpp, hhcpp
-ret = decpp.minimize(fun, bounds)
-ret = dacpp.minimize(fun, bounds, x0)
-ret = hhcpp.minimize(fun, bounds)
-----
-
+Here https://github.com/dietmarwo/fast-cma-es/blob/master/examples/examples.py[examples.py] you find examples.
 Check the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc[Tutorial] for more details. 
+
+In https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[tutorial.py] and https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[advexamples.py] you find examples for the smart retry. 
 
 === Log output of the parallel retry
 
 The log output of the parallel retry contains the following rows:
 
-===== Simple retry
+===== Parallel retry
 
 - time (in sec)
 - evaluations / sec
@@ -258,7 +189,7 @@ Mean and standard deviation would be misleading when using coordinated retry, be
 of the retries initiated by crossover. Therefore the rows of the
 log output differ slightly:
  
-===== Coordinated retry
+===== Smart retry
 
 - time (in sec)
 - evaluations / sec
@@ -269,20 +200,6 @@ log output differ slightly:
 - number of entries in the retry store
 - list of the best 20 function values in the retry store
 - best solution (x-vector) found so far
-
-=== Comparison with PYGMO/Archipelago
-
-There are different ways to enable parallelization and the exchange of information between optimization runs. Two examples are:
-
-* The approach implemented in fcmaes:
-- Topology of the parallelization is hidden from the user. A simple "minimize" call hides the complexity. Parallelism is implemented using multi-processing which scales better than
-multi-threading with the number of available processor cores.  
-* The https://esa.github.io/pagmo2/docs/cpp/archipelago.html[Archipelago] approach as implemented in https://esa.github.io/pagmo2/[PAGMO2]:
-- Topology has to be defined by the user including how nodes/ https://esa.github.io/pagmo2/docs/cpp/island.html[islands] exchange members of their populations. Members of these
-populations are solution vectors. This approach gives more control to the user but there is no simple default "minimize" call hiding the complexity. As default parallelism is implemented using multi-threading but it is possible to use multi-processing or even distributed CPUs.  
-- Exchange of information between parallel PAGMO threads is based on exchanging population members, which doesn't fit well with CMA-ES which recreates its whole population each generation.  
-
-PYGMO/PAGMO has direct support of constraints and multiple objectives. fcmaes supports parallel retry of PYGMO problems and algorithms, see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Constraints.adoc[Constraints Tutorial].
 
 === Dependencies
 

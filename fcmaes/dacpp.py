@@ -15,7 +15,8 @@ import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
 from fcmaes.cmaes import _check_bounds
-from fcmaes.cmaescpp import callback, libcmalib
+from fcmaes.ldecpp import callback
+from fcmaes.decpp import libcmalib
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 

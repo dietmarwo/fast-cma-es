@@ -16,8 +16,8 @@ import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
 from fcmaes.cmaes import _check_bounds
-from fcmaes.cmaescpp import callback, libcmalib
-from fcmaes.dacpp import call_back_type
+from fcmaes.cmaescpp import libcmalib
+from fcmaes.decpp import mo_call_back_type, callback
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -81,7 +81,7 @@ def minimize(fun,
     if stop_fitness is None:
         stop_fitness = -math.inf   
     array_type = ct.c_double * n 
-    c_callback = call_back_type(callback(fun))
+    c_callback = mo_call_back_type(callback(fun, n))
     res = np.empty(n+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
@@ -97,20 +97,8 @@ def minimize(fun,
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
 
-class callback(object):
-    
-    def __init__(self, fun):
-        self.fun = fun
-    
-    def __call__(self, n, x):
-        try:
-            fit = self.fun([x[i] for i in range(n)])
-            return fit if math.isfinite(fit) else sys.float_info.max
-        except Exception as ex:
-            return sys.float_info.max
-
 optimizeBite_C = libcmalib.optimizeBite_C
-optimizeBite_C.argtypes = [ct.c_long, call_back_type, ct.c_int, ct.c_int, \
+optimizeBite_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.c_int, ct.c_double, ct.c_int, ct.c_int, ct.POINTER(ct.c_double)]
        

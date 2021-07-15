@@ -13,11 +13,13 @@ import os
 import math
 import ctypes as ct
 import numpy as np
+import multiprocessing as mp
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaescpp import callback_par, call_back_par, libcmalib
-from fcmaes.cmaes import parallel
+from fcmaes.ldecpp import callback_par, call_back_par
+from fcmaes.decpp import libcmalib
 from fcmaes import de
+from fcmaes.evaluator import Evaluator, eval_parallel
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -115,6 +117,27 @@ def minimize(fun,
         if not workers is None:
             fun.stop() # stop all parallel evaluation processes
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
+
+class parallel(object):
+    """Convert an objective function for parallel execution for cmaes.minimize.
+    
+    Parameters
+    ----------
+    fun : objective function mapping a list of float arguments to a float value.
+   
+    represents a function mapping a list of lists of float arguments to a list of float values
+    by applying the input function using parallel processes. stop needs to be called to avoid
+    a resource leak"""
+        
+    def __init__(self, fun, workers = mp.cpu_count()):
+        self.evaluator = Evaluator(fun)
+        self.evaluator.start(workers)
+    
+    def __call__(self, xs):
+        return eval_parallel(xs, self.evaluator)
+
+    def stop(self):
+        self.evaluator.stop()
       
 optimizeGCLDE_C = libcmalib.optimizeGCLDE_C
 optimizeGCLDE_C.argtypes = [ct.c_long, call_back_par, ct.c_int, ct.c_int, \

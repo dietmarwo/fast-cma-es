@@ -15,7 +15,8 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaes import _check_bounds, serial, parallel
+from fcmaes.cmaes import _check_bounds
+from fcmaes.decpp import mo_call_back_type, callback, libcmalib
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -31,7 +32,7 @@ def minimize(fun,
              is_terminate = None, 
              rg = Generator(MT19937()),
              runid=0,
-             workers = None, 
+             workers = 1, 
              normalize = True,
              update_gap = None):   
     """Minimization of a scalar function of one or more variables using a 
@@ -96,6 +97,8 @@ def minimize(fun,
     if lower is None:
         lower = [0]*n
         upper = [0]*n
+    if workers is None:
+        workers = 0
     mu = int(popsize/2)
     if callable(input_sigma):
         input_sigma=input_sigma()
@@ -108,91 +111,36 @@ def minimize(fun,
         use_terminate = False 
     else:
         use_terminate = True 
-    parfun = None if workers is None else parallel(fun, workers)
     array_type = ct.c_double * n 
-    c_callback_par = call_back_par(callback_par(fun, parfun))
+    c_callback = mo_call_back_type(callback(fun, n))
     c_is_terminate = is_terminate_type(is_terminate)
     res = np.empty(n+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        optimizeACMA_C(runid, c_callback_par, n, array_type(*guess), array_type(*lower), array_type(*upper), 
+        optimizeACMA_C(runid, c_callback, n, array_type(*guess), array_type(*lower), array_type(*upper), 
                 array_type(*input_sigma), max_iterations, max_evaluations, stop_fitness, mu, 
                 popsize, accuracy, use_terminate, c_is_terminate, 
-                int(rg.uniform(0, 2**32 - 1)), normalize, -1 if update_gap is None else update_gap, res_p)
+                int(rg.uniform(0, 2**32 - 1)), normalize, -1 if update_gap is None else update_gap, 
+                workers, res_p)
         x = res[:n]
         val = res[n]
         evals = int(res[n+1])
         iterations = int(res[n+2])
         stop = int(res[n+3])
-        if not parfun is None:
-            parfun.stop() # stop all parallel evaluation processes
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
-        if not workers is None:
-            fun.stop() # stop all parallel evaluation processes
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
-
-class callback(object):
-    
-    def __init__(self, fun):
-        self.fun = fun
-    
-    def __call__(self, n, x):
-        try:
-            fit = self.fun([x[i] for i in range(n)])
-            return fit if math.isfinite(fit) else sys.float_info.max
-        except Exception as ex:
-            return sys.float_info.max
-
-#https://stackoverflow.com/questions/7543675/how-to-convert-pointer-to-c-array-to-python-array
-
-class callback_par(object):
-    
-    def __init__(self, fun, parfun):
-        self.fun = fun
-        self.parfun = parfun
-    
-    def __call__(self, popsize, n, xs_, ys_):
-        try:
-            arrType = ct.c_double*(popsize*n)
-            addr = ct.addressof(xs_.contents)
-            xall = np.frombuffer(arrType.from_address(addr))
-            
-            if self.parfun is None:
-                for p in range(popsize):
-                    ys_[p] = self.fun(xall[p*n : (p+1)*n])
-            else:    
-                xs = []
-                for p in range(popsize):
-                    x = xall[p*n : (p+1)*n]
-                    xs.append(x)
-                ys = self.parfun(xs)
-                for p in range(popsize):
-                    ys_[p] = ys[p]
-        except Exception as ex:
-            print (ex)
 
 def _is_terminate_false(runid, iterations, val):
     return False 
-  
-basepath = os.path.dirname(os.path.abspath(__file__))
 
-if sys.platform.startswith('linux'):
-    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.so')  
-elif 'mac' in sys.platform:
-    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
-else:
-    os.environ['PATH'] = (basepath + '/lib') + os.pathsep + os.environ['PATH']
-    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')  
-
-call_back_par = ct.CFUNCTYPE(None, ct.c_int, ct.c_int, \
-                                  ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))  
 is_terminate_type = ct.CFUNCTYPE(ct.c_bool, ct.c_long, ct.c_int, ct.c_double)    
 
 optimizeACMA_C = libcmalib.optimizeACMA_C
-optimizeACMA_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
+optimizeACMA_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.POINTER(ct.c_double), ct.c_int, ct.c_int, ct.c_double, ct.c_int, ct.c_int, \
-            ct.c_double, ct.c_bool, is_terminate_type, ct.c_long, ct.c_bool, ct.c_int, ct.POINTER(ct.c_double)]
+            ct.c_double, ct.c_bool, is_terminate_type, ct.c_long, ct.c_bool, ct.c_int, 
+            ct.c_int, ct.POINTER(ct.c_double)]
 
 

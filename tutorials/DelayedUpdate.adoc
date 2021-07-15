@@ -2,6 +2,12 @@
 :imagesdir: img
 :cpp: C++
 
+=== Update
+The mechanism described here for parallel fitness function evaluation are now used 
+in most of the fcmaes algorithms: MO-DE, DE and CMA-ES both in the C++ and in the
+Python implementation. Therefor the 'delayed_update' parameter is no longer needed.
+If 'workers > 1' delayed update / parallel function evaluation is used. 
+
 == Delayed State Update
 
 If your objective function is expensive to evaluate and poorly parallelized like in the 
@@ -99,28 +105,19 @@ For CMA-ES the call is:
 from fcmaes import cmaes
 
    ret = cmaes.minimize(obj_f, bounds, popsize = 16, max_evaluations = 40000, 
-   					workers = 32, delayed_update=True)
+   					workers = 16)
 ----
-Note that for delayed update we have to use the Python
- https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[variant]
-`cmaes` instead of the {cpp} variant `cmaescpp`. 
-Default behavior is that a call to evaluate the whole population at once is used. 
-By by specifying `delayed_update=True` we switch "delayed update" on which is
-based on the `X = ask()` and `tell(X, y)` calls. 
-
-Our Python Differential Evolution 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/de.py[implementation]
-only supports sequential function evaluation or "delayed update". So it is 
-sufficient to define `workers = 32`, there is no `delayed_update` parameter
-as for CMA-ES.
  
 [source,python]
 ----
  from fcmaes import de
  
    ret = de.minimize(obj_f, bounds, popsize = 16, max_evaluations = 40000, 
-   					workers = 32)
+   					workers = 16)
 ----  
+
+Note that only for 'cmaes' 'workers > popsize' is supported. For 'de' you have to increase 
+'popsize' accordingly. 
 
 ==== Myths regarding Hyperparameter Optimization
 

@@ -27,7 +27,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * @version 2021.20
+ * @version 2021.26
  */
 
 #ifndef BITEOPT_INCLUDED
@@ -58,6 +58,7 @@ public:
 		addHist( M1Hist, "M1Hist" );
 		addHist( M1AHist, "M1AHist" );
 		addHist( M1BHist, "M1BHist" );
+		addHist( M1BBHist, "M1BBHist" );
 		addHist( PopChangeHist, "PopChangeHist" );
 		addHist( ParOpt2Hist, "ParOpt2Hist" );
 		addHist( ParPopPHist[ 0 ], "ParPopPHist[ 0 ]" );
@@ -69,6 +70,7 @@ public:
 		addHist( AltPopPHist, "AltPopPHist" );
 		addHist( AltPopHist[ 0 ], "AltPopHist[ 0 ]" );
 		addHist( AltPopHist[ 1 ], "AltPopHist[ 1 ]" );
+		addHist( AltPopHist[ 2 ], "AltPopHist[ 2 ]" );
 		addHist( MinSolPwrHist[ 0 ], "MinSolPwrHist[ 0 ]" );
 		addHist( MinSolPwrHist[ 1 ], "MinSolPwrHist[ 1 ]" );
 		addHist( MinSolPwrHist[ 2 ], "MinSolPwrHist[ 2 ]" );
@@ -80,7 +82,6 @@ public:
 		addHist( Gen1MoveAsyncHist, "Gen1MoveAsyncHist" );
 		addHist( Gen1MoveDEHist, "Gen1MoveDEHist" );
 		addHist( Gen1MoveSpanHist, "Gen1MoveSpanHist" );
-		addHist( Gen4RedFacHist, "Gen4RedFacHist" );
 		addHist( Gen4MixFacHist, "Gen4MixFacHist" );
 		addHist( Gen5BinvHist, "Gen5BinvHist" );
 		addHist( *ParOpt.getHists()[ 0 ], "ParOpt.CentPowHist" );
@@ -153,7 +154,6 @@ public:
 
 				for( i = 0; i < ParamCount; i++ )
 				{
-					rnd.skip();
 					p[ i ] = wrapParam( rnd, getGaussianInt(
 						rnd, sd, IntMantMult >> 1 ));
 				}
@@ -176,7 +176,6 @@ public:
 
 				for( i = 0; i < ParamCount; i++ )
 				{
-					rnd.skip();
 					p[ i ] = wrapParam( rnd,
 						getGaussianInt( rnd, sd, p0[ i ]));
 				}
@@ -185,8 +184,7 @@ public:
 
 		updateCentroid();
 
-		ParamCountRnd = ParamCount * rnd.getRawScaleInv();
-		AllpProbDamp = (int) ( CBiteRnd :: getRawScale() * 1.8 / ParamCount );
+		AllpProbDamp = 1.8 / ParamCount;
 		CentUpdateCtr = 0;
 
 		ParOpt.init( rnd, InitParams, InitRadius );
@@ -282,7 +280,14 @@ public:
 				else
 				if( SelM1B == 1 )
 				{
-					generateSol5( rnd );
+					if( select( M1BBHist, rnd ))
+					{
+						generateSol5( rnd );
+					}
+					else
+					{
+						generateSol5b( rnd );
+					}
 				}
 				else
 				{
@@ -310,18 +315,38 @@ public:
 
 			if( UseParOpt == 0 )
 			{
-				if( ParOpt.optimize( rnd, &NewCost, NewValues ) > 0 )
+				const int sc = ParOpt.optimize( rnd, &NewCost, NewValues );
+
+				if( sc > 0 )
 				{
 					UseParOpt = 1; // On stall, select optimizer 2.
+				}
+
+				if( sc > ParamCount * 64 )
+				{
+					ParOpt.init( rnd, getBestParams(),
+						2.0 * sqrt( getDistanceSqr( getParamsOrdered( 0 ))));
+
+					ParOptPop.resetCurPopPos();
 				}
 
 				UpdPop = &ParOptPop;
 			}
 			else
 			{
-				if( ParOpt2.optimize( rnd, &NewCost, NewValues ) > 0 )
+				const int sc = ParOpt2.optimize( rnd, &NewCost, NewValues );
+
+				if( sc > 0 )
 				{
 					UseParOpt = 0; // On stall, select optimizer 1.
+				}
+
+				if( sc > ParamCount * 16 )
+				{
+					ParOpt2.init( rnd, getBestParams(),
+						2.0 * sqrt( getDistanceSqr( getParamsOrdered( 0 ))));
+
+					ParOpt2Pop.resetCurPopPos();
 				}
 
 				UpdPop = &ParOpt2Pop;
@@ -330,7 +355,7 @@ public:
 			for( i = 0; i < ParamCount; i++ )
 			{
 				TmpParams[ i ] = (ptype) (( NewValues[ i ] -
-					MinValues[ i ]) / DiffValues[ i ]);
+					MinValues[ i ]) * DiffValuesI[ i ]);
 			}
 
 			UpdPop -> updatePop( NewCost, TmpParams, false, true );
@@ -428,21 +453,20 @@ public:
 	}
 
 protected:
-	double ParamCountRnd; ///< ParamCount converted into "raw" random value
-		///< scale.
+	double AllpProbDamp; ///< Damped Allp probability. Applied for higher
+		///< dimensions as the "all parameter" randomization is ineffective in
+		///< the higher dimensions.
 		///<
-	int AllpProbDamp; ///< Damped Allp probability, in raw PRNG scale. Applied
-		///< for higher dimensions as the "all parameter" randomization is
-		///< ineffective in the higher dimensions.
-		///<
-	CBiteOptHistHyper< 4 > MethodHist; ///< Population generator 4-method
+	CBiteOptHist< 4 > MethodHist; ///< Population generator 4-method
 		///< histogram.
 		///<
-	CBiteOptHistHyper< 2 > M1Hist; ///< Method 1's sub-method histogram.
+	CBiteOptHist< 2 > M1Hist; ///< Method 1's sub-method histogram.
 		///<
 	CBiteOptHist< 2 > M1AHist; ///< Method 1's sub-sub-method A histogram.
 		///<
 	CBiteOptHist< 3 > M1BHist; ///< Method 1's sub-sub-method B histogram.
+		///<
+	CBiteOptHist< 2 > M1BBHist; ///< Method 1's sub-sub-method B2 histogram.
 		///<
 	CBiteOptHist< 2 > PopChangeHist; ///< Population size change
 		///< histogram.
@@ -460,7 +484,7 @@ protected:
 	CBiteOptHist< 2 > AltPopPHist; ///< Alternative population use
 		///< histogram.
 		///<
-	CBiteOptHist< 2 > AltPopHist[ 2 ]; ///< Alternative population type use
+	CBiteOptHist< 2 > AltPopHist[ 3 ]; ///< Alternative population type use
 		///< histogram.
 		///<
 	CBiteOptHist< 4 > MinSolPwrHist[ 3 ]; ///< Index of least-cost
@@ -469,10 +493,10 @@ protected:
 	CBiteOptHist< 4 > MinSolMulHist[ 3 ]; ///< Index of least-cost
 		///< population, multiplier.
 		///<
-	CBiteOptHistBinary Gen1AllpHist; ///< Generator method 1's Allp
+	CBiteOptHist< 2 > Gen1AllpHist; ///< Generator method 1's Allp
 		///< histogram.
 		///<
-	CBiteOptHistBinary Gen1MoveHist; ///< Generator method 1's Move
+	CBiteOptHist< 2 > Gen1MoveHist; ///< Generator method 1's Move
 		///< histogram.
 		////<
 	CBiteOptHist< 2 > Gen1MoveAsyncHist; ///< Generator method 1's Move
@@ -484,13 +508,10 @@ protected:
 	CBiteOptHist< 4 > Gen1MoveSpanHist; ///< Generator method 1's Move span
 		///< histogram.
 		///<
-	CBiteOptHist< 3 > Gen4RedFacHist; ///< Generator method 4's RedFac
-		///< histogram.
-		///<
 	CBiteOptHist< 4 > Gen4MixFacHist; ///< Generator method 4's mixing
 		///< count histogram.
 		///<
-	CBiteOptHistBinary Gen5BinvHist; ///< Generator method 5's random
+	CBiteOptHist< 2 > Gen5BinvHist; ///< Generator method 5's random
 		///< inversion technique histogram.
 		///<
 	int CentUpdateCtr; ///< Centroid update counter.
@@ -577,7 +598,7 @@ protected:
 	 * Function selects an alternative, parallel optimizer's, population, to
 	 * use in some solution generators.
 	 *
-	 * @param gi Solution generator index (0-1).
+	 * @param gi Solution generator index (0-2).
 	 * @param rnd PRNG object.
 	 */
 
@@ -625,9 +646,9 @@ protected:
 	}
 
 	/**
-	 * The original "bitmask inversion" solution generator. Most of the time
-	 * adjusts only a single parameter of the very best solution, yet manages
-	 * to produce excellent "reference points".
+	 * The original "bitmask inversion with random move" solution generator.
+	 * Most of the time adjusts only a single parameter of a better solution,
+	 * yet manages to produce excellent "reference points".
 	 */
 
 	void generateSol1( CBiteRnd& rnd )
@@ -648,7 +669,7 @@ protected:
 		int b;
 		bool DoAllp = false;
 
-		if( rnd.getUniformRaw() < AllpProbDamp )
+		if( rnd.getRndValue() < AllpProbDamp )
 		{
 			if( select( Gen1AllpHist, rnd ))
 			{
@@ -663,12 +684,12 @@ protected:
 		}
 		else
 		{
-			a = (int) ( rnd.getUniformRaw() * ParamCountRnd );
+			a = (int) ( rnd.getRndValue() * ParamCount );
 			b = a + 1;
 		}
 
-		// Bitmask inversion operation, works as a "driver" of optimization
-		// process.
+		// Bitmask inversion operation, works as the main "driver" of
+		// optimization process.
 
 		const double r1 = rnd.getRndValue();
 		const double r12 = r1 * r1;
@@ -712,18 +733,13 @@ protected:
 					b = ParamCount;
 				}
 
-				// Random move around random previous solution vector.
+				// Random move around a random previous solution vector.
 
-				static const double SpanMults[ 4 ] = {
-					0.5 * CBiteRnd :: getRawScaleInv(),
-					1.5 * CBiteRnd :: getRawScaleInv(),
-					2.0 * CBiteRnd :: getRawScaleInv(),
-					2.5 * CBiteRnd :: getRawScaleInv()
-				};
+				static const double SpanMults[ 4 ] = { 0.5, 1.5, 2.0, 2.5 };
 
 				const double m = SpanMults[ select( Gen1MoveSpanHist, rnd )];
-				const double m1 = rnd.getTPDFRaw() * m;
-				const double m2 = rnd.getTPDFRaw() * m;
+				const double m1 = rnd.getTPDF() * m;
+				const double m2 = rnd.getTPDF() * m;
 
 				for( i = a; i < b; i++ )
 				{
@@ -804,9 +820,9 @@ protected:
 	}
 
 	/**
-	 * Alternative randomized solution generator, works well for convex
-	 * functions. Uses the very best solution and a random previous solution.
-	 * "mp * mp" is equivalent of giving more weight to better solutions.
+	 * "Centroid mix with DE" solution generator, works well for convex
+	 * functions. For DE operation, uses a better solution and a random
+	 * previous solution.
 	 */
 
 	void generateSol3( CBiteRnd& rnd )
@@ -829,11 +845,8 @@ protected:
 
 		for( i = 0; i < ParamCount; i++ )
 		{
-			const ptype m1 = (ptype) rnd.getBit();
-			const ptype m2 = (ptype) 1 - m1;
-
-			Params[ i ] = cp[ i ] * m1 +
-				( MinParams[ i ] + ( MinParams[ i ] - rp1[ i ])) * m2;
+			Params[ i ] = ( rnd.getBit() ? cp[ i ] :
+				MinParams[ i ] + ( MinParams[ i ] - rp1[ i ]));
 		}
 	}
 
@@ -848,18 +861,22 @@ protected:
 	{
 		ptype* const Params = TmpParams;
 
+		CBiteOptPop& AltPop = selectAltPop( 2, rnd );
 		CBiteOptPop& ParPop = selectParPop( 1, rnd );
 
-		static const double RedFacs[ 3 ] = { 1.0, 1.5, 2.0 };
+		int UseSize[ 2 ];
+		UseSize[ 0 ] = CurPopSize;
+		UseSize[ 1 ] = ParPop.getCurPopSize();
 
-		int UseSize;
-		const ptype** const UseParams = ParPop.getSparsePopParams(
-			UseSize, RedFacs[ select( Gen4RedFacHist, rnd )]);
+		const ptype** UseParams[ 2 ];
+		UseParams[ 0 ] = AltPop.getPopParams();
+		UseParams[ 1 ] = ParPop.getPopParams();
 
 		const int km = 3 + ( select( Gen4MixFacHist, rnd ) << 1 );
 
-		int si1 = (int) ( rnd.getRndValueSqr() * UseSize );
-		const ptype* rp1 = UseParams[ si1 ];
+		int p = rnd.getBit();
+		int si1 = (int) ( rnd.getRndValueSqr() * UseSize[ p ]);
+		const ptype* rp1 = UseParams[ p ][ si1 ];
 
 		memcpy( Params, rp1, ParamCount * sizeof( Params[ 0 ]));
 
@@ -867,8 +884,9 @@ protected:
 
 		for( k = 1; k < km; k++ )
 		{
-			si1 = (int) ( rnd.getRndValueSqr() * UseSize );
-			rp1 = UseParams[ si1 ];
+			p = rnd.getBit();
+			si1 = (int) ( rnd.getRndValueSqr() * UseSize[ p ]);
+			rp1 = UseParams[ p ][ si1 ];
 
 			int i;
 
@@ -933,7 +951,35 @@ protected:
 	}
 
 	/**
-	 * A short-cut solution generator. Parameter value short-cuts, they
+	 * "Randomized parameter cross-over" solution generator. Similar to the
+	 * "randomized bit cross-over", but works with the whole parameter values.
+	 */
+
+	void generateSol5b( CBiteRnd& rnd )
+	{
+		ptype* const Params = TmpParams;
+		const ptype* CrossParams[ 2 ];
+
+		const CBiteOptPop& ParPop = selectParPop( 2, rnd );
+
+		CrossParams[ 0 ] = ParPop.getParamsOrdered(
+			(int) ( rnd.getRndValueSqr() * ParPop.getCurPopSize() ));
+
+		const CBiteOptPop& AltPop = selectAltPop( 1, rnd );
+
+		CrossParams[ 1 ] = AltPop.getParamsOrdered(
+			(int) ( rnd.getRndValueSqr() * CurPopSize ));
+
+		int i;
+
+		for( i = 0; i < ParamCount; i++ )
+		{
+			Params[ i ] = CrossParams[ rnd.getBit()][ i ];
+		}
+	}
+
+	/**
+	 * A short-cut solution generator. Parameter value short-cuts: they
 	 * considerably reduce convergence time for some functions while not
 	 * severely impacting performance for other functions.
 	 */
@@ -945,13 +991,13 @@ protected:
 		const double r = rnd.getRndValueSqr();
 		const int si = (int) ( r * r * CurPopSize );
 		const double v = getRealValue( getParamsOrdered( si ),
-			(int) ( rnd.getUniformRaw() * ParamCountRnd ));
+			(int) ( rnd.getRndValue() * ParamCount ));
 
 		int i;
 
 		for( i = 0; i < ParamCount; i++ )
 		{
-			Params[ i ] = (ptype) (( v - MinValues[ i ]) / DiffValues[ i ]);
+			Params[ i ] = (ptype) (( v - MinValues[ i ]) * DiffValuesI[ i ]);
 		}
 	}
 };

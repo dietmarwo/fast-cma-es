@@ -19,8 +19,7 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaescpp import callback, libcmalib
-from fcmaes.dacpp import call_back_type
+from fcmaes.decpp import libcmalib
 from fcmaes.cmaes import _check_bounds
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
@@ -121,6 +120,48 @@ def minimize(fun,
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
+
+class callback(object):
+    
+    def __init__(self, fun):
+        self.fun = fun
+    
+    def __call__(self, n, x):
+        try:
+            fit = self.fun([x[i] for i in range(n)])
+            return fit if math.isfinite(fit) else sys.float_info.max
+        except Exception as ex:
+            return sys.float_info.max
+
+class callback_par(object):
+    
+    def __init__(self, fun, parfun):
+        self.fun = fun
+        self.parfun = parfun
+    
+    def __call__(self, popsize, n, xs_, ys_):
+        try:
+            arrType = ct.c_double*(popsize*n)
+            addr = ct.addressof(xs_.contents)
+            xall = np.frombuffer(arrType.from_address(addr))
+            
+            if self.parfun is None:
+                for p in range(popsize):
+                    ys_[p] = self.fun(xall[p*n : (p+1)*n])
+            else:    
+                xs = []
+                for p in range(popsize):
+                    x = xall[p*n : (p+1)*n]
+                    xs.append(x)
+                ys = self.parfun(xs)
+                for p in range(popsize):
+                    ys_[p] = ys[p]
+        except Exception as ex:
+            print (ex)
+
+call_back_type = ct.CFUNCTYPE(ct.c_double, ct.c_int, ct.POINTER(ct.c_double))  
+call_back_par = ct.CFUNCTYPE(None, ct.c_int, ct.c_int, \
+                                  ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))  
       
 optimizeLDE_C = libcmalib.optimizeLDE_C
 optimizeLDE_C.argtypes = [ct.c_long, call_back_type, ct.c_int, 

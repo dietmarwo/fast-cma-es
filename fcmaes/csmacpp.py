@@ -16,8 +16,7 @@ import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
 from fcmaes.cmaes import _check_bounds
-from fcmaes.cmaescpp import libcmalib
-from fcmaes.dacpp import call_back_type
+from fcmaes.decpp import mo_call_back_type, callback, libcmalib
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -27,7 +26,7 @@ def minimize(fun,
              input_sigma = 0.166, 
              popsize = 0, 
              max_evaluations = 100000, 
-             stop_fittness = None, 
+             stop_fitness = None, 
              rg = Generator(MT19937()),
              runid=0):
        
@@ -56,7 +55,7 @@ def minimize(fun,
         CMA-ES population size.
     max_evaluations : int, optional
         Forced termination after ``max_evaluations`` function evaluations.
-    stop_fittness : float, optional 
+    stop_fitness : float, optional 
          Limit for fitness value. If reached minimize terminates.
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
@@ -83,16 +82,16 @@ def minimize(fun,
         input_sigma=input_sigma()
     if np.ndim(input_sigma) == 0:
         input_sigma = [input_sigma] * n
-    if stop_fittness is None:
-        stop_fittness = -math.inf   
+    if stop_fitness is None:
+        stop_fitness = -math.inf   
     array_type = ct.c_double * n 
-    c_callback = call_back_type(callback(fun))
+    c_callback = mo_call_back_type(callback(fun, n))
     res = np.empty(n+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
         optimizeCsma_C(runid, c_callback, n, int(rg.uniform(0, 2**32 - 1)), 
                 array_type(*guess), array_type(*lower), array_type(*upper), 
-                array_type(*input_sigma), max_evaluations, stop_fittness, popsize, res_p)
+                array_type(*input_sigma), max_evaluations, stop_fitness, popsize, res_p)
         x = res[:n]
         val = res[n]
         evals = int(res[n+1])
@@ -102,20 +101,8 @@ def minimize(fun,
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
 
-class callback(object):
-    
-    def __init__(self, fun):
-        self.fun = fun
-    
-    def __call__(self, n, x):
-        try:
-            fit = self.fun([x[i] for i in range(n)])
-            return fit if math.isfinite(fit) else sys.float_info.max
-        except Exception:
-            return sys.float_info.max
-  
 optimizeCsma_C = libcmalib.optimizeCsma_C
-optimizeCsma_C.argtypes = [ct.c_long, call_back_type, ct.c_int, ct.c_int, \
+optimizeCsma_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_int, ct.POINTER(ct.c_double)]
         

@@ -18,7 +18,7 @@ import multiprocessing as mp
 from scipy import linalg
 from scipy.optimize import OptimizeResult
 from numpy.random import MT19937, Generator
-from fcmaes.evaluator import Evaluator, eval_parallel
+from fcmaes.evaluator import Evaluator
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -29,13 +29,12 @@ def minimize(fun,
              popsize = 31, 
              max_evaluations = 100000, 
              max_iterations = 100000,  
-             workers = None,
+             workers = 1,
              accuracy = 1.0, 
              stop_fitness = np.nan, 
              is_terminate = None, 
              rg = Generator(MT19937()),
              runid=0,
-             delayed_update = False,
              normalize = True,
              update_gap = None,
              logger = None):       
@@ -66,7 +65,7 @@ def minimize(fun,
     max_iterations : int, optional
         Forced termination after ``max_iterations`` iterations.
     workers : int or None, optional
-        If not workers is None, function evaluation is performed in parallel for the whole population. 
+        If workers > 1, function evaluation is performed in parallel for the whole population. 
         Useful for costly objective functions but is deactivated for parallel retry.      
     accuracy : float, optional
         values > 1.0 reduce the accuracy.
@@ -79,8 +78,6 @@ def minimize(fun,
         Random generator for creating random guesses.
     runid : int, optional
         id used by the is_terminate callback to identify the CMA-ES run. 
-    delayed_update : boolean, optional
-        delayed_update if workers > 1. 
     normalize : boolean, optional
         pheno -> if true geno transformation maps arguments to interval [-1,1] 
     update_gap : int, optional
@@ -98,26 +95,19 @@ def minimize(fun,
         ``fun`` the best function value, ``nfev`` the number of function evaluations,
         ``nit`` the number of CMA-ES iterations, ``status`` the stopping critera and
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
-        
-    if workers and workers > 1 and delayed_update:
-        cmaes = Cmaes(bounds, x0, 
+  
+    if workers is None or workers <= 1:
+        fun = serial(fun)        
+    cmaes = Cmaes(bounds, x0, 
                       input_sigma, popsize, 
                       max_evaluations, max_iterations, 
                       accuracy, stop_fitness, 
                       is_terminate, rg, np.random.randn, runid, normalize, 
-                      update_gap, fun, logger)
+                      update_gap, fun, logger)        
+    if workers and workers > 1:
         x, val, evals, iterations, stop = cmaes.do_optimize_delayed_update(fun, workers=workers)
     else:      
-        fun = serial(fun) if workers is None else parallel(fun, workers)
-        cmaes = Cmaes(bounds, x0, 
-                      input_sigma, popsize, 
-                      max_evaluations, max_iterations, 
-                      accuracy, stop_fitness, 
-                      is_terminate, rg, np.random.randn, runid, normalize, 
-                      update_gap, fun, logger)
         x, val, evals, iterations, stop = cmaes.doOptimize()
-        if not workers is None:
-            fun.stop() # stop all parallel evaluation processes
     return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, 
                           success=True)
 
@@ -616,27 +606,6 @@ def serial(fun):
         by applying the input function in a loop."""
   
     return lambda xs : [_tryfun(fun, x) for x in xs]
-
-class parallel(object):
-    """Convert an objective function for parallel execution for cmaes.minimize.
-    
-    Parameters
-    ----------
-    fun : objective function mapping a list of float arguments to a float value.
-   
-    represents a function mapping a list of lists of float arguments to a list of float values
-    by applying the input function using parallel processes. stop needs to be called to avoid
-    a resource leak"""
-        
-    def __init__(self, fun, workers = mp.cpu_count()):
-        self.evaluator = Evaluator(fun)
-        self.evaluator.start(workers)
-    
-    def __call__(self, xs):
-        return eval_parallel(xs, self.evaluator)
-
-    def stop(self):
-        self.evaluator.stop()
         
 def _func_serial(fun, num, pid, xs, ys):
     for i in range(pid, len(xs), num):
