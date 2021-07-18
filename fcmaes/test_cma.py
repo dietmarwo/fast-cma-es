@@ -10,6 +10,23 @@ from scipy.optimize import OptimizeResult
 from fcmaes.testfun import Wrapper, Rosen, Rastrigin, Eggholder
 from fcmaes import cmaes, de, decpp, cmaescpp, gcldecpp, retry, advretry
 
+def almost_equal(X1, X2, eps = 1E-5):
+    if np.isscalar(X1):
+        X1 = [X1]
+        X2 = [X2]
+    if len(X1) != len(X2):
+        return False
+    for i in range(len(X1)):
+        a = X1[i]
+        b = X2[i]
+        if abs(a) < eps or abs(b) < eps:
+            if abs(a - b) > eps:
+                return False
+        else:
+            if abs(a / b - 1 > eps):
+                return False
+    return True
+
 def test_rastrigin_python():
     popsize = 100
     dim = 3
@@ -280,8 +297,8 @@ def test_rosen_decpp_parallel():
     assert(max_eval + popsize >= ret.nfev) # too much function calls
     assert(max_eval // popsize + 2 > ret.nit) # too much iterations
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
-    assert(almost_equal(ret.x, wrapper.get_best_x(), eps = 10)) # wrong best X returned
-    assert(almost_equal(ret.fun, wrapper.get_best_y(), eps = 1E-1)) # wrong best y returned
+    assert(almost_equal(ret.x, wrapper.get_best_x(), eps = 1E-2)) # wrong best X returned
+    assert(almost_equal(ret.fun, wrapper.get_best_y(), eps = 1E-2)) # wrong best y returned
 
 def test_eggholder_python():
     popsize = 1000
@@ -339,19 +356,3 @@ def test_eggholder_advanced_retry():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(almost_equal(ret.fun, wrapper.get_best_y())) # wrong best y returned
  
-def almost_equal(X1, X2, eps = 1E-5):
-    if np.isscalar(X1):
-        X1 = [X1]
-        X2 = [X2]
-    if len(X1) != len(X2):
-        return False
-    for i in range(len(X1)):
-        a = X1[i]
-        b = X2[i]
-        if abs(a) < eps or abs(b) < eps:
-            if abs(a - b) > eps:
-                return False
-        else:
-            if abs(a / b - 1 > eps):
-                return False
-    return True
