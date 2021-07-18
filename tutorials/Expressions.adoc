@@ -44,7 +44,7 @@ are individually incremented, their relation stays the same.
 
 There are five types of `basic` algorithms which form the basis of expressions:
 
-* fcmaes native algorithms: `Cma_cpp, De_cpp, GCLDE_cpp, Da_cpp, Hh_cpp, Cma_python`, CMA-ES, differential evolution,  dual annealing and Harris hawks.
+* fcmaes native algorithms: `Cma_cpp, De_cpp, GCLDE_cpp, Da_cpp, Cma_python`, CMA-ES, differential evolution,  dual annealing.
 * fcmaes predefined sequences: `de_cma, da_cma`, where `de_cma`, the sequence `(DE | GLC-DE) -> CMA` is the default algorithm used for the parallel retry.  
 * https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy algorithms]: `Dual_annealing, Differential_evolution, Basin_hopping, Minimize, Shgo`
 * https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt algorithms]: `NLopt`, requires `pip install nlopt`
