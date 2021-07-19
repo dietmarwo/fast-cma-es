@@ -10,9 +10,10 @@ import random
 import math
 import time
 import glob
+import sys
 from scipy.optimize import Bounds
 from fcmaes.optimizer import de_cma, Bite_cpp, random_search, dtime, logger
-from fcmaes import moretry, retry, mode
+from fcmaes import moretry, retry, mode, modecpp
 from deap import base
 from deap import creator
 from deap import tools
@@ -220,13 +221,19 @@ def plot_all(folder, fname):
     retry.plot(ys, fname + '_all.png', interp=False)
     retry.plot(front, fname + '_front.png')
 
+ 
+def decpp_minimize_plot(problem, name, popsize = 64, max_eval = 100000, nobj = 2):
+    plot_name = problem.name + '_' + name
+    modecpp.minimize(problem.fun, nobj, 0, problem.bounds, popsize = popsize, 
+                       workers=32, max_evaluations = max_eval, nsga_update=True, plot_name = "cpp_nsga_on" + plot_name)
+
 def de_minimize_plot(problem, name, popsize = 64, max_eval = 100000, nobj = 2):
-    mode.minimize_plot(problem.name + '_' + name, problem.fun, problem.bounds, nobj, popsize = popsize, 
-                       max_eval = max_eval, nsga_update=False, plot_name = "nsga_off")
+    mode.minimize_plot(problem.name + '_' + name, problem.fun, nobj, 0, problem.bounds, popsize = popsize, 
+                       workers = 32, max_evaluations = max_eval, nsga_update=False, plot_name = "nsga_on")
 
 def nsga_minimize_plot(problem, name, popsize = 64, max_eval = 100000, nobj = 2):
-    mode.minimize_plot(problem.name + '_' + name, problem.fun, problem.bounds, nobj, popsize = popsize, 
-                       max_eval = max_eval, nsga_update=True, plot_name = "nsga_on")
+    mode.minimize_plot(problem.name + '_' + name, problem.fun, nobj, 0, problem.bounds, popsize = popsize, 
+                       max_evaluations = max_eval, nsga_update=True, plot_name = "nsga_on")
 
 def minimize_plot(problem, opt, name, exp = 2.0, num_retries = 1024, value_limits=None):
     moretry.minimize_plot(problem.name + '_' + name, opt, 
@@ -240,6 +247,11 @@ def adv_minimize_plot(problem, opt, name, value_limit = math.inf, num_retries = 
 
 if __name__ == '__main__':
     
+    decpp_minimize_plot(zdt1(20), '100k64')
+    decpp_minimize_plot(schaffer(20), '100k64')
+    decpp_minimize_plot(poloni(20), '100k64')
+    decpp_minimize_plot(fonseca(20), '100k64')
+
     de_minimize_plot(zdt1(20), '100k64')
     de_minimize_plot(schaffer(20), '100k64')
     de_minimize_plot(poloni(20), '100k64')

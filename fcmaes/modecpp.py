@@ -40,17 +40,16 @@ import math
 import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
-from scipy.optimize import OptimizeResult
 from fcmaes.decpp import mo_call_back_type, callback_mo, libcmalib
 from fcmaes import de
 from fcmaes.mode import filter
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
-def minimize(fun, 
-             nobj,
-             bounds = None,
-             ncon = 0, 
+def minimize(mofun, 
+             nobj, 
+             ncon,
+             bounds,
              popsize = 64, 
              max_evaluations = 100000, 
              workers = 1,
@@ -64,7 +63,6 @@ def minimize(fun,
              pareto_update = False,
              log_period = 1000,
              rg = Generator(MT19937()),
-             logger = None,
              plot_name = None,
              runid=0):  
      
@@ -73,22 +71,22 @@ def minimize(fun,
      
     Parameters
     ----------
-    fun : callable
+    mofun : callable
         The objective function to be minimized.
-            ``fun(x, *args) -> float``
+            ``mofun(x, *args) -> list(float)``
         where ``x`` is an 1-D array with shape (n,) and ``args``
         is a tuple of the fixed parameters needed to completely
         specify the function.
     nobj : int
         number of objectives
+    ncon : int
+        number of constraints, default is 0. 
+        The objective function needs to return vectors of size nobj + ncon
     bounds : sequence or `Bounds`
         Bounds on variables. There are two ways to specify the bounds:
             1. Instance of the `scipy.Bounds` class.
             2. Sequence of ``(min, max)`` pairs for each element in `x`. None
                is used to specify no bound.
-    ncon : int, optional
-        number of constraints, default is 0. 
-        The objective function needs to return vectors of size nobj + ncon
     popsize : int, optional
         Population size.
     max_evaluations : int, optional
@@ -124,7 +122,7 @@ def minimize(fun,
 
     Returns
     -------
-    pareto_front :  np.array(popsize, dim)"""
+    x, y: list of argument vectors and corresponding value vectors of the optimization results. """
     
     n, lower, upper = de._check_bounds(bounds, None)
     if popsize is None:
@@ -135,7 +133,7 @@ def minimize(fun,
     if workers is None:
         workers = 0
     array_type = ct.c_double * n   
-    c_callback = mo_call_back_type(callback_mo(fun, n, nobj + ncon))
+    c_callback = mo_call_back_type(callback_mo(mofun, n, nobj + ncon))
     c_log = mo_call_back_type(log_mo(plot_name, n, nobj, ncon))
     seed = int(rg.uniform(0, 2**32 - 1))
     res = np.empty(n*popsize) # stores the resulting pareto front parameters
@@ -149,12 +147,11 @@ def minimize(fun,
         x = np.empty((popsize,n))
         for p in range(popsize):
             x[p] = res[p*n : (p+1)*n]
-        y = np.array([fun(xi) for xi in x])
+        y = np.array([mofun(xi) for xi in x])
         x, y = filter(x, y)
-        return OptimizeResult(x=x, fun=y, nfev=max_evaluations, nit=0, status=0, 
-                              success=True)
+        return x, y
     except Exception as ex:
-        return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
+        return None, None
 
 from fcmaes import moretry
 

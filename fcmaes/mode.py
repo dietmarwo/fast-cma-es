@@ -36,19 +36,17 @@ import sys
 import time
 import ctypes as ct
 from numpy.random import Generator, MT19937
-from scipy.optimize import OptimizeResult
 from fcmaes.evaluator import Evaluator
 import multiprocessing as mp
-from fcmaes.optimizer import dtime, logger
-from fcmaes import retry, moretry
+from fcmaes.optimizer import logger
+from fcmaes import moretry
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
 def minimize(mofun, 
              nobj,
-             dim = None,
-             bounds = None,
-             ncon = 0, 
+             ncon, 
+             bounds,
              popsize = 64, 
              max_evaluations = 100000, 
              workers = None,
@@ -65,25 +63,22 @@ def minimize(mofun,
      
     Parameters
     ----------
-    fun : callable
+    mofun : callable
         The objective function to be minimized.
-            ``fun(x, *args) -> float``
+            ``mofun(x, *args) -> list(float)``
         where ``x`` is an 1-D array with shape (n,) and ``args``
         is a tuple of the fixed parameters needed to completely
         specify the function.
     nobj : int
         number of objectives
-    dim : int
-        dimension of the argument of the objective function
-        either dim or bounds need to be defined
-    bounds : sequence or `Bounds`, optional
+    ncon : int
+        number of constraints, default is 0. 
+        The objective function needs to return vectors of size nobj + ncon
+    bounds : sequence or `Bounds`
         Bounds on variables. There are two ways to specify the bounds:
             1. Instance of the `scipy.Bounds` class.
             2. Sequence of ``(min, max)`` pairs for each element in `x`. None
                is used to specify no bound.
-    ncon : int, optional
-        number of constraints, default is 0. 
-        The objective function needs to return vectors of size nobj + ncon
     popsize : int, optional
         Population size.
     max_evaluations : int, optional
@@ -112,35 +107,27 @@ def minimize(mofun,
             
     Returns
     -------
-    res : scipy.OptimizeResult
-        The optimization result is represented as an ``OptimizeResult`` object.
-        Important attributes are: ``x`` the solution array, 
-        ``fun`` the best function value, 
-        ``nfev`` the number of function evaluations,
-        ``nit`` the number of iterations,
-        ``success`` a Boolean flag indicating if the optimizer exited successfully. """
+    x, y: list of argument vectors and corresponding value vectors of the optimization results. """
 
-    
-    de = DE(dim, nobj, bounds, ncon, popsize, workers if not workers is None else 0, 
+    mode = MODE(nobj, ncon, bounds, popsize, workers if not workers is None else 0, 
             f, cr, nsga_update, pareto_update, rg, logger, plot_name)
     try:
         if workers and workers > 1:
-            x, y, evals, iterations, stop = de.do_optimize_delayed_update(mofun, max_evaluations, workers)
+            x, y, evals, iterations, stop = mode.do_optimize_delayed_update(mofun, max_evaluations, workers)
         else:      
-            x, y, evals, iterations, stop = de.do_optimize(mofun, max_evaluations)
-        return OptimizeResult(x=x, fun=y, nfev=evals, nit=iterations, status=stop, 
-                              success=True)
+            x, y, evals, iterations, stop = mode.do_optimize(mofun, max_evaluations)
+        return x, y
     except Exception as ex:
-        return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
+        return None, None  
 
-class DE(object):
+class MODE(object):
     
-    def __init__(self, dim, nobj, bounds, ncon=0, popsize = 64, workers = 0,
+    def __init__(self, nobj, ncon, bounds, popsize = 64, workers = 0,
                  F = 0.5, Cr = 0.9, nsga_update = False, pareto_update = False, 
                  rg = Generator(MT19937()), logger = None, plot_name = None):
         self.nobj = nobj
         self.ncon = ncon
-        self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
+        self.dim, self.lower, self.upper = _check_bounds(bounds, None)
         if popsize is None:
             popsize = 31
         self.popsize = popsize
@@ -479,15 +466,13 @@ def variation(pop, lower, upper, rg, pro_c = 1, dis_c = 20, pro_m = 1, dis_m = 2
     offspring = np.maximum(np.minimum(offspring, upper), lower)
     return offspring
 
-def minimize_plot(name, fun, bounds, nobj, ncon = 0, popsize = 64, max_eval = 100000, nsga_update=False, 
+def minimize_plot(name, fun, nobj, ncon, bounds, popsize = 64, max_evaluations = 100000, nsga_update=False, 
                   pareto_update=False, workers = mp.cpu_count(), logger=logger(), plot_name = None):
     name += '_mode_' + str(popsize) + '_' + \
                 ('nsga_update' if nsga_update else ('de_best_update' if pareto_update else 'de_all_update'))
     logger.info('optimize ' + name) 
-    ret = minimize(fun, nobj, bounds = bounds, ncon = ncon, popsize = popsize, max_evaluations = max_eval,
+    xs, ys = minimize(fun, nobj, ncon, bounds, popsize = popsize, max_evaluations = max_evaluations,
                    nsga_update = nsga_update, pareto_update = pareto_update, workers=workers, 
                    logger=logger, plot_name = plot_name)
-    ys = np.array(ret.fun)
-    xs = np.array(ret.x)
     np.savez_compressed(name, xs=xs, ys=ys)
     moretry.plot(name, ncon, xs, ys)
