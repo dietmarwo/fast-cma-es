@@ -145,10 +145,13 @@ def minimize(fun,
                            max_evaluations, popsize, workers, f, cr, 
                            pro_c, dis_c, pro_m, dis_m,
                            nsga_update, pareto_update, log_period, res_p)
-        x = np.empty(popsize)
+        x = np.empty((popsize,n))
         for p in range(popsize):
             x[p] = res[p*n : (p+1)*n]
-        return x
+        y = np.array([fun(xi) for xi in x])
+        x, y = filter(x, y)
+        return OptimizeResult(x=x, fun=y, nfev=max_evaluations, nit=0, status=0, 
+                              success=True)
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
 

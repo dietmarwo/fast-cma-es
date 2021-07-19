@@ -372,7 +372,8 @@ def _check_bounds(bounds, dim):
         return len(bounds.ub), np.asarray(bounds.lb), np.asarray(bounds.ub)
  
 def filter(x, y):
-    sorted = np.argsort([yi[0] for yi in y])
+    ym = np.amax(y,axis=1)
+    sorted = np.argsort(ym)
     x = x[sorted]
     y = y[sorted]
     y = np.array([yi for yi in y if yi[0] < 1E99])
