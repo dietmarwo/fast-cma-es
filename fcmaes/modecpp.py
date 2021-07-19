@@ -124,29 +124,29 @@ def minimize(mofun,
     -------
     x, y: list of argument vectors and corresponding value vectors of the optimization results. """
     
-    n, lower, upper = de._check_bounds(bounds, None)
+    dim, lower, upper = de._check_bounds(bounds, None)
     if popsize is None:
-        popsize = 150
+        popsize = 128
     if lower is None:
-        lower = [0]*n
-        upper = [0]*n  
+        lower = [0]*dim
+        upper = [0]*dim  
     if workers is None:
         workers = 0
-    array_type = ct.c_double * n   
-    c_callback = mo_call_back_type(callback_mo(mofun, n, nobj + ncon))
-    c_log = mo_call_back_type(log_mo(plot_name, n, nobj, ncon))
+    array_type = ct.c_double * dim   
+    c_callback = mo_call_back_type(callback_mo(mofun, dim, nobj + ncon))
+    c_log = mo_call_back_type(log_mo(plot_name, dim, nobj, ncon))
     seed = int(rg.uniform(0, 2**32 - 1))
-    res = np.empty(n*popsize) # stores the resulting pareto front parameters
+    res = np.empty(2*dim*popsize) # stores the resulting pareto front parameters
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        optimizeMODE_C(runid, c_callback, c_log, n, nobj, ncon, seed,
+        optimizeMODE_C(runid, c_callback, c_log, dim, nobj, ncon, seed,
                            array_type(*lower), array_type(*upper), 
                            max_evaluations, popsize, workers, f, cr, 
                            pro_c, dis_c, pro_m, dis_m,
                            nsga_update, pareto_update, log_period, res_p)
-        x = np.empty((popsize,n))
-        for p in range(popsize):
-            x[p] = res[p*n : (p+1)*n]
+        x = np.empty((2*popsize,dim))
+        for p in range(2*popsize):
+            x[p] = res[p*dim : (p+1)*dim]
         y = np.array([mofun(xi) for xi in x])
         x, y = filter(x, y)
         return x, y

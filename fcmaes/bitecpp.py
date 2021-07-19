@@ -38,7 +38,7 @@ def minimize(fun,
     fun : callable
         The objective function to be minimized.
             ``fun(x, *args) -> float``
-        where ``x`` is an 1-D array with shape (n,) and ``args``
+        where ``x`` is an 1-D array with shape (dim,) and ``args``
         is a tuple of the fixed parameters needed to completely
         specify the function.
     bounds : sequence or `Bounds`, optional
@@ -46,9 +46,9 @@ def minimize(fun,
             1. Instance of the `scipy.Bounds` class.
             2. Sequence of ``(min, max)`` pairs for each element in `x`. None
                is used to specify no bound.
-    x0 : ndarray, shape (n,)
-        Initial guess. Array of real elements of size (n,),
-        where 'n' is the number of independent variables.  
+    x0 : ndarray, shape (dim,)
+        Initial guess. Array of real elements of size (dim,),
+        where 'dim' is the number of independent variables.  
     popsize = int, optional
         CMA-ES population size.
     max_evaluations : int, optional
@@ -74,25 +74,25 @@ def minimize(fun,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
     
     lower, upper, guess = _check_bounds(bounds, x0, rg)      
-    n = guess.size   
+    dim = guess.size   
     if lower is None:
-        lower = [0]*n
-        upper = [0]*n
+        lower = [0]*dim
+        upper = [0]*dim
     if stop_fitness is None:
         stop_fitness = -math.inf   
-    array_type = ct.c_double * n 
-    c_callback = mo_call_back_type(callback(fun, n))
-    res = np.empty(n+4)
+    array_type = ct.c_double * dim 
+    c_callback = mo_call_back_type(callback(fun, dim))
+    res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        optimizeBite_C(runid, c_callback, n, int(rg.uniform(0, 2**32 - 1)), 
+        optimizeBite_C(runid, c_callback, dim, int(rg.uniform(0, 2**32 - 1)), 
                            array_type(*guess), array_type(*lower), array_type(*upper), 
                            max_evaluations, stop_fitness, popsize, M, res_p)
-        x = res[:n]
-        val = res[n]
-        evals = int(res[n+1])
-        iterations = int(res[n+2])
-        stop = int(res[n+3])
+        x = res[:dim]
+        val = res[dim]
+        evals = int(res[dim+1])
+        iterations = int(res[dim+2])
+        stop = int(res[dim+3])
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)

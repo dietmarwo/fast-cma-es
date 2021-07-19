@@ -46,17 +46,17 @@ def minimize(fun,
     fun : callable
         The objective function to be minimized.
             ``fun(x, *args) -> float``
-        where ``x`` is an 1-D array with shape (n,) and ``args``
+        where ``x`` is an 1-D array with shape (dim,) and ``args``
         is a tuple of the fixed parameters needed to completely
         specify the function.
     bounds : sequence or `Bounds`
         Bounds on variables. There are two ways to specify the bounds:
             1. Instance of the `scipy.Bounds` class.
             2. Sequence of ``(min, max)`` pairs for each element in `x`.
-    x0 : ndarray, shape (n,)
-        Initial guess. Array of real elements of size (n,),
-        where 'n' is the number of independent variables.  
-    input_sigma : ndarray, shape (n,) or scalar
+    x0 : ndarray, shape (dim,)
+        Initial guess. Array of real elements of size (dim,),
+        where 'dim' is the number of independent variables.  
+    input_sigma : ndarray, shape (dim,) or scalar
         Initial step size for each dimension.
     popsize : int, optional
         Population size.
@@ -92,35 +92,35 @@ def minimize(fun,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
     lower, upper, guess = _check_bounds(bounds, x0, rg)      
-    n = guess.size  
+    dim = guess.size  
     if popsize is None:
-        popsize = int(n*8.5+150)
+        popsize = int(dim*8.5+150)
     if lower is None:
-        lower = [0]*n
-        upper = [0]*n
+        lower = [0]*dim
+        upper = [0]*dim
     if callable(input_sigma):
         input_sigma=input_sigma()
     if np.ndim(input_sigma) == 0:
-        input_sigma = [input_sigma] * n
+        input_sigma = [input_sigma] * dim
     if stop_fitness is None:
         stop_fitness = math.inf   
     parfun = None if workers is None else parallel(fun, workers)
-    array_type = ct.c_double * n   
+    array_type = ct.c_double * dim   
     c_callback_par = call_back_par(callback_par(fun, parfun))
     seed = int(rg.uniform(0, 2**32 - 1))
-    res = np.empty(n+4)
+    res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        optimizeLCLDE_C(runid, c_callback_par, n, 
+        optimizeLCLDE_C(runid, c_callback_par, dim, 
                            array_type(*guess), array_type(*input_sigma), seed,
                            array_type(*lower), array_type(*upper), 
                            max_evaluations, pbest, stop_fitness,  
                            popsize, f0, cr0, res_p)
-        x = res[:n]
-        val = res[n]
-        evals = int(res[n+1])
-        iterations = int(res[n+2])
-        stop = int(res[n+3])
+        x = res[:dim]
+        val = res[dim]
+        evals = int(res[dim+1])
+        iterations = int(res[dim+2])
+        stop = int(res[dim+3])
         if not parfun is None:
             parfun.stop() # stop all parallel evaluation processes
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)

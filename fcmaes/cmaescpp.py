@@ -43,7 +43,7 @@ def minimize(fun,
     fun : callable
         The objective function to be minimized.
             ``fun(x, *args) -> float``
-        where ``x`` is an 1-D array with shape (n,) and ``args``
+        where ``x`` is an 1-D array with shape (dim,) and ``args``
         is a tuple of the fixed parameters needed to completely
         specify the function.
     bounds : sequence or `Bounds`, optional
@@ -51,10 +51,10 @@ def minimize(fun,
             1. Instance of the `scipy.Bounds` class.
             2. Sequence of ``(min, max)`` pairs for each element in `x`. None
                is used to specify no bound.
-    x0 : ndarray, shape (n,)
-        Initial guess. Array of real elements of size (n,),
-        where 'n' is the number of independent variables.  
-    input_sigma : ndarray, shape (n,) or scalar
+    x0 : ndarray, shape (dim,)
+        Initial guess. Array of real elements of size (dim,),
+        where 'dim' is the number of independent variables.  
+    input_sigma : ndarray, shape (dim,) or scalar
         Initial step size for each dimension.
     popsize = int, optional
         CMA-ES population size.
@@ -93,17 +93,17 @@ def minimize(fun,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
     
     lower, upper, guess = _check_bounds(bounds, x0, rg)      
-    n = guess.size   
+    dim = guess.size   
     if lower is None:
-        lower = [0]*n
-        upper = [0]*n
+        lower = [0]*dim
+        upper = [0]*dim
     if workers is None:
         workers = 0
     mu = int(popsize/2)
     if callable(input_sigma):
         input_sigma=input_sigma()
     if np.ndim(input_sigma) == 0:
-        input_sigma = [input_sigma] * n
+        input_sigma = [input_sigma] * dim
     if stop_fitness is None:
         stop_fitness = math.inf   
     if is_terminate is None:    
@@ -111,22 +111,22 @@ def minimize(fun,
         use_terminate = False 
     else:
         use_terminate = True 
-    array_type = ct.c_double * n 
-    c_callback = mo_call_back_type(callback(fun, n))
+    array_type = ct.c_double * dim 
+    c_callback = mo_call_back_type(callback(fun, dim))
     c_is_terminate = is_terminate_type(is_terminate)
-    res = np.empty(n+4)
+    res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        optimizeACMA_C(runid, c_callback, n, array_type(*guess), array_type(*lower), array_type(*upper), 
+        optimizeACMA_C(runid, c_callback, dim, array_type(*guess), array_type(*lower), array_type(*upper), 
                 array_type(*input_sigma), max_iterations, max_evaluations, stop_fitness, mu, 
                 popsize, accuracy, use_terminate, c_is_terminate, 
                 int(rg.uniform(0, 2**32 - 1)), normalize, -1 if update_gap is None else update_gap, 
                 workers, res_p)
-        x = res[:n]
-        val = res[n]
-        evals = int(res[n+1])
-        iterations = int(res[n+2])
-        stop = int(res[n+3])
+        x = res[:dim]
+        val = res[dim]
+        evals = int(res[dim+1])
+        iterations = int(res[dim+2])
+        stop = int(res[dim+3])
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
