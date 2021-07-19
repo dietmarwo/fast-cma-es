@@ -182,9 +182,10 @@ class log_mo(object):
             xs = np.array(xs)
             ys = np.array(ys)
             print("callback", np.min(ys[:,0]), np.min(ys[:,1]))
-            name = self.name + '_' + str(self.calls)
-            np.savez_compressed(name, xs=xs, ys=ys)
-            moretry.plot(name, self.ncon, xs, ys)
+            if not self.name is None:
+                name = self.name + '_' + str(self.calls)
+                np.savez_compressed(name, xs=xs, ys=ys)
+                moretry.plot(name, self.ncon, xs, ys)
         except Exception as ex:
             print (ex)
 
