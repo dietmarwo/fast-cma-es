@@ -214,7 +214,6 @@ class Store(object):
         self.best_x = mp.RawArray(ct.c_double, self.dim)
         self.statistic_num = statistic_num
         self.plot_name = plot_name
-        self.trace_plots = not plot_name is None
         # statistics                            
         if statistic_num > 0:  # enable statistics                          
             self.statistic_num = statistic_num
@@ -384,7 +383,7 @@ def _retry_loop(pid, rgs, store, optimize, num_retries, value_limit, stop_fitnes
             sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
                                      [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
             store.add_result(y, sol, evals, value_limit)   
-            if hasattr(store, 'trace_plots') and store.trace_plots:    
+            if not store.plot_name is None: 
                 name = store.plot_name + "_retry_" + str(store.get_count_evals())
                 xs = np.array(store.get_xs())
                 ys = np.array(store.get_ys())

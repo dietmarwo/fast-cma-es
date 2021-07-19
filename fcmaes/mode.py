@@ -107,8 +107,8 @@ def minimize(mofun,
         logger for log output for tell_one, If None, logging
         is switched off. Default is a logger which logs both to stdout and
         appends to a file ``optimizer.log``.
-    trace_plots : trace_plots, optional
-        flag indicating if the pareto front is plotted during the optimization to monitor progress
+    plot_name : plot_name, optional
+        if defined the pareto front is plotted during the optimization to monitor progress
             
     Returns
     -------
@@ -156,7 +156,6 @@ class DE(object):
         self.mutex = mp.Lock()
         self.p = 0
         self.best_p = None
-        self.trace_plots = not plot_name is None
         self._init()
         if not logger is None:
             self.logger = logger
@@ -220,7 +219,7 @@ class DE(object):
                 message = '"c/t={0:.2f} c={1:d} t={2:.2f} y={3!s} x={4!s}'.format(
                     c/t, c, t, str(list(y)), str(list(x)))
                 self.logger.info(message)   
-                if self.trace_plots:             
+                if not self.plot_name is None:           
                     name = self.name + ' '  + str(self.n_evals.value)
                     np.savez_compressed(name, xs=self.x, ys=self.y) 
                     moretry.plot(name, self.ncon, self.x, self.y)

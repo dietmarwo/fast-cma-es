@@ -74,6 +74,8 @@ def minimize(fun,
         capacity of the evaluation store.
     optimizer : optimizer.Optimizer, optional
         optimizer to use. Default is a sequence of differential evolution and CMA-ES.
+    plot_name : plot_name, optional
+        if defined the pareto front is plotted during the optimization to monitor progress
      
     Returns
     -------
@@ -123,8 +125,8 @@ def _retry_loop(pid, rgs, fun, weight_bounds, ncon, y_exp,
             objs = wrapper.mo_eval(x) # retrieve the objective values
             if value_limits is None or all([objs[i] < value_limits[i] for i in range(len(w))]):
                 store.add_result(y, x, evals, math.inf)   
-                name = store.plot_name + "_moretry_" + str(store.get_count_evals())
-                if store.trace_plots:
+                if not store.plot_name is None:
+                    name = store.plot_name + "_moretry_" + str(store.get_count_evals())
                     xs = np.array(store.get_xs())
                     ys = np.array([fun(x) for x in xs])
                     np.savez_compressed(name, xs=xs, ys=ys) 
