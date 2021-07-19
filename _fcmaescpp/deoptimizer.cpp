@@ -224,26 +224,35 @@ public:
     	 fitfun->resetEvaluations();
          workers = std::min(workers, popsize); // workers <= popsize
     	 evaluator eval(fitfun, 1, workers);
-    	 vec evals_x[popsize];
+         int evals_size = popsize*10;
+    	 vec evals_x[evals_size];
+   	     int evals_p[evals_size];
+         int cp = 0; 
+         
 	     // fill eval queue with initial population
     	 for (int i = 0; i < workers; i++) {
     		 int p;
     		 vec x = ask(p);
-    		 eval.evaluate(x, p);
-    		 evals_x[p] = x;
+    		 eval.evaluate(x, cp);
+    		 evals_x[cp] = x;
+    		 evals_p[cp] = p;
+             cp = (cp + 1) % evals_size;             
     	 }
     	 while (fitfun->evaluations() < maxEvaluations) {
     		 vec_id* vid = eval.result();
     		 vec y = vec(vid->_v);
-    		 int p = vid->_id;
+    		 int id = vid->_id;
     		 delete vid;
-    		 vec x = evals_x[p];
+    		 vec x = evals_x[id];
+             int p = evals_p[id];
     		 tell(y(0), x, p); // tell evaluated x
     		 if (fitfun->evaluations() >= maxEvaluations)
     			 break;
     		 x = ask(p);
-    		 eval.evaluate(x, p);
-    		 evals_x[p] = x;
+    		 eval.evaluate(x, cp);
+    		 evals_x[cp] = x;
+    		 evals_p[cp] = p;
+             cp = (cp + 1) % evals_size; 
     	 }
 	}
 
@@ -319,20 +328,12 @@ extern "C" {
 void optimizeDE_C(long runid, callback_type func, int dim, int seed,
         double *lower, double *upper, int maxEvals, double keep,
         double stopfitness, int popsize, double F, double CR, int workers, double* res) {
-    int n = dim;
-    vec lower_limit(n), upper_limit(n);
-    bool useLimit = false;
-    for (int i = 0; i < n; i++) {
+    vec lower_limit(dim), upper_limit(dim);
+    for (int i = 0; i < dim; i++) {
         lower_limit[i] = lower[i];
         upper_limit[i] = upper[i];
-        useLimit |= (lower[i] != 0);
-        useLimit |= (upper[i] != 0);
     }
-    if (useLimit == false) {
-        lower_limit.resize(0);
-        upper_limit.resize(0);
-    }
-    Fitness fitfun(func, n, 1, lower_limit, upper_limit);
+    Fitness fitfun(func, dim, 1, lower_limit, upper_limit);
     DeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, keep,
             stopfitness, F, CR);
     try {
@@ -342,12 +343,12 @@ void optimizeDE_C(long runid, callback_type func, int dim, int seed,
             opt.do_optimize_delayed_update(workers);
         vec bestX = opt.getBestX();
         double bestY = opt.getBestValue();
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < dim; i++)
             res[i] = bestX[i];
-        res[n] = bestY;
-        res[n + 1] = fitfun.evaluations();
-        res[n + 2] = opt.getIterations();
-        res[n + 3] = opt.getStop();
+        res[dim] = bestY;
+        res[dim + 1] = fitfun.evaluations();
+        res[dim + 2] = opt.getIterations();
+        res[dim + 3] = opt.getStop();
     } catch (std::exception &e) {
         cout << e.what() << endl;
     }

@@ -536,20 +536,12 @@ void optimizeMODE_C(long runid, callback_type func, callback_type log,
 		int popsize, int workers, double F, double CR, 
 	    double pro_c, double dis_c, double pro_m, double dis_m,
         bool nsga_update, bool pareto_update, int log_period, double* res) {
-    int n = dim;
-    vec lower_limit(n), upper_limit(n);
-    bool useLimit = false;
-    for (int i = 0; i < n; i++) {
+    vec lower_limit(dim), upper_limit(dim);
+    for (int i = 0; i < dim; i++) {
         lower_limit[i] = lower[i];
         upper_limit[i] = upper[i];
-        useLimit |= (lower[i] != 0);
-        useLimit |= (upper[i] != 0);
     }
-    if (useLimit == false) {
-        lower_limit.resize(0);
-        upper_limit.resize(0);
-    }
-    Fitness fitfun(func, n, nobj + ncon, lower_limit, upper_limit);
+    Fitness fitfun(func, dim, nobj + ncon, lower_limit, upper_limit);
     MoDeOptimizer opt(runid, &fitfun, log, dim, nobj, ncon,
     		seed, popsize, maxEvals, F, CR, 
             pro_c, dis_c, pro_m, dis_m,
@@ -560,7 +552,7 @@ void optimizeMODE_C(long runid, callback_type func, callback_type log,
         else
             opt.do_optimize_delayed_update(workers);
         double* xdata = opt.getX().data();
-        for (int i = 0; i < popsize; i++)
+        for (int i = 0; i < opt.getX().size(); i++)
             res[i] = xdata[i];
     } catch (std::exception &e) {
     	std::cout << e.what() << std::endl;

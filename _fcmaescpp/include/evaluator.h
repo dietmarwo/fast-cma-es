@@ -166,6 +166,10 @@ public:
     vec eval(const vec &X) {
         double res[_nobj];
         _func(_dim, X.data(), res);
+        for (int i = 0; i < _nobj; i++) {
+            if (std::isnan(res[i]) || !std::isfinite(res[i]))
+               res[i] = 1E99;      
+        }
         _evaluationCounter++;
         vec rvec = Eigen::Map<vec, Eigen::Unaligned>(res, _nobj);
         return rvec;
@@ -174,6 +178,10 @@ public:
     vec eval(const double *const p) {
         double res[_nobj];
         _func(_dim, p, res);
+        for (int i = 0; i < _nobj; i++) {
+            if (std::isnan(res[i]) || !std::isfinite(res[i]))
+               res[i] = 1E99;      
+        }
         _evaluationCounter++;
         vec rvec = Eigen::Map<vec, Eigen::Unaligned>(res, _nobj);
         return rvec;
