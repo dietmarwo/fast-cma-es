@@ -43,6 +43,7 @@ from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
 from fcmaes.decpp import mo_call_back_type, callback_mo, libcmalib
 from fcmaes import de
+from fcmaes.mode import filter
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
