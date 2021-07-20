@@ -124,13 +124,15 @@ Not only the five single objective algorithms above, but also scipy and NLopt op
 * `pip install fcmaes`
 * install {cpp} runtime libraries https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
 
-Python multiprocessing is currently flawed on Windows. To get optimal scaling from parallel retry and parallel function evaluation use:
+Parallel fitness function evaluation works only with the native Python optimizers, not with the {cpp} ones. Use "workers = 1" for the 
+{cpp}-optimizers. Python multiprocessing is currently generally flawed on Windows. To get optimal scaling from parallel retry and parallel function evaluation use:
 
 * Linux subsystem for Windows:
 - https://docs.microsoft.com/en-us/windows/wsl/install-win10[Linux subsystem] or
 - https://superuser.com/questions/1271682/is-there-a-way-of-installing-ubuntu-windows-subsystem-for-linux-on-win10-v170[Ubuntu subsystem].
 
 The Linux subsystem can read/write NTFS, so you can do your development on a NTFS partition. Just the Python call is routed to Linux. 
+If performance of the fitness function is an issue and you don't want to use the Linux subsystem for Windows, think about switching to https://github.com/dietmarwo/fcmaes-java[fcmaes-java]. 
 
 ==== MacOS
 

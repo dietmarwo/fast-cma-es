@@ -26,10 +26,8 @@ def minimize(fun,
              input_sigma = 0.3, 
              popsize = 31, 
              max_evaluations = 100000, 
-             max_iterations = 100000,  
              accuracy = 1.0, 
              stop_fitness = None, 
-             is_terminate = None, 
              rg = Generator(MT19937()),
              runid=0,
              workers = 1, 
@@ -60,15 +58,10 @@ def minimize(fun,
         CMA-ES population size.
     max_evaluations : int, optional
         Forced termination after ``max_evaluations`` function evaluations.
-    max_iterations : int, optional
-        Forced termination after ``max_iterations`` iterations.
     accuracy : float, optional
         values > 1.0 reduce the accuracy.
     stop_fitness : float, optional 
          Limit for fitness value. If reached minimize terminates.
-    is_terminate : callable, optional
-        Callback to be used if the caller of minimize wants to 
-        decide when to terminate. 
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     runid : int, optional
@@ -105,22 +98,15 @@ def minimize(fun,
     if np.ndim(input_sigma) == 0:
         input_sigma = [input_sigma] * dim
     if stop_fitness is None:
-        stop_fitness = math.inf   
-    if is_terminate is None:    
-        is_terminate=_is_terminate_false
-        use_terminate = False 
-    else:
-        use_terminate = True 
+        stop_fitness = math.inf    
     array_type = ct.c_double * dim 
     c_callback = mo_call_back_type(callback(fun, dim))
-    c_is_terminate = is_terminate_type(is_terminate)
     res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
         optimizeACMA_C(runid, c_callback, dim, array_type(*guess), array_type(*lower), array_type(*upper), 
-                array_type(*input_sigma), max_iterations, max_evaluations, stop_fitness, mu, 
-                popsize, accuracy, use_terminate, c_is_terminate, 
-                int(rg.uniform(0, 2**32 - 1)), normalize, -1 if update_gap is None else update_gap, 
+                array_type(*input_sigma), max_evaluations, stop_fitness, mu, 
+                popsize, accuracy, int(rg.uniform(0, 2**32 - 1)), normalize, -1 if update_gap is None else update_gap, 
                 workers, res_p)
         x = res[:dim]
         val = res[dim]
@@ -131,16 +117,11 @@ def minimize(fun,
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
 
-def _is_terminate_false(runid, iterations, val):
-    return False 
-
-is_terminate_type = ct.CFUNCTYPE(ct.c_bool, ct.c_long, ct.c_int, ct.c_double)    
-
 optimizeACMA_C = libcmalib.optimizeACMA_C
 optimizeACMA_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.POINTER(ct.c_double), ct.c_int, ct.c_int, ct.c_double, ct.c_int, ct.c_int, \
-            ct.c_double, ct.c_bool, is_terminate_type, ct.c_long, ct.c_bool, ct.c_int, 
+            ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_int, ct.c_int, \
+            ct.c_double, ct.c_long, ct.c_bool, ct.c_int, 
             ct.c_int, ct.POINTER(ct.c_double)]
 
 

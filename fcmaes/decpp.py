@@ -131,9 +131,10 @@ class callback(object):
             ybuf = np.frombuffer(arrTypeY.from_address(yaddr))  
             fit = self.fun(xbuf)
             ybuf[0] = fit if math.isfinite(fit) else sys.float_info.max
+            return False # don't terminate optimization
         except Exception as ex:
             print (ex)
-            return sys.float_info.max
+            return False
 
 class callback_mo(object):
     
@@ -151,11 +152,12 @@ class callback_mo(object):
             yaddr = ct.addressof(y.contents)   
             ybuf = np.frombuffer(arrTypeY.from_address(yaddr))  
             ybuf[:] = self.fun(xbuf)[:]
+            return False # don't terminate optimization
         except Exception as ex:
             print (ex)
-            return sys.float_info.max
+            return False
 
-mo_call_back_type = ct.CFUNCTYPE(None, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))  
+mo_call_back_type = ct.CFUNCTYPE(ct.c_bool, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))  
 
 basepath = os.path.dirname(os.path.abspath(__file__))
 

@@ -112,9 +112,10 @@ public:
     vec nextX(int p) {
         if (p == 0) {
             iterations++;
-//        	std::cout << iterations << ": " << popY.minCoeff() << std::endl;
-        	if (iterations % log_period == 0)
-        		log(popX.cols(), popX.data(), popY.data());
+        	if (iterations % log_period == 0) {
+        		if (log(popX.cols(), popX.data(), popY.data()))
+        			fitfun->setTerminate();
+        	}
         }
     	if (nsga_update) {
     		vec x = vX.col(vp);
@@ -408,7 +409,7 @@ public:
     void doOptimize() {
     	iterations = 0;
     	fitfun->resetEvaluations();
-    	while (fitfun->evaluations() < maxEvaluations) {
+    	while (fitfun->evaluations() < maxEvaluations && !fitfun->terminate()) {
             for (int p = 0; p < popsize; p++) {
             	vec x = nextX(p);
             	popX.col(popsize + p) = x;
@@ -431,7 +432,7 @@ public:
     		 eval.evaluate(x, p);
     		 evals_x[p] = x;
     	 }
-    	 while (fitfun->evaluations() < maxEvaluations) {
+    	 while (fitfun->evaluations() < maxEvaluations && !fitfun->terminate()) {
     		 vec_id* vid = eval.result();
     		 vec y = vec(vid->_v);
     		 int p = vid->_id;

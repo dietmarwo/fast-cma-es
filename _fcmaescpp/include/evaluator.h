@@ -74,7 +74,7 @@ typedef Eigen::Matrix<double, Eigen::Dynamic, 1> vec;
 typedef Eigen::Matrix<int, Eigen::Dynamic, 1> ivec;
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> mat;
 
-typedef void (*callback_type)(int, const double*, double*);
+typedef bool (*callback_type)(int, const double*, double*);
 
 static std::uniform_real_distribution<> distr_01 = std::uniform_real_distribution<>(
         0, 1);
@@ -161,11 +161,16 @@ public:
         _typx = 0.5 * (_upper + _lower);
         _evaluationCounter = 0;
         _normalize = false;
+        _terminate = false;
+    }
+
+    bool terminate() {
+    	return _terminate;
     }
 
     vec eval(const vec &X) {
         double res[_nobj];
-        _func(_dim, X.data(), res);
+        _terminate = _terminate || _func(_dim, X.data(), res);
         for (int i = 0; i < _nobj; i++) {
             if (std::isnan(res[i]) || !std::isfinite(res[i]))
                res[i] = 1E99;      
@@ -177,7 +182,7 @@ public:
 
     vec eval(const double *const p) {
         double res[_nobj];
-        _func(_dim, p, res);
+        _terminate = _terminate || _func(_dim, p, res);
         for (int i = 0; i < _nobj; i++) {
             if (std::isnan(res[i]) || !std::isfinite(res[i]))
                res[i] = 1E99;      
@@ -247,6 +252,10 @@ public:
         _normalize = normalize;
     }
 
+    void setTerminate() {
+        _terminate = true;
+    }
+
     vec encode(const vec &X) const {
         if (_normalize)
             return 2*(X - _typx).array() / _scale.array();
@@ -280,6 +289,7 @@ private:
     vec _scale;
     vec _typx;
     bool _normalize;
+    bool _terminate;
     long _evaluationCounter;
 };
 

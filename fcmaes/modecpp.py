@@ -186,8 +186,10 @@ class log_mo(object):
                 name = self.name + '_' + str(self.calls)
                 np.savez_compressed(name, xs=xs, ys=ys)
                 moretry.plot(name, self.ncon, xs, ys)
+            return False # don't terminate optimization
         except Exception as ex:
             print (ex)
+            return False
 
 optimizeMODE_C = libcmalib.optimizeMODE_C
 optimizeMODE_C.argtypes = [ct.c_long, mo_call_back_type, mo_call_back_type, ct.c_int, ct.c_int, \

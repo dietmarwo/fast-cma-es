@@ -29,8 +29,6 @@
 
 using namespace std;
 
-typedef bool (*is_terminate_type)(long, int, double); // runid, iter, value -> isTerminate
-
 namespace acmaes {
 
 static ivec inverse(const ivec &indices) {
@@ -56,10 +54,10 @@ class AcmaesOptimizer {
 public:
 
     AcmaesOptimizer(long runid_, Fitness *fitfun_, int popsize_, int mu_,
-            const vec &guess_, const vec &inputSigma_, int maxIterations_,
-            int maxEvaluations_, double accuracy_, double stopfitness_,
-            int update_gap_, is_terminate_type isTerminate_, long seed) {
-        // runid used in isTerminate callback to identify a specific run at different iteration
+            const vec &guess_, const vec &inputSigma_, int maxEvaluations_,
+			double accuracy_, double stopfitness_,
+            int update_gap_, long seed) {
+        // runid used for debugging / logging
         runid = runid_;
         // fitness function to minimize
         fitfun = fitfun_;
@@ -67,8 +65,6 @@ public:
         guess = guess_;
         // accuracy = 1.0 is default, > 1.0 reduces accuracy
         accuracy = accuracy_;
-        // callback to check if to terminate
-        isTerminate = isTerminate_;
         // number of objective variables/problem dimension
         dim = guess_.size();
         // population size, offspring number. The primary strategy parameter to play
@@ -92,8 +88,6 @@ public:
         // termination criteria
         // maximal number of evaluations allowed.
         maxEvaluations = maxEvaluations_;
-        // maximal number of iterations allowed.
-        maxIterations = maxIterations_;
         // limit for fitness value.
         stopfitness = stopfitness_;
         // stop if x-changes larger stopTolUpX.
@@ -124,11 +118,7 @@ public:
         damps = (1. + 2. * std::max(0., sqrt((mueff - 1.) / (dim + 1.)) - 1.))
                 * max(0.3,
                         1. - // modification for short runs
-                                dim
-                                        / (1e-6
-                                                + min(maxIterations,
-                                                        maxEvaluations
-                                                                / popsize)))
+                                dim / (1e-6 + (maxEvaluations/popsize)))
                 + cs; // minor increment
         // learning rate for rank-one update.
         ccov1 = 2. / ((dim + 1.3) * (dim + 1.3) + mueff);
@@ -392,10 +382,6 @@ public:
             stop = 6;
             return;
         }
-        if (isTerminate != NULL && isTerminate(runid, iterations, bestValue)) {
-            stop = 7;
-            return;
-        }
         // adjust step size in case of equal function values (flat fitness)
         if (bestValue == fitness[arindex[(int) (0.1 + popsize / 4.)]]) {
             sigma *= exp(0.2 + cs / damps);
@@ -414,9 +400,7 @@ public:
     void doOptimize() {
 
         // -------------------- Generation Loop --------------------------------
-        for (iterations = 1;
-                iterations <= maxIterations
-                        && fitfun->evaluations() < maxEvaluations;
+        for (iterations = 1; fitfun->evaluations() < maxEvaluations && !fitfun->terminate();
                 iterations++) {
             // generate and evaluate popsize offspring
             newArgs();
@@ -486,11 +470,9 @@ private:
     Fitness *fitfun;
     vec guess;
     double accuracy;
-    is_terminate_type isTerminate;
     int popsize; // population size
     vec inputSigma;
     int dim;
-    int maxIterations;
     int maxEvaluations;
     double stopfitness;
     double stopTolUpX;
@@ -538,10 +520,9 @@ using namespace acmaes;
 
 extern "C" {
 void optimizeACMA_C(long runid, callback_type func, int dim,
-        double *init, double *lower, double *upper, double *sigma, int maxIter,
+        double *init, double *lower, double *upper, double *sigma,
         int maxEvals, double stopfitness, int mu, int popsize, double accuracy,
-        bool useTerminate, is_terminate_type isTerminate, long seed,
-        bool normalize, int update_gap, int workers, double* res) {
+        long seed, bool normalize, int update_gap, int workers, double* res) {
     int n = dim;
     vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
     bool useLimit = false;
@@ -559,9 +540,8 @@ void optimizeACMA_C(long runid, callback_type func, int dim,
     }
     Fitness fitfun(func, n, 1, lower_limit, upper_limit);
     fitfun.setNormalize(normalize);
-    AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, inputSigma, maxIter,
-            maxEvals, accuracy, stopfitness, update_gap,
-            useTerminate ? isTerminate : NULL, seed);
+    AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, inputSigma,
+            maxEvals, accuracy, stopfitness, update_gap, seed);
     try {
         if (workers <= 1)
             opt.doOptimize();
