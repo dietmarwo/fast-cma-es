@@ -206,7 +206,7 @@ class MODE(object):
                 message = '"c/t={0:.2f} c={1:d} t={2:.2f} y={3!s} x={4!s}'.format(
                     c/t, c, t, str(list(y)), str(list(x)))
                 self.logger.info(message)   
-                if not self.plot_name is None:           
+                if hasattr(self, "plot_name") and not self.plot_name is None:           
                     name = self.name + ' '  + str(self.n_evals.value)
                     np.savez_compressed(name, xs=self.x, ys=self.y) 
                     moretry.plot(name, self.ncon, self.x, self.y)
