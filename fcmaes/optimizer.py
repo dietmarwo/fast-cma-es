@@ -80,7 +80,7 @@ class wrapper(object):
         y0 = y if np.isscalar(y) else sum(y)
         if y0 < self.best_y.value:
             self.best_y.value = y0
-            if not logger is None:
+            if not self.logger is None:
                 self.logger.info(str(dtime(self.t0)) + ' '  + 
                           str(self.evals.value) + ' ' + 
                           str(self.best_y.value) + ' ' + 

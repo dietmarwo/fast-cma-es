@@ -158,7 +158,8 @@ class mo_wrapper(object):
         weighted = _avg_exp(self.weights*y, self.y_exp)
         if self.ncon > 0: # check constraint violations
             violations = np.array([i for i in range(self.nobj, self.ny) if y[i] > 0])
-            weighted += sum(self.weights[violations])     
+            if len(violations) > 0:
+                weighted += sum(self.weights[violations])     
         return weighted
             
     def mo_eval(self, x):
