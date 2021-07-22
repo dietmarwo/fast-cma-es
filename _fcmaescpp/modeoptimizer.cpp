@@ -14,6 +14,9 @@
 //
 // Supports parallel fitness function evaluation.
 //
+// Features enhanced multiple constraint ranking (https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/)
+// improving its performance in handling constraints for engineering design optimization.
+//
 // Enables the comparison of DE and NSGA-II population update mechanism with everything else
 // kept completely identical.
 //

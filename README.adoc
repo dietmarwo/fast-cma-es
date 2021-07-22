@@ -35,7 +35,7 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/DelayedUpdate.ado
 - fcmaes is focused on optimization problems hard to solve utilizing modern many-core CPUs.
 - Parallel fitness function evaluation and different parallel retry mechanisms. 
 - Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
-- New multi-objective/constrained optimization algorithm combining features from NGSA and Differential evolution supporting parallel function evaluation.
+- New multi-objective/constrained optimization algorithm combining features from NGSA and Differential evolution supporting parallel function evaluation. Features https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/[enhanced multiple constraint ranking] improving its performance in handling constraints for engineering design optimization.
 - BiteOpt algorithm from Aleksey Vaneev.
 - New DE (differential evolution) variant optimized for usage with parallel retry.
 - GCL-DE (differential evolution) variant from Mingcheng Zuo.
