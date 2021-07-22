@@ -215,18 +215,39 @@ public:
          return domination;
     }
 
-    double maxcon(const vec& con0) {
-    	vec con = con0.cwiseMin(DBL_MAX);
-    	double maxc = con.maxCoeff();
-    	if (maxc == 0)
-    		return 0;
-    	else {// reduce number and value of constraint violations
-    		int n = 0;
-    		for (int i = 0; i < con.size(); i++)
-    			if (con[i] > 0) n++;
-    		return n*maxc + con.sum();
+    vec objranks(mat objs) {
+    	imat ci(objs.cols(), objs.rows());
+    	for (int i = 0; i < objs.rows(); i++)
+    		ci.col(i) = sort_index(objs.row(i).transpose());
+    	mat rank(objs.rows(), objs.cols());
+    	for (int j = 0; j < objs.rows(); j++)
+    		for (int i = 0; i < objs.cols(); i++) {
+    			rank(j, ci(i,j)) = i;
     	}
-    	return 0;
+    	return rank.colwise().sum();
+    }
+
+    vec ranks(mat cons) {
+    	imat ci(cons.cols(), cons.rows());
+    	for (int i = 0; i < cons.rows(); i++)
+    		ci.col(i) = sort_index(cons.row(i).transpose());
+    	mat rank(cons.rows(), cons.cols());
+    	vec alpha = zeros(cons.rows());
+    	for (int j = 0; j < cons.rows(); j++) {
+    		for (int i = 0; i < cons.cols(); i++) {
+    			if (cons(j,i) <= 0) {
+    				rank(j, ci(i,j)) = 0;
+    			} else {
+    				rank(j, ci(i,j)) = i;
+    				alpha[j]++;
+    			}
+    		}
+    	}
+    	for (int j = 0; j < cons.rows(); j++) {
+    		for (int i = 0; i < cons.cols(); i++)
+    			rank(j, ci(i,j)) *= alpha[j] / cons.rows();
+    	}
+    	return rank.colwise().sum();
     }
 
     vec pareto(const mat& ys) {
@@ -235,25 +256,31 @@ public:
         int popn = ys.cols();
         mat yobj = ys(Eigen::seqN(0, nobj), Eigen::all);
         mat ycon = ys(Eigen::lastN(ncon), Eigen::all);
-        vec csum(ycon.cols());
-        for (int i = 0; i < ycon.cols(); i++)
-        	csum(i) = maxcon(ycon.col(i));
-        // sort according to level of constraint violation
-        ivec ci = sort_index(csum);
-        vec domination = zeros(popn);
+        vec csum = ranks(ycon);
+        bool feasible[ys.cols()];
+        bool hasFeasible = false;
+        for (int i = 0; i < ys.cols(); i++) {
+        	feasible[i] = ycon.col(i).maxCoeff() <= 0;
+        	if (feasible[i])
+        		hasFeasible = true;
+        }
+        if (hasFeasible)
+        	csum += objranks(yobj);
 		// first pareto front of feasible solutions
+        vec domination = zeros(popn);
         std::vector<int> cyv;
-        for (int i = 0; i < ci.size(); i++) // collect feasibles
-        	if (csum(ci(i)) == 0) cyv.push_back(ci(i));
+        for (int i = 0; i < ys.cols(); i++) // collect feasibles
+        	if (feasible[i]) cyv.push_back(i);
         ivec cy =  Eigen::Map<ivec, Eigen::Unaligned>(cyv.data(), cyv.size());
-        if (cy.size() > 0) { // compute pareto levels only for feasible
+        if (hasFeasible) { // compute pareto levels only for feasible
         	vec ypar = pareto_levels(yobj(Eigen::all, cy));
         	domination(cy) += ypar;
         }
         // then constraint violations
+        ivec ci = sort_index(csum);
         std::vector<int> civ;
         for (int i = 0; i < ci.size(); i++)
-        	if (csum(ci(i)) > 0 && csum[ci(i)] < DBL_MAX) civ.push_back(ci(i));
+        	if (!feasible[ci(i)]) civ.push_back(ci(i));
         if (civ.size() > 0) {
         	ivec ci =  Eigen::Map<ivec, Eigen::Unaligned>(civ.data(), civ.size());
         	int maxcdom = ci.size();

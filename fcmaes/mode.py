@@ -367,32 +367,49 @@ def filter(x, y):
     x = np.array(x[:len(y)])
     return x,y
 
-def maxcon(cons):
-    cons = np.minimum(cons, 1E99)
-    maxc = max(cons)
-    if maxc == 0:
-        return 0
-    else: # reduce number and value of constraint violations
-        n = sum([c > 0 for c in cons])
-        return n*maxc + sum(cons)
+def objranks(objs):
+    ci = objs.argsort(axis=0)
+    rank = np.empty_like(ci)
+    ar = np.arange(objs.shape[0])
+    for i in range(objs.shape[1]): 
+        rank[ci[:,i], i] = ar 
+    rank = np.sum(rank, axis=1)
+    return rank
 
+def ranks(cons):
+    feasible = np.less_equal(cons, 0)
+    ci = cons.argsort(axis=0)
+    rank = np.empty_like(ci)
+    ar = np.arange(cons.shape[0])
+    for i in range(cons.shape[1]): 
+        rank[ci[:,i], i] = ar
+    rank[feasible] = 0
+    alpha = np.sum(np.greater(cons, 0), axis=1) / cons.shape[1] # violations
+    alpha = np.tile(alpha, (cons.shape[1],1)).T
+    rank = rank*alpha
+    rank = np.sum(rank, axis=1)
+    return rank
+     
 def pareto(ys, nobj, ncon):
     if ncon == 0:
         return pareto_levels(ys)
     else:
         yobj = np.array([y[:nobj] for y in ys])
         ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])    
-        csum = [maxcon(cons) for cons in ycon]
+        csum = ranks(ycon)
+        feasible = np.less_equal(csum, 0)
+        if sum(feasible) > 0:
+            csum += objranks(yobj)
         ci = np.argsort(csum)
         popn = len(ys)
         domination = np.zeros(popn)
         # first pareto front of feasible solutions
-        cy = np.array([i for i in ci if csum[i] == 0])
+        cy = np.array([i for i in ci if feasible[i]])
         if len(cy) > 0:
             ypar = pareto_levels(yobj[cy])
-            domination[cy] += ypar
+            domination[cy] += ypar        
         # then constraint violations   
-        ci = np.array([i for i in ci if csum[i] > 0 and csum[i] < 1E99])  
+        ci = np.array([i for i in ci if not feasible[i]])  
         if len(ci) > 0:    
             maxcdom = len(ci)
             cdom = np.arange(maxcdom, 0, -1)
