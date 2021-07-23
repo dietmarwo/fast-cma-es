@@ -35,19 +35,38 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/DelayedUpdate.ado
 - fcmaes is focused on optimization problems hard to solve utilizing modern many-core CPUs.
 - Parallel fitness function evaluation and different parallel retry mechanisms. 
 - Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
-- New multi-objective/constrained optimization algorithm combining features from NGSA and Differential evolution supporting parallel function evaluation. Features https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/[enhanced multiple constraint ranking] improving its performance in handling constraints for engineering design optimization.
+- New multi-objective/constrained optimization algorithm combining features from Differential evolution and NSGA-II, supporting parallel function evaluation. Features https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/[enhanced multiple constraint ranking] improving its performance in handling constraints for engineering design optimization.
 - BiteOpt algorithm from Aleksey Vaneev.
 - New DE (differential evolution) variant optimized for usage with parallel retry.
 - GCL-DE (differential evolution) variant from Mingcheng Zuo.
 
 === Performance
 
-In the literature optimization algorithms are often compared by the average result they achieve using a 
-specific number of function evaluations. But in the real world faced with real optimization problems we are
-usually interested in a different metric: How long does it take to compute a reasonable solution, say
-not worse than 0.5% above the absolute optimum, with the given hardware. For an optimization library
-this means: How long does it take to compute a reasonable solution if I choose the best algorithm(s) of
-the library, optimally configured and optimally parallelized on the given hardware?
+==== Engineering Design Optimization
+
+In this domain we often have multiple competing objectives and a lot of constraints. We present results for the
+http://ladse.eng.isas.jaxa.jp/benchmark/[Mazda real-world car structure design benchmark], the simultaneous
+optimization of three car models minimizing their weight, increasing the number of shared thicknesses of structural  
+parts thereby fulfilling 54 constraints. 2017 there was a competition related to this problem https://www.jstage.jst.go.jp/article/tjpnsec/9/2/9_86/_article/-char/en[Report of Evolutionary Computation Competition 2017],
+but until now not many of the ideas produced there have found their way into open source optimization libraries. 
+
+We applied https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/modecpp.py[modecpp.py] for 
+about 1 hour runtime using one AMD 5950x CPU on Linux, de/rand/1 strategy (nsga_update=False, pareto_update=False), 
+population size = 512. We choose the best run out of two executed in parallel, each utilizing 16 threads (workers=16). 
+This way about 8200 function evaluations are performed per second for both runs combined.  
+
+The resulting pareto front with hypervolume 0.3844 is:
+
+image::mazda.png[] 
+
+The "reference" NSGA-II solution given as part of the benchmark has hypervolume 0.1456:
+
+image::mazda0.png[]
+
+Note, that the reference solution was computed using a limited budget. But NSGA-II scales much worse than fcmaes-MoDe
+using https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/[enhanced multiple constraint ranking]. 
+
+==== Space Flight Trajectory Planning
 
 fcmaes provides fast parallel
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[example solvers] for the 

@@ -4,13 +4,12 @@
 // LICENSE file in the root directory.
 
 // Eigen based implementation of multi objective
-// Differential Evolution using the DE/all/1 strategy.
+// Differential Evolution using either DE/rand/1 or DE/best/1 strategy ('best' refers to the current pareto front').
 //
 // Can switch to NSGA-II like population update via parameter 'nsga_update'.
 // Then it works essentially like NSGA-II but instead of the tournament selection
 // the whole population is sorted and the best individuals survive. To do this
-// efficiently the crowd distance ordering is slightly inaccurate - each objective
-// is ordered separately.
+// efficiently the crowd distance ordering is slightly inaccurate.
 //
 // Supports parallel fitness function evaluation.
 //
