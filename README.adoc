@@ -10,7 +10,7 @@ fcmaes complements https://docs.scipy.org/doc/scipy/reference/optimize.html[scip
 additional optimization methods, faster {cpp}/Eigen based implementations and a coordinated parallel retry mechanism. 
 It supports the multi threaded application of different gradient free optimization algorithms. 
 
-fcmaes started with a fast CMA-ES implementation combined with a new smart parallel retry mechanism aimed to solve
+fcmaes started as a fast CMA-ES implementation combined with a new smart parallel retry mechanism aimed to solve
 hard optimization problems from the space flight planning domain. It evolved to a general library of
 state-of-the-art gradient free optimization algorithms applicable to all kind of real world problems covering
 multi-objective and constrained problems. Its main algorithms are implemented both in Python and C++ and
