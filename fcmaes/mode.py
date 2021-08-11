@@ -55,7 +55,7 @@ def minimize(mofun,
              f = 0.5, 
              cr = 0.9, 
              nsga_update = False,
-             pareto_update = False,
+             pareto_update = 0,
              rg = Generator(MT19937()),
              logger = None,
              plot_name = None):  
@@ -96,8 +96,10 @@ def minimize(mofun,
         In the literature this is also known as the crossover probability.     
     nsga_update = boolean, optional
         Use of NSGA-II or DE population update. Default is False    
-    pareto_update = boolean, optional
-        Use the pareto front for population update if nsga_update = False. Default is False     
+    pareto_update = float, optional
+        Only applied if nsga_update = False. Use the pareto front for population update 
+        with probability pareto_update, else use the whole population. Default 0 - use always 
+        the whole population.      
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     logger : logger, optional
@@ -150,9 +152,9 @@ class MODE(object):
             self.logger = logger
             self.n_evals = mp.RawValue(ct.c_long, 0)
             self.time_0 = time.perf_counter()
-            self.name = plot_name if not plot_name is None else ''
-            self.name += '_mode_' + str(popsize) + '_' + \
-                ('nsga_update' if nsga_update else ('de_best_update' if pareto_update else 'de_all_update'))
+            if not plot_name is None:
+                self.plot_name = plot_name + '_mode_' + str(popsize) + '_' + \
+                    ('nsga_update' if nsga_update else ('de_update_' + str(pareto_update)))
         
     def ask(self):
         """ask for one new argument vector.
@@ -209,7 +211,7 @@ class MODE(object):
                     c/t, c, t, str(list(y)), str(list(x)))
                 self.logger.info(message)   
                 if hasattr(self, "plot_name") and not self.plot_name is None:           
-                    name = self.name + ' '  + str(self.n_evals.value)
+                    name = self.plot_name + ' '  + str(self.n_evals.value)
                     np.savez_compressed(name, xs=self.x, ys=self.y) 
                     moretry.plot(name, self.ncon, self.x, self.y)
 
@@ -318,7 +320,7 @@ class MODE(object):
             self.Cr = 0.5*self.Cr0 if self.iterations % 2 == 0 else self.Cr0
             self.F = 0.5*self.F0 if self.iterations % 2 == 0 else self.F0
         while True:
-            if self.pareto_update and (not self.best_p is None) and len(self.best_p) > 3: 
+            if self.rg.random() < self.pareto_update and (not self.best_p is None) and len(self.best_p) > 3: 
                 # sample from pareto front
                 rb = self.rg.integers(0, len(self.best_p))
                 rb = self.best_p[rb]
@@ -486,9 +488,9 @@ def variation(pop, lower, upper, rg, pro_c = 1, dis_c = 20, pro_m = 1, dis_m = 2
     return offspring
 
 def minimize_plot(name, fun, nobj, ncon, bounds, popsize = 64, max_evaluations = 100000, nsga_update=False, 
-                  pareto_update=False, workers = mp.cpu_count(), logger=logger(), plot_name = None):
+                  pareto_update=0, workers = mp.cpu_count(), logger=logger(), plot_name = None):
     name += '_mode_' + str(popsize) + '_' + \
-                ('nsga_update' if nsga_update else ('de_best_update' if pareto_update else 'de_all_update'))
+                ('nsga_update' if nsga_update else ('de_update_' + str(pareto_update)))
     logger.info('optimize ' + name) 
     xs, ys = minimize(fun, nobj, ncon, bounds, popsize = popsize, max_evaluations = max_evaluations,
                    nsga_update = nsga_update, pareto_update = pareto_update, workers=workers, 

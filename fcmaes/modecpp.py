@@ -11,16 +11,16 @@
     Can switch to NSGA-II like population update via parameter 'nsga_update'.
     Then it works essentially like NSGA-II but instead of the tournament selection
     the whole population is sorted and the best individuals survive. To do this
-    efficiently the crowd distance ordering is slightly inaccurate - each objective
-    is ordered separately. 
+    efficiently the crowd distance ordering is slightly inaccurate. 
     
-    Compared to most Python NSGA-II implementations it supports parallel fitness function 
-    evaluation. 
+    Supports parallel fitness function evaluation. 
+    
+    Features enhanced multiple constraint ranking (https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/)
+    improving its performance in handling constraints for engineering design optimization.
     
     Enables the comparison of DE and NSGA-II population update mechanism with everything else
     kept completely identical.
-    
-    
+       
     Requires python 3.5 or higher. 
     
     Uses the following deviation from the standard DE algorithm:
@@ -59,8 +59,8 @@ def minimize(mofun,
              dis_c = 20.0,
              pro_m = 1.0,
              dis_m = 20.0,
-             nsga_update = True,
-             pareto_update = False,
+             nsga_update = False,
+             pareto_update = 0,
              log_period = 1000,
              rg = Generator(MT19937()),
              plot_name = None,
@@ -103,12 +103,11 @@ def minimize(mofun,
     pro_c, dis_c, pro_m, dis_m = float, optional
         NSGA population update parameters, usually leave at default. 
     nsga_update = boolean, optional
-        Use of NSGA-II or DE population update. Default is True.    
-        Use DE update only to diversify your results when you plan
-        to merge the NSGA-front with the DE-front
-    pareto_update = boolean, optional
-        Use the pareto front for population update if nsga_update = False. Default is False.
-        Usually should be False, optimization can get stuck in local minima otherwise.     
+        Use of NSGA-II or DE population update. Default is False    
+    pareto_update = float, optional
+        Only applied if nsga_update = False. Use the pareto front for population update 
+        with probability pareto_update, else use the whole population. Default 0 - use always 
+        the whole population.      
     log_period = int
         The log callback is called each log_period iterations. 
     rg = numpy.random.Generator, optional
@@ -196,5 +195,5 @@ optimizeMODE_C.argtypes = [ct.c_long, mo_call_back_type, mo_call_back_type, ct.c
             ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.c_int, ct.c_int, ct.c_int,\
             ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
-            ct.c_bool, ct.c_bool, ct.c_int, ct.POINTER(ct.c_double)]
+            ct.c_bool, ct.c_double, ct.c_int, ct.POINTER(ct.c_double)]
 
