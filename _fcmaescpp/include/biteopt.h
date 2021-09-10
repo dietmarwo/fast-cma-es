@@ -27,7 +27,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * @version 2021.26
+ * @version 2021.27
  */
 
 #ifndef BITEOPT_INCLUDED
@@ -855,6 +855,9 @@ protected:
 	 * of an odd number (this is important) of random solutions via XOR
 	 * operation. Slightly less effective than the DE-based mixing, but makes
 	 * the optimization method more diverse overall.
+	 *
+	 * Recently includes "crossover" approach first implemented in the
+	 * generateSol5b() function.
 	 */
 
 	void generateSol4( CBiteRnd& rnd )
@@ -888,11 +891,18 @@ protected:
 			si1 = (int) ( rnd.getRndValueSqr() * UseSize[ p ]);
 			rp1 = UseParams[ p ][ si1 ];
 
+			int si2 = (int) ( rnd.getRndValueSqr() * UseSize[ p ]);
+			const ptype* rp2 = UseParams[ p ][ si2 ];
+
+			const ptype* CrossParams[ 2 ];
+			CrossParams[ 0 ] = rp1;
+			CrossParams[ 1 ] = rp2;
+
 			int i;
 
 			for( i = 0; i < ParamCount; i++ )
 			{
-				Params[ i ] ^= rp1[ i ];
+				Params[ i ] ^= CrossParams[ rnd.getBit()][ i ];
 			}
 		}
 	}
