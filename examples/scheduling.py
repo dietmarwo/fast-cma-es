@@ -3,6 +3,8 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc for a detailed description.
+
 import math
 import pandas as pd
 import numpy as np
