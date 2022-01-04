@@ -168,7 +168,7 @@ of the best solution found over time both for using BiteOpt and the smart bounda
 
 === Implementation
 
-The complete implementation may be found at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/tutorial.py[scheduling.py]. 
+The complete implementation may be found at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/scheduling.py[scheduling.py]. 
 It is extensively commented so it should be easy to adapt the method to your specific 
 scheduling problem. The code was tested on Linux using the https://www.anaconda.com/products/individual[Anaconda] python environment.
 On Windows if possible use the "Linux subsystem for Windows" since python multithreading has issues there. Don't forget
