@@ -21,7 +21,7 @@ MAX_TIME = 20.0 # mission time in years
 ASTEROID_NUM = 83454 # number of asteroids
 WAIT_TIME = 90/365.25 # years, after arrival wait until construction may start
 ALPHA = 6.0e-9 # conversion factor time of flight -> arrival mass
-A_DYSON = 1.3
+A_DYSON = 1.3 # size of the dyson station in AU
 
 DAY = 24 * 3600
 YEAR = DAY*365.25
