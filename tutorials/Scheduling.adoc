@@ -295,37 +295,37 @@ you usually avoid in Python - but not when using Numba.
 def select(asteroid, station, trajectory, mass, transfer_start, transfer_time, x):
     ...
     for i in range(asteroid.size):
-    tr = int(trajectory[i]) # current trajectory
-    if trajectories[tr] == 0: # trajectory not selected
-        continue
-    ast_id = int(asteroid[i]) # asteroid transferred
-    stat = int(station[i]) # dyson sphere station targeted 
-    m = mass[i] # estimated asteroid mass at arrival time 
-    time_of_flight = transfer_time[i] # TOF of asteroid transfer
-    arrival_time = transfer_start[i] + transfer_time[i] # arrival time of asteroid transfer
-    # which station time slot ? 
-    for slot in range(STATION_NUM):
-        max_time = times[slot+1] # time interval of time slot
-        slot_time = times[slot]
-        min_time = slot_time + WAIT_TIME # we have to wait 90 days
-        if min_time >= MAX_TIME:
+        tr = int(trajectory[i]) # current trajectory
+        if trajectories[tr] == 0: # trajectory not selected
             continue
-        if arrival_time >= slot_time and arrival_time <= max_time: # inside time slot
-            if stat == stations[slot]: # does the station fit?
-                tof = time_of_flight                     
-                #if we have to fly a non optimal transfer, arrival mass is reduced
-                if arrival_time < min_time: # 90 DAYS are not yet over
-                    tof += min_time - arrival_time # tof increases
-                mval = (1.0 - YEAR*tof*ALPHA) * m # estimated asteroid mass at arrival time 
-                if ast_val[ast_id] > 0: # asteroid already transferred
-                    if ast_val[ast_id] < mval: # replace with actual transfer, remove old asteroid mass
-                        slot_mass[int(ast_slot[ast_id])] -= ast_val[ast_id]
-                    else: # keep old transfer, don't use the new one
-                        mval = 0;
-                if mval > 0:  # register actual transfer
-                    slot_mass[slot] += mval
-                    ast_val[ast_id] = mval
-                    ast_slot[ast_id] = slot                  
+        ast_id = int(asteroid[i]) # asteroid transferred
+        stat = int(station[i]) # dyson sphere station targeted 
+        m = mass[i] # estimated asteroid mass at arrival time 
+        time_of_flight = transfer_time[i] # TOF of asteroid transfer
+        arrival_time = transfer_start[i] + transfer_time[i] # arrival time of asteroid transfer
+        # which station time slot ? 
+        for slot in range(STATION_NUM):
+            max_time = times[slot+1] # time interval of time slot
+            slot_time = times[slot]
+            min_time = slot_time + WAIT_TIME # we have to wait 90 days
+            if min_time >= MAX_TIME:
+                continue
+            if arrival_time >= slot_time and arrival_time <= max_time: # inside time slot
+                if stat == stations[slot]: # does the station fit?
+                    tof = time_of_flight                     
+                    #if we have to fly a non optimal transfer, arrival mass is reduced
+                    if arrival_time < min_time: # 90 DAYS are not yet over
+                        tof += min_time - arrival_time # tof increases
+                    mval = (1.0 - YEAR*tof*ALPHA) * m # estimated asteroid mass at arrival time 
+                    if ast_val[ast_id] > 0: # asteroid already transferred
+                        if ast_val[ast_id] < mval: # replace with actual transfer, remove old asteroid mass
+                            slot_mass[int(ast_slot[ast_id])] -= ast_val[ast_id]
+                        else: # keep old transfer, don't use the new one
+                            mval = 0;
+                    if mval > 0:  # register actual transfer
+                        slot_mass[slot] += mval
+                        ast_val[ast_id] = mval
+                        ast_slot[ast_id] = slot                  
     ...
 ----
 
