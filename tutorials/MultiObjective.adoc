@@ -477,7 +477,7 @@ def adv_minimize_plot(name, optimizer, fun, bounds,
     logger.info('smart optimize ' + name) 
     store = advretry.Store(lambda x:fun(x)[0], bounds, capacity=5000, logger=logger, 
                            num_retries=num_retries, statistic_num = statistic_num) 
-    advretry.retry(store, optimizer.minimize, num_retries, value_limit)
+    advretry.retry(store, optimizer.minimize, value_limit)
     xs = np.array(store.get_xs())
     ys = np.array([fun(x) for x in xs])
     retry.plot(ys, 'all_smart.' + name + '.png', interp=False)

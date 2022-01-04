@@ -87,7 +87,7 @@ def minimize(problems, ids=None, num_retries = min(256, 8*mp.cpu_count()),
 class problem_stats:
 
     def __init__(self, prob, id, index, num_retries = 64, logger = None):
-        self.store = advretry.Store(prob.bounds, logger = logger)
+        self.store = advretry.Store(prob.bounds, logger = logger, num_retries=num_retries)
         self.prob = prob
         self.name = prob.name
         self.fun = prob.fun
@@ -99,9 +99,8 @@ class problem_stats:
         self.ret = None
 
     def retry(self, optimizer):
-        retries = self.retries + self.num_retries
-        self.ret = advretry.retry(self.fun, self.store, optimizer.minimize, retries)
-        self.retries = retries
+        self.retries += self.num_retries
+        self.ret = advretry.retry(self.fun, self.store, optimizer.minimize)
         self.value = self.store.get_y_best()
  
 class multiretry:

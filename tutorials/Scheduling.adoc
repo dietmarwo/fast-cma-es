@@ -1,0 +1,450 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+== Solving a complex scheduling problem using continuous optimization
+
+Can a complex scheduling problem be solved efficiently using Python and 
+continuous optimization? In a competitive environment battling against 
+some of the smartest people and fastest computers on the planet? 
+
+Most people would say "no" because:
+
+- Python is slow, specially if the computation involves loops
+- Continuous optimization is hard to parallelize to utilize the many cores 
+modern processors provide, 
+https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy]
+does not support this.
+- Standard algorithms provided by https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy]
+don't work well for discrete input arguments (continuous values converted into integers). Even more advanced algorithms like
+https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution[Differential Evolution] 
+don't converge fast enough.
+
+Using scipys https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution[Differential Evolution] 
+single threaded we get only about 5.6 function evaluations per second for the objective function proposed below even for
+a modern AMD 5950 machine. 
+
+But what if:
+
+- We could scale by factor 18x utilizing parallelization on a modern 16 core CPU (like the AMD 5950)?
+- We could speed up the evaluation of the objective function by factor 260x using https://numba.pydata.org[Numba]
+resulting in a 4700x speedup considering parallelization?
+- We could use continuous optimization algorithms much better suited to discrete input arguments?  
+
+Whether this is sufficient to beat specifically tuned genetic algorithms coded in C/{cpp} is an open question. 
+In this tutorial we will show only that {cpp} doesn't win easily.  
+
+=== GTOC 11
+
+https://sophia.estec.esa.int/gtoc_portal/[GTOC] is an international competition related
+to global trajectory optimization. The 11th competition  
+https://sophia.estec.esa.int/gtoc_portal/?page_id=782[GTOC11] ended in November 2021. 
+From the 92 participating teams only a small fraction were able to upload a valid solution
+in time: 
+
+image::leaderboard.png[]
+
+This tutorial is targeted at the other teams, showing how the "hard part" of the
+problem can be handled easily and efficiently. The full problem description can be found here:
+https://sophia.estec.esa.int/gtoc_portal/wp-content/uploads/2021/12/gtoc11_problem_stmt.pdf[problem statement]. 
+
+The task initiates the construction of a https://en.wikipedia.org/wiki/Dyson_sphere[Dyson sphere] 
+by building a ring of 12 stations equally distributed 
+around a circular orbit around the sun. Whole asteroids are used as building material, transferred
+in one piece to the sphere. Ten motherships start from earth, each visiting an asteroid sequence
+freely chosen from a huge set of 83453 asteroids leaving there an attenuator which uses the asteroid
+mass to generate constant continuous thrust transferring the asteroid to one of the 
+the 12 Dyson stations.  
+
+Only one station can be built at a given time, 
+and we have to wait 90 days until we can build the next one.
+Dyson sphere station building and the start times of the motherships are restricted 
+to a 20 year time window (https://youtu.be/3LtbWSXvM0I[video])
+
+image::dyson.png[]
+
+Propellant (represented by the magnitude of the mothership delta velocity 
+impulses) is not limited but reduces the competition score. After being visited by a mothership
+these asteroids have to be transferred to the Dyson sphere stations using continous 
+thrust maneuvers with a fixed magnitude of acceleration. Each asteroid has a specific mass, 
+which is partly used to produce the energy for the transfer to the station. Its mass
+on arrival is determined by its original mass and its transfer time.
+Aim is to maximize and balance the mass transferred to all stations. The competition score 
+is dependent on the remaining asteroid mass arriving at the station receiving the least mass 
+ - which needs to be maximized - and the sum of the delta velocity (propellant consumption) 
+ of the motherships - which needs to be minimized. 
+
+Most parts of the task are quite easy for astro physicists:
+
+- Selection of a suitable Dyson sphere
+- Estimation of the maximal asteroid arrival mass at the Dyson sphere - independent from phasing. 
+- Estimation of the asteroid arrival mass at the Dyson sphere for a given station and transfer
+  timing.
+- Computation of good mother ship trajectories visiting asteroids with high estimated remaining mass at
+  the Dyson sphere. 
+
+The difficult part is to select order and arrival time windows for the Dyson stations (which 
+station at the ring to build when), ten mothership trajectories selected from a larger 
+set of good search results, and finally the corresponding asteroid transfers so that the score is maximized. 
+
+Additional aspects: 
+
+- Inclination and size of the Dyson ring 
+- Initial phasing of the Dyson ring stations
+
+will not be part of the optimization process. Only by excluding these are we able to generate 
+a table of good mothership trajectories together with a precomputed set of optimal asteroid transfers
+to avoid the related costly computations during optimization. This means, the complete table has 
+to be regenerated for different Dyson rings, so it should be carefully designed. 
+
+For this tutorial we view this table as "given" and focus on the optimization part. The used table
+was produced by "Team Jena" ranked only 16th at the competition, so it is far from optimal.
+From the "winner solution" we know that specially the pre-computed asteroid transfers to the Dyson sphere
+can be improved significantly. To compensate we choose a large sphere (a = 1.3AU) making 
+the transfer easier and faster, but reducing the final score. 
+
+image::score3.png[]
+
+These diagrams show the possible improvements over single threaded scipy 
+https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution[Differential Evolution] 
+(left picture). Using 3 million seconds for a score below 5000 
+is not particulary impressive. Minimal / maximal mass were still separated by factor 2.7, a very uneven mass distribution. 
+The other two methods surpass score 5000 after less than 10 seconds and finally converge at a very smooth mass distribution.
+The same objective function is used for all three diagrams, 
+but we utilize Numba, parallelization and better optimization algorithms to improve the result quite significantly.  
+
+
+For each asteroid visited by any mothership trajectory we get a set of asteroids together with 
+the arrival times of the motherships which determine the time window available for the
+asteroid transfers. For each sphere revolution, for each sphere station and for each
+asteroid start time window we can determine the optimal asteroid transfer minimizing
+time of flight for the given fixed continuous thrust.  
+This results in a table where each rows lists 
+
+- asteroid id 
+- trajectory index
+- station number
+- asteroid mass
+- delta velocity to reach the asteroid from the previous one  
+- start time and 
+- transfer time
+
+The remaining asteroid mass when arriving at the sphere station can be derived from 
+the asteroid mass and the transfer time. The table used for this tutorial consists of
+about 163.000 asteroid transfer opportunities for the 50 best trajectories found.  
+
+For a valid selection of rows representing 10 mothership trajectories and one transfer for
+each asteroid visited we can compute the estimated score using the sum of the delta velocities for
+each trajectory and the sum of the remaining asteroid masses arriving at each Dyson station. 
+
+The asteroid transfer data is given as compressed csv-file read as pandas data frame. 
+
+----
+DataFrame:  
+         asteroid   station  trajectory  ...   dv       transfer_start  transfer_time
+0          73418        1          31  ...  3.500261        2.816957       2.891577
+1          73418        2          31  ...  3.500261        2.738180       2.852998
+2          73418        3          31  ...  3.500261        2.599462       2.843404
+3          73418        4          31  ...  3.500261        2.464159       2.827190
+4          73418        5          31  ...  3.500261        2.335112       2.807543
+...          ...      ...         ...  ...       ...             ...            ...
+162611     68957        5          29  ...  0.403024       16.836162       2.456525
+162612     68957        6          29  ...  0.403024       16.676695       2.486187
+162613     68957        7          29  ...  0.403024       16.511622       2.556778
+162614     68957        8          29  ...  0.403024       16.376856       2.644360
+162615     68957       12          29  ...  0.403024       16.918...
+
+[162615 rows x 7 columns]
+----
+
+You may replace this with your own table to see which score the algorithm computes for your solution. 
+
+=== Detailed Results
+
+image::gtoc11res.png[]
+
+These are the station masses, assigned time slots and delta velocities of the selected branches
+of the best solution found over time both for using BiteOpt and the smart boundary management (SMB). 
+
+=== Implementation
+
+The complete implementation may be found at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/tutorial.py[scheduling.py]. 
+It is extensively commented so it should be easy to adapt the method to your specific 
+scheduling problem. The code was tested on Linux using the https://www.anaconda.com/products/individual[Anaconda] python environment.
+On Windows if possible use the "Linux subsystem for Windows" since python multithreading has issues there. Don't forget
+to do `pip install fcmaes --upgrade` to install the newest fcmaes version. 
+
+==== Design of the argument vector
+
+The simplicity of the proposed method results from the fact that the only thing we have to
+do is to implement an efficient objective function computing the estimated score for its
+argument vector:
+
+- 10 trajectory indices selecting the trajectories representing the 10 motherships.
+- 12 station indices determining the order the stations are built.
+- 11 values representing the limits of the build time slots. Will be sorted and multiplied by 20 years, the mission time.
+
+The bounds are chosen to avoid rounding errors during conversion of the continuous argument values into integer indices. 
+
+The fcmaes parallel retry mechanism is used and the best argument vectors and function values 
+are returned. Experiments have shown that https://github.com/avaneev/biteopt[BiteOpt] performs
+better than differential evolution or other optimization algorithms.  
+
+[source,python]
+---- 
+STATION_NUM = 12 # number of Dyson ring stations
+TRAJECTORY_NUM = 50 # we select 10 mothership trajectories from theses
+MAX_TIME = 20.0 # mission time in years
+
+def optimize(): # read data frame from compressed file
+    transfers = pd.read_csv('asteroid_transfers1.3.xz', sep=' ', 
+                    usecols=[1,2,3,4,5,6,7], compression='xz',
+                    names=['asteroid', 'station', 'trajectory', 
+                    'mass', 'dv', 'transfer_start', 'transfer_time'])
+    dim = 10+2*STATION_NUM-1
+    lower_bound = np.zeros(dim)
+    lower_bound[10+STATION_NUM:dim] = 0.001 
+    upper_bound = np.zeros(dim)
+    upper_bound[:10] = TRAJECTORY_NUM # trajectory indices
+    upper_bound[10:10+STATION_NUM] = STATION_NUM-0.00001 # station indices, avoid rounding errors
+    upper_bound[10+STATION_NUM:dim] = 0.999 # Dyson station build time windows
+    bounds = Bounds(lower_bound, upper_bound)
+    store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # apply BiteOpt algorithm in parallel 
+    retry.retry(store, Bite_cpp(1000000, M=16).minimize, num_retries=320) 
+    return store.get_xs(), store.get_ys()
+----
+
+Alternatively a special parallelization algorithm performing
+smart boundary management (SMB) can be used. 
+This works best in combination with a DE->CMA optimization sequence:
+
+[source,python]
+---- 
+    store = advretry.Store(fitness(transfers), bounds, num_retries=100000, logger=logger()) 
+    advretry.retry(store, de_cma(1500).minimize)    
+   
+----
+
+Smart boundary management is significantly slower than BiteOpt, but leads to a better final score of about 
+6850. 
+
+
+==== Design of the objective function
+
+We implement the objective function as Python function class,  `__call__` defines the
+function itself and the function object maintains its context - all columns of the 
+data frame stored as numpy arrays. 
+
+[source,python]
+----
+class fitness(object):
+
+    def __init__(self, transfers):
+		...
+        self.asteroid = transfers["asteroid"].to_numpy()
+        self.station = transfers["station"].to_numpy()  
+        self.trajectory = transfers["trajectory"].to_numpy() 
+        self.transfer_start = transfers["transfer_start"].to_numpy()  
+        self.transfer_time = transfers["transfer_time"].to_numpy()
+        self.mass = transfers["mass"].to_numpy()          
+        self.dv = transfers["dv"].to_numpy()  
+----
+
+
+We precompute and store the sum of the delta velocities for all trajectories
+
+[source,python]
+----
+        self.trajectory_dv = trajectory_dv(self.asteroid, self.trajectory, self.dv)
+----        
+
+The objective function calls function `select` which selects the asteroid transfers corresponding to
+the argument vector and computes the mass used together with the accumulated delta velocities of the selected
+branches to determine the score: 
+
+[source,python]
+----
+   def __call__(self, x):     
+        # determine the minimal station mass
+        min_mass, slot_mass = select(self.asteroid, self.station, self.trajectory, self.mass, 
+                        self.transfer_start, self.transfer_time, x) 
+        sdv = select_dvs(self.trajectory_dv, x)
+        return -score(min_mass, sdv) 
+----
+
+
+We check for each row:
+
+- If the trajectory given is selected and the correct station is targeted. We use the arrival time
+to determine the time slot and the currently associated station number. 
+- If the asteroid was visited before (two trajectories both may contain 
+the same asteroid), we greedily choose the transfer with the larger remaining 
+asteroid mass.
+- Then we add up the masses transferred to each station.
+
+Execution time for `select` is dramatically reduced by https://numba.pydata.org/[Numba], 
+a JiT compiler accelerating functions annotated by `@njit`. 
+Without Numba and parallelization the approach using
+continuous optimization would not be feasible. `select` uses nested loops, something
+you usually avoid in Python - but not when using Numba. 
+
+[source,python]
+---- 
+@njit(fastmath=True)
+def select(asteroid, station, trajectory, mass, transfer_start, transfer_time, x):
+    ...
+    for i in range(asteroid.size):
+    tr = int(trajectory[i]) # current trajectory
+    if trajectories[tr] == 0: # trajectory not selected
+        continue
+    ast_id = int(asteroid[i]) # asteroid transferred
+    stat = int(station[i]) # dyson sphere station targeted 
+    m = mass[i] # estimated asteroid mass at arrival time 
+    time_of_flight = transfer_time[i] # TOF of asteroid transfer
+    arrival_time = transfer_start[i] + transfer_time[i] # arrival time of asteroid transfer
+    # which station time slot ? 
+    for slot in range(STATION_NUM):
+        max_time = times[slot+1] # time interval of time slot
+        slot_time = times[slot]
+        min_time = slot_time + WAIT_TIME # we have to wait 90 days
+        if min_time >= MAX_TIME:
+            continue
+        if arrival_time >= slot_time and arrival_time <= max_time: # inside time slot
+            if stat == stations[slot]: # does the station fit?
+                tof = time_of_flight                     
+                #if we have to fly a non optimal transfer, arrival mass is reduced
+                if arrival_time < min_time: # 90 DAYS are not yet over
+                    tof += min_time - arrival_time # tof increases
+                mval = (1.0 - YEAR*tof*ALPHA) * m # estimated asteroid mass at arrival time 
+                if ast_val[ast_id] > 0: # asteroid already transferred
+                    if ast_val[ast_id] < mval: # replace with actual transfer, remove old asteroid mass
+                        slot_mass[int(ast_slot[ast_id])] -= ast_val[ast_id]
+                    else: # keep old transfer, don't use the new one
+                        mval = 0;
+                if mval > 0:  # register actual transfer
+                    slot_mass[slot] += mval
+                    ast_val[ast_id] = mval
+                    ast_slot[ast_id] = slot                  
+    ...
+----
+
+Instead of only using the minimal mass we also use the other station masses 
+with a weight degrading exponentially with the station mass rank. 
+This way we "help" the optimization algorithm in case the
+minimal mass is 0 - which is always the case at the beginning. 
+But the score shown in the output is computed using the minimal score. 
+
+[source,python]
+---- 
+    slot_mass.sort()
+    min_mass = slot_mass[0]
+    f = 1.0
+    for m in slot_mass:
+        min_mass += f*m
+        f *= 0.5
+    return min_mass, slot_mass
+----
+
+Both the station order and the selected branches need to be disjoined. To achieve
+this we use an utility function converting a continuous input vector `s` into a disjoined
+integer vector: 
+
+[source,python]
+----
+@njit(fastmath=True) 
+def disjoined(s, n):
+    disjoined_s = np.zeros(s.size)
+    used = np.zeros(n)
+    for i in range(s.size):
+        disjoined_s[i] = next_free(used, s[i])
+    return disjoined_s, used
+
+@njit(fastmath=True) 
+def next_free(used, p):
+    p = int(p)
+    while used[p] > 0:
+        p = (p + 1) % used.size
+    used[p] = 1
+    return p
+ 
+----
+
+Note that we cannot use boolean vectors to maintain the already `used` values, since
+Numba only supports float arrays. 
+
+=== Hints
+
+Finally some hints for those struggling with the "easy" parts of the task:
+
+==== Selection of a suitable Dyson sphere
+
+- Determine the average inclination of all "heavy" asteroids with limited eccentricity
+- Choose Dyson spheres with this inclination with different semimajor axis a with 
+  1.0AU < a < 1.6AU.
+- Estimate for all "heavy" asteroids the maximal arrival mass at the Dyson sphere and
+  choose the sphere with the largest average arrival mass divided by a, 
+  since the score is proportional to the minimal station mass divided by a.    
+
+The Dyson sphere may later be fine tuned when good mother ship trajectories are computed. 
+These trajectories can be reevaluated for different Dyson spheres thereby maximizing the 
+resulting estimated score. 
+
+==== Finding good mothership trajectories
+
+This can be done using beam search and a branch selection criteria based  
+on time / delta velocity / estimated maximal remaining asteroid mass using different weights maximizing
+diversity of the computed trajectories. Using a small search breadth (about 1000 branches)
+and performing a huge number of searches (> 100000) improves the chance to find many
+good trajectories with disjoined asteroids visited. Use a pre-computed grid of asteroid positions
+and linear approximation to speed up the expansion of trajectories during search even if
+only a small fraction of the asteroids is excluded (too small, too eccentric).  
+
+What you should not do:
+
+- Use the same set of asteroids visited first at depth 1 of the search for all runs. 
+Use a random selection instead. 
+- Favor a specific weight for the sum of the delta velocity for all search runs. 
+  Instead let the search decide (by using random weights).
+- Exclude a big fraction of asteroids for the search. I excluded only the worst
+  23000 because I observed worse results otherwise. 
+
+==== Estimation of the arrival mass
+
+You could learn from Tsinhua (the winners)
+or ESA, who developed a nice machine learning approach estimating the final mass more
+reliably. My own approach (the one used to generate the input table for this tutorial) 
+is fast, but slightly inferior: It exploits the fact that the Dyson sphere
+is circular. A propagator based on the given dynamic model is used to precompute
+the asteroid movement backwards from a specific position at the Dyson sphere.
+According to the actual position of the target station at arrivel time, this path is
+then "turned around" accordingly. Thrust is applied in the direction of flight 
+to increase the semimajor axis. Variations of this path are generated by diverting some part
+of the thrust in a direction perpendicular to the earth-sun orbital plane to compensate
+for the asteroid inclination. Then a Lambert arc connecting the asteroid with this
+flight path is used to estimate if the asteroid can be transferred to the Dyson sphere
+with the given continuous thrust constraint. A differential evolution based 
+optimization is performed using thrust level, start and arrival time, 
+time at the end of the Lambert arc and the level of perpendicular correction as input arguments
+to find the shortest tour fulfilling the continuous thrust constraint. You could
+either compute specific transfers to each of the stations for different time windows 
+to create the input table for the scheduling algorithm. Or take the station as an
+additional discrete argument without time limits to compute an estimated maximal
+remaining asteroid mass at the station. This is useful for the evaluation of trajectories
+generated during search.
+
+==== Optimal delta velocity
+
+During the conference following the GTOC11 competition Dario Izzo from the ESA&friends team 
+asked the question about which delta velocity you should aim for your trajectories.  
+
+image::mass_score.png[]
+
+Here are the delta velocities of about 20.000 good trajectories listed. Each represents
+the best trajectory determined by a search-breadth=1000 run using random roots and random
+weights. We see that the potential mass collected increases with delta velocity, but
+the corresponding score does not. We compute the score by taking the sum of the trajectory asteroid
+masses as minimal mass and the sum of the delta velocities of the trajectory for all ten
+motherships. This somehow represents an upper limit of the score a scheduling algorithm 
+can achieve. We see a maximum score at about dv = 17 km/s, which is exactly the value 
+the scheduling algorithm converts to. 

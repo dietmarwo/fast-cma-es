@@ -95,7 +95,7 @@ def main():
     #rep = re_problem('RE24', weight_bounds = Bounds([0.1, 0.1], [1, 1]) )
     rep = re_problem('RE42', weight_bounds = Bounds([0.2, 0.2, 0.2, 1000], [1, 1, 1, 1000]) )
     minimize_plot(rep, de_cma(1000), '_decma', num_retries = 320, exp = 2.0)
-
+    
 if __name__ == '__main__':
     main()
 

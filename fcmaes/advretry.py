@@ -113,14 +113,14 @@ def minimize(fun,
             store.load(datafile)
         except:
             pass
-    return retry(store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
+    return retry(store, optimizer.minimize, value_limit, workers, stop_fitness)
 
-def retry(store, optimize, num_retries, value_limit = math.inf, 
+def retry(store, optimize, value_limit = math.inf, 
           workers=mp.cpu_count(), stop_fitness = -math.inf):
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
-            args=(pid, rgs, store, optimize, num_retries, value_limit, stop_fitness)) for pid in range(workers)]
+            args=(pid, rgs, store, optimize, value_limit, stop_fitness)) for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
     store.sort()
@@ -136,7 +136,7 @@ def minimize_plot(name, optimizer, fun, bounds, value_limit = math.inf,
     name += '_' + optimizer.name
     logger.info('optimize ' + name)       
     store = Store(fun, bounds, capacity = 500, logger = logger, statistic_num = statistic_num)
-    ret = retry(store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
+    ret = retry(store, optimizer.minimize, value_limit, workers, stop_fitness)
     impr = store.get_improvements()
     np.savez_compressed(name, ys=impr)
     filtered = np.array([imp for imp in impr if imp[1] < plot_limit])
@@ -173,6 +173,7 @@ class Store(object):
                 max_eval_fac = int(min(50, 1 + num_retries // check_interval))
         if num_retries == None:
             num_retries = max_eval_fac * check_interval
+        self.num_retries = num_retries
         # increment eval_fac so that max_eval_fac is reached at last retry
         self.eval_fac_incr = max_eval_fac / (num_retries/check_interval)
         self.max_eval_fac = max_eval_fac
@@ -429,13 +430,13 @@ class Store(object):
             vals, self.best_x[:])
         self.logger.info(message)
    
-def _retry_loop(pid, rgs, store, optimize, num_retries, value_limit, stop_fitness = -math.inf):    
+def _retry_loop(pid, rgs, store, optimize, value_limit, stop_fitness = -math.inf):    
     fun = store.wrapper if store.statistic_num > 0 else store.fun
     #reinitialize logging config for windows -  multi threading fix
     if 'win' in sys.platform and not store.logger is None:
         store.logger = logger()
         
-    while store.get_runs_compare_incr(num_retries) and store.best_y.value > stop_fitness:               
+    while store.get_runs_compare_incr(store.num_retries) and store.best_y.value > stop_fitness:               
         if _crossover(fun, store, optimize, rgs[pid]):
             continue
         try:

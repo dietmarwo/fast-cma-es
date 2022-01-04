@@ -142,7 +142,7 @@ def plot(front, fname, interp=True, label=r'$\chi$',
     import matplotlib.pyplot as pl
     fig, ax = pl.subplots(1, 1)
     x = front[:, 0]; y = front[:, 1]
-    if interp:
+    if interp and len(x) > 2:
         xa = np.argsort(x)
         xs = x[xa]; ys = y[xa]
         x = []; y = []
