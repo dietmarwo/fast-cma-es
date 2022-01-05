@@ -221,8 +221,8 @@ This works best in combination with a DE->CMA optimization sequence:
 
 [source,python]
 ---- 
-    store = advretry.Store(fitness(transfers), bounds, num_retries=100000, logger=logger()) 
-    advretry.retry(store, de_cma(1500).minimize)    
+    store = advretry.Store(fitness(transfers), bounds, num_retries=50000, logger=logger()) 
+    advretry.retry(store, de_cma(3000).minimize)    
    
 ----
 
