@@ -164,7 +164,7 @@ You may replace this with your own table to see which score the algorithm comput
 image::gtoc11res.png[]
 
 These are the station masses, assigned time slots and delta velocities of the selected branches
-of the best solution found over time both for using BiteOpt and the smart boundary management (SMB). 
+of the best solution found over time both for using BiteOpt and the smart boundary management (SBM). 
 
 === Implementation
 
@@ -216,7 +216,7 @@ def optimize(): # read data frame from compressed file
 ----
 
 Alternatively a special parallelization algorithm performing
-smart boundary management (SMB) can be used. 
+smart boundary management (SBM) can be used. 
 This works best in combination with a DE->CMA optimization sequence:
 
 [source,python]
@@ -468,7 +468,7 @@ than the SBM algorithm - to determine which transfers need to be converted.
 
 Of course in later iterations only transfers which are still approximated need to be converted.
 
-- Finally apply the scheduling algorithm using SMB - which converges slower but finds better results if 
+- Finally apply the scheduling algorithm using SBM - which converges slower but finds better results if 
 given enough time. 
 
 As a last step we have to exploit the fact that only the station with the least mass counts for the score. 
