@@ -448,3 +448,29 @@ masses as minimal mass and the sum of the delta velocities of the trajectory for
 motherships. This somehow represents an upper limit of the score a scheduling algorithm 
 can achieve. We see a maximum score at about dv = 17 km/s, which is exactly the value 
 the scheduling algorithm converts to. 
+
+=== How to use this algorithm to produce a GTOC11 solution
+
+The scheduling algorithm presented here is only one step required to produce a valid GTOC11
+solution. It converts a huge set of approximated asteroid transfers associated to a number
+of good mothership trajectories into a selection of transfers associated to only 10 trajectories
+thereby maximizing the approximated score. With the table given in the example it converts
+about 163.000 transfers into a selection of about 380 transfers. 
+
+Converting an approximated transfer into a "real one" accepted by the GTOC11 validation costs a lot
+of CPU resources. The scheduling algorithm can be used to minimize this effort by reducing the
+number of transfers it needs to be applied to:
+
+- Apply the scheduling algorithm for a limited time using BiteOpt - which converges faster
+than the SBM algorithm - to determine which transfers need to be converted. 
+- After conversion adapt the transfer timing in the table accordingly.
+- Repeat this process until no time slot violations occur.
+
+Of course in later iterations only transfers which are still approximated need to be converted.
+
+- Finally apply the scheduling algorithm using SMB - which converges slower but finds better results if 
+given enough time. 
+
+As a last step we have to exploit the fact that only the station with the least mass counts for the score. 
+Probably some transfers can be eliminated without reducing the minimal mass - but potentially lowering
+the sum of the delta velocities needed for the related mothership trajectory.  
