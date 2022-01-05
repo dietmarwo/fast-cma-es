@@ -455,11 +455,11 @@ The scheduling algorithm presented here is only one step required to produce a v
 solution. It converts a huge set of approximated asteroid transfers associated to a number
 of good mothership trajectories into a selection of transfers associated to only 10 trajectories
 thereby maximizing the approximated score. With the table given in the example it converts
-about 163.000 transfers into a selection of about 380 transfers. 
+about 163.000 transfers into a selection of about 390 transfers. 
 
-Converting an approximated transfer into a "real one" accepted by the GTOC11 validation costs a lot
-of CPU resources. The scheduling algorithm can be used to minimize this effort by reducing the
-number of transfers it needs to be applied to:
+Converting an approximated transfer into a real continuous thrust transfer 
+accepted by the GTOC11 validation costs a lot of CPU resources. The scheduling algorithm 
+can be used to minimize this effort by reducing the number of transfers it needs to be applied to:
 
 - Apply the scheduling algorithm for a limited time using BiteOpt - which converges faster
 than the SBM algorithm - to determine which transfers need to be converted. 
