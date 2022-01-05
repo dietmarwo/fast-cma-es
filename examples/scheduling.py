@@ -142,8 +142,8 @@ def optimize():
     # retry.retry(store, Differential_evolution(1000000).minimize, num_retries=320, workers=1)    
    
     # uncomment to try smart boundary management (SMB)
-    # store = advretry.Store(fitness(transfers), bounds, num_retries=32000, max_eval_fac=1.1, logger=logger()) 
-    # advretry.retry(store, de_cma(10000).minimize)   
+    # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
+    # advretry.retry(store, de_cma(10000).minimize)    
       
     return store.get_xs(), store.get_ys()
 

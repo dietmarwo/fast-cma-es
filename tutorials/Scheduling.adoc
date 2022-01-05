@@ -220,9 +220,9 @@ smart boundary management (SBM) can be used.
 This works best in combination with a DE->CMA optimization sequence:
 
 [source,python]
----- 
-    store = advretry.Store(fitness(transfers), bounds, num_retries=32000, max_eval_fac=1.1, logger=logger()) 
-    advretry.retry(store, de_cma(10000).minimize)       
+----
+    store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
+    advretry.retry(store, de_cma(10000).minimize)        
 ----
 
 Smart boundary management is significantly slower than BiteOpt, but leads to a better final score of about 
