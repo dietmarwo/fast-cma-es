@@ -20,15 +20,14 @@ don't work well for discrete input arguments (continuous values converted into i
 https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution[Differential Evolution] 
 don't converge fast enough.
 
-Using scipys https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution[Differential Evolution] 
-single threaded we get only about 5.6 function evaluations per second for the objective function proposed below even for
-a modern AMD 5950 machine. 
+Applying a single threaded optimization algorithm we only get about 1.8 function evaluations per second for the 
+objective function proposed below even for a modern AMD 5950 CPU. 
 
 But what if:
 
-- We could scale by factor 18x utilizing parallelization on a modern 16 core CPU (like the AMD 5950)?
-- We could speed up the evaluation of the objective function by factor 260x using https://numba.pydata.org[Numba]
-resulting in a 4700x speedup considering parallelization?
+- We could scale by factor 16x utilizing parallelization on a modern 16 core CPU (like the AMD 5950)?
+- We could speed up the evaluation of the objective function by factor 450x using https://numba.pydata.org[Numba]
+resulting in a 7200x speedup considering parallelization?
 - We could use continuous optimization algorithms much better suited to discrete input arguments?  
 
 Whether this is sufficient to beat specifically tuned genetic algorithms coded in C/{cpp} is an open question. 
@@ -99,21 +98,16 @@ to be regenerated for different Dyson rings, so it should be carefully designed.
 
 For this tutorial we view this table as "given" and focus on the optimization part. The used table
 was produced by "Team Jena" ranked only 16th at the competition, so it is far from optimal.
-From the "winner solution" we know that specially the pre-computed asteroid transfers to the Dyson sphere
-can be improved significantly. To compensate we choose a large sphere (a = 1.3AU) making 
-the transfer easier and faster, but reducing the final score. 
+We used both Tsinhuas and ESAs submitted Dyson spheres to enable an evaluation of the method by comparing
+it to the results achieved by these teams. The same objective function is used for all results.
+Below we will analyze in detail the impact of the following three factors on the result: 
 
-image::score3.png[]
-
-These diagrams show the possible improvements over single threaded scipy 
-https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution[Differential Evolution] 
-(left picture). Using 3 million seconds for a score below 5000 
-is not particulary impressive. Minimal / maximal mass were still separated by factor 2.7, a very uneven mass distribution. 
-The other two methods surpass score 5000 after less than 10 seconds and finally converge at a very smooth mass distribution.
-The same objective function is used for all three diagrams, 
-but we utilize Numba, parallelization and better optimization algorithms to improve the result quite significantly.  
-
-
+- Selection of the optimization algorithm.
+- Usage of Numba. 
+- Utilization of parallel multi threaded optimization.
+ 
+=== Asteroid transfer table
+ 
 For each asteroid visited by any mothership trajectory we get a set of asteroids together with 
 the arrival times of the motherships which determine the time window available for the
 asteroid transfers. For each sphere revolution, for each sphere station and for each
@@ -159,13 +153,6 @@ DataFrame:
 
 You may replace this with your own table to see which score the algorithm computes for your solution. 
 
-=== Detailed Results
-
-image::gtoc11res.png[]
-
-These are the station masses, assigned time slots and delta velocities of the selected branches
-of the best solution found over time both for using BiteOpt and the smart boundary management (SBM). 
-
 === Implementation
 
 The complete implementation may be found at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/scheduling.py[scheduling.py]. 
@@ -184,16 +171,24 @@ argument vector:
 - 12 station indices determining the order the stations are built.
 - 11 values representing the limits of the build time slots. Will be sorted and multiplied by 20 years, the mission time.
 
+To simplify the comparison of results we use ESAs Dyson sphere with a = 1.32AU, but we had to perform our own search
+and approximation of possible asteroid transfers. Selecting only the best 10 trajectories and thereby disabling the trajectory
+selection during optimization - as ESA did during the competition - reproduces almost exactly 
+ESAs competition score and mass distribution, indicating that our optimization is not inferior even with fixed 
+trajectories. Letting the optimization selecting the 10 trajectories to use improves the score by 
+about 400 - still not reaching Tsinhua/winner-territory. You probably need a smaller Dyson sphere to improve further. 
+
 The bounds are chosen to avoid rounding errors during conversion of the continuous argument values into integer indices. 
 
-The fcmaes parallel retry mechanism is used and the best argument vectors and function values 
-are returned. Experiments have shown that https://github.com/avaneev/biteopt[BiteOpt] performs
-better than differential evolution or other optimization algorithms.  
+We use a special parallelization algorithm performing
+smart boundary management (SBM) returning the best argument vectors and function values. 
+This works best in combination with a DE->CMA optimization sequence. Using the log we can monitor the
+progress of the optimization. 
 
 [source,python]
 ---- 
 STATION_NUM = 12 # number of Dyson ring stations
-TRAJECTORY_NUM = 50 # we select 10 mothership trajectories from theses
+TRAJECTORY_NUM = 60 # we select 10 mothership trajectories from these
 MAX_TIME = 20.0 # mission time in years
 
 def optimize(): # read data frame from compressed file
@@ -203,31 +198,30 @@ def optimize(): # read data frame from compressed file
                     'mass', 'dv', 'transfer_start', 'transfer_time'])
     dim = 10+2*STATION_NUM-1
     lower_bound = np.zeros(dim)
-    lower_bound[10+STATION_NUM:dim] = 0.001 
+    lower_bound[10+STATION_NUM:dim] = 0.0001 
     upper_bound = np.zeros(dim)
-    upper_bound[:10] = TRAJECTORY_NUM # trajectory indices
-    upper_bound[10:10+STATION_NUM] = STATION_NUM-0.00001 # station indices, avoid rounding errors
+    upper_bound[:10] = TRAJECTORY_NUM - 0.00001 # trajectory indices
+    upper_bound[10:10+STATION_NUM] = STATION_NUM - 0.00001 # station indices, avoid rounding errors
     upper_bound[10+STATION_NUM:dim] = 0.999 # Dyson station build time windows
     bounds = Bounds(lower_bound, upper_bound)
-    store = retry.Store(fitness(transfers), bounds, logger=logger()) 
-    # apply BiteOpt algorithm in parallel 
-    retry.retry(store, Bite_cpp(1000000, M=16).minimize, num_retries=320) 
+    store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
+    # apply SBM with a DE->CMA sequence
+    advretry.retry(store, de_cma(10000).minimize)        
     return store.get_xs(), store.get_ys()
 ----
 
-Alternatively a special parallelization algorithm performing
-smart boundary management (SBM) can be used. 
-This works best in combination with a DE->CMA optimization sequence:
+Alternatively the fcmaes parallel retry mechanism can be used with 
+https://github.com/avaneev/biteopt[BiteOpt] or other optimization algorithms.  
 
 [source,python]
 ----
-    store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
-    advretry.retry(store, de_cma(10000).minimize)        
+    store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # apply BiteOpt algorithm in parallel 
+    retry.retry(store, Bite_cpp(1000000, M=16).minimize, num_retries=320) 
 ----
 
-Smart boundary management is significantly slower than BiteOpt, but leads to a better final score of about 
-6850. 
-
+Smart boundary management leads to a better final score but can be slower if wrongly configured
+for this task. 
 
 ==== Design of the objective function
 
@@ -283,9 +277,7 @@ asteroid mass.
 - Then we add up the masses transferred to each station.
 
 Execution time for `select` is dramatically reduced by https://numba.pydata.org/[Numba], 
-a JiT compiler accelerating functions annotated by `@njit`. 
-Without Numba and parallelization the approach using
-continuous optimization would not be feasible. `select` uses nested loops, something
+a JiT compiler accelerating functions annotated by `@njit`. `select` uses nested loops, something
 you usually avoid in Python - but not when using Numba. 
 
 [source,python]
@@ -293,7 +285,7 @@ you usually avoid in Python - but not when using Numba.
 @njit(fastmath=True)
 def select(asteroid, station, trajectory, mass, transfer_start, transfer_time, x):
     ...
-    for i in range(asteroid.size):
+   for i in range(asteroid.size):
         tr = int(trajectory[i]) # current trajectory
         if trajectories[tr] == 0: # trajectory not selected
             continue
@@ -314,22 +306,28 @@ def select(asteroid, station, trajectory, mass, transfer_start, transfer_time, x
                     tof = time_of_flight                     
                     #if we have to fly a non optimal transfer, arrival mass is reduced
                     if arrival_time < min_time: # 90 DAYS are not yet over
-                        tof += min_time - arrival_time # tof increases
+                        to_add = min_time - arrival_time # add time difference
+                        to_add *= math.sqrt(1 + to_add/WAIT_TIME) # add some more time to enable transfer
+                        tof += to_add
                     mval = (1.0 - YEAR*tof*ALPHA) * m # estimated asteroid mass at arrival time 
-                    if ast_val[ast_id] > 0: # asteroid already transferred
-                        if ast_val[ast_id] < mval: # replace with actual transfer, remove old asteroid mass
-                            slot_mass[int(ast_slot[ast_id])] -= ast_val[ast_id]
+                    if ast_val[ast_id] > 0: # asteroid already transferred                                                
+                        old_slot = int(ast_slot[ast_id])
+                        min_mass = np.amin(slot_mass) # greedily replace if current mass is higher
+                        old_mass = slot_mass[old_slot] # but never replace at a nearly minimal slot
+                        if (old_slot == slot or min_mass < 0.99*old_mass) and ast_val[ast_id] < mval: 
+                            # replace with actual transfer, remove old asteroid mass
+                            slot_mass[old_slot] -= ast_val[ast_id]                       
                         else: # keep old transfer, don't use the new one
-                            mval = 0;
+                            mval = 0
                     if mval > 0:  # register actual transfer
                         slot_mass[slot] += mval
                         ast_val[ast_id] = mval
-                        ast_slot[ast_id] = slot                  
+                        ast_slot[ast_id] = slot                          
     ...
 ----
 
 Instead of only using the minimal mass we also use the other station masses 
-with a weight degrading exponentially with the station mass rank. 
+applying a weight degrading exponentially with the station mass rank. 
 This way we "help" the optimization algorithm in case the
 minimal mass is 0 - which is always the case at the beginning. 
 But the score shown in the output is computed using the minimal score. 
@@ -396,8 +394,7 @@ on time / delta velocity / estimated maximal remaining asteroid mass using diffe
 diversity of the computed trajectories. Using a small search breadth (about 1000 branches)
 and performing a huge number of searches (> 100000) improves the chance to find many
 good trajectories with disjoined asteroids visited. Use a pre-computed grid of asteroid positions
-and linear approximation to speed up the expansion of trajectories during search even if
-only a small fraction of the asteroids is excluded (too small, too eccentric).  
+and linear approximation to speed up the expansion of trajectories during search.  
 
 What you should not do:
 
@@ -411,22 +408,20 @@ Use a random selection instead.
 ==== Estimation of the arrival mass
 
 You could learn from Tsinhua (the winners)
-or ESA, who developed a nice machine learning approach estimating the final mass more
-reliably. My own approach (the one used to generate the input table for this tutorial) 
-is fast, but slightly inferior: It exploits the fact that the Dyson sphere
-is circular. A propagator based on the given dynamic model is used to precompute
-the asteroid movement backwards from a specific position at the Dyson sphere.
-According to the actual position of the target station at arrivel time, this path is
-then "turned around" accordingly. Thrust is applied in the direction of flight 
-to increase the semimajor axis. Variations of this path are generated by diverting some part
-of the thrust in a direction perpendicular to the earth-sun orbital plane to compensate
-for the asteroid inclination. Then a Lambert arc connecting the asteroid with this
-flight path is used to estimate if the asteroid can be transferred to the Dyson sphere
-with the given continuous thrust constraint. A differential evolution based 
-optimization is performed using thrust level, start and arrival time, 
-time at the end of the Lambert arc and the level of perpendicular correction as input arguments
-to find the shortest tour fulfilling the continuous thrust constraint. You could
-either compute specific transfers to each of the stations for different time windows 
+or ESA, who developed a machine learning approach estimating the final mass more reliably. 
+A simple and fast approach is to divide the transfer into n equally sized
+time windows / segments and replace the continuous thrust by n impulses 
+(also called deep space maneuvers - DSMs) at the center of these segments, 
+a method called "Sims-Flanagan". With n the accuracy of the method increases, but also
+the effort to find an optimal sequence. With four segments we only have 8 input variables,
+6 for the two 3-dimensional impulses dv_1 and dv_4, plus 2 for start and arrival time.
+dv_2 and dv_3 can be derived using the Lambert algorithm. We have to limit the impulses 
+according to our fixed continuous thrust constraint and optimize for minimal time of flight. 
+Differential evolution with retry using different random initial values works very well here. 
+
+image::four.png[]
+
+You could either compute specific transfers to each of the stations for different time windows 
 to create the input table for the scheduling algorithm. Or take the station as an
 additional discrete argument without time limits to compute an estimated maximal
 remaining asteroid mass at the station. This is useful for the evaluation of trajectories
@@ -445,8 +440,7 @@ weights. We see that the potential mass collected increases with delta velocity,
 the corresponding score does not. We compute the score by taking the sum of the trajectory asteroid
 masses as minimal mass and the sum of the delta velocities of the trajectory for all ten
 motherships. This somehow represents an upper limit of the score a scheduling algorithm 
-can achieve. We see a maximum score at about dv = 17 km/s, which is exactly the value 
-the scheduling algorithm converts to. 
+can achieve.
 
 === How to use this algorithm to produce a GTOC11 solution
 
@@ -454,22 +448,208 @@ The scheduling algorithm presented here is only one step required to produce a v
 solution. It converts a huge set of approximated asteroid transfers associated to a number
 of good mothership trajectories into a selection of transfers associated to only 10 trajectories
 thereby maximizing the approximated score. With the table given in the example it converts
-about 163.000 transfers into a selection of about 390 transfers. 
+321264 transfers into a selection of about 390 transfers. 
 
 Converting an approximated transfer into a real continuous thrust transfer 
 accepted by the GTOC11 validation costs a lot of CPU resources. The scheduling algorithm 
 can be used to minimize this effort by reducing the number of transfers it needs to be applied to:
 
-- Apply the scheduling algorithm for a limited time using BiteOpt - which converges faster
-than the SBM algorithm - to determine which transfers need to be converted. 
+- Apply the scheduling algorithm for a limited time to determine which transfers need to be converted. 
 - After conversion adapt the transfer timing in the table accordingly.
 - Repeat this process until no time slot violations occur.
 
 Of course in later iterations only transfers which are still approximated need to be converted.
 
-- Finally apply the scheduling algorithm using SBM - which converges slower but finds better results if 
-given enough time. 
-
 As a last step we have to exploit the fact that only the station with the least mass counts for the score. 
 Probably some transfers can be eliminated without reducing the minimal mass - but potentially lowering
 the sum of the delta velocities needed for the related mothership trajectory.  
+
+== Detailed results
+
+For the results below we mainly used a transfer table based on Tsinhuas 1.1 AU dyson sphere.  
+
+=== Number of trajectories offered for selection
+
+During the competition many teams didn't integrate trajectory selection in their asteroid transfer / station selection optimization.
+Instead they used a fixed set of 10 good trajectories and repeated this process for different sets. Is this a good idea?
+If you for instance found about 60 promising trajectory candidates you end up with 75394027566 possible combinations
+(https://www.hackmath.net/en/calculator/n-choose-k?n=60&k=10[n choose k calculator]). 
+Lets check what we get with different sets, preselecting the best 10, 60 and 120 trajectories from a set of 3000 good trajectories
+we selected from the results of 20000 beamsearch runs. Using 60 trajectories we get a score about 7000:
+
+image::sbm32.png[]
+
+Restricting to the best 10 reduces the score to about 6200:
+
+image::sbm3210.png[]
+
+Using 120 trajectories we can improve to a score about 7100:
+
+image::sbm32120.png[]
+
+These results show that: 
+
+- Integration of trajectory selection into the objective function used for optimization works very well.
+- The additional 10 variables increase the dimensionality of the problem, but this doesn't lead to a significant slowdown
+of the optimization process.
+ 
+Note that we haven't included the 120 trajectories transfer file because of its size, but you may reproduce the first two results. 
+
+=== Size of the Dyson sphere
+
+The average Dyson sphere size chosen by the teams was a = 1.2 AU. 
+The two top teams, Tsinhua and ESA choose opposite extremes regarding the size, Tsinhua opted for a = 1.1 AU, ESA for a = 1.32 AU.
+We used Tsinhuas sphere to compute our transfer table for our search results, what happens if we choose ESAs bigger sphere instead?
+Using exactly the same method and optimization approach? The result is surprising:
+
+image::sbmesa.png[]
+ 
+We end up at a score about 6600 which is only 500 less compared to the Tsinhua sphere. The real competition results differ about 2200.
+May be the longer transfers enable more improvement potential if you try really hard to 
+minimize time of flight. We didn't adapt our search to the different spheres, only the trajectory ordering was dependent on 
+the transfers found. 
+
+=== Comparison of algorithms for scheduling
+
+The results below can be summarized as follows:
+
+- Continuous optimization works for mixed integer problems (like scheduling). 
+
+- The objective function speedup achieved by Numba (450x) is essential to get reasonable results.
+
+- Parallel optimization / multi threading speeds up the optimization significantly.
+
+- The best method is Smart Boundary Management + DE->CMA. 
+  SBM was originally developed for https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] 
+  (see https://github.com/dietmarwo/smart-retry[smart-retry] to check its performance for these problems).
+  It performs surprisingly well for GTOC11 scheduling, although with adapted parameter setting. Like
+  PAGMOs https://esa.github.io/pagmo2/docs/cpp/archipelago.html[archipelagos]
+  SBM utilizes "communication" between the threads and therefore can not be executed single threaded. 
+
+- The best single threaded algorithms are https://github.com/avaneev/biteopt[BiteOpt] and the fcmaes
+  implementation of CMA-ES. 
+  
+- The best scipy algorithm is https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html[Dual Annealing] 
+
+- Implementation of an objective function in Python using continuous input variables is surprisingly straightforward.  
+
+- pandas helps to simplify pre-processing of the input data given as CSV-file. 
+
+
+==== 1 thread, no NUMA
+
+The following results were obtained optimizing single threaded 
+after "commenting out" all '@njit' annotoations in the code to disable
+Numba resulting in a dramatic loss of performance (factor 450x).
+
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html[scipy minimize] should be avoided for scheduling problems: 
+
+image::sciMin1NN.png[]
+
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html[scipy differential_evolution] is better, but still
+not sufficient:
+
+image::sciDE1NN.png[]
+
+- fcmaes GCL DE, another differential evolution variant.
+
+image::gclDE1NN.png[]
+
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html[scipy dual_annealing] can be used, but is slow:
+
+image::sciDA1NN.png[]
+
+The following algorithms all perform quite well given the small amount of function evaluations performed without enabling Numba:
+
+- fcmaes differential evolution 
+
+image::fcmaDE1NN.png[]
+
+- CMA-ES
+
+image::CMA-ES1NN.png[]
+
+- https://github.com/avaneev/biteopt[BiteOpt]
+
+image::Bite1NN.png[]
+
+==== 1 thread, using NUMA
+
+By enabling Numa things improve significantly. But it is interesting to see that algorithms which don't "fit" to the problem cannot utilize the 450x speedup.  
+And even the best ones need about one hour to find a good solution. 
+
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html[scipy minimize]
+
+image::sciMin1.png[]
+
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html[scipy differential_evolution] 
+
+image::sciDE1.png[]
+
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html[scipy dual_annealing] 
+
+image::sciDA1.png[]
+
+- fcmaes differential evolution 
+
+image::fcmaDE1.png[]
+
+- fcmaes GCL DE
+
+image::gclDE1.png[]
+
+- CMA-ES
+
+image::CMA-ES1.png[]
+
+- https://github.com/avaneev/biteopt[BiteOpt]
+
+image::Bite1.png[]
+
+==== 32 threads, using NUMA
+
+fcmaes has a "parallel retry" mechanism which enables the execution of many optimization retries in parallel.
+We used 32 parallel threads on the 16 core AMD 5950x CPU. The speedup obtained by parallelization is between
+8x and 18x depending on the used algorithm. Now we get very good results using BiteOpt, CMA-ES and scipy Dual Annealing.
+
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html[scipy minimize]
+
+image::sciMin32.png[]
+
+- https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html[scipy dual_annealing] 
+
+image::sciDA32.png[]
+
+- fcmaes differential evolution 
+
+image::fcmaDE32.png[]
+
+- CMA-ES
+
+image::CMA-ES32.png[]
+
+- https://github.com/avaneev/biteopt[BiteOpt]
+
+image::bite32.png[]
+
+==== 32 threads, Smart Boundary Management using NUMA
+
+The algorithm suited best for this problem is the fcmaes smart boundary management parallel
+meta algorithm. We applied it to its default base algorithm - a DE->CMA-ES sequence, to 
+https://github.com/avaneev/biteopt[BiteOpt] and to CMA-ES alone. 
+BiteOpt fits not very well here, both other base algorithms perform better.
+Only a few seconds are required for a good result, the optimium is found after about 1 hour. 
+
+- fcmaes SBM applied to DE->CMA-ES
+
+image::sbm32.png[]
+
+- fcmaes SBM applied to https://github.com/avaneev/biteopt[BiteOpt]
+
+image::Bite1.png[]
+
+- fcmaes SBM applied to CMA-ES
+
+image::sbmCma32.png[]
+
+

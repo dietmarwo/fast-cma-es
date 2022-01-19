@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 import sys, math, time
 from fcmaes import retry, advretry
-from fcmaes.optimizer import logger, Bite_cpp, De_cpp, de_cma, dtime, Differential_evolution
+from fcmaes.optimizer import logger, Bite_cpp, Cma_cpp, De_cpp, de_cma, dtime, Dual_annealing, Differential_evolution, Minimize
 from scipy.optimize import Bounds
 import ctypes as ct
 import multiprocessing as mp 
@@ -18,12 +18,13 @@ from numba import njit
 
 STATION_NUM = 12 # number of dyson ring stations
 TRAJECTORY_NUM = 50 # we select 10 mothership trajectories from these trajectories
+ASTEROID_NUM = 83454 # number of asteroids
 
 MAX_TIME = 20.0 # mission time in years
-ASTEROID_NUM = 83454 # number of asteroids
 WAIT_TIME = 90/365.25 # years, after arrival wait until construction may start
 ALPHA = 6.0e-9 # conversion factor time of flight -> arrival mass
-A_DYSON = 1.3 # size of the dyson ring in AU
+#A_DYSON = 1.3197946923098154 # ESAs dyson sphere
+A_DYSON = 1.1 # Tsinhuas dyson sphere
 
 DAY = 24 * 3600
 YEAR = DAY*365.25
@@ -57,13 +58,19 @@ def select(asteroid, station, trajectory, mass, transfer_start, transfer_time, x
                     tof = time_of_flight                     
                     #if we have to fly a non optimal transfer, arrival mass is reduced
                     if arrival_time < min_time: # 90 DAYS are not yet over
-                        tof += min_time - arrival_time # tof increases
+                        to_add = min_time - arrival_time # add time difference
+                        to_add *= math.sqrt(1 + to_add/WAIT_TIME) # add some more time to enable transfer
+                        tof += to_add
                     mval = (1.0 - YEAR*tof*ALPHA) * m # estimated asteroid mass at arrival time 
-                    if ast_val[ast_id] > 0: # asteroid already transferred
-                        if ast_val[ast_id] < mval: # replace with actual transfer, remove old asteroid mass
-                            slot_mass[int(ast_slot[ast_id])] -= ast_val[ast_id]
+                    if ast_val[ast_id] > 0: # asteroid already transferred                                                
+                        old_slot = int(ast_slot[ast_id])
+                        min_mass = np.amin(slot_mass) # greedily replace if current mass is higher
+                        old_mass = slot_mass[old_slot] # but never replace at a nearly minimal slot
+                        if (old_slot == slot or min_mass < 0.99*old_mass) and ast_val[ast_id] < mval: 
+                            # replace with actual transfer, remove old asteroid mass
+                            slot_mass[old_slot] -= ast_val[ast_id]                       
                         else: # keep old transfer, don't use the new one
-                            mval = 0;
+                            mval = 0
                     if mval > 0:  # register actual transfer
                         slot_mass[slot] += mval
                         ast_val[ast_id] = mval
@@ -72,6 +79,7 @@ def select(asteroid, station, trajectory, mass, transfer_start, transfer_time, x
     min_mass = slot_mass[0]
     f = 1.0
     for m in slot_mass:
+        # help the optimizer in case the minimum is 0
         min_mass += f*m
         f *= 0.5
     return min_mass, slot_mass
@@ -85,7 +93,7 @@ class fitness(object): # the objective function
         self.transfers = transfers
         self.asteroid = transfers["asteroid"].to_numpy()
         self.station = transfers["station"].to_numpy()  
-        self.trajectory = transfers["trajectory"].to_numpy() 
+        self.trajectory = transfers["trajectory"].to_numpy()
         self.transfer_start = transfers["transfer_start"].to_numpy()  
         self.transfer_time = transfers["transfer_time"].to_numpy()
         self.mass = transfers["mass"].to_numpy()          
@@ -118,33 +126,63 @@ class fitness(object): # the objective function
         return y    
 
 def optimize():    
-    transfers = pd.read_csv('data/asteroid_transfers1.3.xz', sep=' ', usecols=[1,2,3,4,5,6,7], compression='xz',
+    name = 'tsin3000.60' # 60 trajectories to choose from
+    # name = 'tsin3000.10' # 10 fixed trajectories
+    transfers = pd.read_csv('data/' + name + '.xz', sep=' ', usecols=[1,2,3,4,5,6,7], compression='xz',
                     names=['asteroid', 'station', 'trajectory', 'mass', 'dv', 'transfer_start', 'transfer_time'])
     # uncomment to write a clear text csv
-    # transfers.to_csv('asteroid_transfers1.3.txt', sep=' ', header=False) 
+    # transfers.to_csv('data/' + name + '.txt', sep=' ', header=False) 
 
+    global TRAJECTORY_NUM, ASTEROID_NUM # adjust number of asteroids / trajectories 
+    TRAJECTORY_NUM = int(np.amax(transfers["trajectory"]) + 1)
+    ASTEROID_NUM = int(np.amax(transfers["asteroid"]) + 1)
+    
     # bounds for the objective function
     dim = 10+2*STATION_NUM-1
     lower_bound = np.zeros(dim)
-    lower_bound[10+STATION_NUM:dim] = 0.001 
+    lower_bound[10+STATION_NUM:dim] = 0.00001 
     upper_bound = np.zeros(dim)
-    upper_bound[:10] = TRAJECTORY_NUM # trajectory indices
-    upper_bound[10:10+STATION_NUM] = STATION_NUM-0.00001 # station indices, avoid rounding errors
-    upper_bound[10+STATION_NUM:dim] = 0.999 # Dyson station build time windows
+    upper_bound[:10] = TRAJECTORY_NUM-0.00001 # trajectory indices
+    upper_bound[10:10+STATION_NUM] = STATION_NUM-0.0001 # station indices, avoid rounding errors
+    upper_bound[10+STATION_NUM:dim] = 0.9999 # Dyson station build time windows
     bounds = Bounds(lower_bound, upper_bound)
     
-    store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # smart boundary management (SMB) with DE->CMA
+    store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
+    advretry.retry(store, de_cma(10000).minimize)    
+
+    # smart boundary management (SMB) with CMA-ES
+    #store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
+    #advretry.retry(store, Cma_cpp(10000).minimize)    
+
+    # BiteOpt algorithm multi threaded
+    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # retry.retry(store, Bite_cpp(1000000).minimize, num_retries=3200)    
     
-    # use BiteOpt algorithm with parallel retry
-    retry.retry(store, Bite_cpp(1000000, M=16).minimize, num_retries=320)    
+    # CMA-ES multi threaded
+    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # retry.retry(store, Cma_cpp(1000000).minimize, num_retries=3200)    
+
+    # scipy minimize algorithm multi threaded
+    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # retry.retry(store, Minimize(1000000).minimize, num_retries=3200)    
     
-    # uncomment to try scipy differential evolution single threaded
+    # fcmaes differential evolution multi threaded
+    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # retry.retry(store, De_cpp(1000000).minimize, num_retries=3200)    
+
+    # scipy differential evolution multi threaded
+    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # retry.retry(store, Differential_evolution(1000000).minimize, num_retries=3200) 
+    
+    # scipy dual annealing multi threaded
+    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # retry.retry(store, Dual_annealing(1000000).minimize, num_retries=3200) 
+ 
+    # scipy differential evolution single threaded
+    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
     # retry.retry(store, Differential_evolution(1000000).minimize, num_retries=320, workers=1)    
-   
-    # uncomment to try smart boundary management (SMB)
-    # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
-    # advretry.retry(store, de_cma(10000).minimize)    
-      
+        
     return store.get_xs(), store.get_ys()
 
 # utility functions

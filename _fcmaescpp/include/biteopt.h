@@ -7,7 +7,7 @@
  *
  * @section license License
  *
- * Copyright (c) 2016-2021 Aleksey Vaneev
+ * Copyright (c) 2016-2022 Aleksey Vaneev
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,7 +27,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * @version 2021.27
+ * @version 2022.1
  */
 
 #ifndef BITEOPT_INCLUDED
@@ -58,6 +58,7 @@ public:
 		addHist( M1Hist, "M1Hist" );
 		addHist( M1AHist, "M1AHist" );
 		addHist( M1BHist, "M1BHist" );
+		addHist( M1BAHist, "M1BAHist" );
 		addHist( M1BBHist, "M1BBHist" );
 		addHist( PopChangeHist, "PopChangeHist" );
 		addHist( ParOpt2Hist, "ParOpt2Hist" );
@@ -80,7 +81,6 @@ public:
 		addHist( Gen1AllpHist, "Gen1AllpHist" );
 		addHist( Gen1MoveHist, "Gen1MoveHist" );
 		addHist( Gen1MoveAsyncHist, "Gen1MoveAsyncHist" );
-		addHist( Gen1MoveDEHist, "Gen1MoveDEHist" );
 		addHist( Gen1MoveSpanHist, "Gen1MoveSpanHist" );
 		addHist( Gen4MixFacHist, "Gen4MixFacHist" );
 		addHist( Gen5BinvHist, "Gen5BinvHist" );
@@ -275,7 +275,14 @@ public:
 
 				if( SelM1B == 0 )
 				{
-					generateSol4( rnd );
+					if( select( M1BAHist, rnd ))
+					{
+						generateSol4( rnd );
+					}
+					else
+					{
+						generateSol4b( rnd );
+					}
 				}
 				else
 				if( SelM1B == 1 )
@@ -324,9 +331,7 @@ public:
 
 				if( sc > ParamCount * 64 )
 				{
-					ParOpt.init( rnd, getBestParams(),
-						2.0 * sqrt( getDistanceSqr( getParamsOrdered( 0 ))));
-
+					ParOpt.init( rnd, getBestParams() );
 					ParOptPop.resetCurPopPos();
 				}
 
@@ -343,9 +348,7 @@ public:
 
 				if( sc > ParamCount * 16 )
 				{
-					ParOpt2.init( rnd, getBestParams(),
-						2.0 * sqrt( getDistanceSqr( getParamsOrdered( 0 ))));
-
+					ParOpt2.init( rnd, getBestParams(), -1.0 );
 					ParOpt2Pop.resetCurPopPos();
 				}
 
@@ -466,6 +469,8 @@ protected:
 		///<
 	CBiteOptHist< 3 > M1BHist; ///< Method 1's sub-sub-method B histogram.
 		///<
+	CBiteOptHist< 2 > M1BAHist; ///< Method 1's sub-sub-method A2 histogram.
+		///<
 	CBiteOptHist< 2 > M1BBHist; ///< Method 1's sub-sub-method B2 histogram.
 		///<
 	CBiteOptHist< 2 > PopChangeHist; ///< Population size change
@@ -501,9 +506,6 @@ protected:
 		////<
 	CBiteOptHist< 2 > Gen1MoveAsyncHist; ///< Generator method 1's Move
 		///< async histogram.
-		///<
-	CBiteOptHist< 2 > Gen1MoveDEHist; ///< Generator method 1's Move DE
-		///< histogram.
 		///<
 	CBiteOptHist< 4 > Gen1MoveSpanHist; ///< Generator method 1's Move span
 		///< histogram.
@@ -713,39 +715,24 @@ protected:
 			const int si2 = (int) ( rnd.getRndValueSqr() * CurPopSize );
 			const ptype* const rp2 = getParamsOrdered( si2 );
 
-			if( select( Gen1MoveDEHist, rnd ))
+			if( select( Gen1MoveAsyncHist, rnd ))
 			{
-				// Apply a DE-based move.
-
-				const ptype* const rp3 = getParamsOrdered(
-					CurPopSize1 - si2 );
-
-				for( i = 0; i < ParamCount; i++ )
-				{
-					Params[ i ] -= ( rp3[ i ] - rp2[ i ]) >> 1;
-				}
+				a = 0;
+				b = ParamCount;
 			}
-			else
+
+			// Random move around a random previous solution vector.
+
+			static const double SpanMults[ 4 ] = { 0.5, 1.5, 2.0, 2.5 };
+
+			const double m = SpanMults[ select( Gen1MoveSpanHist, rnd )];
+			const double m1 = rnd.getTPDF() * m;
+			const double m2 = rnd.getTPDF() * m;
+
+			for( i = a; i < b; i++ )
 			{
-				if( select( Gen1MoveAsyncHist, rnd ))
-				{
-					a = 0;
-					b = ParamCount;
-				}
-
-				// Random move around a random previous solution vector.
-
-				static const double SpanMults[ 4 ] = { 0.5, 1.5, 2.0, 2.5 };
-
-				const double m = SpanMults[ select( Gen1MoveSpanHist, rnd )];
-				const double m1 = rnd.getTPDF() * m;
-				const double m2 = rnd.getTPDF() * m;
-
-				for( i = a; i < b; i++ )
-				{
-					Params[ i ] -= (ptype) (( Params[ i ] - rp2[ i ]) * m1 );
-					Params[ i ] -= (ptype) (( Params[ i ] - rp2[ i ]) * m2 );
-				}
+				Params[ i ] -= (ptype) (( Params[ i ] - rp2[ i ]) * m1 );
+				Params[ i ] -= (ptype) (( Params[ i ] - rp2[ i ]) * m2 );
 			}
 		}
 	}
@@ -855,9 +842,6 @@ protected:
 	 * of an odd number (this is important) of random solutions via XOR
 	 * operation. Slightly less effective than the DE-based mixing, but makes
 	 * the optimization method more diverse overall.
-	 *
-	 * Recently includes "crossover" approach first implemented in the
-	 * generateSol5b() function.
 	 */
 
 	void generateSol4( CBiteRnd& rnd )
@@ -891,12 +875,42 @@ protected:
 			si1 = (int) ( rnd.getRndValueSqr() * UseSize[ p ]);
 			rp1 = UseParams[ p ][ si1 ];
 
-			int si2 = (int) ( rnd.getRndValueSqr() * UseSize[ p ]);
-			const ptype* rp2 = UseParams[ p ][ si2 ];
+			int i;
+
+			for( i = 0; i < ParamCount; i++ )
+			{
+				Params[ i ] ^= rp1[ i ];
+			}
+		}
+	}
+
+	/**
+	 * Solution generator similar to generateSol4, but uses solutions from the
+	 * main population only, and includes "crossover" approach first
+	 * implemented in the generateSol5b() function.
+	 */
+
+	void generateSol4b( CBiteRnd& rnd )
+	{
+		ptype* const Params = TmpParams;
+
+		const int km = 3 + ( select( Gen4MixFacHist, rnd ) << 1 );
+
+		int si1 = (int) ( rnd.getRndValueSqr() * CurPopSize );
+		const ptype* rp1 = getParamsOrdered( si1 );
+
+		memcpy( Params, rp1, ParamCount * sizeof( Params[ 0 ]));
+
+		int k;
+
+		for( k = 1; k < km; k++ )
+		{
+			si1 = (int) ( rnd.getRndValueSqr() * CurPopSize );
+			int si2 = (int) ( rnd.getRndValueSqr() * CurPopSize );
 
 			const ptype* CrossParams[ 2 ];
-			CrossParams[ 0 ] = rp1;
-			CrossParams[ 1 ] = rp2;
+			CrossParams[ 0 ] = getParamsOrdered( si1 );
+			CrossParams[ 1 ] = getParamsOrdered( si2 );
 
 			int i;
 
@@ -1186,8 +1200,8 @@ public:
 		}
 		else
 		{
-			StallCount++;
 			CurOpt = PushOpt;
+			StallCount++;
 		}
 
 		return( StallCount );
@@ -1233,7 +1247,7 @@ protected:
 		///<
 	CBiteOptWrap* BestOpt; ///< Optimizer that contains the best solution.
 		///<
-	CBiteOptWrap* CurOpt; ///< Current optimization object index.
+	CBiteOptWrap* CurOpt; ///< Current optimizer object.
 		///<
 	int StallCount; ///< The number of iterations without improvement.
 		///<
@@ -1322,11 +1336,16 @@ public:
  * algorithm. Expected range is [1; 36]. Internally multiplies "iter" by
  * sqrt(M). 
  * @param attc The number of optimization attempts to perform.
+ * @param stopc Stopping criteria (convergence check). 0: off, 1: 64*N,
+ * 2: 128*N.
+ * @return The total number of function evaluations performed; useful if the
+ * "stopc" was used.
  */
 
-inline void biteopt_minimize( const int N, biteopt_func f, void* data,
+inline int biteopt_minimize( const int N, biteopt_func f, void* data,
 	const double* lb, const double* ub, double* x, double* minf,
-	const int iter, const int M = 1, const int attc = 10 )
+	const int iter, const int M = 1, const int attc = 10,
+	const int stopc = 0 )
 {
 	CBiteOptMinimize opt;
 	opt.N = N;
@@ -1339,7 +1358,9 @@ inline void biteopt_minimize( const int N, biteopt_func f, void* data,
 	CBiteRnd rnd;
 	rnd.init( 1 );
 
+	const int sct = ( stopc <= 0 ? 0 : 64 * N * stopc );
 	const int useiter = (int) ( iter * sqrt( (double) M ));
+	int evals = 0;
 	int k;
 
 	for( k = 0; k < attc; k++ )
@@ -1350,8 +1371,16 @@ inline void biteopt_minimize( const int N, biteopt_func f, void* data,
 
 		for( i = 0; i < useiter; i++ )
 		{
-			opt.optimize( rnd );
+			const int sc = opt.optimize( rnd );
+
+			if( sct > 0 && sc >= sct )
+			{
+				evals++;
+				break;
+			}
 		}
+
+		evals += i;
 
 		if( k == 0 || opt.getBestCost() <= *minf )
 		{
@@ -1359,6 +1388,8 @@ inline void biteopt_minimize( const int N, biteopt_func f, void* data,
 			*minf = opt.getBestCost();
 		}
 	}
+
+	return( evals );
 }
 
 #endif // BITEOPT_INCLUDED
