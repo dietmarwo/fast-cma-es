@@ -187,27 +187,22 @@ progress of the optimization.
 
 [source,python]
 ---- 
-STATION_NUM = 12 # number of Dyson ring stations
-TRAJECTORY_NUM = 60 # we select 10 mothership trajectories from these
-MAX_TIME = 20.0 # mission time in years
-
-def optimize(): # read data frame from compressed file
-    transfers = pd.read_csv('asteroid_transfers1.3.xz', sep=' ', 
-                    usecols=[1,2,3,4,5,6,7], compression='xz',
-                    names=['asteroid', 'station', 'trajectory', 
-                    'mass', 'dv', 'transfer_start', 'transfer_time'])
+    transfers = pd.read_csv('data/' + name + '.xz', sep=' ', usecols=[1,2,3,4,5,6,7], compression='xz',
+                    names=['asteroid', 'station', 'trajectory', 'mass', 'dv', 'transfer_start', 'transfer_time'])
+ 	...   
+    # bounds for the objective function
     dim = 10+2*STATION_NUM-1
     lower_bound = np.zeros(dim)
-    lower_bound[10+STATION_NUM:dim] = 0.0001 
+    # lower_bound[10+STATION_NUM:dim] = 0.00001 
     upper_bound = np.zeros(dim)
-    upper_bound[:10] = TRAJECTORY_NUM - 0.00001 # trajectory indices
-    upper_bound[10:10+STATION_NUM] = STATION_NUM - 0.00001 # station indices, avoid rounding errors
-    upper_bound[10+STATION_NUM:dim] = 0.999 # Dyson station build time windows
+    lower_bound[:] = 0.0000001 
+    upper_bound[10:] = 0.9999999
+    upper_bound[:10] = TRAJECTORY_NUM-0.00001 # trajectory indices
     bounds = Bounds(lower_bound, upper_bound)
+    
+    # smart boundary management (SMB) with DE->CMA
     store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
-    # apply SBM with a DE->CMA sequence
-    advretry.retry(store, de_cma(10000).minimize)        
-    return store.get_xs(), store.get_ys()
+    advretry.retry(store, de_cma(10000).minimize)    
 ----
 
 Alternatively the fcmaes parallel retry mechanism can be used with 
@@ -217,7 +212,7 @@ https://github.com/avaneev/biteopt[BiteOpt] or other optimization algorithms.
 ----
     store = retry.Store(fitness(transfers), bounds, logger=logger()) 
     # apply BiteOpt algorithm in parallel 
-    retry.retry(store, Bite_cpp(1000000, M=16).minimize, num_retries=320) 
+    retry.retry(store, Bite_cpp(1000000, M=6).minimize, num_retries=320) 
 ----
 
 Smart boundary management leads to a better final score but can be slower if wrongly configured

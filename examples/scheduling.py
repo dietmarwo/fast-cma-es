@@ -140,11 +140,11 @@ def optimize():
     # bounds for the objective function
     dim = 10+2*STATION_NUM-1
     lower_bound = np.zeros(dim)
-    lower_bound[10+STATION_NUM:dim] = 0.00001 
+    # lower_bound[10+STATION_NUM:dim] = 0.00001 
     upper_bound = np.zeros(dim)
+    lower_bound[:] = 0.0000001 
+    upper_bound[10:] = 0.9999999
     upper_bound[:10] = TRAJECTORY_NUM-0.00001 # trajectory indices
-    upper_bound[10:10+STATION_NUM] = STATION_NUM-0.0001 # station indices, avoid rounding errors
-    upper_bound[10+STATION_NUM:dim] = 0.9999 # Dyson station build time windows
     bounds = Bounds(lower_bound, upper_bound)
     
     # smart boundary management (SMB) with DE->CMA
@@ -152,13 +152,13 @@ def optimize():
     advretry.retry(store, de_cma(10000).minimize)    
 
     # smart boundary management (SMB) with CMA-ES
-    #store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
-    #advretry.retry(store, Cma_cpp(10000).minimize)    
+    # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
+    # advretry.retry(store, Cma_cpp(10000).minimize)    
 
     # BiteOpt algorithm multi threaded
     # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
-    # retry.retry(store, Bite_cpp(1000000).minimize, num_retries=3200)    
-    
+    # retry.retry(store, Bite_cpp(1000000, M=1).minimize, num_retries=3200)    
+
     # CMA-ES multi threaded
     # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
     # retry.retry(store, Cma_cpp(1000000).minimize, num_retries=3200)    
@@ -218,8 +218,9 @@ def dyson_stations(x, n):
     stations = np.zeros(n)
     for i in range(n):
         stations[i] = int(x[10+i])
+    stations = np.argsort(stations)
     # station numbers start with 1
-    return np.array([s+1 for s in disjoined(stations, n)[0]])
+    return np.array([s+1 for s in stations])
 
 @njit(fastmath=True) 
 def trajectory_selection(x, n):
