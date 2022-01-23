@@ -14,7 +14,7 @@ from fcmaes.optimizer import logger, Bite_cpp, Cma_cpp, De_cpp, de_cma, dtime, D
 from scipy.optimize import Bounds
 import ctypes as ct
 import multiprocessing as mp 
-from numba import njit
+from numba import njit, numba
 
 STATION_NUM = 12 # number of dyson ring stations
 TRAJECTORY_NUM = 50 # we select 10 mothership trajectories from these trajectories
@@ -36,7 +36,7 @@ def select(asteroid, station, trajectory, mass, transfer_start, transfer_time, x
     times = timings(x, STATION_NUM) # derive station build time slot boundaries from argument vector (in years)
     slot_mass = np.zeros(STATION_NUM) # mass sum per time slot
     ast_val = np.zeros(ASTEROID_NUM) # deployed mass for asteroid
-    ast_slot = np.zeros(ASTEROID_NUM) # build time slot used for asteroid
+    ast_slot = np.zeros(ASTEROID_NUM, dtype=numba.int32) # build time slot used for asteroid
     for i in range(asteroid.size):
         tr = int(trajectory[i]) # current trajectory
         if trajectories[tr] == 0: # trajectory not selected
@@ -63,7 +63,7 @@ def select(asteroid, station, trajectory, mass, transfer_start, transfer_time, x
                         tof += to_add
                     mval = (1.0 - YEAR*tof*ALPHA) * m # estimated asteroid mass at arrival time 
                     if ast_val[ast_id] > 0: # asteroid already transferred                                                
-                        old_slot = int(ast_slot[ast_id])
+                        old_slot = ast_slot[ast_id]
                         min_mass = np.amin(slot_mass) # greedily replace if current mass is higher
                         old_mass = slot_mass[old_slot] # but never replace at a nearly minimal slot
                         if (old_slot == slot or min_mass < 0.99*old_mass) and ast_val[ast_id] < mval: 
@@ -189,16 +189,15 @@ def optimize():
 
 @njit(fastmath=True) 
 def next_free(used, p):
-    p = int(p)
-    while used[p] > 0:
+    while used[p]:
         p = (p + 1) % used.size
-    used[p] = 1
+    used[p] = True
     return p
 
 @njit(fastmath=True) 
 def disjoined(s, n):
-    disjoined_s = np.zeros(s.size)
-    used = np.zeros(n)
+    disjoined_s = np.zeros(s.size, dtype=numba.int32)
+    used = np.zeros(n, dtype=numba.boolean)
     for i in range(s.size):
         disjoined_s[i] = next_free(used, s[i])
     return disjoined_s, used
@@ -215,7 +214,7 @@ def timings(x, n):
 
 @njit(fastmath=True) 
 def dyson_stations(x, n):
-    stations = np.zeros(n)
+    stations = np.zeros(n, dtype=numba.int32)
     for i in range(n):
         stations[i] = int(x[10+i])
     stations = np.argsort(stations)
@@ -224,7 +223,7 @@ def dyson_stations(x, n):
 
 @njit(fastmath=True) 
 def trajectory_selection(x, n):
-    trajectories = np.zeros(10)
+    trajectories = np.zeros(10, dtype=numba.int32)
     for i in range(10):
         trajectories[i] = int(x[i])
     return disjoined(trajectories, n)
@@ -242,7 +241,7 @@ def trajectory_dv(asteroid, trajectory, delta_v):
     ast_dv = np.zeros((TRAJECTORY_NUM,ASTEROID_NUM))
     for i in range(asteroid.size):  
         ast_id = int(asteroid[i]) # asteroid transferred
-        tr = int(trajectory[i]) # current trajectory
+        tr = trajectory[i] # current trajectory
         ast_dv[tr, ast_id] = delta_v[i] # mothership delta velocity to reach the asteroid
     trajectory_dv = np.sum(ast_dv, axis=1)
     return trajectory_dv
@@ -260,7 +259,7 @@ def ast_num(x, asteroid, trajectory):
     asts = np.zeros((ASTEROID_NUM))
     trajectories = trajectory_selection(x, TRAJECTORY_NUM)[1]
     for i in range(asteroid.size):
-        if trajectories[int(trajectory[i])] == 0: # trajectory not selected
+        if not trajectories[trajectory[i]]: # trajectory not selected
             continue
         asts[int(asteroid[i])] = 1 # asteroid transferred
     return np.sum(asts)    

@@ -34,11 +34,11 @@
 
 import numpy as np
 import os
-import sys
 import time
 import ctypes as ct
 from numpy.random import Generator, MT19937
 from fcmaes.evaluator import Evaluator
+from fcmaes import moretry
 import multiprocessing as mp
 from fcmaes.optimizer import logger
 from fcmaes import moretry
@@ -58,7 +58,8 @@ def minimize(mofun,
              pareto_update = 0,
              rg = Generator(MT19937()),
              logger = None,
-             plot_name = None):  
+             plot_name = None,
+             store = None):  
       
     """Minimization of a multi objjective function of one or more variables using
     Differential Evolution.
@@ -108,6 +109,9 @@ def minimize(mofun,
         appends to a file ``optimizer.log``.
     plot_name : plot_name, optional
         if defined the pareto front is plotted during the optimization to monitor progress
+    store : result store, optional
+        if defined the optimization results are added to the result store. For multi threaded execution.
+        use workers=1 if you call minimize from multiple threads
             
     Returns
     -------
@@ -120,9 +124,66 @@ def minimize(mofun,
             x, y, evals, iterations, stop = mode.do_optimize_delayed_update(mofun, max_evaluations, workers)
         else:      
             x, y, evals, iterations, stop = mode.do_optimize(mofun, max_evaluations)
+        if not store is None:
+            store.add_results(x, y)
         return x, y
     except Exception as ex:
         return None, None  
+
+    
+class store():
+    
+    """Result store. Used for multi threaded execution of minimize to collect optimization results.
+     
+    Parameters
+    ----------
+    dim : int
+        dimension - number of variables
+    nobj : int
+        number of objectives
+    capacity : int, optional
+        capacity of the result store.
+    """
+    
+    def __init__(self, dim, nobj, capacity = mp.cpu_count()*512):    
+        self.dim = dim
+        self.nobj = nobj
+        self.capacity = capacity
+        self.add_mutex = mp.Lock()    
+        self.xs = mp.RawArray(ct.c_double, self.capacity * self.dim)
+        self.ys = mp.RawArray(ct.c_double, self.capacity * self.nobj)  
+        self.num_stored = mp.RawValue(ct.c_int, 0) 
+
+    def add_results(self, xs, ys):
+        with self.add_mutex:
+            for j in range(len(xs)):
+                i = self.num_stored.value
+                if i < self.capacity:  
+                    self.num_stored.value = i + 1
+                    self.set_x(i, xs[j]) 
+                    self.set_y(i, ys[j])
+    
+    def get_front(self):
+        return moretry.pareto(self.get_xs(), self.get_ys())
+       
+    def get_xs(self):
+        return np.array([self.get_x(i) for i in range(self.num_stored.value)])
+
+    def get_ys(self):
+        return np.array([self.get_y(i) for i in range(self.num_stored.value)])
+    
+    def get_x(self, i):
+        return self.xs[i*self.dim:(i+1)*self.dim]
+ 
+    def set_x(self, i, x):
+        self.xs[i*self.dim:(i+1)*self.dim] = x[:]          
+     
+    def get_y(self, i):
+        return self.ys[i*self.nobj:(i+1)*self.nobj]
+ 
+    def set_y(self, i, y):
+        self.ys[i*self.nobj:(i+1)*self.nobj] = y[:]          
+    
 
 class MODE(object):
     

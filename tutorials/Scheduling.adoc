@@ -339,31 +339,42 @@ But the score shown in the output is computed using the minimal score.
 ----
 
 Both the station order and the selected branches need to be disjoined. To achieve
-this we use an utility function converting a continuous input vector `s` into a disjoined
+this for the branches we use an utility function converting a continuous input vector `s` into a disjoined
 integer vector: 
 
 [source,python]
 ----
 @njit(fastmath=True) 
+def next_free(used, p):
+    while used[p]:
+        p = (p + 1) % used.size
+    used[p] = True
+    return p
+
+@njit(fastmath=True) 
 def disjoined(s, n):
-    disjoined_s = np.zeros(s.size)
-    used = np.zeros(n)
+    disjoined_s = np.zeros(s.size, dtype=numba.int32)
+    used = np.zeros(n, dtype=numba.boolean)
     for i in range(s.size):
         disjoined_s[i] = next_free(used, s[i])
     return disjoined_s, used
 
-@njit(fastmath=True) 
-def next_free(used, p):
-    p = int(p)
-    while used[p] > 0:
-        p = (p + 1) % used.size
-    used[p] = 1
-    return p
- 
 ----
 
-Note that we cannot use boolean vectors to maintain the already `used` values, since
-Numba only supports float arrays. 
+For the station order we use `numpy.argsort` :
+
+[source,python]
+----
+@njit(fastmath=True) 
+def dyson_stations(x, n):
+    stations = np.zeros(n, dtype=numba.int32)
+    for i in range(n):
+        stations[i] = int(x[10+i])
+    stations = np.argsort(stations)
+    # station numbers start with 1
+    return np.array([s+1 for s in stations])
+----
+
 
 === Hints
 

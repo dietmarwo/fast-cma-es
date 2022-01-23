@@ -61,9 +61,10 @@ def minimize(mofun,
              dis_m = 20.0,
              nsga_update = False,
              pareto_update = 0,
-             log_period = 1000,
+             log_period = sys.maxsize,
              rg = Generator(MT19937()),
              plot_name = None,
+             store = None,
              runid=0):  
      
     """Minimization of a multi objjective function of one or more variables using
@@ -108,14 +109,17 @@ def minimize(mofun,
         Only applied if nsga_update = False. Use the pareto front for population update 
         with probability pareto_update, else use the whole population. Default 0 - use always 
         the whole population.      
-    log_period = int
-        The log callback is called each log_period iterations. 
+    log_period = int, optional
+        The log callback is called each log_period iterations. As default the callback is never called.
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     logger : logger, optional
         logger for log output for tell_one, If None, logging
         is switched off. Default is a logger which logs both to stdout and
         appends to a file ``optimizer.log``.
+    store : result store, optional
+        if defined the optimization results are added to the result store. For multi threaded execution.
+        use workers=1 if you call minimize from multiple threads
     runid : int, optional
         id used to identify the run for debugging / logging. 
 
@@ -130,7 +134,7 @@ def minimize(mofun,
         lower = [0]*dim
         upper = [0]*dim  
     if workers is None:
-        workers = 0
+        workers = 0        
     array_type = ct.c_double * dim   
     c_callback = mo_call_back_type(callback_mo(mofun, dim, nobj + ncon))
     c_log = mo_call_back_type(log_mo(plot_name, dim, nobj, ncon))
@@ -148,6 +152,8 @@ def minimize(mofun,
             x[p] = res[p*dim : (p+1)*dim]
         y = np.array([mofun(xi) for xi in x])
         x, y = filter(x, y)
+        if not store is None:
+            store.add_results(x, y)
         return x, y
     except Exception as ex:
         return None, None
@@ -165,23 +171,23 @@ class log_mo(object):
     
     def __call__(self, n, x, y):
         try:
-            self.calls += 1
-            arrTypeX = ct.c_double*(self.dim*n)
-            arrTypeY = ct.c_double*(self.nobj*n)
-            xaddr = ct.addressof(x.contents)
-            yaddr = ct.addressof(y.contents)            
-            xbuf = np.frombuffer(arrTypeX.from_address(xaddr))
-            ybuf = np.frombuffer(arrTypeY.from_address(yaddr))
-            xs = []; ys = []
-            for p in range(n):
-                x = xbuf[p*self.dim : (p+1)*self.dim]
-                xs.append(x)
-                y = ybuf[p*self.nobj : (p+1)*self.nobj]
-                ys.append(y)
-            xs = np.array(xs)
-            ys = np.array(ys)
-            print("callback", np.min(ys[:,0]), np.min(ys[:,1]))
             if not self.name is None:
+                self.calls += 1
+                arrTypeX = ct.c_double*(self.dim*n)
+                arrTypeY = ct.c_double*(self.nobj*n)
+                xaddr = ct.addressof(x.contents)
+                yaddr = ct.addressof(y.contents)            
+                xbuf = np.frombuffer(arrTypeX.from_address(xaddr))
+                ybuf = np.frombuffer(arrTypeY.from_address(yaddr))
+                xs = []; ys = []
+                for p in range(n):
+                    x = xbuf[p*self.dim : (p+1)*self.dim]
+                    xs.append(x)
+                    y = ybuf[p*self.nobj : (p+1)*self.nobj]
+                    ys.append(y)
+                xs = np.array(xs)
+                ys = np.array(ys)
+                print("callback", np.min(ys[:,0]), np.min(ys[:,1]))
                 name = self.name + '_' + str(self.calls)
                 np.savez_compressed(name, xs=xs, ys=ys)
                 moretry.plot(name, self.ncon, xs, ys)
