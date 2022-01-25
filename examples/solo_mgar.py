@@ -1,3 +1,8 @@
+# Copyright (c) Dietmar Wolz.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory.
+
 # This code is derived from https://github.com/esa/pykep/pull/127 
 # originally developed by Moritz v. Looz @mlooz . 
 # It was modified following suggestions from Waldemar Martens @MartensWaldemar_gitlab

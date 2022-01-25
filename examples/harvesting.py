@@ -1,3 +1,28 @@
+# Copyright (c) Dietmar Wolz.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory.
+# 
+# This code implements a variant of the multi objective flexible job shop problem
+# and is derived from https://github.com/dietmarwo/fast-cma-es/blob/master/examples/jobshop.py 
+
+# It supports both a multiobjective and the single objective variant utilizing Numba and the optimizers
+# https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp (MO) and
+# https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/include/biteopt.h (SO).
+
+# The FJSP variant implemented here is related to "asteroid harvesting":
+
+# N movable identical factories are deployed on N asteroids to perform operations associated to m jobs.
+# As in FJSP the operations need to be executed in the order specified by the job. 
+# The equivalent to a machine in FJSP is a factory deployment to a specific asteroid. Its resources
+# determine its capability to execute job operations. Therefore - using this simplified
+# model - asteroid harvesting can be viewed as a FJSP with two constraints:
+
+# a) Moving factories is expensive, therefore a factory can only be deployed once on an asteroid, 
+# it is active for a single consecutive time window. 
+# b) The upper limit of active machines (factory deployments) is determined by N, the number
+# of factories. 
+
 import math
 import pandas as pd
 import numpy as np

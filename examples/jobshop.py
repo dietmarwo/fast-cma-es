@@ -1,3 +1,20 @@
+# Copyright (c) Dietmar Wolz.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory.
+# 
+# This code implements the multi objective flexible job shop problem. It supports both the 
+# multiobjective and the single objective variant utilizing Numba and the optimizers
+# https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp (MO) and
+# https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/include/biteopt.h (SO).
+
+# FJSP is to determine the most appropriate machine for each operation (called machine selection)
+# and the sequence of the operations on machines (called operation sequencing). The optimization
+# objective of the FJSP is to minimize some indicators, e.g. makespan, maximum tardiness and total flow
+# time
+# 
+# See https://www.honda-ri.de/pubs/pdf/3949.pdf for an alternative implementation of the same problem.
+
 import math
 import pandas as pd
 import numpy as np
@@ -293,8 +310,8 @@ def optimize(bi):
     fit.chart(x) 
     
 def main():
-   optimize(1)
-   #optall()
+    optimize(1)
+    #optall()
     
 if __name__ == '__main__':
     main()

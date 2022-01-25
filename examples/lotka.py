@@ -1,3 +1,7 @@
+# Copyright (c) Dietmar Wolz.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory.
 
 import time, sys, warnings, math
 

@@ -1,3 +1,8 @@
+# Copyright (c) Dietmar Wolz.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory.
+
 # This code was posted on https://gitter.im/pagmo2/Lobby by 
 # Markus Märtens @CoolRunning and extended by a 
 # fcmaes parallel differential evolution solver for comparison with the pagmo island concept.
