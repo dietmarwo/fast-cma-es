@@ -308,10 +308,10 @@ class Store(object):
         return self.xs[pid*self.dim:(pid+1)*self.dim]
 
     def get_x_best(self):
-        return self.best_x[:]
+        return np.array(self.best_x[:])
     
     def get_xs(self):
-        return [self.get_x(i) for i in range(self.num_stored.value)]
+        return np.array([self.get_x(i) for i in range(self.num_stored.value)])
     
     def get_y(self, pid):
         return self.ys[pid]
@@ -320,7 +320,7 @@ class Store(object):
         return self.best_y.value
     
     def get_ys(self):
-        return self.ys[:self.num_stored.value]
+        return np.array(self.ys[:self.num_stored.value])
              
     def get_y_mean(self):
         return self.mean.value
