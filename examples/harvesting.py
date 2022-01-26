@@ -63,7 +63,7 @@ def scheduling(tasks, n_jobs, n_machines, max_active, start, duration):
         solution['end'].append(int(end))
         solution['job'].append(int(job))
         solution['task'].append(int(task[1]))
-    logger().info('fails = ', fails)
+    logger().info('fails = ' + str(fails))
     return solution
     
 def chart(tasks, n_jobs, n_machines, max_active, start, duration):
