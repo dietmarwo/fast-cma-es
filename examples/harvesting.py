@@ -42,7 +42,7 @@ import jobshop
 def scheduling(tasks, n_jobs, n_machines, max_active, start, duration):
     success, start, stop = adjust_timing(start, duration, max_active)
     if not success:
-        print("timing error")
+        logger().info("timing error")
     machine_time = start # we initialize with the machine startup times
     job_time = np.zeros(n_jobs)
     fails = 0
@@ -63,12 +63,12 @@ def scheduling(tasks, n_jobs, n_machines, max_active, start, duration):
         solution['end'].append(int(end))
         solution['job'].append(int(job))
         solution['task'].append(int(task[1]))
-    print('fails = ', fails)
+    logger().info('fails = ', fails)
     return solution
     
 def chart(tasks, n_jobs, n_machines, max_active, start, duration):
     solution = scheduling(tasks, n_jobs, n_machines, max_active, start, duration)
-    print(solution)
+    logger().info(solution)
     gantt(solution)
     
 @njit(fastmath=True)     

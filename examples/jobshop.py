@@ -123,7 +123,7 @@ def scheduling(tasks, n_jobs, n_machines):
 
 def chart(tasks, n_jobs, n_machines):
     solution = scheduling(tasks, n_jobs, n_machines)
-    print(solution)
+    logger().info(solution)
     gantt(solution)
        
 @njit(fastmath=True)        
