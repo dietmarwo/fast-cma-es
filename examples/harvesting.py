@@ -119,7 +119,7 @@ def adjust_timing(start, duration, max_active):
 def exec_tasks(tasks, n_jobs, n_machines, max_active, start, duration):
     success, start, stop = adjust_timing(start, duration, max_active)
     if not success:
-        return None, None, None, None, None
+        return None, None, None, None
     machine_time = start # we initialize with the machine startup times
     machine_work_time = np.zeros(n_machines)
     job_time = np.zeros(n_jobs)
@@ -136,7 +136,7 @@ def exec_tasks(tasks, n_jobs, n_machines, max_active, start, duration):
         machine_time[machine] = end_time
         job_time[job] = end_time  
         machine_work_time[machine] += time
-    return machine_time, job_time, machine_work_time, np.amin(machine_work_time), fails
+    return machine_time, job_time, machine_work_time, fails
 
 @njit(fastmath=True)
 def filtered_tasks(x, task_data, n_operations, n_machines, job_indices, job_ids):
@@ -177,7 +177,7 @@ class fitness:
         max_time = x[-1]
         start = x[-self.n_machines-1:-1]*max_time
         duration = x[-2*self.n_machines-1:-self.n_machines-1]*max_time
-        machine_time, job_time, machine_work_time, min_work, fails = \
+        machine_time, job_time, machine_work_time, fails = \
             exec_tasks(tasks, self.n_jobs, self.n_machines, self.max_active, start, duration)
         if fails is None: # timing error
             return np.array([0, 0, 0, 10000])

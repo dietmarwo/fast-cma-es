@@ -19,7 +19,7 @@ support parallel fitness function evaluation.
 === Documentation
 
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc[Tutorial], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[Scheduling], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc[Multi-Objective], 
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc[gbea TopTrumps Benchmark], 

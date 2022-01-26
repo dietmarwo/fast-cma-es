@@ -171,7 +171,7 @@ def exec_tasks(tasks, n_jobs, n_machines):
         job_time[job] = end_time  
         machine_work_time[machine] += time
         #print("exec job {0} task {1} machine {2} start {3} end {4}".format(job, int(task[1]), machine, end_time-time, end_time))
-    return machine_time, job_time, machine_work_time, np.amin(machine_work_time)
+    return machine_time, job_time, machine_work_time
 
 @njit(fastmath=True) 
 def filter_tasks(x, tasks, n_operations, n_machines):
@@ -224,7 +224,7 @@ class fitness:
     def fun(self, x): # multi objective function         
         tasks = filtered_tasks(x, self.task_data, self.n_operations, self.n_machines,
                                self.job_indices, self.job_ids)
-        machine_time, job_time, machine_work_time, _ = exec_tasks(tasks, self.n_jobs, self.n_machines)
+        machine_time, job_time, machine_work_time = exec_tasks(tasks, self.n_jobs, self.n_machines)
         span = np.amax(machine_time)
         work = np.sum(machine_work_time)
         wmax = np.amax(machine_work_time)
