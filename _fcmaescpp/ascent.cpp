@@ -39,7 +39,7 @@ double* integrateF8_C(double *yd, double w, double dt, double step) {
     for (int i = 0; i < 3; i++)
         y[i] = yd[i];
 
-//    RK4 integrator;
+    //    RK4 integrator;
     DOPRI45 integrator;
     F8 f8;
     f8.w = w;

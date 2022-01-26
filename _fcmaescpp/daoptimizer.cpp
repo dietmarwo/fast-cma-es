@@ -255,7 +255,7 @@ public:
         double factor5 = 1.0 / (_visiting_param - 1.0) - 0.5;
         double d1 = 2.0 - factor5;
         _factor6 = M_PI * (1.0 - factor5) / sin(M_PI * (1.0 - factor5))
-                / exp(lgamma(d1));
+                        / exp(lgamma(d1));
     }
 
     vec visiting(const vec &x, int step, double temperature) {
@@ -321,11 +321,11 @@ public:
         x = x
                 * exp(
                         -(_visiting_param - 1.0) * log(_factor6 / factor4)
-                                / (3.0 - _visiting_param));
+                        / (3.0 - _visiting_param));
 
         vec den = expv(
                 logv(y.cwiseAbs() * (_visiting_param - 1.0))
-                        / (3.0 - _visiting_param));
+                / (3.0 - _visiting_param));
         return x.cwiseQuotient(den);
     }
 
@@ -438,7 +438,7 @@ public:
     void accept_reject(int j, double e, const vec &x_visit) {
         double r = distr_01(*rs);
         double pqv_temp = (acceptance_param - 1.0) * (e - state->current_energy)
-                / (temperature_step + 1.);
+                        / (temperature_step + 1.);
         double pqv = 0;
         if (pqv_temp < 0.)
             pqv = 0.;
@@ -510,7 +510,7 @@ public:
         if (K < 90 * state->current_location.size()) {
             double pls = exp(
                     K * (state->ebest - state->current_energy)
-                            / temperature_step);
+                    / temperature_step);
             if (pls >= distr_01(*rs))
                 do_ls = true;
         }

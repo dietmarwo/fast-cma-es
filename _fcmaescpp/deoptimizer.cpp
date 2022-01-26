@@ -158,7 +158,7 @@ public:
 
         // -------------------- Generation Loop --------------------------------
         for (iterations = 1; fitfun->evaluations() < maxEvaluations
-        		&& !fitfun->terminate(); iterations++) {
+        && !fitfun->terminate(); iterations++) {
 
             CR = iterations % 2 == 0 ? 0.5 * CR0 : CR0;
             F = iterations % 2 == 0 ? 0.5 * F0 : F0;
@@ -220,41 +220,41 @@ public:
     }
 
     void do_optimize_delayed_update(int workers) {
-    	 iterations = 0;
-    	 fitfun->resetEvaluations();
-         workers = std::min(workers, popsize); // workers <= popsize
-    	 evaluator eval(fitfun, 1, workers);
-         int evals_size = popsize*10;
-    	 vec evals_x[evals_size];
-   	     int evals_p[evals_size];
-         int cp = 0; 
-         
-	     // fill eval queue with initial population
-    	 for (int i = 0; i < workers; i++) {
-    		 int p;
-    		 vec x = ask(p);
-    		 eval.evaluate(x, cp);
-    		 evals_x[cp] = x;
-    		 evals_p[cp] = p;
-             cp = (cp + 1) % evals_size;             
-    	 }
-    	 while (fitfun->evaluations() < maxEvaluations && !fitfun->terminate()) {
-    		 vec_id* vid = eval.result();
-    		 vec y = vec(vid->_v);
-    		 int id = vid->_id;
-    		 delete vid;
-    		 vec x = evals_x[id];
-             int p = evals_p[id];
-    		 tell(y(0), x, p); // tell evaluated x
-    		 if (fitfun->evaluations() >= maxEvaluations)
-    			 break;
-    		 x = ask(p);
-    		 eval.evaluate(x, cp);
-    		 evals_x[cp] = x;
-    		 evals_p[cp] = p;
-             cp = (cp + 1) % evals_size; 
-    	 }
-	}
+        iterations = 0;
+        fitfun->resetEvaluations();
+        workers = std::min(workers, popsize); // workers <= popsize
+        evaluator eval(fitfun, 1, workers);
+        int evals_size = popsize*10;
+        vec evals_x[evals_size];
+        int evals_p[evals_size];
+        int cp = 0;
+
+        // fill eval queue with initial population
+        for (int i = 0; i < workers; i++) {
+            int p;
+            vec x = ask(p);
+            eval.evaluate(x, cp);
+            evals_x[cp] = x;
+            evals_p[cp] = p;
+            cp = (cp + 1) % evals_size;
+        }
+        while (fitfun->evaluations() < maxEvaluations && !fitfun->terminate()) {
+            vec_id* vid = eval.result();
+            vec y = vec(vid->_v);
+            int id = vid->_id;
+            delete vid;
+            vec x = evals_x[id];
+            int p = evals_p[id];
+            tell(y(0), x, p); // tell evaluated x
+            if (fitfun->evaluations() >= maxEvaluations)
+                break;
+            x = ask(p);
+            eval.evaluate(x, cp);
+            evals_x[cp] = x;
+            evals_p[cp] = p;
+            cp = (cp + 1) % evals_size;
+        }
+    }
 
     void init() {
         popX = mat(dim, popsize);

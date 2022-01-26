@@ -41,7 +41,7 @@ public:
     }
 
     inline size_t size() {
-    	std::unique_lock<std::mutex> lock(_mutex);
+        std::unique_lock<std::mutex> lock(_mutex);
         return _queue.size();
     }
 
@@ -60,12 +60,12 @@ public:
     // Retrieves and removes the head of this queue,
     // waiting if necessary until an element becomes available.
     inline const T& take() {
-		std::unique_lock<std::mutex> lock(_mutex);
-		while (_queue.size() == 0)
-			_not_empty.wait(lock);
-		T& front = _queue.front();
-		_queue.pop();
-    	_not_full.notify_one();
+        std::unique_lock<std::mutex> lock(_mutex);
+        while (_queue.size() == 0)
+            _not_empty.wait(lock);
+        T& front = _queue.front();
+        _queue.pop();
+        _not_full.notify_one();
         return front;
     }
 };
@@ -112,7 +112,7 @@ static vec zeros(int n) {
 
 
 static vec constant(int n, double val) {
-	return  Eigen::MatrixXd::Constant(n, 1, val);
+    return  Eigen::MatrixXd::Constant(n, 1, val);
 }
 
 struct IndexVal {
@@ -157,7 +157,7 @@ public:
 
     Fitness(callback_type func, int dim, int nobj, const vec &lower,
             const vec &upper) :
-            	_func(func), _dim(dim), _nobj(nobj), _lower(lower), _upper(upper) {
+                _func(func), _dim(dim), _nobj(nobj), _lower(lower), _upper(upper) {
         _scale = _upper - _lower;
         _typx = 0.5 * (_upper + _lower);
         _evaluationCounter = 0;
@@ -166,7 +166,7 @@ public:
     }
 
     bool terminate() {
-    	return _terminate;
+        return _terminate;
     }
 
     vec eval(const vec &X) {
@@ -174,7 +174,7 @@ public:
         _terminate = _terminate || _func(_dim, X.data(), res);
         for (int i = 0; i < _nobj; i++) {
             if (std::isnan(res[i]) || !std::isfinite(res[i]))
-               res[i] = 1E99;      
+                res[i] = 1E99;
         }
         _evaluationCounter++;
         vec rvec = Eigen::Map<vec, Eigen::Unaligned>(res, _nobj);
@@ -186,7 +186,7 @@ public:
         _terminate = _terminate || _func(_dim, p, res);
         for (int i = 0; i < _nobj; i++) {
             if (std::isnan(res[i]) || !std::isfinite(res[i]))
-               res[i] = 1E99;      
+                res[i] = 1E99;
         }
         _evaluationCounter++;
         vec rvec = Eigen::Map<vec, Eigen::Unaligned>(res, _nobj);
@@ -208,16 +208,16 @@ public:
     }
 
     void setClosestFeasible(mat &X) const {
-		for (int i = 0; i < X.cols(); i++)
-			X.col(i) = X.col(i).cwiseMin(_upper).cwiseMax(_lower);
+        for (int i = 0; i < X.cols(); i++)
+            X.col(i) = X.col(i).cwiseMin(_upper).cwiseMax(_lower);
     }
 
     vec norm(const vec &X) const {
-    	return ((X - _lower).array() / _scale.array()).matrix();
+        return ((X - _lower).array() / _scale.array()).matrix();
     }
 
     double norm_i(int i, double x) const {
-    	return (x - _lower[i]) / _scale[i];
+        return (x - _lower[i]) / _scale[i];
     }
 
     bool feasible(int i, double x) {
@@ -225,8 +225,8 @@ public:
     }
 
     vec sample(pcg64 &rs) {
-		vec rv = uniformVec(_dim, rs);
-		return (rv.array() * _scale.array()).matrix() + _lower;
+        vec rv = uniformVec(_dim, rs);
+        return (rv.array() * _scale.array()).matrix() + _lower;
     }
 
     double sample_i(int i, pcg64 &rs) {
@@ -240,7 +240,7 @@ public:
     void resetEvaluations() {
         _evaluationCounter = 0;
     }
-    
+
     void incrEvaluations() {
         _evaluationCounter++;
     }
@@ -297,8 +297,8 @@ private:
 struct vec_id {
 public:
 
-	vec_id(const vec &v, int id) : _id(id), _v(v) {
-	}
+    vec_id(const vec &v, int id) : _id(id), _v(v) {
+    }
 
     int _id;
     vec _v;
@@ -307,55 +307,55 @@ public:
 class evaluator {
 public:
 
-	evaluator(Fitness* fit, int nobj, int workers) :
-		_fit(fit), _nobj(nobj), _workers(workers), _stop(false) {
-		_requests = new blocking_queue<vec_id*>(2*workers);
-		_evaled = new blocking_queue<vec_id*>(2*workers);
-		_t0 = Clock::now();
+    evaluator(Fitness* fit, int nobj, int workers) :
+        _fit(fit), _nobj(nobj), _workers(workers), _stop(false) {
+        _requests = new blocking_queue<vec_id*>(2*workers);
+        _evaled = new blocking_queue<vec_id*>(2*workers);
+        _t0 = Clock::now();
         if (_workers <= 0)
             _workers = std::thread::hardware_concurrency();
         for (int thread_id = 0; thread_id < _workers; thread_id++) {
-        	_jobs.push_back(evaluator_job(thread_id, this));
+            _jobs.push_back(evaluator_job(thread_id, this));
         }
-	}
+    }
 
-   ~evaluator() {
-	   	join();
-		delete _requests;
-		delete _evaled;
-	}
+    ~evaluator() {
+        join();
+        delete _requests;
+        delete _evaled;
+    }
 
     void evaluate(vec &x, int id) {
-    	_requests->put(new vec_id(x, id));
+        _requests->put(new vec_id(x, id));
     }
 
     // needs to be deleted
     vec_id* result() {
-    	return _evaled->take();
+        return _evaled->take();
     }
 
     void execute(int thread_id) {
         while (!_stop) {
-        	vec_id* vid = _requests->take();
-        	if (!_stop) {
-				try {
-					vid->_v = _fit->eval(vid->_v);
-				} catch (std::exception &e) {
-					std::cout << e.what() << std::endl;
-					vid->_v = constant(_nobj, DBL_MAX);
-				}
-				_evaled->put(vid);
-        	} else
-        		delete vid;
+            vec_id* vid = _requests->take();
+            if (!_stop) {
+                try {
+                    vid->_v = _fit->eval(vid->_v);
+                } catch (std::exception &e) {
+                    std::cout << e.what() << std::endl;
+                    vid->_v = constant(_nobj, DBL_MAX);
+                }
+                _evaled->put(vid);
+            } else
+                delete vid;
         }
     }
 
     void join() {
-    	_stop = true;
-    	vec x(0);
-    	// to release all locks
+        _stop = true;
+        vec x(0);
+        // to release all locks
         for (auto &job : _jobs) {
-        	_requests->put(new vec_id(x, 0));
+            _requests->put(new vec_id(x, 0));
         }
         for (auto &job : _jobs) {
             job.join();
@@ -366,19 +366,19 @@ private:
 
     class evaluator_job {
 
-	public:
-		evaluator_job(int id, evaluator *exec) {
-			_thread = std::thread(&evaluator::execute, exec, id);
-		}
+    public:
+        evaluator_job(int id, evaluator *exec) {
+            _thread = std::thread(&evaluator::execute, exec, id);
+        }
 
-		void join() {
-			if (_thread.joinable())
-				_thread.join();
-		}
+        void join() {
+            if (_thread.joinable())
+                _thread.join();
+        }
 
-	private:
-		std::thread _thread;
-	};
+    private:
+        std::thread _thread;
+    };
 
     Fitness* _fit;
     int _nobj;

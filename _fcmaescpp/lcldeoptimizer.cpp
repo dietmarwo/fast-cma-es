@@ -114,8 +114,8 @@ public:
         if (sigma_.size() == 1)
             sigma0 =
                     0.5
-                            * (scale.array()
-                                    * (vec::Constant(dim, sigma_[0])).array()).matrix();
+                    * (scale.array()
+                            * (vec::Constant(dim, sigma_[0])).array()).matrix();
         else
             sigma0 = 0.5 * (scale.array() * sigma_.array()).matrix();
         sigma = vec(sigma0);
@@ -308,7 +308,7 @@ public:
                 //Produce the CR and F
                 double mu = 1
                         - sqrt(float(iterations / maxIter))
-                                * exp(float(-gen_stuck / iterations));
+                        * exp(float(-gen_stuck / iterations));
                 if (iterations % 2 == 1) {
                     CR = normreal(0.95, 0.01, *rs);
                     F = normreal(mu, 1, *rs);
@@ -323,10 +323,10 @@ public:
                     if (j == jr || rnd01() < CR) {
                         if (r3 < popsize)
                             ui[j] = popX(j, r1)
-                                    + F * (popX(j, r2) - popX(j, r3));
+                            + F * (popX(j, r2) - popX(j, r3));
                         else
                             ui[j] = popX(j, r1)
-                                    + F * ((popX)(j, r2) - sp[r3 - popsize][j]);
+                            + F * ((popX)(j, r2) - sp[r3 - popsize][j]);
                         if (!fitfun->feasible(j, ui[j]))
                             ui[j] = fitfun->normXi(j);
                     }

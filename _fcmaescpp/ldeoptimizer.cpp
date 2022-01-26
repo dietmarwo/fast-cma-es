@@ -110,8 +110,8 @@ public:
         if (sigma_.size() == 1)
             sigma0 =
                     0.5
-                            * (scale.array()
-                                    * (vec::Constant(dim, sigma_[0])).array()).matrix();
+                    * (scale.array()
+                            * (vec::Constant(dim, sigma_[0])).array()).matrix();
         else
             sigma0 = 0.5 * (scale.array() * sigma_.array()).matrix();
         sigma = vec(sigma0);
