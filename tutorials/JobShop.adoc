@@ -559,7 +559,7 @@ with `makespan = 216`, quite comparable to the best solutions ever found using s
 
 image::brandi10.216b.png[]
 
-The optimization needed 34644 seconds, 5366235220 function evaluations, `retry_modecpp` was called using 
+The optimization needed 34644 seconds, 5366235220 function evaluations.
 
 [source,python]
 ----
