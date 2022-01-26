@@ -101,6 +101,31 @@ def gantt(data):
     plt.savefig('gantt.png')
     plt.show()
 
+def scheduling(tasks, n_jobs, n_machines):
+    machine_time = np.zeros(n_machines)
+    job_time = np.zeros(n_jobs)
+    solution = {'machine': [], 'start': [], 'end': [], 'job': [], 'task':[]}
+    for task in tasks:
+        job = int(task[0])
+        machine = int(task[2])
+        time = task[3]
+        # previous task needs to be finished and machine needs to be available
+        start = max(machine_time[machine], job_time[job])
+        end = start + time
+        machine_time[machine] = end
+        job_time[job] = end  
+        solution['machine'].append(int(machine))
+        solution['start'].append(int(start))
+        solution['end'].append(int(end))
+        solution['job'].append(int(job))
+        solution['task'].append(int(task[1]))
+    return solution
+
+def chart(tasks, n_jobs, n_machines):
+    solution = scheduling(tasks, n_jobs, n_machines)
+    print(solution)
+    gantt(solution)
+       
 @njit(fastmath=True)        
 def job_indices(tasks):
     indices = []
@@ -120,7 +145,8 @@ def job_indices(tasks):
     return np.array(indices), np.array(ids)
 
 @njit(fastmath=True) 
-def reorder(tasks, order, n_operations, ids, job_indices):
+def reorder(tasks, order, n_operations, job_ids, job_indices):
+    ids = job_ids[order]
     ordered = np.empty((n_operations,4))
     op_index = np.zeros(n_operations, dtype=numba.int32)
     for i in range(n_operations):
@@ -148,7 +174,7 @@ def exec_tasks(tasks, n_jobs, n_machines):
     return machine_time, job_time, machine_work_time, np.amin(machine_work_time)
 
 @njit(fastmath=True) 
-def filter_tasks(tasks, selection, n_operations):
+def filter_tasks(x, tasks, n_operations, n_machines):
     n = tasks.shape[0]
     operations = np.empty((n_operations,4))
     j = 0
@@ -157,7 +183,7 @@ def filter_tasks(tasks, selection, n_operations):
     for i in range(n+1):
         if i == n or tasks[i][0] != last[0] or tasks[i][1] != last[1]: # new operation
             m = i - last_i
-            sel_i = int(selection[j]) % m
+            sel_i = int(x[j]*10*n_machines) % m
             selected = tasks[last_i + sel_i]
             operations[j,:] = selected
             last_i = i
@@ -166,50 +192,13 @@ def filter_tasks(tasks, selection, n_operations):
             last = tasks[i]
     return operations
 
-@njit(fastmath=True) 
-def get_selection(x, n_operations, n_machines):
-    selection = np.zeros(n_operations, dtype=numba.int32)
-    for i in range(n_operations):
-        selection[i] = int(x[i]*10*n_machines)
-    return selection
-
-@njit(fastmath=True) 
-def get_order(x, n_operations):
-    return np.argsort(x[n_operations:])
-
 @njit(fastmath=True)
 def filtered_tasks(x, task_data, n_operations, n_machines, job_indices, job_ids):
-    selection = get_selection(x, n_operations, n_machines)
-    operations = filter_tasks(task_data, selection, n_operations)
-    order = get_order(x, n_operations)
-    tasks = reorder(operations, order, n_operations, job_ids[order], job_indices)
+    operations = filter_tasks(x, task_data, n_operations, n_machines)
+    order = np.argsort(x[n_operations:])
+    tasks = reorder(operations, order, n_operations, job_ids, job_indices)
     return tasks
 
-def scheduling(tasks, n_jobs, n_machines):
-    machine_time = np.zeros(n_machines)
-    job_time = np.zeros(n_jobs)
-    solution = {'machine': [], 'start': [], 'end': [], 'job': [], 'task':[]}
-    for task in tasks:
-        job = int(task[0])
-        machine = int(task[2])
-        time = task[3]
-        # previous task needs to be finished and machine needs to be available
-        start = max(machine_time[machine], job_time[job])
-        end = start + time
-        machine_time[machine] = end
-        job_time[job] = end  
-        solution['machine'].append(int(machine))
-        solution['start'].append(int(start))
-        solution['end'].append(int(end))
-        solution['job'].append(int(job))
-        solution['task'].append(int(task[1]))
-    return solution
-
-def chart(tasks, n_jobs, n_machines):
-    solution = scheduling(tasks, n_jobs, n_machines)
-    print(solution)
-    gantt(solution)
-       
 class fitness: 
 
     def __init__(self, task_data, bounds, n_jobs, n_operations, n_machines, name):
@@ -277,11 +266,11 @@ def retry_modecpp(fit, retry_num = 32, popsize = 48, max_eval = 500000, workers=
     xs, ys = store.get_front()   
     return xs, ys
  
-def optall():
+def optall(multi_objective = True):
     for i in range(1,16):
-        optimize(i)
+        optimize(i, multi_objective)
 
-def optimize(bi): 
+def optimize(bi, multi_objective = True): 
     name = "BrandimarteMk" + str(bi)
     tasks, n_jobs, n_machines, n_operations, _ = read_fjs("data/1_Brandimarte/" + name + ".fjs")
     
@@ -291,8 +280,6 @@ def optimize(bi):
     upper_bound = np.zeros(dim)
     upper_bound[:] = 0.9999999
     bounds = Bounds(lower_bound, upper_bound)
-    
-    multi_objective = True 
           
     fit = fitness(tasks, bounds, n_jobs, n_operations, n_machines, name)
     
@@ -300,18 +287,17 @@ def optimize(bi):
         xs, front = retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16)
         logger().info(name + " retry_modecpp(mo_problem, retry_num=32, popsize = 48, max_eval = 960000, workers=16)" )
         logger().info(str([tuple(y) for y in front]))
-        x = xs[0]
     else:    
         store = retry.Store(fit, bounds, logger=logger()) 
         logger().info(name + " Bite_cpp(960000,M=1).minimize, num_retries=256)" )
         retry.retry(store, Bite_cpp(960000,M=1).minimize, num_retries=256)    
-        x = store.get_xs()[0]
     
-    fit.chart(x) 
+    return fit, xs
     
 def main():
-    optimize(1)
-    #optall()
+    #optall(multi_objective = True)
+    fit, xs = optimize(1, multi_objective = True)
+    fit.chart(xs[0]) 
     
 if __name__ == '__main__':
     main()
