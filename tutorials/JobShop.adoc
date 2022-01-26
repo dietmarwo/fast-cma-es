@@ -1,0 +1,578 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+== Solving the flexible job shop scheduling problem using continuous optimization
+
+Production scheduling is concerned with allocating available
+production resources to tasks and deciding the sequence of operations so that all constraints are met and
+the optimization objectives are optimized. 
+
+The Flexible job shop problem (FJSP) determines the most appropriate machine for each operation (called machine selection)
+and the sequence of the operations on machines (called operation sequencing). The optimization
+objective is to minimize makespan, maximum tardiness and some other indicators. 
+
+There are many commercial tools applicable like
+https://www.researchgate.net/publication/323859275_IBM_ILOG_CP_optimizer_for_scheduling_20_years_of_scheduling_with_constraints_at_IBMILOG[CP]
+or https://www.localsolver.com/benchmarkfjsp.html[LocalSolver and Gurobi].
+So we will focus on an aspect these tools are not as good at: Optimizing for multiple objectives computing a 
+so called "pareto front", a set of "optimal" solutions where improving one variable is impossible without harming the others. 
+It can be seen as a list of "choices" were we can choose the compromise we will finally accept. 
+For ILOG_CP you can formulate multiple objectives, but you have to prioritize them in advance. 
+
+And, in case you don't have a commercial tool available, we also will address the single objective case. 
+The solution showed here may also be interesting for very large problem instances, 
+where the number of constraints handled by ILOG_CP can easily explode. We apply the highly efficient optimizers 
+https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe] and
+https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/include/biteopt.h[BiteOpt] implemented in {cpp}.
+
+The full Python code for this tutorial is here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/jobshop.py[jobshop.py] and
+here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/harvesting.py[harvesting.py]
+
+We will also show how to handle:
+
+- additional constraints, like the maximal number of machines which can be active at a given time. 
+- relaxations, like the sequence ordering of the operations relaxed to an acyclic graph. 
+
+Using continuous optimization for a problem with discrete input variables (selection and sequence) may look a bit strange, 
+but is actually a quite common application, see for instance https://onlinelibrary.wiley.com/doi/10.1111/itor.12199[overview 1]
+or https://www.researchgate.net/publication/333946807_Review_on_flexible_job_shop_scheduling[overview 2]. One 
+reason may be that the "indirect encoding" of the real parameters can resolve constraints in a flexible and efficient way. 
+
+==== Indirect Encoding
+
+A decoder is required to express the parameters given by their encoding as a vector of continuous variables. 
+The constraints associated with the optimization problem are handled by the decoder and will 
+guarantee the validity of the solution. 
+
+See as an example the sequence constraint. For each job the sequence of the 
+operation execution is determined by parts of our continuous (float) input vector `x` extracted by `x[n_operations:]` .
+First we apply the numpy argsort operator resulting of an array of integer values representing the order of its input. 
+
+[source,python]
+---- 
+order = np.argsort(x[n_operations:])
+----        
+
+The encoding operation is now performed by the `reorder` operation in a tricky way to avoid an expensive 
+nested loop. `job_ids` and `job_indices` look like `1,1,1,2,2,2,2,3,3,...` and `0,3,7,...`.
+
+[source,python]
+---- 
+@njit(fastmath=True) 
+def reorder(tasks, order, n_operations, job_ids, job_indices):
+    ids = job_ids[order]
+    ordered = np.empty((n_operations,4))
+    op_index = np.zeros(n_operations, dtype=numba.int32)
+    for i in range(n_operations):
+        machine = ids[i]
+        index = job_indices[machine] + op_index[machine]
+        op_index[machine] += 1
+        ordered[i] = tasks[index]
+    return ordered
+----        
+
+Using an encoder enforcing the constraint means we can easily relax the constraint by enforcing only
+a partial order `order_relation` - this time we need a nested loop and have to rely on 
+https://numba.pydata.org/[Numba's] capabilities to speed up its execution. 
+
+[source,python]
+---- 
+@njit(fastmath=True) 
+def reorder(tasks, order_relation):
+    n = tasks.shape[0]
+    for i in range(n):
+        for j in range(i+1, n):           
+            if tasks[i][0] == tasks[j][0]: # same job
+                if not order_relation(tasks[i][1], tasks[j][1]): # swap if task order doesn't fit
+                    tasks[i], tasks[j] = tasks[j].copy(), tasks[i].copy()
+    return tasks
+----        
+
+==== Objective function
+
+First let us formulate the flexible job shop problem (FJSP) more precisely:
+
+A set of jobs must be processed on a set of machines uninterruptedly, 
+where each job is a sequence of consecutive operations. Each operation
+can alternatively be executed on a specific set of machines, were
+the execution time is machine-specific. Machines are continuously available 
+and can process one operation at a time. A solution to this problem is a schedule
+and an operation-machine assignment. 
+
+Here is a solution of the problem for Brandimartes first benchmark instance
+(which can be downloaded here https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip[Kefalas]). 
+
+image::brandi1.40.png[]
+
+Colors represent jobs and the numbers are associated to the operations. As you can see, the
+operations of each job are executed sequentially. Executing the tutorial code
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/jobshop.py[jobshop.py] results in
+a similar Gantt diagram generated from a freshly computed solution. 
+
+As objectives we define
+
+- makespan: maximum of the completion time for all jobs
+- total workload: sum of the execution time for all operations
+- maximum workload: maximum of the overall execution time for all machines
+
+as in https://www.honda-ri.de/pubs/pdf/3949.pdf[Honda]. 
+This paper can also be found at https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip[Kefalas] accompanied by 
+their Python-implementation, their results and problem instances we use for comparison. 
+Compared to their implementation ours is much more focused on efficiency - 
+the number of function evaluations performed per second. 
+ 
+As a user of a method you want to obtain a reasonable result investing a specific amount of time. 
+If an implementation is 20x faster and
+needs 10x evaluations you don't care about the number of evaluations. you get the result
+twice as fast. Both implementations rely on Python multithreading, but the scaling
+achieved is vastly different, because we parallelize whole optimizations, not objective
+function evaluations. This reduces the number of processes created and killed
+and the corresponding overhead. Beside that we use https://numba.pydata.org/[Numba] which implies that
+the objective function needs to be implemented based on vectors (numpy arrays) instead
+of classes/objects.  
+
+==== Implementation
+
+First the problem is converted into a list of 4-tuples:
+(job-id, operation-id, machine-id, execution-time) where each of the ids is an integer
+and the execution-time a float value. Each possible machine assignment
+for a job/operation results in a separate tuple listed consecutively in
+the list. 
+
+The objective function performs four operations:
+
+1) Filtering tuples so that only one machine assignment per job/operation is kept. 
+The selection is performed according to the input vector. 
+
+2) Reordering of the filtered list according to the input vector thereby maintaining
+   the sequence constraint.  
+   
+3) Executing the operations represented by the final tuple list in the given order. 
+The assigned machine is used as soon as it becomes available and the 
+previous operation of the same job is completed. 
+
+4) Collecting our objectives.
+
+In the Python code (see https://github.com/dietmarwo/fast-cma-es/blob/master/examples/jobshop.py[jobshop.py]) this looks as follows:
+
+[source,python]
+---- 
+    # step 1 + 2
+    tasks = filtered_tasks(x, self.task_data, self.n_operations, self.n_machines, 
+                           self.job_indices, self.job_ids)
+    # step 3               
+    machine_time, job_time, machine_work_time, min_work = exec_tasks(tasks, self.n_jobs, self.n_machines)
+    # step 4
+    span = np.amax(machine_time)
+    work = np.sum(machine_work_time)
+    wmax = np.amax(machine_work_time)
+----
+
+Step 1 and 2 are performed in `filtered_tasks`.
+
+[source,python]
+---- 
+    @njit(fastmath=True)
+    def filtered_tasks(x, task_data, n_operations, n_machines, job_indices, job_ids):
+        # step 1
+        operations = filter_tasks(x, task_data, n_operations, n_machines)
+        order = np.argsort(x[n_operations:])
+        # step 2
+        tasks = reorder(operations, order, n_operations, job_ids, job_indices)
+        return tasks
+----
+
+Execution of the resulting list of operations (called "tasks") is straightforward. 
+We maintain the actual time for each machine and job - when the current job finishes - 
+and the sum of the execution times for each machine. 
+
+[source,python]
+---- 
+    @njit(fastmath=True) 
+    def exec_tasks(tasks, n_jobs, n_machines):
+        machine_time = np.zeros(n_machines)
+        machine_work_time = np.zeros(n_machines)
+        job_time = np.zeros(n_jobs)
+        for task in tasks:
+            job = int(task[0])
+            machine = int(task[2])
+            time = task[3]
+            # previous task needs to be finished and machine needs to be available
+            end_time = max(machine_time[machine], job_time[job]) + time
+            machine_time[machine] = end_time
+            job_time[job] = end_time  
+            machine_work_time[machine] += time
+        return machine_time, job_time, machine_work_time, np.amin(machine_work_time)
+----
+
+For single objective optimization we use the weighted sum approach after calling the multi-objective function `fun`: 
+
+[source,python]
+----
+   def __call__(self, x): # single objective function        
+        ys = self.fun(x)
+        return sum(self.weights*ys) # weighted sum   
+----
+
+As multi-objective optimizer we use https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe]
+implemented in {cpp}. We call it single threaded because we parallelize the whole optimization process. 
+
+[source,python]
+----
+    def run_modecpp(pid, rgs, problem, popsize, max_eval, nsga_update, store):
+        modecpp.minimize(problem.fun, problem.nobj, problem.ncon, 
+                problem.bounds, popsize=popsize,
+                max_evaluations=max_eval, nsga_update=nsga_update, workers=1, rg=rgs[pid], store=store) 
+----
+
+For collecting of the optimization results - the pareto front computed by each optimization - we use `mode.store`,
+which uses a `multiprocessing.Lock` to enable parallel access. 
+
+[source,python]
+----
+    def retry_modecpp(fit, retry_num = 32, popsize = 48, max_eval = 500000, workers=mp.cpu_count()):
+        store = mode.store(len(fit.bounds.lb), fit.nobj + fit.ncon, retry_num*popsize*2)
+        i = 0
+        while i < retry_num:
+            sg = SeedSequence()
+            rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
+            proc=[Process(target=run_modecpp, # nsga_update method 
+                   args=(pid, rgs, fit, popsize, max_eval, True, store)) for pid in range(workers)]
+            [p.start() for p in proc]
+            [p.join() for p in proc]
+            i += workers
+            logger().info("evals = {0}: time = {1:.1f} i = {2}: y = {3:.2f}"
+                    .format(fit.evals.value, dtime(fit.t0), i, fit.best_y.value))
+        xs, ys = store.get_front()   
+        return xs, ys
+----
+
+Note that initialization of the random generators has to be done carefully to get independent random numbers for each
+process. https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe]
+provides two population update mechanisms: One derived from NSGA-II and one from DE. Experiments have shown that for this 
+application the NSGA-II-update works better. Normally the recommendation would be to choose the mechanism randomly
+(`nsga_update=np.random.random() > 0.5`) to improve diversification, but not in this case.
+Note that this algorithm uses (if configured) the NSGA-II population update, but differs in other aspects
+significantly from NSGA-II. There is no tournament selection and MoDe can handle constraints. 
+
+For single objective optimization https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/include/biteopt.h[BiteOpt]
+from https://github.com/avaneev[Aleksey Vaneev] works very good. Parallel optimization is already covered by `fcmaes.retry`.
+
+[source,python]
+----
+    store = retry.Store(fit, bounds, logger=logger()) 
+    logger().info(name + " Bite_cpp(960000,M=1).minimize, num_retries=256)" )
+    retry.retry(store, Bite_cpp(960000,M=1).minimize, num_retries=256)    
+---- 
+
+=== Asteroid harvesting
+
+We implemented a variation of FJSP https://github.com/dietmarwo/fast-cma-es/blob/master/examples/harvesting.py[harvesting.py]
+to illustrate how easy it is to add additional constraints. 
+The scenario is related to the fact that resources on our planet are more and more depleted. 
+One possible solution involves the harvesting of resources - and the production of goods using these - 
+on asteroids. This idea leads to the following problem:
+
+N movable identical factories are deployed on N asteroids to perform operations associated to m jobs.
+As in FJSP the operations need to be executed in the order specified by the job. 
+The equivalent to a machine in FJSP is a factory deployment to a specific asteroid. Its resources
+determine its capability to execute job operations. Therefore - using this simplified
+model - asteroid harvesting can be viewed as a FJSP with two additional constraints:
+
+- Moving factories is expensive, therefore a factory can only be deployed once on an asteroid, 
+ it is active for a single consecutive time window. 
+- The upper limit of active machines (factory deployments) is determined by N, the number
+ of factories. 
+
+Here is a solution of the problem for Brandimartes first benchmark problem instance
+with an upper limit of 4 active factories. 
+
+image::brandi1.45.png[]
+
+Executing the tutorial code
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/harvesting.py[harvesting.py] results in
+a similar Gantt diagram generated from a freshly computed solution. 
+
+This kind of constraint is not new, using ILOG CP you can express it and compute a solution.
+So our focus is again on the multi-objective variant of the problem.  
+
+==== Implementation
+
+The main difference compared to the FJSP implementation above 
+is that we have `2*n_machines+1` additional input variables:
+
+- The upper time limit any machine/factory can be active (`max_time`).
+- The start times each machine is activated (the factory is moved to the corresponding asteroid) (`start`).
+- The duration each machine remains active (the factory stays at the asteroid). (`duration`).
+
+[source,python]
+---- 
+    max_time = x[-1]
+    start = x[-self.n_machines-1:-1]*max_time
+    duration = x[-2*self.n_machines-1:-self.n_machines-1]*max_time
+    machine_time, job_time, machine_work_time, min_work, fails = \
+        exec_tasks(tasks, self.n_jobs, self.n_machines, self.max_active, start, duration)
+    if fails is None: # timing error
+        return np.array([0, 0, 0, 10000])
+----
+
+`exec_tasks` will now - as part of the constraint enforcing parameter encoding - call
+`adjust_timing` which shifts the timing so that the `max_active` constraint is fulfilled: 
+
+[source,python]
+---- 
+@njit(fastmath=True) 
+def exec_tasks(tasks, n_jobs, n_machines, max_active, start, duration):
+    success, start, stop = adjust_timing(start, duration, max_active)
+    if not success:
+        return None, None, None, None, None
+    ...
+    return machine_time, job_time, machine_work_time, np.amin(machine_work_time), fails
+----
+
+- Note that `adjust_timing` may fail. In this case the objective function will return a very high
+value to guide the optimization towards valid timings. 
+- There is an additional return value `fails` counting the number of operations which cannot
+be executed. This happens when the selected machine is already shut down (the factory moved to another asteroid). 
+
+[source,python]
+---- 
+    end_time = max(machine_time[machine], job_time[job]) + time
+    if end_time > stop[machine]: # machine already shut down
+        fails += 1 # failure to execute task at all
+----
+
+`fails` should not be handled simply as another objective, since all solutions with `fails > 0` are
+invalid. Reduction of `fails` should be prioritized by the optimization process. Luckily 
+'modecpp.minimize' supports constraints as a special kind of objective. 
+
+We don't have to change `run_modecpp`:
+
+[source,python]
+----
+def run_modecpp(pid, rgs, problem, popsize, max_eval, nsga_update, store):
+    modecpp.minimize(problem.fun, problem.nobj, problem.ncon, 
+                    problem.bounds, popsize = popsize,
+                    max_evaluations = max_eval, nsga_update=nsga_update, workers = 1, rg = rgs[pid], store = store) 
+----
+
+but just have to declare the new objective as constraint:
+
+[source,python]
+----
+class fitness: 
+
+    def __init__(self, task_data, bounds, n_jobs, n_operations, n_machines, max_active, name):
+        ...
+        self.nobj = 3
+        self.ncon = 1
+        ...
+----
+
+Of course this doesn't work for single objective optimization, where we have to assign a high weight to the constraint: 
+
+[source,python]
+----
+self.weights = np.array([1, 02, 001, 1000]) # only used for single objective optimization 
+----
+
+=== Results 
+
+All results may be reproduced by executing:
+
+[source,python]
+----
+    optall(multi_objective = True)
+----
+
+For FJSP whe can compare with Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip[Kefalas] . 
+Unfortunately no timings are given there. We tried to reproduce their results using the Python code but got
+slightly worse results - probably a parameterization issue.
+
+Note that there exists no results in the literature for Mk11-15, probably because these benchmarks are hard
+to find. Luckily they are included in https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip[Kefalas].
+ 
+Our timings are produced using a 16 core AMD 5950x CPU using 16 threads. Hyperthreading (`workers= mp.cpu_count()`)
+only helps for the single objective optimization using BiteOpt.   
+
+[source,python]
+----
+Results
+===============
+
+Mk01: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip 
+
+[(40, 168, 37),  (40, 174, 36),  (41, 167, 36),  (41, 162, 39),  (41, 165, 37),  (41, 164, 38),  (42, 159, 39),  (42, 160, 38),  (42, 163, 37),  (42, 165, 36),  (43, 155, 40),  (43, 158, 39),  (44, 154, 40),  (46, 153, 42)]
+
+Mk01: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 49.3s
+
+[(40, 165, 37), (40, 167, 36), (41, 162, 38), (41, 163, 37), (41, 160, 39), (42, 160, 38), (42, 165, 36), (42, 157, 40), (42, 158, 39), (43, 155, 40), (44, 154, 40), (46, 153, 42)]
+
+
+================
+Mk02: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip
+
+[(29, 150, 26),  (29, 144, 28),  (29, 145, 27),  (30, 143, 29),  (31, 141, 31),  (31, 142, 30),  (33, 140, 33)]
+
+Mk02: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 48.3s
+
+[(27, 150, 27), (27, 153, 26), (28, 151, 26), (28, 145, 28), (28, 146, 27), (29, 145, 27), (29, 143, 29), (29, 144, 28), (29, 150, 26), (31, 141, 31), (31, 142, 30), (33, 140, 33)]
+
+
+================
+Mk03: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip
+
+[(204, 864, 204),  (206, 857, 204),  (210, 855, 204),  (213, 852, 204),  (215, 849, 213),  (216, 848, 213),  (222, 847, 222),  (223, 847, 213),  (224, 851, 204),  (226, 843, 222),  (230, 842, 222),  (234, 846, 213),  (237, 844, 213),  (240, 850, 204),  (246, 841, 231),  (247, 849, 210),  (248, 848, 210),  (249, 840, 249),  (256, 838, 249),  (256, 840, 222),  (262, 838, 231),  (274, 839, 222),  (275, 838, 222),  (282, 837, 231),  (297, 843, 221)]
+
+Mk03: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 64.8s
+
+[(204, 852, 204), (205, 850, 204), (211, 848, 210), (213, 844, 213), (221, 842, 221), (222, 838, 222), (231, 834, 231), (240, 832, 240), (249, 830, 249), (258, 828, 258), (267, 826, 267), (276, 824, 276), (285, 822, 285), (294, 820, 294), (303, 818, 303), (312, 816, 312), (321, 814, 321), (330, 812, 330)]
+
+
+=================
+Mk04: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip
+
+[(68, 355, 68),  (68, 376, 60),  (69, 360, 60),  (69, 351, 63),  (71, 353, 62),  (72, 347, 66),  (72, 357, 61),  (73, 342, 72),  (73, 348, 63),  (75, 344, 66),  (75, 347, 65),  (77, 340, 72),  (78, 337, 78),  (79, 343, 67),  (84, 334, 84),  (90, 331, 90),  (98, 330, 98),  (106, 329, 106),  (114, 328, 114),  (122, 327, 122),  (130, 326, 130),  (138, 325, 138),  (146, 324, 146)]
+
+Mk04: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 53.6s
+
+[(63, 374, 60), (63, 371, 61), (64, 368, 60), (64, 365, 61), (64, 362, 62), (65, 359, 61), (65, 360, 60), (66, 353, 62), (66, 357, 61), (67, 350, 66), (68, 347, 68), (68, 351, 63), (68, 348, 66), (69, 347, 66), (69, 350, 63), (69, 346, 68), (70, 346, 66), (70, 349, 63), (71, 347, 65), (71, 344, 66), (71, 348, 63), (72, 341, 72), (72, 343, 67), (73, 340, 72), (78, 337, 78), (84, 334, 84), (90, 331, 90), (98, 330, 98), (106, 329, 106), (114, 328, 114), (122, 327, 122), (130, 326, 130), (138, 325, 138), (146, 324, 146)]
+
+
+==================
+Mk05: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip
+
+[(174, 687, 173),  (176, 686, 173),  (177, 685, 173),  (178, 683, 175),  (178, 682, 176),  (179, 684, 174),  (179, 680, 179),  (180, 682, 175),  (180, 681, 178),  (181, 684, 173),  (181, 679, 179),  (181, 680, 178),  (182, 683, 173),  (182, 687, 172),  (183, 677, 183),  (185, 676, 185),  (191, 675, 191),  (197, 674, 197),  (203, 673, 203),  (209, 672, 209)]
+
+Mk05: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 56.5s
+
+[(173, 685, 173), (174, 683, 174), (174, 684, 173), (175, 682, 175), (175, 687, 172), (175, 683, 173), (178, 680, 178), (179, 679, 179), (183, 677, 183), (185, 676, 185), (191, 675, 191), (197, 674, 197), (203, 673, 203), (209, 672, 209)]
+
+
+==================
+Mk06: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip
+
+[(91, 474, 57),  (91, 453, 66),  (92, 436, 60),  (93, 480, 54),  (95, 456, 55),  (96, 434, 60),  (96, 428, 61),  (99, 432, 60),  (99, 427, 71),  (100, 476, 54),  (100, 450, 57),  (102, 455, 54),  (103, 452, 54),  (103, 446, 59),  (104, 451, 54),  (105, 449, 55),  (106, 420, 74),  (107, 423, 63),  (108, 421, 69),  (108, 447, 56),  (109, 421, 66),  (109, 441, 59),  (110, 442, 55),  (110, 421, 60),  (112, 417, 67),  (113, 411, 74),  (115, 414, 68),  (115, 415, 63),  (122, 439, 56),  (124, 418, 60),  (124, 412, 67),  (125, 450, 54),  (126, 417, 60),  (129, 437, 57),  (130, 434, 58),  (131, 440, 55),  (131, 413, 63),  (136, 449, 54),  (139, 407, 69),  (140, 444, 54),  (141, 438, 56),  (141, 439, 55),  (142, 411, 65),  (143, 402, 82),  (144, 406, 67),  (154, 434, 54),  (158, 473, 53)]
+
+Mk06: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 66.2s
+
+[(68, 395, 61), (69, 386, 62), (70, 380, 67), (70, 381, 65), (71, 383, 63), (71, 377, 70), (71, 379, 68), (72, 381, 64), (72, 374, 69), (72, 377, 67), (72, 375, 68), (73, 383, 61), (73, 379, 63), (73, 373, 70), (73, 374, 68), (73, 372, 71), (74, 380, 62), (74, 407, 57), (74, 375, 67), (74, 403, 59), (74, 368, 69), (74, 382, 60), (74, 367, 70), (75, 366, 72), (75, 403, 57), (75, 365, 73), (75, 377, 63), (75, 373, 65), (75, 372, 66), (75, 396, 58), (76, 369, 67), (76, 370, 66), (77, 368, 66), (77, 365, 70), (77, 393, 59), (77, 378, 62), (77, 364, 71), (77, 358, 76), (77, 366, 69), (78, 376, 62), (78, 360, 73), (78, 363, 71), (78, 358, 75), (78, 364, 70), (78, 375, 63), (78, 365, 69), (78, 366, 68), (78, 378, 61), (78, 374, 64), (79, 353, 78), (79, 374, 63), (79, 361, 72), (79, 362, 71), (79, 358, 74), (79, 356, 76), (79, 359, 73), (80, 379, 60), (80, 372, 64), (80, 355, 77), (80, 371, 65), (80, 357, 74), (81, 355, 76), (81, 354, 77), (81, 352, 78), (82, 356, 75), (82, 390, 59), (82, 350, 81), (82, 351, 80), (83, 348, 82), (83, 353, 77), (83, 350, 80), (83, 349, 81), (83, 365, 68), (83, 363, 70), (84, 347, 82), (84, 375, 62), (84, 348, 81), (84, 351, 79), (84, 373, 63), (85, 360, 72), (85, 376, 61), (86, 350, 79), (86, 344, 85), (86, 346, 83), (87, 371, 64), (87, 343, 85), (87, 344, 84), (88, 342, 87), (89, 346, 82), (89, 341, 87), (89, 342, 86), (89, 340, 88), (90, 339, 90), (91, 338, 90), (91, 339, 88), (92, 337, 91), (93, 336, 93), (93, 337, 90), (94, 336, 91), (94, 335, 94), (95, 335, 93), (96, 334, 94), (97, 333, 96), (98, 332, 97), (100, 331, 99), (101, 330, 100)]
+
+==================
+Mk07: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip
+
+[(144, 690, 144),  (148, 685, 144),  (150, 690, 143),  (150, 684, 149),  (153, 680, 150),  (153, 683, 147),  (154, 673, 150),  (156, 682, 147),  (157, 683, 145),  (157, 691, 142),  (158, 670, 156),  (158, 679, 145),  (158, 690, 140),  (160, 675, 147),  (160, 671, 150),  (160, 677, 144),  (161, 673, 144),  (162, 668, 156),  (163, 666, 162),  (163, 667, 157),  (166, 664, 157),  (166, 670, 150),  (168, 689, 142),  (169, 688, 141),  (169, 663, 162),  (170, 662, 157),  (171, 661, 169),  (172, 667, 156),  (172, 687, 143),  (174, 688, 140),  (175, 686, 140),  (176, 660, 174),  (178, 668, 152),  (179, 657, 170),  (182, 684, 143),  (185, 665, 156),  (191, 660, 169),  (192, 661, 162),  (193, 659, 162),  (194, 655, 190),  (197, 655, 176),  (206, 653, 202),  (220, 658, 166),  (221, 654, 190),  (227, 653, 187),  (241, 652, 209),  (244, 657, 166),  (265, 651, 209),  (268, 651, 205),  (277, 652, 202)]
+
+Mk07: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 55.5s
+
+[(141, 688, 141), (142, 686, 140), (143, 684, 143), (143, 685, 142), (144, 673, 144), (144, 683, 143), (150, 669, 150), (151, 667, 151), (151, 685, 140), (156, 664, 156), (157, 662, 157), (161, 660, 161), (162, 659, 162), (166, 657, 166), (175, 655, 175), (187, 653, 187), (202, 651, 202), (217, 649, 217)]
+
+===================
+Mk08: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip
+
+[(523, 2524, 523),  (524, 2519, 524),  (533, 2514, 533),  (542, 2509, 542),  (551, 2504, 551),  (560, 2499, 560),  (569, 2494, 569),  (578, 2489, 578),  (587, 2484, 587)]
+
+Mk08: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 79.7s
+
+[(523, 2524, 523), (524, 2519, 524), (533, 2514, 533), (542, 2509, 542), (551, 2504, 551), (560, 2499, 560), (569, 2494, 569), (578, 2489, 578), (587, 2484, 587)]
+
+
+===================
+Mk09: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip time = 55.5s
+
+[(369, 2711, 328),  (372, 2493, 310),  (373, 2452, 299),  (377, 2415, 300),  (379, 2396, 299),  (386, 2375, 320),  (389, 2387, 299),  (393, 2365, 315),  (394, 2376, 299),  (396, 2368, 299),  (399, 2364, 307),  (401, 2336, 331),  (401, 2364, 299),  (410, 2340, 316),  (414, 2361, 315),  (419, 2352, 304),  (424, 2361, 299),  (427, 2359, 300),  (427, 2360, 299),  (432, 2341, 299),  (448, 2331, 328),  (468, 2322, 307),  (493, 2339, 299),  (507, 2338, 303),  (523, 2338, 299),  (534, 2335, 301),  (543, 2311, 320),  (559, 2321, 310),  (563, 2335, 299),  (567, 2327, 299)]
+
+Mk09: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 81.7s
+
+[(334, 2271, 307), (335, 2269, 310), (335, 2263, 316), (335, 2272, 304), (335, 2270, 307), (336, 2267, 309), (337, 2259, 316), (337, 2268, 307), (338, 2262, 310), (338, 2267, 307), (339, 2254, 323), (339, 2261, 315), (340, 2260, 315), (342, 2266, 307), (342, 2261, 312), (343, 2256, 316), (343, 2251, 326), (344, 2250, 323), (344, 2261, 310), (344, 2258, 312), (344, 2253, 315), (344, 2264, 309), (345, 2247, 326), (346, 2246, 326), (347, 2244, 323), (347, 2257, 312), (347, 2251, 321), (348, 2242, 326), (349, 2260, 310), (350, 2255, 314), (351, 2240, 327), (351, 2249, 320), (351, 2256, 312), (353, 2239, 328), (354, 2237, 348), (354, 2246, 321), (354, 2245, 322), (355, 2238, 333), (355, 2264, 308), (355, 2235, 334), (356, 2237, 332), (356, 2233, 348), (357, 2231, 340), (357, 2238, 331), (358, 2241, 326), (358, 2230, 348), (359, 2234, 334), (359, 2229, 342), (360, 2235, 333), (361, 2236, 332), (361, 2232, 339), (361, 2228, 348), (362, 2228, 346), (363, 2227, 346), (363, 2225, 348), (363, 2230, 340), (364, 2226, 346), (364, 2231, 339), (365, 2223, 364), (367, 2224, 354), (370, 2222, 370), (370, 2225, 347), (371, 2223, 354), (373, 2224, 353), (373, 2222, 360), (373, 2221, 370), (374, 2224, 348), (374, 2252, 316), (376, 2220, 376), (376, 2221, 366), (378, 2222, 355), (379, 2221, 364), (381, 2221, 360), (381, 2220, 366), (381, 2219, 376), (384, 2219, 375), (386, 2218, 386), (387, 2218, 382), (392, 2217, 392), (393, 2217, 388), (398, 2216, 398), (401, 2216, 394), (404, 2215, 404), (414, 2214, 414), (424, 2213, 424), (434, 2212, 434), (444, 2211, 444), (454, 2210, 454)]
+
+
+===================
+Mk10: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip
+
+[(300, 2157, 224),  (311, 2128, 256),  (313, 2190, 220),  (313, 2127, 242),  (313, 2132, 241),  (314, 2133, 230),  (315, 2156, 220),  (316, 2128, 220),  (317, 2127, 211),  (318, 2113, 239),  (318, 2125, 230),  (321, 2101, 259),  (322, 2122, 223),  (323, 2113, 224),  (324, 2112, 217),  (325, 2094, 220),  (326, 2090, 221),  (331, 2109, 214),  (332, 2171, 210),  (333, 2137, 210),  (335, 2106, 218),  (336, 2087, 233),  (336, 2112, 208),  (339, 2082, 229),  (343, 2109, 213),  (345, 2107, 216),  (353, 2105, 215),  (357, 2082, 220),  (358, 2111, 212),  (359, 2069, 253),  (359, 2091, 208),  (362, 2080, 250),  (362, 2081, 236),  (363, 2057, 242),  (364, 2054, 210),  (364, 2128, 205),  (368, 2115, 206),  (390, 2092, 205),  (397, 2050, 248),  (416, 2084, 206),  (427, 2127, 204),  (452, 2082, 206),  (460, 2078, 209),  (515, 2132, 202)]
+
+Mk10: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 83.0s
+
+[(236, 1899, 218), (237, 1896, 215), (237, 1894, 220), (239, 1893, 215), (239, 1891, 220), (240, 1886, 218), (241, 1881, 220), (242, 1878, 220), (243, 1900, 214), (243, 1901, 210), (244, 1898, 212), (244, 1891, 215), (244, 1876, 225), (245, 1874, 225), (245, 1888, 215), (246, 1882, 215), (246, 1875, 218), (247, 1873, 235), (247, 1908, 209), (248, 1871, 230), (248, 1870, 240), (248, 1874, 220), (248, 1887, 212), (248, 1872, 221), (249, 1881, 216), (249, 1872, 220), (250, 1869, 225), (251, 1879, 215), (251, 1893, 210), (251, 1869, 220), (252, 1877, 216), (252, 1864, 227), (252, 1891, 210), (253, 1899, 209), (254, 1889, 210), (254, 1897, 209), (254, 1863, 235), (254, 1886, 212), (255, 1883, 212), (255, 1877, 215), (255, 1866, 225), (255, 1862, 245), (256, 1904, 208), (256, 1860, 240), (256, 1861, 230), (257, 1895, 209), (257, 1887, 211), (257, 1857, 250), (260, 1859, 236), (261, 1863, 227), (262, 1858, 249), (262, 1856, 260), (262, 1860, 235), (262, 1866, 224), (262, 1863, 225), (263, 1858, 240), (265, 1861, 227), (265, 1857, 240), (265, 1858, 230), (266, 1854, 250), (266, 1856, 236), (267, 1855, 240), (272, 1852, 270), (273, 1858, 228), (273, 1857, 235), (276, 1853, 260), (276, 1855, 230), (276, 1854, 240), (278, 1851, 250), (282, 1903, 208), (283, 1853, 236), (283, 1852, 240), (284, 1850, 260), (284, 1849, 270), (289, 1848, 280), (321, 1847, 290)]
+
+
+===================
+
+Mk11: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 70.5s
+
+[(610, 3037, 610), (611, 3028, 611), (614, 3027, 614), (617, 3026, 617), (618, 3030, 609), (620, 3029, 610), (620, 3025, 620), (621, 3023, 621), (622, 3027, 611), (623, 3022, 623), (624, 3018, 624), (627, 3017, 627), (633, 3016, 626), (637, 3015, 637), (639, 3011, 639), (640, 3010, 640), (643, 3009, 643), (646, 3008, 646), (650, 3007, 649), (650, 3006, 650), (654, 3002, 654), (660, 3001, 660), (663, 3000, 663), (666, 2999, 666), (669, 2998, 669), (675, 2997, 675), (676, 2994, 676), (682, 2993, 682), (685, 2991, 685), (688, 2990, 688), (698, 2987, 698), (704, 2986, 704), (707, 2984, 707), (720, 2982, 720), (723, 2981, 723), (726, 2979, 726), (742, 2977, 742), (746, 2976, 746), (747, 2975, 747), (764, 2974, 764), (769, 2973, 769), (770, 2972, 770), (791, 2971, 791), (812, 2970, 812), (833, 2969, 833), (854, 2968, 854), (875, 2967, 875)]
+
+===================
+
+Mk12: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 72.6s
+
+[(508, 3325, 508), (516, 3324, 516), (517, 3322, 517), (518, 3307, 518), (524, 3282, 524), (528, 3279, 528), (529, 3264, 529), (539, 3260, 539), (540, 3247, 540), (545, 3245, 545), (556, 3232, 556), (561, 3230, 561), (572, 3217, 572), (577, 3215, 577), (593, 3213, 593), (609, 3211, 609), (625, 3209, 625), (641, 3207, 641), (658, 3205, 658), (675, 3203, 675), (692, 3201, 692), (709, 3199, 709), (726, 3197, 726), (743, 3195, 743)]
+
+===================
+
+Mk13: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 81.3s
+
+[(433, 3719, 418), (435, 3716, 418), (436, 3715, 418), (438, 3714, 426), (439, 3713, 426), (441, 3701, 430), (444, 3682, 426), (447, 3675, 426), (449, 3672, 434), (449, 3667, 442), (450, 3657, 439), (450, 3715, 416), (450, 3671, 434), (453, 3648, 448), (453, 3674, 426), (454, 3657, 438), (455, 3653, 438), (455, 3706, 423), (456, 3669, 432), (458, 3647, 442), (458, 3640, 450), (458, 3668, 426), (460, 3630, 454), (460, 3666, 432), (460, 3703, 416), (462, 3693, 422), (462, 3650, 436), (462, 3665, 426), (463, 3664, 426), (463, 3661, 435), (464, 3637, 449), (465, 3636, 452), (466, 3708, 414), (466, 3646, 442), (467, 3698, 421), (467, 3629, 462), (467, 3661, 426), (468, 3655, 432), (469, 3651, 432), (470, 3638, 438), (471, 3624, 470), (472, 3649, 436), (472, 3618, 470), (473, 3626, 454), (474, 3631, 450), (476, 3687, 424), (477, 3649, 432), (477, 3692, 423), (477, 3616, 470), (479, 3697, 417), (479, 3621, 468), (480, 3674, 419), (480, 3612, 470), (480, 3625, 454), (480, 3623, 467), (481, 3674, 418), (481, 3618, 468), (481, 3624, 454), (483, 3617, 468), (485, 3630, 450), (485, 3636, 449), (486, 3606, 486), (486, 3611, 470), (487, 3605, 486), (492, 3603, 486), (493, 3702, 414), (494, 3602, 486), (496, 3671, 424), (496, 3610, 485), (498, 3598, 488), (499, 3599, 486), (500, 3661, 422), (500, 3652, 431), (502, 3592, 502), (504, 3598, 486), (505, 3671, 419), (506, 3591, 506), (511, 3590, 504), (512, 3589, 504), (514, 3591, 503), (514, 3586, 504), (516, 3585, 509), (518, 3579, 518), (523, 3585, 506), (527, 3578, 524), (527, 3637, 441), (528, 3585, 504), (534, 3572, 534), (535, 3578, 521), (535, 3673, 418), (542, 3571, 542), (550, 3565, 550), (556, 3571, 539), (560, 3564, 560), (564, 3648, 432), (566, 3558, 566), (582, 3552, 582), (584, 3557, 581), (586, 3551, 584), (593, 3551, 582), (598, 3545, 598), (611, 3544, 602), (614, 3539, 614), (630, 3534, 630), (646, 3529, 646)]
+
+===================
+
+Mk14: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 89.8s
+
+[(694, 5085, 694), (699, 5084, 694), (707, 5078, 707), (720, 5072, 720), (733, 5066, 733), (746, 5060, 746), (759, 5054, 759), (772, 5048, 772), (785, 5042, 785), (798, 5036, 798), (811, 5030, 811), (836, 5028, 836), (861, 5026, 861), (886, 5024, 886), (911, 5022, 911), (936, 5020, 936), (961, 5018, 961), (986, 5016, 986), (1011, 5014, 1011), (1036, 5012, 1036), (1061, 5010, 1061), (1086, 5008, 1086), (1111, 5006, 1111)]
+
+===================
+
+Mk15: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 91.7s
+
+[(396, 4473, 379), (397, 4469, 387), (399, 4463, 391), (401, 4484, 377), (401, 4469, 386), (403, 4472, 379), (404, 4464, 377), (405, 4458, 386), (406, 4458, 379), (410, 4465, 376), (412, 4456, 391), (412, 4447, 399), (413, 4518, 363), (413, 4449, 391), (414, 4451, 387), (415, 4445, 399), (416, 4516, 363), (416, 4436, 401), (418, 4446, 387), (418, 4462, 377), (418, 4497, 367), (419, 4457, 379), (419, 4509, 363), (420, 4489, 375), (421, 4454, 385), (422, 4430, 401), (423, 4453, 379), (423, 4441, 399), (423, 4457, 377), (424, 4452, 379), (425, 4478, 375), (428, 4491, 365), (428, 4445, 391), (428, 4439, 399), (429, 4442, 387), (429, 4436, 391), (430, 4428, 415), (431, 4475, 375), (432, 4424, 413), (432, 4428, 411), (434, 4426, 407), (435, 4418, 415), (436, 4506, 363), (438, 4407, 429), (438, 4414, 423), (440, 4417, 415), (441, 4403, 430), (441, 4530, 356), (442, 4413, 424), (443, 4432, 397), (444, 4423, 410), (444, 4399, 442), (446, 4485, 365), (449, 4420, 413), (450, 4397, 441), (450, 4448, 386), (451, 4402, 439), (451, 4497, 362), (452, 4452, 377), (452, 4412, 423), (453, 4479, 367), (453, 4405, 429), (453, 4388, 453), (454, 4448, 381), (455, 4395, 448), (455, 4398, 437), (456, 4382, 453), (459, 4392, 437), (459, 4378, 453), (460, 4410, 427), (461, 4456, 376), (462, 4385, 443), (464, 4389, 442), (465, 4370, 465), (465, 4399, 434), (466, 4375, 455), (466, 4415, 419), (466, 4408, 427), (467, 4383, 448), (467, 4503, 360), (468, 4368, 467), (471, 4428, 404), (476, 4402, 432), (476, 4363, 468), (476, 4364, 467), (476, 4380, 451), (479, 4405, 427), (479, 4357, 479), (480, 4359, 473), (482, 4356, 479), (483, 4350, 481), (484, 4354, 479), (484, 4374, 455), (485, 4351, 479), (486, 4403, 429), (486, 4401, 432), (487, 4373, 461), (489, 4414, 419), (489, 4371, 460), (489, 4409, 423), (490, 4349, 482), (491, 4365, 465), (491, 4350, 479), (492, 4362, 471), (493, 4345, 493), (493, 4406, 425), (494, 4373, 458), (495, 4342, 495), (496, 4341, 493), (498, 4379, 451), (499, 4340, 493), (500, 4338, 498), (501, 4396, 432), (502, 4347, 492), (504, 4346, 491), (505, 4384, 446), (506, 4333, 504), (506, 4339, 493), (507, 4331, 507), (507, 4337, 496), (509, 4330, 509), (509, 4334, 503), (510, 4414, 418), (511, 4347, 484), (512, 4328, 511), (513, 4328, 507), (514, 4327, 507), (515, 4326, 515), (516, 4324, 515), (518, 4377, 451), (518, 4358, 473), (519, 4323, 519), (521, 4317, 521), (521, 4336, 498), (521, 4323, 516), (523, 4315, 523), (524, 4390, 439), (525, 4316, 521), (525, 4314, 523), (527, 4322, 517), (528, 4313, 528), (529, 4312, 527), (531, 4311, 530), (532, 4311, 529), (533, 4315, 521), (535, 4307, 535), (537, 4304, 537), (537, 4345, 492), (537, 4310, 532), (540, 4309, 533), (541, 4303, 541), (542, 4300, 541), (544, 4373, 455), (545, 4303, 540), (547, 4311, 528), (547, 4310, 530), (548, 4298, 548), (548, 4299, 543), (549, 4302, 540), (551, 4293, 551), (551, 4304, 535), (553, 4291, 553), (554, 4288, 554), (555, 4290, 553), (558, 4612, 355), (559, 4289, 553), (561, 4291, 551), (564, 4287, 557), (566, 4284, 566), (567, 4278, 567), (567, 4286, 565), (571, 4297, 548), (573, 4276, 573), (574, 4287, 556), (578, 4303, 537), (578, 4298, 544), (579, 4272, 579), (583, 4274, 578), (583, 4267, 583), (593, 4263, 591), (597, 4273, 578), (599, 4258, 599), (603, 4261, 598), (606, 4256, 599), (615, 4251, 615), (630, 4249, 623), (631, 4244, 631)]
+----
+
+==== Challenges
+
+We observe a big result difference for Mk10, where the best single objective result found in the literature has `makespan < 200`. 
+The best solution published with a Gantt-Diagram we found has `makespan=213`, see https://www.researchgate.net/publication/282906979_Solving_the_Flexible_Job_Shop_Scheduling_Problem_With_Makespan_Optimization_by_Using_a_Hybrid_Taguchi-Genetic_Algorithm[Hao]
+
+Our multi-objective solution
+
+[source,python]
+----
+Mk10: retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16) time = 83.0s
+
+[(236, 1899, 218), (237, 1896, 215), (237, 1894, 220), (239, 1893, 215), (239, 1891, 220), (240, 1886, 218), (241, 1881, 220), (242, 1878, 220), (243, 1900, 214), (243, 1901, 210), (244, 1898, 212), (244, 1891, 215), (244, 1876, 225), (245, 1874, 225), (245, 1888, 215), (246, 1882, 215), (246, 1875, 218), (247, 1873, 235), (247, 1908, 209), (248, 1871, 230), (248, 1870, 240), (248, 1874, 220), (248, 1887, 212), (248, 1872, 221), (249, 1881, 216), (249, 1872, 220), (250, 1869, 225), (251, 1879, 215), (251, 1893, 210), (251, 1869, 220), (252, 1877, 216), (252, 1864, 227), (252, 1891, 210), (253, 1899, 209), (254, 1889, 210), (254, 1897, 209), (254, 1863, 235), (254, 1886, 212), (255, 1883, 212), (255, 1877, 215), (255, 1866, 225), (255, 1862, 245), (256, 1904, 208), (256, 1860, 240), (256, 1861, 230), (257, 1895, 209), (257, 1887, 211), (257, 1857, 250), (260, 1859, 236), (261, 1863, 227), (262, 1858, 249), (262, 1856, 260), (262, 1860, 235), (262, 1866, 224), (262, 1863, 225), (263, 1858, 240), (265, 1861, 227), (265, 1857, 240), (265, 1858, 230), (266, 1854, 250), (266, 1856, 236), (267, 1855, 240), (272, 1852, 270), (273, 1858, 228), (273, 1857, 235), (276, 1853, 260), (276, 1855, 230), (276, 1854, 240), (278, 1851, 250), (282, 1903, 208), (283, 1853, 236), (283, 1852, 240), (284, 1850, 260), (284, 1849, 270), (289, 1848, 280), (321, 1847, 290)]
+----
+
+was already significantly better than
+
+[source,python]
+----
+Mk10: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip
+
+[(300, 2157, 224),  (311, 2128, 256),  (313, 2190, 220),  (313, 2127, 242),  (313, 2132, 241),  (314, 2133, 230),  (315, 2156, 220),  (316, 2128, 220),  (317, 2127, 211),  (318, 2113, 239),  (318, 2125, 230),  (321, 2101, 259),  (322, 2122, 223),  (323, 2113, 224),  (324, 2112, 217),  (325, 2094, 220),  (326, 2090, 221),  (331, 2109, 214),  (332, 2171, 210),  (333, 2137, 210),  (335, 2106, 218),  (336, 2087, 233),  (336, 2112, 208),  (339, 2082, 229),  (343, 2109, 213),  (345, 2107, 216),  (353, 2105, 215),  (357, 2082, 220),  (358, 2111, 212),  (359, 2069, 253),  (359, 2091, 208),  (362, 2080, 250),  (362, 2081, 236),  (363, 2057, 242),  (364, 2054, 210),  (364, 2128, 205),  (368, 2115, 206),  (390, 2092, 205),  (397, 2050, 248),  (416, 2084, 206),  (427, 2127, 204),  (452, 2082, 206),  (460, 2078, 209),  (515, 2132, 202)]
+----
+
+What happens if we invest significantly more time and adapt the optimization parameters? Our new pareto front contains a solution 
+with `makespan = 216`, quite comparable to the best solutions ever found using single objective optimization.  
+
+image::brandi10.223mode.png[]
+
+The optimization needed  "TODO" , `retry_modecpp` was called using 
+
+[source,python]
+----
+xs, front = retry_modecpp(fit, retry_num=640, popsize = 500, max_eval = 16000000, workers=16)
+----
+
+Asteroid harvesting for Mk10 with 5 factories, single objective optimization results in `makespan = 484`:
+
+image::brandi10.484bite.png[]
+
+The optimization needed 21916 seconds, 2865206239 function evaluations, BiteOpt was called using 
+
+[source,python]
+----
+    retry.retry(store, Bite_cpp(1960000,M=1).minimize, num_retries=1600)    
+---- 
+
+Would be interesting to see if these results can be improved using other methods. 

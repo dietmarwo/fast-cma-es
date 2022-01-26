@@ -160,7 +160,7 @@ class fitness:
         self.name = name
         self.nobj = 3
         self.ncon = 1
-        self.weights = np.array([1.0, 0.02, 0.001, 1000])  
+        self.weights = np.array([1.0, 0.02, 0.001, 1000]) # only used for single objective optimization 
         self.job_indices, self.job_ids = job_indices(task_data)
 
     def chart(self, x):
@@ -171,7 +171,7 @@ class fitness:
                                self.job_indices, self.job_ids)
         chart(tasks, self.n_jobs, self.n_machines, self.max_active, start, duration)
         
-    def fun(self, x):     
+    def fun(self, x): # multi objective function     
         tasks = filtered_tasks(x, self.task_data, self.n_operations, self.n_machines,
                                self.job_indices, self.job_ids)
         max_time = x[-1]
@@ -197,7 +197,7 @@ class fitness:
                         ))
         return ys   
 
-    def __call__(self, x):   
+    def __call__(self, x):  # single objective function      
         ys = self.fun(x)
         return sum(self.weights*ys) # weighted sum  
 
