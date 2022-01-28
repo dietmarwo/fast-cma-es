@@ -214,10 +214,7 @@ def timings(x, n):
 
 @njit(fastmath=True) 
 def dyson_stations(x, n):
-    stations = np.zeros(n, dtype=numba.int32)
-    for i in range(n):
-        stations[i] = int(x[10+i])
-    stations = np.argsort(stations)
+    stations = np.argsort(x[10:10+n])
     # station numbers start with 1
     return np.array([s+1 for s in stations])
 
