@@ -198,7 +198,7 @@ progress of the optimization.
 ---- 
     transfers = pd.read_csv('data/' + name + '.xz', sep=' ', usecols=[1,2,3,4,5,6,7], compression='xz',
                     names=['asteroid', 'station', 'trajectory', 'mass', 'dv', 'transfer_start', 'transfer_time'])
- 	...   
+     ...   
     # bounds for the objective function
     dim = 10+2*STATION_NUM-1
     lower_bound = np.zeros(dim)
@@ -238,7 +238,7 @@ data frame stored as numpy arrays.
 class fitness(object):
 
     def __init__(self, transfers):
-		...
+        ...
         self.asteroid = transfers["asteroid"].to_numpy()
         self.station = transfers["station"].to_numpy()  
         self.trajectory = transfers["trajectory"].to_numpy() 
@@ -505,10 +505,10 @@ class fitness(object): # the objective function
         scr, dv_val = score_vals(np.amin(slot_mass), sdv)
         y = -scr
         ys = [-min_mass*1E-10, dv_val]
-		 ...
-		 if y < self.best_y.value:
-       		self.best_y.value = y     
-		 return ys
+        ...
+        if y < self.best_y.value:
+               self.best_y.value = y     
+    return ys
 ----
 
 We register improvements of our single objective score value, but "hide" this fact from the optimization 
@@ -526,7 +526,7 @@ def run_modecpp(pid, rgs, problem, popsize, max_eval, nsga_update, store):
                     max_evaluations = max_eval, nsga_update=nsga_update, workers = 1, rg = rgs[pid], store = store) 
     
 def retry_modecpp(fit, retry_num = 64, popsize = 48, max_eval = 5000000, 
-					 nsga_update = False, workers=mp.cpu_count()):
+                     nsga_update = False, workers=mp.cpu_count()):
     store = mode.store(len(fit.bounds.lb), fit.nobj + fit.ncon, retry_num*popsize*2)
     i = 0
     while i < retry_num:
@@ -547,8 +547,6 @@ significantly from NSGA-II. There is no tournament selection and MoDe can handle
 Different from the flexible job shop problem this time the DE population update seems to work better.
 The NSGA-II population update improves faster, but finally the DE population update delivers better
 results.  
-
-
 
 == Detailed results
 
