@@ -544,9 +544,9 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cp
 provides two population update mechanisms: One derived from NSGA-II and one from DE. 
 Note that this algorithm uses (if configured) the NSGA-II population update, but differs in other aspects
 significantly from NSGA-II. There is no tournament selection and MoDe can handle constraints. 
-Different from the flexible job shop problem this time the DE population update seems to work better.
-The NSGA-II population update improves faster, but finally the DE population update delivers better
-results.  
+Different from the flexible job shop problem this time the DE population update seems to be a good alternative.
+The NSGA-II population update improves faster, but finally the DE population update sometimes delivers better
+results. One DE-update-run delivered a score of 7037 using 60 trajectories after about 1000 seconds.   
 
 == Detailed results
 

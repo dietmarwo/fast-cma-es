@@ -202,11 +202,11 @@ def optimize():
     fit = fitness(transfers)
     fit.bounds = bounds
     
-    # multi objective optimization 'modecpp' multi threaded, DE population update
-    xs, front = retry_modecpp(fit, retry_num=6400, popsize = 48, max_eval = 1200000, workers=16, nsga_update = False)
-    
     # multi objective optimization 'modecpp' multi threaded, NSGA-II population update
-    #xs, front = retry_modecpp(fit, retry_num=64, popsize = 48, max_eval = 1200000, workers=16, nsga_update = True)    
+    xs, front = retry_modecpp(fit, retry_num=640, popsize = 96, max_eval = 3000000, workers=16, nsga_update = True)    
+
+    # multi objective optimization 'modecpp' multi threaded, DE population update
+    #xs, front = retry_modecpp(fit, retry_num=640, popsize = 48, max_eval = 3000000, workers=16, nsga_update = False)
     
     # smart boundary management (SMB) with DE->CMA
     # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
