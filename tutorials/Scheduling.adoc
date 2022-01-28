@@ -33,6 +33,15 @@ resulting in a 7200x speedup considering parallelization?
 Whether this is sufficient to beat specifically tuned genetic algorithms coded in C/{cpp} is an open question. 
 In this tutorial we will show only that {cpp} doesn't win easily.  
 
+==== Update
+
+After applying a similar approach to the more general multi-objective flexible jobshop problem, see
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop], we observed an
+unexpected result: The new multi-objective algorithm 
+https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe] produced excellent 
+single objective results. Therefore we extended this tutorial by applying this idea also here. The results
+were even more surprising. 
+
 === GTOC 11
 
 https://sophia.estec.esa.int/gtoc_portal/[GTOC] is an international competition related
@@ -372,7 +381,6 @@ def dyson_stations(x, n):
     return np.array([s+1 for s in stations])
 ----
 
-
 === Hints
 
 Finally some hints for those struggling with the "easy" parts of the task:
@@ -466,6 +474,81 @@ Of course in later iterations only transfers which are still approximated need t
 As a last step we have to exploit the fact that only the station with the least mass counts for the score. 
 Probably some transfers can be eliminated without reducing the minimal mass - but potentially lowering
 the sum of the delta velocities needed for the related mothership trajectory.  
+
+== Update
+
+After applying a similar approach to the more general multi-objective flexible jobshop problem, see
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop], we observed an
+unexpected result: The new multi-objective algorithm 
+https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe] produced excellent 
+single objective results. GTOC11 is basically also a multi-objective problem: There are two objectives:
+
+- Minimize the delta velocities of the mothership trajectories.
+- Maximize the minimal Dyson station mass.
+
+The competition score weights these using a non-linear formula. As a participant of the competition
+you don't really need a pareto-front, the solution of the multi-objective problem. But what if 
+a multi-objective algorithm provides a better single-objective result?
+
+To check this idea we first need a multi-objective variant of the fitness function - we just
+add a method `fun` to our `fitness` class:
+
+[source,python]
+----
+@njit(fastmath=True) 
+class fitness(object): # the objective function
+...
+    def fun(self, x):     
+        min_mass, slot_mass = select(self.asteroid, self.station, self.trajectory, self.mass, 
+                        self.transfer_start, self.transfer_time, x) 
+        sdv = select_dvs(self.trajectory_dv, x)
+        scr, dv_val = score_vals(np.amin(slot_mass), sdv)
+        y = -scr
+        ys = [-min_mass*1E-10, dv_val]
+		 ...
+		 if y < self.best_y.value:
+       		self.best_y.value = y     
+		 return ys
+----
+
+We register improvements of our single objective score value, but "hide" this fact from the optimization 
+algorithm - which "thinks" we are after the two objectives `[-min_mass*1E-10, dv_val]`.
+
+The multi-objective optimization method `retry_modecpp` calls `modecpp.minimize` in parallel, 
+but the optimization itself is single threaded (`workers = 1`). The random generators need to be
+initialized using `sg.spawn(workers)` to preserve diversification of the parallel optimization runs. 
+
+[source,python]
+----
+def run_modecpp(pid, rgs, problem, popsize, max_eval, nsga_update, store):
+    modecpp.minimize(problem.fun, problem.nobj, problem.ncon, 
+                    problem.bounds, popsize = popsize,
+                    max_evaluations = max_eval, nsga_update=nsga_update, workers = 1, rg = rgs[pid], store = store) 
+    
+def retry_modecpp(fit, retry_num = 64, popsize = 48, max_eval = 5000000, 
+					 nsga_update = False, workers=mp.cpu_count()):
+    store = mode.store(len(fit.bounds.lb), fit.nobj + fit.ncon, retry_num*popsize*2)
+    i = 0
+    while i < retry_num:
+        sg = SeedSequence()
+        rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
+        proc=[Process(target=run_modecpp,
+               args=(pid, rgs, fit, popsize, max_eval, nsga_update, store)) for pid in range(workers)]
+        [p.start() for p in proc]
+        [p.join() for p in proc]
+        i += workers
+    return store.get_front()   
+----
+
+https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe]
+provides two population update mechanisms: One derived from NSGA-II and one from DE. 
+Note that this algorithm uses (if configured) the NSGA-II population update, but differs in other aspects
+significantly from NSGA-II. There is no tournament selection and MoDe can handle constraints. 
+Different from the flexible job shop problem this time the DE population update seems to work better.
+The NSGA-II population update improves faster, but finally the DE population update delivers better
+results.  
+
+
 
 == Detailed results
 

@@ -156,13 +156,23 @@ class store():
 
     def add_results(self, xs, ys):
         with self.add_mutex:
+            i = self.num_stored.value
             for j in range(len(xs)):
-                i = self.num_stored.value
-                if i < self.capacity:  
-                    self.num_stored.value = i + 1
+                if i < self.capacity:                      
                     self.set_x(i, xs[j]) 
                     self.set_y(i, ys[j])
-    
+                    i += 1
+                else: # store is full, replace with pareto front
+                    xf, yf = self.get_front()
+                    i = 0
+                    for k in range(len(xf)):                   
+                        self.set_x(i, xf[k]) 
+                        self.set_y(i, yf[k])
+                        i += 1
+                    if i == self.capacity:
+                        break
+            self.num_stored.value = i
+                      
     def get_front(self):
         return moretry.pareto(self.get_xs(), self.get_ys())
        

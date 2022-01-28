@@ -9,11 +9,13 @@ import math
 import pandas as pd
 import numpy as np
 import sys, math, time
-from fcmaes import retry, advretry
+from fcmaes import retry, advretry, mode, modecpp
 from fcmaes.optimizer import logger, Bite_cpp, Cma_cpp, De_cpp, de_cma, dtime, Dual_annealing, Differential_evolution, Minimize
 from scipy.optimize import Bounds
 import ctypes as ct
 import multiprocessing as mp 
+from multiprocessing import Process
+from numpy.random import Generator, MT19937, SeedSequence
 from numba import njit, numba
 
 STATION_NUM = 12 # number of dyson ring stations
@@ -99,6 +101,8 @@ class fitness(object): # the objective function
         self.mass = transfers["mass"].to_numpy()          
         self.dv = transfers["dv"].to_numpy()     
         self.trajectory_dv = trajectory_dv(self.asteroid, self.trajectory, self.dv)
+        self.nobj = 2
+        self.ncon = 0
         
     def __call__(self, x):     
         # determine the minimal station mass
@@ -124,6 +128,54 @@ class fitness(object): # the objective function
                         str([round(di,2) for di in sdv])
                         ))
         return y    
+    
+    def fun(self, x):     
+        min_mass, slot_mass = select(self.asteroid, self.station, self.trajectory, self.mass, 
+                        self.transfer_start, self.transfer_time, x) 
+        sdv = select_dvs(self.trajectory_dv, x)
+        scr, dv_val = score_vals(np.amin(slot_mass), sdv)
+        y = -scr
+        ys = [-min_mass*1E-10, dv_val]
+        self.evals.value += 1
+        
+        if y < self.best_y.value:
+            self.best_y.value = y     
+            trajectories = trajectory_selection(x, TRAJECTORY_NUM)[0] 
+            stations = dyson_stations(x, STATION_NUM) 
+            times = timings(x, STATION_NUM) 
+            sc = score(np.amin(slot_mass), sdv)
+            logger().info("evals = {0}: time = {1:.1f} s = {2:.0f} a = {3:.0f} t = {4:s} s = {5:s} b = {6:s} m = {7:s} dv = {8:s}"
+                .format(self.evals.value, dtime(self.t0), -self.best_y.value, ast_num(x, self.asteroid, self.trajectory), 
+                        str([round(ti,2) for ti in times[1:-1]]), 
+                        str([int(si) for si in stations]),
+                        str([int(ti) for ti in trajectories]),
+                        str([round(mi,2) for mi in slot_mass*1E-15]),
+                        str([round(di,2) for di in sdv])
+                        ))
+        return ys   
+
+def run_modecpp(pid, rgs, problem, popsize, max_eval, nsga_update, store):
+    modecpp.minimize(problem.fun, problem.nobj, problem.ncon, 
+                    problem.bounds, popsize = popsize,
+                    max_evaluations = max_eval, nsga_update=nsga_update, workers = 1, rg = rgs[pid], store = store) 
+    
+def retry_modecpp(fit, retry_num = 64, popsize = 48, max_eval = 5000000, nsga_update = False, workers=mp.cpu_count()):
+    store = mode.store(len(fit.bounds.lb), fit.nobj + fit.ncon, retry_num*popsize*2)
+    i = 0
+    while i < retry_num:
+        sg = SeedSequence()
+        rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
+        proc=[Process(target=run_modecpp, # change nsga_update method for each call
+               args=(pid, rgs, fit, popsize, max_eval, False, store)) for pid in range(workers)]
+                #args=(fit, popsize, max_eval, nobj, (i + pid) % 2 == 0, store)) for pid in range(workers)]
+        [p.start() for p in proc]
+        [p.join() for p in proc]
+        i += workers
+        logger().info("evals = {0}: time = {1:.1f} i = {2}: y = {3:.2f}"
+                .format(fit.evals.value, dtime(fit.t0), i, fit.best_y.value))
+        xs, ys = store.get_front()   
+        logger().info(str([tuple(y) for y in ys]))
+    return xs, ys
 
 def optimize():    
     name = 'tsin3000.60' # 60 trajectories to choose from
@@ -147,9 +199,18 @@ def optimize():
     upper_bound[:10] = TRAJECTORY_NUM-0.00001 # trajectory indices
     bounds = Bounds(lower_bound, upper_bound)
     
+    fit = fitness(transfers)
+    fit.bounds = bounds
+    
+    # multi objective optimization 'modecpp' multi threaded, DE population update
+    xs, front = retry_modecpp(fit, retry_num=64, popsize = 48, max_eval = 1600000, workers=16, nsga_update = False)
+    
+    # multi objective optimization 'modecpp' multi threaded, NSGA-II population update
+    # xs, front = retry_modecpp(fit, retry_num=64, popsize = 48, max_eval = 1600000, workers=16, nsga_update = True)    
+    
     # smart boundary management (SMB) with DE->CMA
-    store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
-    advretry.retry(store, de_cma(10000).minimize)    
+    # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
+    # advretry.retry(store, de_cma(10000).minimize)    
 
     # smart boundary management (SMB) with CMA-ES
     # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
@@ -231,7 +292,15 @@ def score(min_mass, trajectory_dv):
     dv_val = 0
     for dv in trajectory_dv:
         dv_val += (1.0 + dv/50.0)**2
-    return mass_val / (A_DYSON * A_DYSON * dv_val);
+    return mass_val / (A_DYSON * A_DYSON * dv_val)
+
+@njit(fastmath=True) 
+def score_vals(min_mass, trajectory_dv):
+    mass_val = min_mass * 1E-10
+    dv_val = 0
+    for dv in trajectory_dv:
+        dv_val += (1.0 + dv/50.0)**2
+    return mass_val / (A_DYSON * A_DYSON * dv_val), dv_val
 
 @njit(fastmath=True)        
 def trajectory_dv(asteroid, trajectory, delta_v):
