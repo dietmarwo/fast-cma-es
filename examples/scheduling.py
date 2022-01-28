@@ -166,7 +166,7 @@ def retry_modecpp(fit, retry_num = 64, popsize = 48, max_eval = 5000000, nsga_up
         sg = SeedSequence()
         rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
         proc=[Process(target=run_modecpp, # change nsga_update method for each call
-               args=(pid, rgs, fit, popsize, max_eval, False, store)) for pid in range(workers)]
+               args=(pid, rgs, fit, popsize, max_eval, nsga_update, store)) for pid in range(workers)]
                 #args=(fit, popsize, max_eval, nobj, (i + pid) % 2 == 0, store)) for pid in range(workers)]
         [p.start() for p in proc]
         [p.join() for p in proc]
@@ -203,10 +203,10 @@ def optimize():
     fit.bounds = bounds
     
     # multi objective optimization 'modecpp' multi threaded, DE population update
-    xs, front = retry_modecpp(fit, retry_num=64, popsize = 48, max_eval = 1600000, workers=16, nsga_update = False)
+    xs, front = retry_modecpp(fit, retry_num=6400, popsize = 48, max_eval = 1200000, workers=16, nsga_update = False)
     
     # multi objective optimization 'modecpp' multi threaded, NSGA-II population update
-    # xs, front = retry_modecpp(fit, retry_num=64, popsize = 48, max_eval = 1600000, workers=16, nsga_update = True)    
+    #xs, front = retry_modecpp(fit, retry_num=64, popsize = 48, max_eval = 1200000, workers=16, nsga_update = True)    
     
     # smart boundary management (SMB) with DE->CMA
     # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
