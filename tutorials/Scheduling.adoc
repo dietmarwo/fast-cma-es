@@ -537,8 +537,8 @@ implemented in {cpp}. We call it using the parallel retry mechanism:
 [source,python]
 ----
     # multi objective optimization 'modecpp' multi threaded, NSGA-II population update
-    # xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 96, 
-    #               max_evaluations = 3000000, nsga_update = True, logger = logger(), workers=16)
+    xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 96, 
+                max_evaluations = 3000000, nsga_update = True, logger = logger(), workers=16)
 ----
 https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe]
 provides two population update mechanisms: One derived from NSGA-II and one from DE. 
