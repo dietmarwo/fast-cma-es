@@ -153,9 +153,11 @@ class store():
         self.xs = mp.RawArray(ct.c_double, self.capacity * self.dim)
         self.ys = mp.RawArray(ct.c_double, self.capacity * self.nobj)  
         self.num_stored = mp.RawValue(ct.c_int, 0) 
+        self.num_added = mp.RawValue(ct.c_int, 0) 
 
     def add_results(self, xs, ys):
         with self.add_mutex:
+            self.num_added.value += 1
             i = self.num_stored.value
             for j in range(len(xs)):
                 if i < self.capacity:                      
@@ -193,7 +195,7 @@ class store():
  
     def set_y(self, i, y):
         self.ys[i*self.nobj:(i+1)*self.nobj] = y[:]          
-    
+
 
 class MODE(object):
     

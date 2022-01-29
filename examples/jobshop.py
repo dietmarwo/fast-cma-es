@@ -25,9 +25,7 @@ from fcmaes.optimizer import logger, Bite_cpp, Cma_cpp, De_cpp, de_cma, dtime, D
 from scipy.optimize import Bounds
 import ctypes as ct
 import multiprocessing as mp 
-from multiprocessing import Process
 from numba import njit, numba
-from numpy.random import Generator, MT19937, SeedSequence
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -244,27 +242,6 @@ class fitness:
     def __call__(self, x): # single objective function        
         ys = self.fun(x)
         return sum(self.weights*ys) # weighted sum  
-
-def run_modecpp(pid, rgs, problem, popsize, max_eval, nsga_update, store):
-    modecpp.minimize(problem.fun, problem.nobj, problem.ncon, 
-                    problem.bounds, popsize = popsize,
-                    max_evaluations = max_eval, nsga_update=nsga_update, workers = 1, rg = rgs[pid], store = store) 
-
-def retry_modecpp(fit, retry_num = 32, popsize = 48, max_eval = 500000, workers=mp.cpu_count()):
-    store = mode.store(len(fit.bounds.lb), fit.nobj + fit.ncon, retry_num*popsize*2)
-    i = 0
-    while i < retry_num:
-        sg = SeedSequence()
-        rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
-        proc=[Process(target=run_modecpp, # nsga_update method 
-               args=(pid, rgs, fit, popsize, max_eval, True, store)) for pid in range(workers)]
-        [p.start() for p in proc]
-        [p.join() for p in proc]
-        i += workers
-        logger().info("evals = {0}: time = {1:.1f} i = {2}: y = {3:.2f}"
-                .format(fit.evals.value, dtime(fit.t0), i, fit.best_y.value))
-    xs, ys = store.get_front()   
-    return xs, ys
  
 def optall(multi_objective = True):
     for i in range(1,16):
@@ -282,10 +259,10 @@ def optimize(bi, multi_objective = True):
     bounds = Bounds(lower_bound, upper_bound)
           
     fit = fitness(tasks, bounds, n_jobs, n_operations, n_machines, name)
-    
     if multi_objective:
-        xs, front = retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16)
-        logger().info(name + " retry_modecpp(mo_problem, retry_num=32, popsize = 48, max_eval = 960000, workers=16)" )
+        xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=32, popsize = 48, 
+                  max_evaluations = 960000, nsga_update = True, logger = logger(), workers=16)
+        logger().info(name + " modecpp.retry(num_retries=32, popsize = 48, max_evals = 960000, nsga_update = True, workers=16" )
         logger().info(str([tuple(y) for y in front]))
     else:    
         store = retry.Store(fit, bounds, logger=logger()) 

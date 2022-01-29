@@ -14,8 +14,6 @@ from fcmaes.optimizer import logger, Bite_cpp, Cma_cpp, De_cpp, de_cma, dtime, D
 from scipy.optimize import Bounds
 import ctypes as ct
 import multiprocessing as mp 
-from multiprocessing import Process
-from numpy.random import Generator, MT19937, SeedSequence
 from numba import njit, numba
 
 STATION_NUM = 12 # number of dyson ring stations
@@ -154,29 +152,6 @@ class fitness(object): # the objective function
                         ))
         return ys   
 
-def run_modecpp(pid, rgs, problem, popsize, max_eval, nsga_update, store):
-    modecpp.minimize(problem.fun, problem.nobj, problem.ncon, 
-                    problem.bounds, popsize = popsize,
-                    max_evaluations = max_eval, nsga_update=nsga_update, workers = 1, rg = rgs[pid], store = store) 
-    
-def retry_modecpp(fit, retry_num = 64, popsize = 48, max_eval = 5000000, nsga_update = False, workers=mp.cpu_count()):
-    store = mode.store(len(fit.bounds.lb), fit.nobj + fit.ncon, retry_num*popsize*2)
-    i = 0
-    while i < retry_num:
-        sg = SeedSequence()
-        rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
-        proc=[Process(target=run_modecpp, # change nsga_update method for each call
-               args=(pid, rgs, fit, popsize, max_eval, nsga_update, store)) for pid in range(workers)]
-                #args=(fit, popsize, max_eval, nobj, (i + pid) % 2 == 0, store)) for pid in range(workers)]
-        [p.start() for p in proc]
-        [p.join() for p in proc]
-        i += workers
-        logger().info("evals = {0}: time = {1:.1f} i = {2}: y = {3:.2f}"
-                .format(fit.evals.value, dtime(fit.t0), i, fit.best_y.value))
-        xs, ys = store.get_front()   
-        logger().info(str([tuple(y) for y in ys]))
-    return xs, ys
-
 def optimize():    
     name = 'tsin3000.60' # 60 trajectories to choose from
     # name = 'tsin3000.10' # 10 fixed trajectories
@@ -203,10 +178,12 @@ def optimize():
     fit.bounds = bounds
     
     # multi objective optimization 'modecpp' multi threaded, NSGA-II population update
-    xs, front = retry_modecpp(fit, retry_num=640, popsize = 96, max_eval = 3000000, workers=16, nsga_update = True)    
+    xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 96, 
+                  max_evaluations = 3000000, nsga_update = True, logger = logger(), workers=16)
 
     # multi objective optimization 'modecpp' multi threaded, DE population update
-    #xs, front = retry_modecpp(fit, retry_num=640, popsize = 48, max_eval = 3000000, workers=16, nsga_update = False)
+    # xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 67, 
+    #               max_evaluations = 3000000, nsga_update = False, logger = logger(), workers=16)
     
     # smart boundary management (SMB) with DE->CMA
     # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 

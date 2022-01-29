@@ -31,7 +31,24 @@ resulting in a 7200x speedup considering parallelization?
 - We could use continuous optimization algorithms much better suited to discrete input arguments?  
 
 Whether this is sufficient to beat specifically tuned genetic algorithms coded in C/{cpp} is an open question. 
-In this tutorial we will show only that {cpp} doesn't win easily.  
+In this tutorial we will show only that {cpp} doesn't win easily. 
+
+==== Important concepts used
+
+- Indirect encoding
+
+A decoder is required to express the parameters given by their encoding as a vector of continuous variables. 
+The constraints associated with the optimization problem are handled by the decoder and will 
+guarantee the validity of the solution. This concept is well known in the literature.
+
+- Indirect objective 
+
+Not the real objective is known by the optimizer, but a specific objective (or objectives if a
+multi-objective optimizer is used) designed specifically to guide the optimization process. 
+This concept is best known in relation to the "weighted sum approach" to handle constraints. 
+The idea to apply multi-objective optimization to single objective problems is not very common.
+Probably because not many problems have been found were it works. The problem shown here is
+one of these rare instances. 
 
 ==== Update
 
@@ -40,7 +57,7 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobS
 unexpected result: The new multi-objective algorithm 
 https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe] produced excellent 
 single objective results. Therefore we extended this tutorial by applying this idea also here. The results
-were even more surprising. 
+were even more surprising: score 7203 with 120 trajectories to choose from.
 
 === GTOC 11
 
@@ -514,39 +531,56 @@ class fitness(object): # the objective function
 We register improvements of our single objective score value, but "hide" this fact from the optimization 
 algorithm - which "thinks" we are after the two objectives `[-min_mass*1E-10, dv_val]`.
 
-The multi-objective optimization method `retry_modecpp` calls `modecpp.minimize` in parallel, 
-but the optimization itself is single threaded (`workers = 1`). The random generators need to be
-initialized using `sg.spawn(workers)` to preserve diversification of the parallel optimization runs. 
+As multi-objective optimizer we use https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe]
+implemented in {cpp}. We call it using the parallel retry mechanism: 
 
 [source,python]
 ----
-def run_modecpp(pid, rgs, problem, popsize, max_eval, nsga_update, store):
-    modecpp.minimize(problem.fun, problem.nobj, problem.ncon, 
-                    problem.bounds, popsize = popsize,
-                    max_evaluations = max_eval, nsga_update=nsga_update, workers = 1, rg = rgs[pid], store = store) 
-    
-def retry_modecpp(fit, retry_num = 64, popsize = 48, max_eval = 5000000, 
-                     nsga_update = False, workers=mp.cpu_count()):
-    store = mode.store(len(fit.bounds.lb), fit.nobj + fit.ncon, retry_num*popsize*2)
-    i = 0
-    while i < retry_num:
-        sg = SeedSequence()
-        rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
-        proc=[Process(target=run_modecpp,
-               args=(pid, rgs, fit, popsize, max_eval, nsga_update, store)) for pid in range(workers)]
-        [p.start() for p in proc]
-        [p.join() for p in proc]
-        i += workers
-    return store.get_front()   
+    # multi objective optimization 'modecpp' multi threaded, NSGA-II population update
+    # xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 96, 
+    #               max_evaluations = 3000000, nsga_update = True, logger = logger(), workers=16)
 ----
-
 https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe]
 provides two population update mechanisms: One derived from NSGA-II and one from DE. 
 Note that this algorithm uses (if configured) the NSGA-II population update, but differs in other aspects
 significantly from NSGA-II. There is no tournament selection and MoDe can handle constraints. 
 Different from the flexible job shop problem this time the DE population update seems to be a good alternative.
-The NSGA-II population update improves faster, but finally the DE population update sometimes delivers better
-results. One DE-update-run delivered a score of 7037 using 60 trajectories after about 1000 seconds.   
+The NSGA-II population update improves faster, but finally the DE population update often delivers better
+results. One DE-update-run delivered a score of 7067 using 60 trajectories after about 1000 seconds, 
+score 7203 using 120 trajectories.    
+
+You may customize the termination criteria by providing an `is_terminate` callback:
+
+[source,python]
+----
+    xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 96, 
+                  max_evaluations = 3000000, nsga_update = True, logger = logger(), 
+                  is_terminate = is_terminate(), workers=16)                  
+   ...
+   
+   class is_terminate(object):
+    
+    def __init__(self):
+        self.count = 0
+        self.score = 0
+    
+    def __call__(self, x, y):
+        self.count += 1
+        score = - y[0] / (A_DYSON * A_DYSON * y[1])
+        if self.score < score:
+            self.score = score
+        if self.count == 300000 and self.score < 20500:
+            logger().info("fail: " + str(self.score))
+            self.score = 0
+            self.count = 0
+            return True
+        else:
+            return False # don't terminate optimization
+----
+
+Here we check if the "virtual" score reached "20500" after 300000 function calls (at this thread). 
+Note that the first component of the objective function result vector is a score based on
+a mass value considering not only the minimal mass to support the optimization process. 
 
 == Detailed results
 
@@ -578,6 +612,10 @@ These results show that:
 of the optimization process.
  
 Note that we haven't included the 120 trajectories transfer file because of its size, but you may reproduce the first two results. 
+
+==== Update
+
+The relation using the multiobjective modecpp optimizer is similar: score 7067 for 60 trajectories, score 7201 for 120 trajectories. 
 
 === Size of the Dyson sphere
 
@@ -718,7 +756,7 @@ image::bite32.png[]
 
 ==== 32 threads, Smart Boundary Management using NUMA
 
-The algorithm suited best for this problem is the fcmaes smart boundary management parallel
+An algorithm suited well for this problem is the fcmaes smart boundary management parallel
 meta algorithm. We applied it to its default base algorithm - a DE->CMA-ES sequence, to 
 https://github.com/avaneev/biteopt[BiteOpt] and to CMA-ES alone. 
 BiteOpt fits not very well here, both other base algorithms perform better.
@@ -736,4 +774,24 @@ image::Bite1.png[]
 
 image::sbmCma32.png[]
 
+==== 16 threads, Multi-objective optimization (modecpp) using NUMA
 
+The algorithm - surprisingly - suited best for this problem is the fcmaes modecpp multi-objective
+optimization used to optimize the single objective "score". 
+Our real objective was "hidden" from modecpp, but searching for the two objectives "maximal mass" and
+"minimal dv value" seems to guide the optimization in the right direction.  
+
+- modecpp parallel retry using DE population update (score 7067):
+
+image::modeDE.png[]
+
+- modecpp parallel retry using NSGA-II population update (score 7045):
+
+image::modeNSGA.png[]
+
+- modecpp parallel retry using DE population update, 120 trajectories (score 7203):
+
+image::modeDE120.png[]
+ 
+
+ 

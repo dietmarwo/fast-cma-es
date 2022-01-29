@@ -216,40 +216,20 @@ For single objective optimization we use the weighted sum approach after calling
 ----
 
 As multi-objective optimizer we use https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe]
-implemented in {cpp}. We call it single threaded because we parallelize the whole optimization process. 
+implemented in {cpp}. We call it using the parallel retry mechanism: 
 
 [source,python]
 ----
-    def run_modecpp(pid, rgs, problem, popsize, max_eval, nsga_update, store):
-        modecpp.minimize(problem.fun, problem.nobj, problem.ncon, 
-                problem.bounds, popsize=popsize,
-                max_evaluations=max_eval, nsga_update=nsga_update, workers=1, rg=rgs[pid], store=store) 
+    xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=32, popsize = 48, 
+              max_evaluations = 960000, nsga_update = True, logger = logger(), workers=16)
+    logger().info(name + " modecpp.retry(num_retries=32, popsize = 48, max_evals = 960000, nsga_update = True, workers=16" )
+    logger().info(str([tuple(y) for y in front]))
 ----
 
-For collecting of the optimization results - the pareto front computed by each optimization - we use `mode.store`,
+For collecting of the optimization results - the pareto front computed by each optimization - the parallel retry uses `mode.store`,
 which uses a `multiprocessing.Lock` to enable parallel access. 
 
-[source,python]
-----
-    def retry_modecpp(fit, retry_num = 32, popsize = 48, max_eval = 500000, workers=mp.cpu_count()):
-        store = mode.store(len(fit.bounds.lb), fit.nobj + fit.ncon, retry_num*popsize*2)
-        i = 0
-        while i < retry_num:
-            sg = SeedSequence()
-            rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
-            proc=[Process(target=run_modecpp, # nsga_update method 
-                   args=(pid, rgs, fit, popsize, max_eval, True, store)) for pid in range(workers)]
-            [p.start() for p in proc]
-            [p.join() for p in proc]
-            i += workers
-            logger().info("evals = {0}: time = {1:.1f} i = {2}: y = {3:.2f}"
-                    .format(fit.evals.value, dtime(fit.t0), i, fit.best_y.value))
-        xs, ys = store.get_front()   
-        return xs, ys
-----
-
-Note that initialization of the random generators has to be done carefully to get independent random numbers for each
-process. https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe]
+https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe]
 provides two population update mechanisms: One derived from NSGA-II and one from DE. Experiments have shown that for this 
 application the NSGA-II-update works better. Normally the recommendation would be to choose the mechanism randomly
 (`nsga_update=np.random.random() > 0.5`) to improve diversification, but not in this case.

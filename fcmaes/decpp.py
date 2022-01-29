@@ -32,6 +32,102 @@ def minimize(fun,
              cr = 0.9,
              rg = Generator(MT19937()),
              workers = 1,
+             is_terminate = None,
+             runid=0):  
+     
+    """Minimization of a scalar function of one or more variables using a 
+    C++ Differential Evolution implementation called via ctypes.
+     
+    Parameters
+    ----------
+    fun : callable
+        The objective function to be minimized.
+            ``fun(x, *args) -> float``
+        where ``x`` is an 1-D array with shape (dim,) and ``args``
+        is a tuple of the fixed parameters needed to completely
+        specify the function.
+    dim : int
+        dimension of the argument of the objective function
+    bounds : sequence or `Bounds`, optional
+        Bounds on variables. There are two ways to specify the bounds:
+            1. Instance of the `scipy.Bounds` class.
+            2. Sequence of ``(min, max)`` pairs for each element in `x`. None
+               is used to specify no bound.
+    popsize : int, optional
+        Population size.
+    max_evaluations : int, optional
+        Forced termination after ``max_evaluations`` function evaluations.
+    stop_fitness : float, optional 
+         Limit for fitness value. If reached minimize terminates.
+    keep = float, optional
+        changes the reinitialization probability of individuals based on their age. Higher value
+        means lower probablity of reinitialization.
+    f = float, optional
+        The mutation constant. In the literature this is also known as differential weight, 
+        being denoted by F. Should be in the range [0, 2].
+    cr = float, optional
+        The recombination constant. Should be in the range [0, 1]. 
+        In the literature this is also known as the crossover probability.     
+    rg = numpy.random.Generator, optional
+        Random generator for creating random guesses.
+    workers : int or None, optional
+        If not workers is None, function evaluation is performed in parallel for the whole population. 
+        Useful for costly objective functions but is deactivated for parallel retry.      
+    is_terminate : callable, optional
+        Callback to be used if the caller of minimize wants to decide when to terminate.
+    runid : int, optional
+        id used to identify the run for debugging / logging. 
+            
+    Returns
+    -------
+    res : scipy.OptimizeResult
+        The optimization result is represented as an ``OptimizeResult`` object.
+        Important attributes are: ``x`` the solution array, 
+        ``fun`` the best function value, 
+        ``nfev`` the number of function evaluations,
+        ``nit`` the number of iterations,
+        ``success`` a Boolean flag indicating if the optimizer exited successfully. """
+    
+    dim, lower, upper = de._check_bounds(bounds, dim)
+    if popsize is None:
+        popsize = 31
+    if lower is None:
+        lower = [0]*dim
+        upper = [0]*dim
+    if workers is None:
+        workers = 0
+    if stop_fitness is None:
+        stop_fitness = math.inf   
+    array_type = ct.c_double * dim   
+    c_callback = mo_call_back_type(callback(fun, dim, is_terminate))
+    seed = int(rg.uniform(0, 2**32 - 1))
+    res = np.empty(dim+4)
+    res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
+    try:
+        optimizeDE_C(runid, c_callback, dim, seed,
+                           array_type(*lower), array_type(*upper), 
+                           max_evaluations, keep, stop_fitness,  
+                           popsize, f, cr, workers, res_p)
+        x = res[:dim]
+        val = res[dim]
+        evals = int(res[dim+1])
+        iterations = int(res[dim+2])
+        stop = int(res[dim+3])
+        return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
+    except Exception as ex:
+        return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
+
+def minimize(fun, 
+             dim = None,
+             bounds = None, 
+             popsize = None, 
+             max_evaluations = 100000, 
+             stop_fitness = None, 
+             keep = 200,
+             f = 0.5,
+             cr = 0.9,
+             rg = Generator(MT19937()),
+             workers = 1,
              runid=0):  
      
     """Minimization of a scalar function of one or more variables using a 
@@ -116,10 +212,11 @@ def minimize(fun,
 
 class callback(object):
     
-    def __init__(self, fun, dim):
+    def __init__(self, fun, dim, is_terminate = None):
         self.fun = fun
         self.dim = dim
         self.nobj = 1
+        self.is_terminate = is_terminate
     
     def __call__(self, dim, x, y):
         try:
@@ -131,31 +228,34 @@ class callback(object):
             ybuf = np.frombuffer(arrTypeY.from_address(yaddr))  
             fit = self.fun(xbuf)
             ybuf[0] = fit if math.isfinite(fit) else sys.float_info.max
-            return False # don't terminate optimization
+            return False if self.is_terminate is None else self.is_terminate(xbuf, ybuf) 
         except Exception as ex:
             print (ex)
             return False
 
+
 class callback_mo(object):
     
-    def __init__(self, fun, dim, nobj):
+    def __init__(self, fun, dim, nobj, is_terminate = None):
         self.fun = fun
         self.dim = dim
         self.nobj = nobj
+        self.is_terminate = is_terminate
     
     def __call__(self, dim, x, y):
         try:
-            arrTypeX = ct.c_double*(self.dim)
+            arrTypeX = ct.c_double*(dim)
             xaddr = ct.addressof(x.contents)
             xbuf = np.frombuffer(arrTypeX.from_address(xaddr))
             arrTypeY = ct.c_double*(self.nobj)
             yaddr = ct.addressof(y.contents)   
             ybuf = np.frombuffer(arrTypeY.from_address(yaddr))  
             ybuf[:] = self.fun(xbuf)[:]
-            return False # don't terminate optimization
+            return False if self.is_terminate is None else self.is_terminate(xbuf, ybuf) 
         except Exception as ex:
             print (ex)
             return False
+
 
 mo_call_back_type = ct.CFUNCTYPE(ct.c_bool, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))  
 

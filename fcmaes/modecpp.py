@@ -37,12 +37,17 @@
 import sys
 import os
 import math
+import time
 import ctypes as ct
+import multiprocessing as mp 
+from multiprocessing import Process
 import numpy as np
 from numpy.random import MT19937, Generator
 from fcmaes.decpp import mo_call_back_type, callback_mo, libcmalib
-from fcmaes import de
+from fcmaes import de, mode, moretry
 from fcmaes.mode import filter
+from numpy.random import Generator, MT19937, SeedSequence
+from fcmaes.optimizer import dtime
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -65,6 +70,7 @@ def minimize(mofun,
              rg = Generator(MT19937()),
              plot_name = None,
              store = None,
+             is_terminate = None,
              runid=0):  
      
     """Minimization of a multi objjective function of one or more variables using
@@ -120,6 +126,8 @@ def minimize(mofun,
     store : result store, optional
         if defined the optimization results are added to the result store. For multi threaded execution.
         use workers=1 if you call minimize from multiple threads
+    is_terminate : callable, optional
+        Callback to be used if the caller of minimize wants to decide when to terminate.
     runid : int, optional
         id used to identify the run for debugging / logging. 
 
@@ -136,7 +144,7 @@ def minimize(mofun,
     if workers is None:
         workers = 0        
     array_type = ct.c_double * dim   
-    c_callback = mo_call_back_type(callback_mo(mofun, dim, nobj + ncon))
+    c_callback = mo_call_back_type(callback_mo(mofun, dim, nobj + ncon, is_terminate))
     c_log = mo_call_back_type(log_mo(plot_name, dim, nobj, ncon))
     seed = int(rg.uniform(0, 2**32 - 1))
     res = np.empty(2*dim*popsize) # stores the resulting pareto front parameters
@@ -157,8 +165,81 @@ def minimize(mofun,
         return x, y
     except Exception as ex:
         return None, None
+  
+def retry(mofun, 
+            nobj, 
+            ncon,
+            bounds,
+            num_retries = 64,
+            popsize = 64, 
+            max_evaluations = 100000, 
+            workers = mp.cpu_count(),
+            nsga_update = True,
+            logger = None,
+            is_terminate = None):
+    """Minimization of a multi objjective function of one or more variables using parallel 
+     optimization retry.
+     
+    Parameters
+    ----------
+        mofun : callable
+        The objective function to be minimized.
+            ``mofun(x, *args) -> list(float)``
+        where ``x`` is an 1-D array with shape (n,) and ``args``
+        is a tuple of the fixed parameters needed to completely
+        specify the function.
+    nobj : int
+        number of objectives
+    ncon : int
+        number of constraints, default is 0. 
+        The objective function needs to return vectors of size nobj + ncon
+    bounds : sequence or `Bounds`
+        Bounds on variables. There are two ways to specify the bounds:
+            1. Instance of the `scipy.Bounds` class.
+            2. Sequence of ``(min, max)`` pairs for each element in `x`. None
+               is used to specify no bound.
+    num_retries : int, optional
+        Number of optimization retries. 
+    popsize : int, optional
+        Population size.
+    max_evaluations : int, optional
+        Forced termination after ``max_evaluations`` function evaluations.
+    workers : int or None, optional
+        If not workers is None, optimization is performed in parallel.  
+    nsga_update = boolean, optional
+        Use of NSGA-II or DE population update. Default is True    
+    logger : logger, optional
+        logger for log output for tell_one, If None, logging
+        is switched off. Default is a logger which logs both to stdout and
+        appends to a file ``optimizer.log``.
+    is_terminate : callable, optional
+        Callback to be used if the caller of minimize wants to decide when to terminate. """
+    
+    dim, _, _ = de._check_bounds(bounds, None)
+    store = mode.store(dim, nobj + ncon, num_retries*popsize*2)
+    sg = SeedSequence()
+    rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
+    proc=[Process(target=_retry_loop,
+           args=(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
+                 max_evaluations, nsga_update, is_terminate, store, logger))
+                for pid in range(workers)]
+    [p.start() for p in proc]
+    [p.join() for p in proc]
+    xs, ys = store.get_front()   
+    if not logger is None:
+        logger.info(str([tuple(y) for y in ys]))            
+    return xs, ys
 
-from fcmaes import moretry
+def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
+                max_evaluations, nsga_update, is_terminate, store, logger):
+    t0 = time.perf_counter()
+    while store.num_added.value < num_retries: 
+        minimize(mofun, nobj, ncon, bounds, popsize,
+                    max_evaluations = max_evaluations, nsga_update=nsga_update,
+                    workers = 1, rg = rgs[pid], store = store, is_terminate=is_terminate) 
+        if not logger is None:
+            logger.info("retries = {0}: time = {1:.1f} i = {2}"
+                        .format(store.num_added.value, dtime(t0), store.num_stored.value))
 
 class log_mo(object):
     
