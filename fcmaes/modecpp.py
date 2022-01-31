@@ -236,6 +236,8 @@ def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize,
                 max_evaluations, workers, nsga_update, is_terminate, store, logger):
     t0 = time.perf_counter()
     while store.num_added.value < num_retries - workers: 
+        if not is_terminate is None and hasattr(is_terminate, 'reinit'):
+            is_terminate.reinit()
         minimize(mofun, nobj, ncon, bounds, popsize,
                     max_evaluations = max_evaluations, nsga_update=nsga_update,
                     workers = 1, rg = rgs[pid], store = store, is_terminate=is_terminate) 

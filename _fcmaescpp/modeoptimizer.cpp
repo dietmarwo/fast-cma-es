@@ -93,7 +93,7 @@ public:
         // If pareto_update == 0: use always the whole population.
         // usually should be 0, optimization can get stuck in local minima otherwise.
         pareto_update = pareto_update_;
-        // The log callback is called each log_period iterations 
+        // The log callback is called each log_period iterations
         log_period = log_period_;
         if (log_period <= 0)
             log_period = 1000;
@@ -583,8 +583,7 @@ void optimizeMODE_C(long runid, callback_type func, callback_type log,
         else
             opt.do_optimize_delayed_update(workers);
         double* xdata = opt.getX().data();
-        for (int i = 0; i < opt.getX().size(); i++)
-            res[i] = xdata[i];
+        memcpy(res, xdata, sizeof(double) * opt.getX().size());
     } catch (std::exception &e) {
         std::cout << e.what() << std::endl;
     }
