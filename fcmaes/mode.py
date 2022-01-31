@@ -206,7 +206,9 @@ class MODE(object):
         self.ncon = ncon
         self.dim, self.lower, self.upper = _check_bounds(bounds, None)
         if popsize is None:
-            popsize = 31
+            popsize = 64
+        if popsize % 2 == 1 and nsga_update: # nsga update requires even popsize
+            popsize += 1
         self.popsize = popsize
         self.workers = workers 
         self.rg = rg

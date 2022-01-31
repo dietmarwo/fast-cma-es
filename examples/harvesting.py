@@ -36,7 +36,7 @@ import multiprocessing as mp
 from multiprocessing import Process
 from numba import njit, numba
 from numpy.random import Generator, MT19937, SeedSequence
-from jobshop import gantt, read_fjs, retry_modecpp, job_indices, filter_tasks, reorder 
+from jobshop import gantt, read_fjs, job_indices, filter_tasks, reorder 
 import jobshop
 
 def scheduling(tasks, n_jobs, n_machines, max_active, start, duration):
@@ -201,8 +201,10 @@ class fitness:
         ys = self.fun(x)
         return sum(self.weights*ys) # weighted sum  
 
-def retry_modecpp(fit, retry_num = 32, popsize = 128, max_eval = 500000, workers=mp.cpu_count()):
-    xf, yf = jobshop.retry_modecpp(fit, retry_num, popsize, max_eval, workers)
+def retry_modecpp(fit, retry_num = 32, popsize = 48, max_eval = 500000, 
+                  nsga_update = True, logger = logger(), workers=mp.cpu_count()):
+    xf, yf = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, retry_num, popsize, 
+                  max_evaluations = 960000, nsga_update = nsga_update, logger = logger, workers=workers)
     xs = []; ys = []
     for i in range(len(yf)):
         if yf[i][-1] == 0: # filter valid solutions
@@ -229,8 +231,9 @@ def optimize(bi, max_active, multi_objective = True):
     fit = fitness(tasks, bounds, n_jobs, n_operations, n_machines, max_active, name)
     
     if multi_objective:
-        xs, front = retry_modecpp(fit, retry_num=32, popsize = 48, max_eval = 960000, workers=16)
-        logger().info(name + " retry_modecpp(mo_problem, retry_num=32, popsize = 48, max_eval = 960000, workers=16)" )
+        xs, front = retry_modecpp(fit, retry_num = 32, popsize = 48, max_eval = 500000, 
+                  nsga_update = True, logger = logger(), workers=16)
+        logger().info(name + " modecpp.retry(num_retries=32, popsize = 48, max_evals = 960000, nsga_update = True, workers=16" )
         logger().info(str([tuple(y) for y in front]))
     else:    
         store = retry.Store(fit, bounds, logger=logger()) 

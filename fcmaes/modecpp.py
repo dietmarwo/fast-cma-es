@@ -137,7 +137,9 @@ def minimize(mofun,
     
     dim, lower, upper = de._check_bounds(bounds, None)
     if popsize is None:
-        popsize = 128
+        popsize = 64
+    if popsize % 2 == 1 and nsga_update: # nsga update requires even popsize
+        popsize += 1
     if lower is None:
         lower = [0]*dim
         upper = [0]*dim  
@@ -221,7 +223,7 @@ def retry(mofun,
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
            args=(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
-                 max_evaluations, nsga_update, is_terminate, store, logger))
+                 max_evaluations, workers, nsga_update, is_terminate, store, logger))
                 for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
@@ -231,9 +233,9 @@ def retry(mofun,
     return xs, ys
 
 def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
-                max_evaluations, nsga_update, is_terminate, store, logger):
+                max_evaluations, workers, nsga_update, is_terminate, store, logger):
     t0 = time.perf_counter()
-    while store.num_added.value < num_retries: 
+    while store.num_added.value < num_retries - workers: 
         minimize(mofun, nobj, ncon, bounds, popsize,
                     max_evaluations = max_evaluations, nsga_update=nsga_update,
                     workers = 1, rg = rgs[pid], store = store, is_terminate=is_terminate) 
