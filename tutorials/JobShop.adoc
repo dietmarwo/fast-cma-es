@@ -599,7 +599,7 @@ class is_terminate(object):
 
     def reinit(self):
         self.count = 0
-        self.score = 9999
+        self.score = 1E99
         self.terminate = False
     
     def __call__(self, x, y):
