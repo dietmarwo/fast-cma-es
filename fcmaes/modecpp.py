@@ -235,7 +235,8 @@ def retry(mofun,
 def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
                 max_evaluations, workers, nsga_update, is_terminate, store, logger):
     t0 = time.perf_counter()
-    while store.num_added.value < num_retries - workers: 
+    num = max(1, num_retries - workers)
+    while store.num_added.value < num: 
         if not is_terminate is None and hasattr(is_terminate, 'reinit'):
             is_terminate.reinit()
         minimize(mofun, nobj, ncon, bounds, popsize,
