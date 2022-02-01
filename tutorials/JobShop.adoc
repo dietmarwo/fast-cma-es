@@ -342,7 +342,7 @@ def retry_modecpp(fit, retry_num = 32, popsize = 48, max_eval = 500000,
     return np.array(xs), np.array(ys)
 ----
 
-but just have to declare the new objective as constraint:
+and have to declare the new objective as constraint:
 
 [source,python]
 ----
