@@ -218,7 +218,7 @@ def retry(mofun,
         Callback to be used if the caller of minimize wants to decide when to terminate. """
     
     dim, _, _ = de._check_bounds(bounds, None)
-    store = mode.store(dim, nobj + ncon, num_retries*popsize*2)
+    store = mode.store(dim, nobj + ncon, 100*popsize*2)
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
