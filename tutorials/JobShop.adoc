@@ -554,7 +554,20 @@ Mk10: modecpp.retry with retry_num=640, popsize = 500, max_eval = 16000000, work
 ----
 
 Eliminating the last objective simplifies the task significantly, we find a
-`makespan = 210` solution quite fast, not far away from the best solutions ever found using single objective optimization.  
+`makespan = 208` solution, not far away from the best solution ever found using single objective optimization.  
+
+image::brandi10.208.png[]
+
+The optimization needed 3669 seconds, 1207225466 function evaluations.
+
+[source,python]
+----
+Mk10: modecpp.retry with retry_num=640, popsize = 480, max_eval = 16000000, workers=16), time = 3669s
+
+[(208.0, 1978.0), (209.0, 1973.0), (210.0, 1967.0), (211.0, 1966.0), (212.0, 1959.0), (213.0, 1955.0), (214.0, 1941.0), (215.0, 1928.0), (216.0, 1926.0), (217.0, 1923.0), (218.0, 1917.0), (219.0, 1913.0), (220.0, 1910.0), (221.0, 1903.0), (222.0, 1900.0), (223.0, 1896.0), (224.0, 1895.0), (225.0, 1894.0), (226.0, 1882.0), (229.0, 1881.0), (230.0, 1875.0), (231.0, 1874.0), (233.0, 1869.0), (234.0, 1866.0), (237.0, 1864.0), (239.0, 1863.0), (241.0, 1861.0), (242.0, 1858.0), (248.0, 1855.0), (250.0, 1854.0), (259.0, 1853.0), (260.0, 1850.0), (270.0, 1849.0), (280.0, 1848.0), (290.0, 1847.0)]
+----
+
+Alternatively, a `makespan = 210` solution with better second objective:
 
 image::brandi10.210.png[]
 
