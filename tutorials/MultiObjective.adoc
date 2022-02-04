@@ -18,11 +18,11 @@ indicator for real world problems.
 
 Note that for real world problems the pareto front is not necessarily what you aim for. If our algorithm produces a result containing good but slightly dominated solutions like this:
 
-image::all_ret.rw-top-trumps-biobj_f2i5d122__de_5k320.png[]
+image::all_.rw-top-trumps-biobj_f2i5d128_4k512_de_cpp.png[]
 
 it may be a bad idea to compute the pareto front now:
 
-image::front_ret.rw-top-trumps-biobj_f2i5d122__de_5k320.png[]
+image::front_.rw-top-trumps-biobj_f2i5d128_4k512_de_cpp.png[]
 
 because:
 
