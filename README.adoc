@@ -18,19 +18,20 @@ support parallel fitness function evaluation.
 
 === Documentation
 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc[Tutorial], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc[Multi-Objective], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc[gbea TopTrumps Benchmark], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/NSGAII.adoc[MO-DE-NSGAII], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PAGMO.adoc[Pagmo results], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PYKEP.adoc[Pykep gym results], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Constraints.adoc[Constraints], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Expressions.adoc[Expressions], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ODE.adoc[ODE], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/HyperparameterOptimization.adoc[Hyper Parameters] .
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/DelayedUpdate.adoc[Delayed Update]
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc[Tutorial] Solving simple example problems from space flight dynamics.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] Managing hospital resources during a pandemic.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop] Solving the flexible job shop scheduling problem. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling] Solving a complex scheduling problem, part of the GTOC11 competition.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc[Multi-Objective] Solving multi objective problems using variable weights. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc[gbea TopTrumps Benchmark] TopTrumps game optimization benchmark results. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/NSGAII.adoc[MO-DE-NSGAII] MO-DE, a new multi objective algorithm. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PAGMO.adoc[Pagmo results] GTOPX Benchmark results using Pagmo
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PYKEP.adoc[Pykep gym results] Benchmark results for the Pykep gym problems
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Constraints.adoc[Constraints] Optimizing with constraints. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Expressions.adoc[Expressions] Sequences and random choices of optimizers. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ODE.adoc[ODE] Use of differential equation solvers. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/HyperparameterOptimization.adoc[Hyper Parameters] Hyper parameter optimization.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/DelayedUpdate.adoc[Delayed Update] Asynchronous parallel function evaluation.
 
 === Features
 
