@@ -113,6 +113,7 @@ nodes in your cluster. The evaluation of surrogate models should be compared to 
 Lets suppose we are a hospital manager interested in a solution of the 
 https://www.th-koeln.de/informatik-und-ingenieurwissenschaften/gecco-2021-industrial-challenge-call-for-participation_82086.php[Hospital Management Problem]
 implemented here https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerHospitalBenchmark.py[DockerHospitalBenchmark.py]
+See also https://gecco-2021.sigevo.org/Competitions#id_Real-World%20Multi-Objective%20Optimization%20Competition[Competition].
 
 To justify the last hardware investment the manager first tries to execute standard optimization methods 
 which are able to fully exploit all the fancy cores the newly bought machine provides. 
@@ -131,30 +132,29 @@ for use with fcmaes:
 - To monitor progress we need some variables shared across python processes and wrap `evaluate(xs)`.
 - We add a method `optimize(self, popsize, max_evaluations)` calling the optimizer.
 
+Most of the changes are for the super class `BaseProblem`. We adapt the other classes similarly. 
+
 [source,python]
 ---- 
 ...
+from scipy.optimize import Bounds
+from fcmaes import de, cmaes,
 import time
 import ctypes as ct
 import multiprocessing as mp 
-from scipy.optimize import Bounds
-from fcmaes import de, cmaes
 from fcmaes.optimizer import logger, dtime
-...
+import math
 
-class DockerHospitalBenchmarkProblem(BaseProblem):
+class BaseProblem:
 
-    def __init__(self, name, d, lbs, ubs, vartype, direction, errval):
-        ...
-        # to monitor progress we need some variables shared across python processes
-        self.evals = mp.RawValue(ct.c_long, 0)  
-        self.best_y = mp.RawValue(ct.c_double, math.inf) 
-        self.t0 = time.perf_counter() 
-    ...
+    def __init__(self):                
+        self.evals = mp.RawValue(ct.c_long, 0)  # writable across python processes
+        self.best_y = mp.RawValue(ct.c_double, math.inf) # writable across python processes
+        self.t0 = time.perf_counter()
 
     def bounds(self):
         return Bounds(self.lbs(),self.ubs())
-    
+
     def fun(self, xs):
         y = self.evaluate(xs)
         self.evals.value += 1
@@ -162,22 +162,31 @@ class DockerHospitalBenchmarkProblem(BaseProblem):
             self.best_y.value = y            
             logger().info("evals = {0}: time = {1:.1f} y = {2:.5f} x= {3:s}"
                           .format(self.evals.value, dtime(self.t0), y, 
-                                  str([round(xi,5) for xi in xs])
+                                  '[' + ", ".join([f"{xi:.16f}" for xi in xs]) + ']'
                     ))
         return y
-                
-    def optimize(self, popsize = 16, max_evaluations = 3000):
+        
+    def optimize(self):
         self.bestY = 1E99
         self.bestX = []
-        #return cmaes.minimize(self.fun, 
         return de.minimize(self.fun, 
-             dim = self.dims(),
-             bounds = self.bounds(), 
-             popsize = popsize, 
-             max_evaluations = max_evaluations, 
-             workers = popsize,
-             logger = logger())
-   ...
+            dim = self.dims(),
+            bounds = self.bounds(), 
+            popsize = 16, 
+            max_evaluations = 5000, 
+            workers = 16,
+        )
+    
+    ...
+
+
+class DockerHospitalBenchmarkProblem(BaseProblem):
+
+    def __init__(self, name, d, lbs, ubs, vartype, direction, errval):
+        super().__init__()
+        ...
+        
+    ...
 
 if __name__ == '__main__':
     Hospital.optimize()
@@ -217,4 +226,38 @@ And even more important: How do they scale when investing more time considering 
 All we know is that using the surrogate model based method you get mediocre solutions quite fast.
 As we do using differential evolution. 
 
+=== Optimizing the CFD Electrostatic Precipitator problem
 
+The CFD Electrostatic Precipitator problem can be found at 
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py[DockerCFDBenchmark.py],
+see also https://algtudelft.github.io/ExpensiveOptimBenchmark/problems.html[Electrostatic Precipitator]
+An Electrostatic Precipitator is a large gas filtering installation, whose efficiencyis dependent on how well the intake gas is distributed. This installation has slots which can be of various types, each having a different impact on the distribution. This benchmark problem employs the OpenFOAM Computational Fluid Dynamics simulator. The goal is to find a configuration that has the best resulting distribution. 
+
+We executed the "ESP" benchmark using the original "frehbach/cfd-test-problem-suite" docker image with parallel differential evolution:
+
+image::CFD_ESP_Optimization.png[]
+
+=== Optimizing a Windmill Wake
+
+A windmill wake simulator based optimization using https://github.com/NREL/floris[floris]
+see https://algtudelft.github.io/ExpensiveOptimBenchmark/problems.html[Windmill Wake Simulator], code is here:
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/windwake.py[windwake.py]
+The layout of the windmills in a wind farm has noticeable impact on the amount of energy it produces. 
+This benchmark problem employs the FLORIS wake simulator to analyse how much power production is lost by
+having windmills be located in each others wake. The objective is to maximize power production.
+
+We executed the `WindWakeLayout('example_input.json', n_samples=5)` benchmark using https://raw.githubusercontent.com/NREL/floris/master/examples/example_input.json[example_input.json] with parallel differential evolution:
+
+image::WindWake_Optimization.png[]
+
+=== Optimizing Hyper-Parameters
+
+Hyper-parameter optimization using `xgboost` see https://algtudelft.github.io/ExpensiveOptimBenchmark/problems.html[HPO / XGBoost], code is here:
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/hpo.py[hpo.py]
+This benchmark makes use of scikit-learn to build an XGBoost classifier with per-feature preprocessing. Evaluation of a solution
+is performed by k-fold cross validation, with the goal to maximize accuracy.
+
+We executed the `HPOSFP` benchmark using the dataset provided by Semeion, Research Center of Sciences of Communication 
+with parallel differential evolution:
+
+image::Hyper_Parameter_Optimization2.png[]
