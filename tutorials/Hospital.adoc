@@ -199,16 +199,12 @@ After about four hours runtime (using a standard 16 core CPU AMD 5950x) we get a
 
 image::Hospital_Management_Optimization.png[]
 
-Is four hours too much for a problem of this complexity? I doubt the hospital manager has a problem with that.  
-
-How can the hospital manager decide if he should use something more fancy, for instance a surrogate model - 
-or any other innovative method?
-
 When we search for published results for the hospital management problem we often find
-https://www.youtube.com/watch?v=Riio1eKOSKg&t=711s[Jan Hendrik Schön]-style results: 
-Reporting relative but no absolute optimization results. https://en.wikipedia.org/wiki/Sch%C3%B6n_scandal[Schön] 
-proved that you can almost get a nobel price publishing this way, 
-but it makes it difficult to evaluate the tested methods compared to other ones. 
+relative but no absolute optimization results. Although
+https://www.youtube.com/watch?v=Riio1eKOSKg&t=711s[Jan Hendrik Schön]  
+proved that you can almost get a nobel price using relative results, 
+see https://en.wikipedia.org/wiki/Sch%C3%B6n_scandal[Schön], this 
+makes it difficult to evaluate the tested methods compared to other ones. 
 Specifically to the 12.3 / 12.9 result we already have for parallel DE / CMA-ES.
 
 An exception is: https://ir.cwi.nl/pub/31037/31037.pdf[Optimisation with a Random ReLU Expansion Surrogate Model] 
@@ -219,11 +215,9 @@ They report a result of their surrogate model based method of
 - 14.81 (+-0.69) limiting the number of points suggested by the surrogate model
 
 after only 200 evaluations. These results are very good, surpassing what we got from CMA-ES after only
-200 evaluations. Question is, if this helps the hospital manager to decide if it is worth
-investing in these methods - which means to hire a development team since the used code is not yet published on github. 
-How do these methods scale when investing more evaluations? 
+200 evaluations. How do these methods scale when investing more evaluations? 
 And even more important: How do they scale when investing more time considering parallelization?
-All we know is that using the surrogate model based method you get mediocre solutions quite fast.
+All we know is that using the surrogate model based method you get better than random solutions quite fast.
 As we do using differential evolution. 
 
 === Optimizing the CFD Electrostatic Precipitator problem
