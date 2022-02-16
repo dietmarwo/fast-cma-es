@@ -21,6 +21,12 @@ insights in the specific "compatibility" of parameter settings to a subset of th
 plan to trade. This works even if we require specific constraints - like an upper limit on 
 the number of trades - to be fulfilled. 
 
+Note that this tutorial was tested on Windows but performs significantly worse (> factor 3) 
+than on Linux because of limitations of Python multi-threading on Windows. 
+Switch to Linux or the Linux subsystem on Windows whenever possible.  
+
+==== Key ideas
+
 The key ideas how to implement an efficient simulation are: 
 
 - Pre-computation of all time series data relevant for the strategy and storing it in a pandas data frame.
