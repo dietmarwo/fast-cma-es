@@ -400,7 +400,7 @@ def optimize_mo(tickers, start, end, nsga_update = True):
 
 This code shows how the `modecpp` optimizer is called. Instead of a single run we trigger as many parallel retries as your
 processor supports. After that the pareto front representing all parallel retries is returned (`xs, front`). 
-`xs` represent the strategy parameters and `ys` their objective / constraint values as result of applying the configured
+`xs` represents the strategy parameters and `ys` their objective / constraint values as result of applying the configured
 trading strategy. Different to single objective optimization fcmaes doesn't offer an alternative optimization algorithm 
 to https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[modecpp] beside its Python implementation
 https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py] since multi objective optimization is not yet
