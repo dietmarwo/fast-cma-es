@@ -148,9 +148,6 @@ class fitness(object):
         self.evals.value += 1
         if y < self.best_y.value:
             self.best_y.value = y       
-            # logger().info("nsim = {0}: time = {1:.1f} fac = {2:.3f} {3:s} x = {4:s}"
-            #     .format(self.evals.value, dtime(self.t0), -y, str([round(fi,1) for fi in factors]), 
-            #             str([int(xi) for xi in x])))
             logger().info("nsim = {0}: time = {1:.1f} fac = {2:.3f} {3:s} ntr = {4:s} x = {5:s}"
                 .format(self.evals.value, dtime(self.t0), -y, 
                         str([round(fi,1) for fi in factors]),
