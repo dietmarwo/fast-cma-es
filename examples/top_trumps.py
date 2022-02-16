@@ -15,6 +15,7 @@
 # https://github.com/ttusar/coco-gbea/blob/main/code-experiments/rw-problems/GBEA.md
 # https://www.researchgate.net/publication/334220017_Single-_and_multi-objective_game-benchmark
 
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc for a detailed description.
 import sys
 import os
 import numpy as np

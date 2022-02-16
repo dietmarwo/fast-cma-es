@@ -5,6 +5,8 @@
 
 # adapted from https://www.kaggle.com/pablocastilla/predict-house-prices-with-xgboost-regression
 
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/HyperparameterOptimization.adoc for a detailed description.
+
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import xgboost

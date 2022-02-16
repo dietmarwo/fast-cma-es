@@ -24,11 +24,17 @@ setup(
           'numpy', 'scipy'
     ],
     classifiers = [
+      "Intended Audience :: Manufacturing",
+      "Intended Audience :: Financial and Insurance Industry"
+      "Intended Audience :: Healthcare Industry"
+      "Intended Audience :: Telecommunications Industry"
+      "Intended Audience :: Information Technology"
       "Intended Audience :: Science/Research",
       "Intended Audience :: Education",
-      "Intended Audience :: Manufacturing",
-      "Intended Audience :: Other Audience",
+      "Topic :: Office/Business :: Financial"
+      "Topic :: Office/Business :: Scheduling"
       "Topic :: Scientific/Engineering",
+      "Topic :: Scientific/Engineering :: Information Analysis"
       "Topic :: Scientific/Engineering :: Mathematics",
       "Topic :: Scientific/Engineering :: Artificial Intelligence",
       "Operating System :: OS Independent",
@@ -37,6 +43,6 @@ setup(
       "Environment :: Console",
       "License :: OSI Approved :: MIT License",
       ],
-    keywords=["optimization", "CMA-ES", "BiteOpt", "differential evolution", "dual annealing", "stochastic", "gradient free", "parallel retry", "smart retry"],
+    keywords=["optimization", "multi-objective", "constraints", "CMA-ES", "BiteOpt", "MO-DE", "differential evolution", "annealing", "stochastic", "gradient free", "parallel execution", "boundary management"],
     include_package_data=True,
    )

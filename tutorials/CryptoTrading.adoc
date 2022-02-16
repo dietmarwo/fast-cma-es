@@ -1,0 +1,465 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+= Optimizing Crypto Trading Strategies
+
+This tutorial shows:
+
+- How to retrieve and cache historical ticker data.
+- How to implement a very fast trading simulation using https://numba.pydata.org/[numba].
+- How to optimize trading strategy parameters for multiple tickers simultaneously.
+- How to optimize multiple objectives - one for each ticker - thereby fulfilling several constraints.
+- How to visualize the resulting strategy applied to different cryptos. 
+
+This is not a tutorial about trading strategies. Instead it shows how an existing strategy
+may be parameterized and how we find parameters fitting to the cryptos we want to trade. 
+This concept can be applied to any trading strategy, as long as we succeed in implementing
+an efficient simulation based on historical data. We can not only optimize for
+a single objective. Computing the pareto front for multiple objectives may give interesting
+insights in the specific "compatibility" of parameter settings to a subset of the cryptos we
+plan to trade. This works even if we require specific constraints - like an upper limit on 
+the number of trades - to be fulfilled. 
+
+The key ideas how to implement an efficient simulation are: 
+
+- Pre-computation of all time series data relevant for the strategy and storing it in a pandas data frame.
+- Use pandas .to_numpy() method to convert all time series data into numpy arrays forwarded to the simulation.
+- Use https://numba.pydata.org/[numba] to implement the simulation based on the time series arrays. 
+
+The tricky part is related to the current limitations of https://numba.pydata.org/[numba]. 
+numba more or less can only operate on numpy 
+arrays. This complicates the implementation of the logging of the trading actions - buy and sell.
+We need that not for the optimization process itself, but for the graphical visualization of the optimization result.  
+ 
+Although our example strategy is quite trivial, we still get a significant improvement
+over the HODL strategy. 
+
+==== The HODL strategy used as reference point
+
+https://www.investopedia.com/terms/h/hodl.asp[HODL] stands for "hold on for dear life" and is
+a trading strategy popular in the crypto-scene. As it is true also for many stocks:
+Long term the price of bigger cryptos like BitCoin, Ethereum, XRP or ADA always increased in the past. 
+
+This strategy - investing all at the beginning of the trading time interval and selling 
+all at the end - serves as a "reference". We want to maximize the return of investment (ROI)
+for a specific strategy divided by the HODL-ROI for that crypto-coin. 
+
+==== EMA / SMA exponential and simple moving average
+
+Our example strategy implemented here is very simple. Its purpose is to show 
+how to implement an efficient simulation / optimization based on any strategy. It is not meant to be
+applied in "real life". From
+https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/ema[EMA/SMA]:
+"Exponential Moving Average (EMA) is similar to Simple Moving Average (SMA), measuring trend direction over a period of time. 
+However, whereas SMA simply calculates an average of price data, EMA applies more weight to data that is more current".
+
+We can now use the "crossing" of EMA, which is more closely following the current price, with the SMA as a buy / sell signal. 
+Both EMA and SMA have a "window-size" parameter which determines how many price data values from the past are used. 
+A larger window means EMA/SMA will slow down in following the actual price. 
+
+We buy when the EMA crosses the SMA from below to above, we sell if the crossing is in the opposite direction. 
+But what if the "crossing" is only short term and soon reverted? To avoid that we introduce two more
+parameters: 
+
+- Minimal wait time after the last sell to buy (min wait buy)
+- Minimal wait time after the last buy to sell (min wait sell)
+
+To simplify things we invest always all our cash and sell all our cryptos.
+Each simulation involves only one ticker (like BitCoin), but we will perform
+simulations for multiple tickers with the same parameters and add the results to reduce overfitting. 
+
+To recap: There are four input parameters for our example EMA/SMA strategy:
+
+- EMA window size
+- SMA window size
+- min wait buy (after last sell)
+- min wait sell (after last buy)
+
+==== Example Plot
+
+This tutorial is based on https://github.com/dietmarwo/fast-cma-es/blob/master/examples/crypto.py[crypto.py]. 
+Adapt this code to perform your own experiments. The following diagram was produced using the code below:
+
+image::ema_sma.png[]
+
+[source,python]
+----
+if __name__ == '__main__':
+    tickers = ['ADA-USD']
+    start="2019-01-01"
+    end="2030-04-30" 
+    fit = fitness(tickers, start, end) 
+    fit.plot([20,60,10,10])
+----
+
+- The blue line represents SMA-60
+- The orange line represents EMA-20
+- The green line is the value of our crypto coins + our cash.
+
+The green line follows the price change if we are invested and is flat otherwise - in that case we hold cash.   
+We see that we buy and sell at the crossings of the orange with the blue line. By holding cash at the end
+we avoid loosing money. But as we see we neither bought at the bottom nor sold at the top.  
+The exact position of bottom and top is hard to predict.
+
+`fitness` represents our objective function used for the optimization. This class performs the simulation 
+based on historical data - either for optimization or, as here, to visualize specific parameters. 
+`fit.plot([20,60,10,10])` gets the parameters we want to visualize:
+
+- EMA window size 20 days
+- SMA window size 60 days
+- min wait buy (after last sell) 10 days
+- min wait sell (after last buy) 10 days
+
+[source,python]
+----
+class fitness(object):
+
+    def __init__(self, tickers, start, end, max_trades = None):
+        self.evals = mp.RawValue(ct.c_int, 0) 
+        self.best_y = mp.RawValue(ct.c_double, math.inf) 
+        self.t0 = time.perf_counter()
+        self.tickers = tickers
+        self.max_trades = max_trades
+        self.histories = {}
+        self.closes = {}
+        self.dates = {}
+        self.hodls = {}
+        for ticker in tickers:
+            self.histories[ticker] = get_history(ticker, start=start, end=end)
+            self.closes[ticker] = self.histories[ticker].Close
+            self.dates[ticker] = np.array([d.strftime('%Y.%m.%d') for d in self.histories[ticker].index])
+            self.hodls[ticker] = hodl(self.closes[ticker].to_numpy(), START_CASH)                      
+----
+
+For each ticker the pandas data frame representing the historical data is stored in `self.histories[ticker]`.
+Everything which can be precomputated at this stage (which is not dependent on the strategy parameters we want 
+to optimize) is stored as numpy arrays (`self.dates`) or as values (`self.hodls`). Both EMA and SMA
+are parameter dependent, we have to defer their computation and store the close prices they depend on 
+as pandas time series ('self.closes[ticker]'). Values shared over process boundaries (for instance the
+best value achieved so far in all threads `best.y`), are stored as `mp.RawValue`.  
+
+==== Caching historical ticker data
+
+`fitness` checks its local cache if the requested historical data is already there and 
+downloads it if necessary (`get_history(ticker, start=start, end=end)`). 
+Note that this 'cache' is quite dumb: If you change either
+start or end date the whole interval is downloaded and stored as compressed csv files 
+in `fast-cma-es/examples/ticker_cache`.
+There is no intelligent "merging" with data already there. 
+You may use an end date in the future to download all data until now, but there is no 
+update as long as the end date is the same.
+
+==== Single objective optimization
+
+Applying single objective optimization our goal is to maximize the average strategy-ROI / HODL-ROI for a number of tickers. 
+In the example code we use BitCoin, Ethereum, XRP and ADA, but you may adapt the example using different tickers.
+See https://finance.yahoo.com/lookup[ticker name search] for their names.
+
+[source,python]
+----
+    def fun(self, x):
+        # simulate the EMS/SMA strategy for all tickers
+        factors = []
+        num_trades = []
+        for ticker in self.tickers:    
+            # convert the optimization variables into integers and use them to configure the simulation
+            f, num, _ = simulate(self.closes[ticker], int(x[0]), int(x[1]), int(x[2]), int(x[3]))
+            factors.append(f)  
+            num_trades.append(num)          
+        factor = np.prod(factors) ** (1.0/len(factors)) # normalize the accumulated factor
+        y = -factor # our optimization algorithm minimizes the resulting value, we maximize factor
+----
+
+`fun` is shared for the single.objective `__call__(self, x)`) and the multi-objective case `mofun(self, x)`
+It computes the geometric mean of the 'f = strategy-ROI / HODL-ROI' values which are to be maximized. 
+
+[source,python]
+----
+def simulate(prices, ema_period, sma_period, wait_buy, wait_sell, dates=None):
+    close = prices.to_numpy()
+    ema = get_ema(prices, ema_period)
+    sma = get_sma(prices, sma_period) 
+    return strategy(close, START_CASH, ema, sma, wait_buy, wait_sell, dates)
+----
+
+`simulate` applies the parameters do compute EMA and SMA using panda built in functions and then calls `strategy` which
+executes the strategy and is annotated with `@njit`. This means it is accelerated by https://numba.pydata.org/[numba].
+It is essential that we keep out the slow Python interpreter for this very time critical part of the code.  
+
+Because of numba limitations `strategy` cannot do any logging itself. Instead it optionally stores the trading history - 
+when we buy or sell - in a list of strings `logs`. This functionality is not needed by the objective function, 
+but later when we want to plot the resulting strategy. 
+
+Lets try it out. Adapt and execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/crypto.py[crypto.py]
+as follows:
+
+[source,python]
+----
+if __name__ == '__main__':
+    tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'ADA-USD']
+    start="2019-01-01"
+    end="2030-04-30" 
+    fit = fitness(tickers, start, end) 
+    optimize(tickers, start, end)
+----
+
+We get as output:
+
+[source,python]
+----
+hodl = 10.976 [11.4, 22.1, 2.3, 25.5]
+nsim = 1: time = 1.1 fac = 0.273 [0.5, 0.1, 0.3, 0.3] ntr = [8, 8, 8, 6] x = [40, 86, 137, 90]
+nsim = 7: time = 1.1 fac = 0.304 [1.3, 0.3, 0.3, 0.1] ntr = [8, 10, 10, 10] x = [47, 90, 68, 102]
+nsim = 21: time = 1.1 fac = 0.401 [0.2, 0.3, 0.8, 0.4] ntr = [5, 4, 4, 4] x = [43, 74, 195, 145]
+nsim = 22: time = 1.1 fac = 0.937 [1.6, 0.6, 1.1, 0.7] ntr = [8, 10, 10, 11] x = [48, 59, 35, 168]
+nsim = 104: time = 1.2 fac = 1.119 [1.8, 0.7, 0.6, 2.1] ntr = [10, 10, 12, 10] x = [37, 63, 44, 95]
+nsim = 245: time = 1.2 fac = 1.236 [1.1, 0.9, 1.8, 1.2] ntr = [10, 10, 10, 10] x = [39, 62, 12, 138]
+nsim = 317: time = 1.2 fac = 1.566 [2.5, 0.3, 2.7, 2.6] ntr = [10, 12, 10, 10] x = [40, 60, 24, 113]
+nsim = 377: time = 1.2 fac = 2.031 [1.7, 0.9, 3.4, 3.2] ntr = [10, 10, 10, 10] x = [21, 56, 18, 109]
+nsim = 938: time = 1.2 fac = 2.145 [2.1, 1.1, 3.2, 3.0] ntr = [10, 10, 10, 10] x = [27, 57, 28, 104]
+nsim = 8053: time = 1.5 fac = 2.220 [2.1, 1.2, 3.2, 3.0] ntr = [10, 10, 10, 10] x = [26, 57, 17, 104]
+nsim = 14210: time = 1.8 fac = 2.243 [2.1, 1.1, 3.5, 3.3] ntr = [10, 10, 12, 10] x = [27, 57, 22, 98]
+nsim = 15697: time = 1.9 fac = 2.261 [2.1, 1.1, 3.6, 3.3] ntr = [10, 10, 12, 10] x = [27, 57, 24, 98]
+nsim = 23261: time = 2.1 fac = 2.273 [2.1, 1.1, 3.6, 3.3] ntr = [10, 10, 12, 10] x = [26, 57, 23, 98]
+nsim = 29273: time = 2.4 fac = 2.282 [2.1, 1.1, 3.5, 3.3] ntr = [10, 10, 12, 10] x = [26, 57, 25, 97]
+nsim = 34236: time = 2.6 fac = 2.283 [2.1, 1.1, 3.6, 3.3] ntr = [10, 10, 12, 10] x = [26, 57, 24, 98]
+----
+
+`hodl = 10.976` means that using the HODL-strategy we would have increased our initial investment by about factor 11
+from 2019 until now. No wonder many are interested in crptos these days, and also that the HODL strategy is popular. 
+The final result of the optimization after performing 34236 simulations in about 2.6 seconds is
+`x = [26, 57, 24, 98]` which means we use EMA-26, SMA-57 and wait at least 24 days before buying and 98 days before selling
+even if we got the signal. This strategy works well with BTC, XRP and ADA, but not so well with ETHER (only factor 1.1). 
+
+That we could execute > 10000 simulations each second - on an AMD 5950x 16 core CPU using 32 parallel threads - shows
+that there is a lot of room for more advanced and time consuming strategies. It wouldn't really matter if the
+optimization needs 2 hours instead of 2 seconds.  
+
+==== How to fight FOMO
+
+How much did we earn on average applying the optimized strategy parameters? Its the HODL-factor multiplied with 
+`2.283`, the final value of our single objective, which is factor 2.283 * 10.976 = 25. We would have been 25 times 
+richer in about 3 years. This explains why https://cryptocurrencyfacts.com/fud-and-fomo-explained/[FOMO] (fear of missing out)
+is such a thing in the crypto scene. You can fight FOMO easily by reading one of the 400 
+Bitcoin https://99bitcoins.com/bitcoin-obituaries/[obituaries] - stating that its value soon will become zero.   
+Another idea is to switch the start end end date of the optimization to cover a bear market time window. 
+In practice FOMO and its counterpart FUD (Fear, Uncertainty, and Doubt) are you friend, because fear 
+driven emotional actions performed by traders are the exact thing we plan to exploit using trading strategies. 
+
+Note that we didn't account for fees/taxes and leave this as an exercise to the reader. 
+
+==== Which trades where performed?
+
+Another output we observe lists the actual trades performed by the optimized strategy:
+
+[source,python]
+----
+BTC-USD
+
+2019.02.25 cash 1000000 buy 257 num_coins 0 price 388269 ct
+2019.08.02 cash 2147 sell 257 num_coins 257 price 1051817 ct
+2019.11.06 cash 2705317 buy 289 num_coins 0 price 936087 ct
+2020.03.06 cash 23 sell 289 num_coins 289 price 912254 ct
+2020.04.24 cash 2636439 buy 349 num_coins 0 price 755090 ct
+2020.09.10 cash 1175 sell 349 num_coins 349 price 1036313 ct
+2020.10.14 cash 3617910 buy 316 num_coins 0 price 1142950 ct
+2021.04.26 cash 6186 sell 316 num_coins 316 price 5402175 ct
+2021.07.29 cash 17077060 buy 426 num_coins 0 price 4000842 ct
+2021.11.27 cash 33472 sell 426 num_coins 426 price 5481507 ct
+2022.02.14 cash 23384696 sell 0 num_coins 0 price 4260470 ct
+
+ETH-USD
+
+2019.02.25 cash 1000000 buy 7151 num_coins 0 price 13982 ct
+2019.07.17 cash 126 sell 7151 num_coins 7151 price 21148 ct
+2019.09.23 cash 1512455 buy 7490 num_coins 0 price 20192 ct
+2019.12.31 cash 65 sell 7490 num_coins 7490 price 12961 ct
+2020.01.25 cash 970850 buy 6019 num_coins 0 price 16128 ct
+2020.09.17 cash 82 sell 6019 num_coins 6019 price 38901 ct
+2020.10.22 cash 2341589 buy 5659 num_coins 0 price 41377 ct
+2021.06.03 cash 47 sell 5659 num_coins 5659 price 285512 ct
+2021.08.01 cash 16157208 buy 6306 num_coins 0 price 256185 ct
+2021.12.10 cash 2169 sell 6306 num_coins 6306 price 390849 ct
+2022.02.14 cash 24649145 sell 0 num_coins 0 price 294495 ct
+
+XRP-USD
+
+2019.03.07 cash 1000000 buy 3176963 num_coins 0 price 31 ct
+2019.07.08 cash 0 sell 3176963 num_coins 3176963 price 40 ct
+2019.10.12 cash 1275655 buy 4669464 num_coins 0 price 27 ct
+2020.03.07 cash 0 sell 4669464 num_coins 4669464 price 23 ct
+2020.04.24 cash 1106994 buy 5716027 num_coins 0 price 19 ct
+2020.09.11 cash 0 sell 5716027 num_coins 5716027 price 24 ct
+2020.10.24 cash 1390663 buy 5423149 num_coins 0 price 25 ct
+2021.01.31 cash 0 sell 5423149 num_coins 5423149 price 49 ct
+2021.02.25 cash 2669892 buy 6144407 num_coins 0 price 43 ct
+2021.06.04 cash 0 sell 6144407 num_coins 6144407 price 97 ct
+2021.08.06 cash 5961279 buy 7985499 num_coins 0 price 74 ct
+2021.11.25 cash 0 sell 7985499 num_coins 7985499 price 103 ct
+2022.02.14 cash 8240141 sell 0 num_coins 0 price 79 ct
+
+ADA-USD
+
+2019.02.25 cash 1000000 buy 22705083 num_coins 0 price 4 ct
+2019.07.06 cash 0 sell 22705083 num_coins 22705083 price 7 ct
+2019.11.10 cash 1755897 buy 39944892 num_coins 0 price 4 ct
+2020.03.08 cash 0 sell 39944892 num_coins 39944892 price 4 ct
+2020.04.24 cash 1729254 buy 41302527 num_coins 0 price 4 ct
+2020.08.27 cash 0 sell 41302527 num_coins 41302527 price 10 ct
+2020.10.17 cash 4412101 buy 41582798 num_coins 0 price 10 ct
+2021.06.18 cash 0 sell 41582798 num_coins 41582798 price 141 ct
+2021.08.08 cash 58856124 buy 41220681 num_coins 0 price 142 ct
+2021.11.15 cash 0 sell 41220681 num_coins 41220681 price 201 ct
+2022.02.14 cash 83083873 sell 0 num_coins 0 price 104 ct
+----
+
+And finally we see the four plots corresponding to the four coin tickers we used:
+
+image::crypto_opt.png[]
+
+Which show again that its only Ethereum having problems with our strategy. 
+This is the code triggering the optimization and generating the plots:
+
+[source,python]
+----
+def optimize(tickers, start, end):
+    bounds = Bounds([20,50,10,10], [50,100,200,200])
+    fit = fitness(tickers, start, end) 
+    ret = retry.minimize(fit, bounds, logger = None, num_retries=32, optimizer=Bite_cpp(2000))
+    fit.plot(ret.x)
+----
+
+We define the lower and upper bounds for each strategy parameter - different 
+bounds will result in different solutions. The used optimizer `Bite_cpp(2000)`
+(https://github.com/avaneev/biteopt[BiteOpt] from Aleksey Vaneev configured to execute
+2000 simulations for each parallel retry) can be replaced, fmaes offers 
+plenty alternatives. But you don't really have to care about that, BiteOpt
+works very well for crypto trading strategy optmization. 
+
+=== Multi Objective optimization
+
+For multi-objective optimization we compute the pareto front (a set of non-redundant / non-dominated solutions) 
+with different good strategy-ROI / HODL-ROI factors for each ticker. Additionally we implement simple example constraints: 
+we limit the maximal number of trades for each ticker. 
+ 
+What are the advantages of applying a multi-objective algorithm over using the weighted sum approach?
+
+- The scale of the objectives doesn't matter. We could directly go for the strategy-ROI without normalization using the HODL-ROI. 
+- Constraints will be prioritized, but only until they are fulfilled. Their scaling doesn't matter as for the objectives. 
+
+Disadvantage is that we usually need more simulations, without https://numba.pydata.org/[numba] we would be lost. 
+ 
+Investigating the pareto front reveals if there is one crypto coin "incompatible" with the others regarding our strategy parameters. 
+In this case we could separately optimize only for this coin - risking overfitting - or alternatively just remove it from our set. 
+
+[source,python]
+----
+    def mofun(self, x):
+        _, factors, num_trades = self.fun(x)
+        ys = [-f for f in factors] # higher factor is better
+        constraints = [ntr - self.max_trades for ntr in num_trades] # at most max_trades trades
+        return np.array(ys + constraints)
+----
+
+The multi-objective fitness function concatenates the objectives `[-f for f in factors]` and the constraints
+`[ntr - self.max_trades for ntr in num_trades]` and returns the result.
+
+- Why do we change the sign of the objectives? The optimizer always minimizes both objectives and constraints > 0, so 
+we have to change the sign in order to maximize our profit. 
+- How does the optimizer know what are objectives and what are constraints? The optimizer gets the number of objectives as
+configuration parameter and assumes they are first.
+- What does the optimizer differently with constraints? Constraints are prioritized as long as they are violated (c > 0). If not
+(c <= 0) they are ignored in the optimization process. 
+- Is the scaling of objectives / constraints relevant? No the optimizer treats all objectives equal independent from their scaling. 
+- What about equality constraints `(a = b)`? Code them as `c = abs(a-b)`, then the optimizer will try to make a and b equal.  
+Or use `c = abs(a-b) - eps` if you can tolerate an inequality < `eps`.
+- What if you want to parameterize the order of a sequence of trading activities? Use input parameters in the `[0,1]` interval
+and apply `numpy.argsort` to them to get a sequence of integers representing an ordering. See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[noisy TSP] for an example. 
+
+The answers to these questions nicely summarize why it makes sense to use a multi-objective optimizer in the first place instead
+of relying on the weighted sum approach and using a single objective optimizer. Parallel retry using varying weights as supported 
+by fcmaes can partly compensate for these issues. 
+
+[source,python]
+----
+def optimize_mo(tickers, start, end, nsga_update = True):
+    nobj = len(tickers) # number of objectives
+    ncon = nobj # number of constraints
+    max_trades = 8
+    fit = fitness(tickers, start, end, max_trades) 
+    bounds = Bounds([20,50,10,10], [50,100,200,200])
+    xs, front = modecpp.retry(fit.mofun, len(tickers), ncon, bounds, num_retries=32, popsize = 48, max_evaluations = 16000, nsga_update = nsga_update, logger = logger())
+----
+
+This code shows how the `modecpp`optimizer is called. Instead of a single run we trigger as many parallel retries as your
+processor supports. After that the pareto front representing all parallel retries is returned (`xs, front`). 
+`xs` represent the strategy parameters and `ys` their objective / constraint values as result of applying the configured
+trading strategy. Different to single objective optimization fcmaes doesn't offer an alternative optimization algorithm 
+to https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[modecpp] beside its Python implementation
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py] since multi objective optimization is not yet
+as established as single objective optimization. But at least you can configure its population update mechanism
+`nsga_update`. You may choose between NSGA-II and differential evolution population update. If you don't know what this means: 
+You don't need to, the default `nsga_update = True` is fine for crypto trading strategy optimization. 
+
+Lets try it out. Adapt and execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/crypto.py[crypto.py]
+as follows:
+
+[source,python]
+----
+if __name__ == '__main__':
+    tickers = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'ADA-USD']
+    start="2019-01-01"
+    end="2030-04-30" 
+    fit = fitness(tickers, start, end) 
+    optimize_mo(tickers, start, end)
+----
+
+As result we see:
+
+[source,python]
+----
+nsim = 1: time = 1.1 fac = 0.412 [0.6, 0.2, 0.7, 0.3] ntr = [8, 8, 8, 6] x = [22, 77, 126, 100]
+nsim = 5: time = 1.1 fac = 0.458 [1.0, 0.4, 0.5, 0.2] ntr = [8, 8, 8, 7] x = [24, 60, 97, 155]
+nsim = 6: time = 1.1 fac = 0.514 [0.8, 0.4, 0.6, 0.4] ntr = [10, 10, 10, 10] x = [26, 53, 78, 118]
+nsim = 9: time = 1.1 fac = 0.632 [0.9, 0.8, 0.4, 0.6] ntr = [8, 8, 9, 7] x = [25, 70, 38, 187]
+nsim = 10: time = 1.1 fac = 0.719 [1.2, 0.5, 0.6, 0.8] ntr = [8, 8, 8, 8] x = [47, 66, 70, 172]
+nsim = 17: time = 1.1 fac = 0.913 [1.1, 0.9, 1.1, 0.6] ntr = [8, 10, 10, 10] x = [20, 72, 32, 141]
+nsim = 31: time = 1.1 fac = 1.259 [1.3, 1.6, 1.7, 0.7] ntr = [10, 8, 10, 10] x = [30, 63, 26, 139]
+nsim = 122: time = 1.1 fac = 1.304 [1.4, 0.3, 2.0, 3.9] ntr = [10, 14, 12, 10] x = [24, 54, 19, 91]
+nsim = 304: time = 1.2 fac = 2.006 [2.0, 1.0, 3.2, 2.5] ntr = [10, 10, 10, 10] x = [23, 58, 21, 110]
+nsim = 564: time = 1.2 fac = 2.024 [1.8, 0.9, 3.4, 3.1] ntr = [10, 10, 10, 10] x = [22, 57, 14, 104]
+nsim = 2801: time = 1.3 fac = 2.054 [1.8, 0.9, 3.4, 3.2] ntr = [10, 10, 10, 10] x = [23, 57, 14, 103]
+----
+
+The best factor we see (`fac = 2.054`) is lower than for single objective optimization because of the additional 
+constraints - which by the way are violated in this instance, we see `ntr = [10, 10, 10, 10]` ten trades instead
+of our limit 8. Reason is that this output only monitors progress for the "single objective", not for
+the constraints. But then we see a dump of the whole pareto front:
+
+[source,python]
+----
+fac [2.68, 0.53, 0.61, 0.52] trades [8, 8, 8, 8] x = [50, 50, 89, 147]
+fac [2.67, 0.73, 1.42, 0.24] trades [8, 8, 8, 8] x = [45, 51, 114, 104]
+fac [2.67, 0.75, 0.92, 0.32] trades [8, 8, 8, 8] x = [45, 51, 114, 103]
+fac [2.66, 0.53, 0.83, 1.08] trades [8, 8, 8, 8] x = [49, 56, 77, 171]
+fac [2.65, 0.69, 1.53, 0.23] trades [8, 8, 8, 8] x = [45, 51, 114, 105]
+...
+fac [1.93, 0.81, 1.66, 1.35] trades [8, 8, 8, 8] x = [47, 50, 72, 184]
+fac [1.93, 0.74, 1.91, 1.22] trades [8, 8, 8, 8] x = [46, 50, 75, 182]
+fac [1.93, 0.77, 1.85, 1.5] trades [8, 8, 8, 8] x = [46, 50, 71, 185]
+fac [1.92, 0.89, 2.53, 0.82] trades [8, 8, 8, 8] x = [50, 50, 66, 189]
+...
+fac [1.42, 0.33, 2.21, 1.55] trades [8, 8, 8, 8] x = [49, 51, 62, 190]
+fac [1.42, 1.21, 2.01, 1.48] trades [8, 8, 8, 7] x = [49, 52, 60, 199]
+fac [1.42, 1.02, 2.47, 1.4] trades [8, 8, 8, 7] x = [47, 50, 58, 199]
+fac [1.41, 1.12, 2.59, 1.23] trades [8, 8, 8, 7] x = [50, 50, 43, 200]
+...
+fac [0.4, 1.37, 3.59, 1.55] trades [9, 10, 11, 11] x = [49, 51, 41, 163]
+fac [0.31, 0.26, 0.29, 0.57] trades [7, 7, 7, 5] x = [50, 51, 88, 199]
+fac [0.26, 0.14, 0.48, 0.33] trades [7, 7, 7, 7] x = [45, 50, 113, 185]
+fac [0.15, 0.16, 1.31, 0.57] trades [7, 7, 7, 6] x = [50, 50, 105, 183]
+----
+
+Most of the solutions fulfill the constraint - we could filter 
+out these which don't. 

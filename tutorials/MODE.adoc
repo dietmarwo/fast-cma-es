@@ -2,12 +2,12 @@
 :imagesdir: img
 :cpp: C++
 
-== NSGA-II
+== MO-DE a new multiobjective optimization algorithm supporting constraints
 
 In https://github.com/dietmarwo/fast-cma-es/blob/master/MultiObjective.adoc[Multi-Objective] and https://github.com/dietmarwo/fast-cma-es/blob/master/TopTrumps.adoc[gbea TopTrumps Benchmark] we showed that in the context of parallel optimization retry it
 makes sense to consider the weighted sum approach in connection with strong 
 single objective optimizers like https://github.com/avaneev/biteopt[BiteOpt] or fcmaes-DE. We can apply random weights to cover the pareto front in parallel. But for very expensive simulation based fitness functions (like https://www.researchgate.net/publication/334220017_Single-_and_multi-objective_game-benchmark_for_evolutionary_algorithms[TopTrumps]) it could be better to perform a single run and parallelize function evaluation instead. So we adapted the single objective Python implementation
-of differential evolution https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/de.py[de.py] to multi objective problems: https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py]. 
+of differential evolution https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/de.py[de.py] to multi objective problems: https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py] and added a {cpp}/Eigen based implementation: https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[modeoptimizer.cpp]. 
 
 Two innovations from NSGA-II, fast non-dominated sort
 and the crowding distance are crucial for the performance of a MO-optimizer and are

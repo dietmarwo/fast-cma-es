@@ -14,6 +14,7 @@
 # time
 # 
 # See https://www.honda-ri.de/pubs/pdf/3949.pdf for an alternative implementation of the same problem.
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc for a detailed description.
 
 import math
 import pandas as pd

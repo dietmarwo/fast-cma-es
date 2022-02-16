@@ -23,6 +23,8 @@
 # b) The upper limit of active machines (factory deployments) is determined by N, the number
 # of factories. 
 
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc for a detailed description.
+
 import math
 import pandas as pd
 import numpy as np

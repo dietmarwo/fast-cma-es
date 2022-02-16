@@ -30,6 +30,8 @@
     For expensive objective functions (e.g. machine learning parameter optimization) use the workers
     parameter to parallelize objective function evaluation. The workers parameter is limited by the 
     population size.
+    
+    See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc for a detailed description.
 """
 
 import numpy as np

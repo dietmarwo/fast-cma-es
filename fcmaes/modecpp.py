@@ -32,6 +32,8 @@
     For expensive objective functions (e.g. machine learning parameter optimization) use the workers
     parameter to parallelize objective function evaluation. This causes delayed population update.
     It is usually preferrable if popsize > workers and workers = mp.cpu_count() to improve CPU utilization.  
+    
+    See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc for a detailed description.
 """
 
 import sys

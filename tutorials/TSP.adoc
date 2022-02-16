@@ -1,0 +1,198 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+= Determine Robust Routes for the Noisy Travelling Salesman Problem
+
+This tutorial
+
+- Shows how to implement the noisy TSP problem aiming at a robust route efficiently using https://numba.pydata.org/[numba].
+- Compares with an alternative implementation.
+- Compares different optimization algorithms applied to both implementations
+
+There is a dramatic performance difference > factor 10000 when comparing optimization algorithms  
+and objective function implementations. The purpose of this tutorial is to "sharpen your senses"
+regarding how to implement this kind of objective function and which optimization algorithm to choose
+when you selected Python as implementation language. Don't underestimate the influence of
+your specific implementation of a problem, not only regarding evaluations/second but also regarding
+the number of evaluations required applying the same optimization algorithm. 
+
+As starting point we use 
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/TSP.py[TSP.py]
+from the 'ExpensiveOptimBenchmark' suite from the Technical University of Delft. 
+In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] we discuss four other
+problems from this problem suite, but only for this one we provide our own alternative implementation. 
+
+All results were produced using a 16 core / 32 thread AMD CPU 5950x. Some algorithms use only a single thread, 
+others utilize the whole processor.  
+
+=== The noisy Travelling Salesman Problem / TSP
+
+The https://en.wikipedia.org/wiki/Travelling_salesman_problem[Travelling Salesman Problem/TSP] asks the question:
+ "Given a list of cities and the distances between each pair of cities, what is the shortest possible 
+ route that visits each city exactly once and returns to the origin city?"
+It appears as subproblem in many other areas, is very well studied and there are methods solving it for large numbers
+of cities. 
+
+But what if the distance between cities is not known exactly? 
+This problem can be "simulated" by adding some random noise to the individual distances and determining a "robust"
+solution: We compute the path length n times and determine the "worst case", the longest path we got for all iterations
+each time adding different random noise to the individual distances. For all our experiments we use 100 iterations
+and a random noise between 0 and 50 added to all distances. 
+
+Solving this "noisy TSP" is more challenging, standard branch and bound algorithms like https://github.com/LukasErlenbach/tsp_solver[tsp_solver]
+cannot be applied. 
+
+=== The original implementation
+
+Lets first have a look at https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/TSP.py[TSP.py],
+an implementation of an objective function computing the robust path length for continuous input values (mapped to discrete integers) determining
+the selected tour. 
+
+[source,python]
+---- 
+   def evaluate(self, x):
+        robust_total_route_length = 0.0
+        
+        for iteration in range(self.n_iter):
+            current = 0
+            unvisited = list(range(1, self.d+2))
+            total_route_length = 0.0
+
+            for di, i in enumerate(x):
+                next_up = unvisited.pop(int(round(i)))
+                total_route_length += self.W[current, next_up]
+                total_route_length += self.noise_rng.random() * self.noise_factor
+                current = next_up
+
+            last = unvisited.pop()
+            total_route_length += self.W[current, last]
+            total_route_length += self.noise_rng.random() * self.noise_factor
+            total_route_length += self.W[last, 0]
+            total_route_length += self.noise_rng.random() * self.noise_factor
+
+            robust_total_route_length = max(total_route_length, robust_total_route_length)
+        
+        return robust_total_route_length
+----
+
+
+This implementation aims at minimizing the number of input variables: The number of cities N minus two. 
+Since the tour is always a ring you can choose any fixed city as a starting point. When you have
+performed N-2 steps there is only one city left, you haven't really a choice. 
+`next_up = unvisited.pop(int(round(i)))` maps continuous input variables to integer values used
+for the selection. At least for continuous optimizers you should use a different approach as we will
+show below. 
+
+=== Optimization algorithms
+
+At https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers[solvers]
+we find a number of optimization algorithms to test. Many are not applicable for the TSP problem, 
+so we choose the following selection for testing:
+
+- https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/CMA[CMA-ES]
+- https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/MVRSM[MVRSM]
+- https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/IDONE[IDONE]
+- https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/SA[Simulated Annealing]
+
+We don't need a huge problem instance to drive these algorithms at and beyond their limits:
+http://elib.zib.de/pub/mp-testdata/tsp/tsplib/tsp/gr17.tsp[gr17] is a small TSP instance involving only 
+17 cities. We configured `noise_factor=50` because otherwise the noise has no significant impact on `gr17`. 
+According to http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/STSP.html[TSP-solutions] the shortest path without noise 
+has length 2085. 
+
+image::original_solvers_comparison.png[]
+
+The CMA results are hard to see, reason is that we get a "termination on tolstagnation" 
+after about 8000 function evaluations. It seems the default termination criteria don't work for the TSP problem.
+As we will later see, this is not a problem with the CMA-ES algorithm itself. 
+
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/CMA[CMA-ES] is based on 
+https://github.com/CMA-ES/pycma[pycma] from Nikolaus Hansen. 
+The fcmaes variants (https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[cmaes.py] and
+https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[acmaesoptimizer.cpp]) and 
+https://github.com/CMA-ES/pycma[pycma] are derived from the same old matlab code but the fcmaes variant
+is much closer to the original. The fcmaes variant can solve the `gr17` noisy TSP problem quite effectively. 
+But as we will see: fcmaes provides an algorithm which fits even better: 
+https://github.com/avaneev/biteopt[BiteOpt] from Aleksey Vaneev. 
+
+Here are the results applying fcmaes-CMA and BiteOpt, both utilizing all 32 threads provided by the processor:
+
+image::BiteOpt_fcmaes_CMA_original_comparison.png[]
+
+==== An alternative implementation of the objective function
+
+The new implementation 
+(https://github.com/dietmarwo/fast-cma-es/blob/master/examples/noisy_tsp.py[noisy_tsp.py]) 
+uses https://numba.pydata.org/[numba] to speed up the objective function evaluation quite significantly: 
+
+[source,python]
+---- 
+@njit(fastmath=True) 
+def evaluate_tsp(x, W, d, noise_factor, iter_num):
+    robust_total_route_length = 0   
+    order = np.argsort(x) + 1
+    for _ in range(iter_num):
+        total_route_length = 0
+        total_route_length += W[0, order[0]] + np.random.random() * noise_factor            
+        total_route_length += W[order[d-1], 0] + np.random.random() * noise_factor    
+        for i in range(d-1):
+            total_route_length += W[order[i], order[i+1]] + np.random.random() * noise_factor
+        robust_total_route_length = max(total_route_length, robust_total_route_length)
+    return robust_total_route_length
+----
+ 
+
+This implementation uses `np.argsort(x)` to determine the order the cities are visited. 
+The first city is fixed, so we have the number of cities N minus one argument variables `x`.  
+This is one variable more, but it nevertheless works much better with continuous optimization
+algorithms. We used this idea also in 
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling] 
+and https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop]. 
+ 
+The following diagram shows the results applying the same algorithms, fcmaes-CMA and BiteOpt, 
+both utilizing all 32 threads to the new objective function:
+
+image::BiteOpt_fcmaes_CMA_new_comparison.png[]
+
+Now the probem can be "solved" in a few seconds. 
+
+Next is a table comparing the number of function evaluations per second for all algorithms and 
+objective function variants. https://numba.pydata.org/[numba] and the way the new implementation is designed 
+speeds up the computation by about factor 100 thereby also improving convergence:
+
+.Evaluations / second on CPU AMD 5950x
+[width="80%",cols="2,^2,^2,^2",options="header"]
+|=========================================================
+|algorithm |problem |evals/sec |used threads
+|idone |original |13 |1
+|MSVRM |original |23 |1
+|CMA |original |271 |1
+|SA |original |335 |1
+|BiteOpt |original |11800 |32
+|fcmaes-CMA |original |11600 |32
+|BiteOpt |numba based |1150000 |32
+|fcmaes-CMA |numba based |1190000 |32
+|=========================================================
+
+
+Finally we see a direct comparison of the different objective function 
+implementations for the same optimization algorithm. Beside 
+the speedup (evaluations/sec) we find better robust tours using both
+algorithms. 
+
+image::BiteOpt_comparison.png[]
+
+image::fcmaes_CMA_comparison.png[]
+
+==== Conclusion
+
+We have to be very careful when implementing an objective function representing a specific problem. 
+Not always the implementation requiring the least number of variables wins. Use https://numba.pydata.org/[numba]
+whenever possible for the time critical parts. BiteOpt + parallel retry is a very good first algorithm
+choice which should be tried early, if the problem is single objective and there are no
+constraints (which cannot be easily expressed using the weighted sum approach). 
+Algorithms with huge overhead like idone and MSVRM should only be applied for very expensive
+objective functions. Noisy TSP can be evaluated nearly 1.2 million times / sec, so it definitely
+doesn't fall into this category. 
+

@@ -14,17 +14,19 @@ fcmaes started as a fast CMA-ES implementation combined with a new smart paralle
 hard optimization problems from the space flight planning domain. It evolved to a general library of
 state-of-the-art gradient free optimization algorithms applicable to all kind of real world problems covering
 multi-objective and constrained problems. Its main algorithms are implemented both in Python and C++ and
-support parallel fitness function evaluation. 
+support both parallel fitness function evaluation and a parallel retry mechanism. 
 
 === Documentation
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc[Tutorial] Solving simple example problems from space flight dynamics.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[crypto trading] Optimize your crypto trading strategy.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[noisy TSP] Solve the noisy Travelling Salesman Problem.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] Managing hospital resources during a pandemic.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop] Solving the flexible job shop scheduling problem. 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling] Solving a complex scheduling problem, part of the GTOC11 competition.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[MO-DE] MO-DE, a new multi objective algorithm.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc[Multi-Objective] Solving multi objective problems using variable weights. 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc[gbea TopTrumps Benchmark] TopTrumps game optimization benchmark results. 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/NSGAII.adoc[MO-DE-NSGAII] MO-DE, a new multi objective algorithm. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc[gbea TopTrumps Benchmark] TopTrumps game optimization benchmark. 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PAGMO.adoc[Pagmo results] GTOPX Benchmark results using Pagmo
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PYKEP.adoc[Pykep gym results] Benchmark results for the Pykep gym problems
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Constraints.adoc[Constraints] Optimizing with constraints. 
@@ -135,7 +137,9 @@ https://www.researchgate.net/publication/309179699_Differential_evolution_for_pr
 - Expressions: There are two operators for constructing expressions over optimization algorithms: Sequence and random choice.
 Not only the five single objective algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions. 
  
+ 
 === Installation
+
 
 ==== Linux
  
