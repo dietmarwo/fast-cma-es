@@ -2,7 +2,7 @@
 :imagesdir: img
 :cpp: C++
 
-= Determine Robust Routes for the Noisy Travelling Salesman Problem
+= Determine Robust Routes for the Noisy Traveling Salesman Problem
 
 This tutorial
 
@@ -26,9 +26,9 @@ problems from this problem suite, but only for this one we provide our own alter
 All results were produced using a 16 core / 32 thread AMD CPU 5950x. Some algorithms use only a single thread, 
 others utilize the whole processor.  
 
-=== The noisy Travelling Salesman Problem / TSP
+=== The noisy Traveling Salesman Problem / TSP
 
-The https://en.wikipedia.org/wiki/Travelling_salesman_problem[Travelling Salesman Problem/TSP] asks the question:
+The https://en.wikipedia.org/wiki/Traveling_salesman_problem[Traveling Salesman Problem/TSP] asks the question:
  "Given a list of cities and the distances between each pair of cities, what is the shortest possible 
  route that visits each city exactly once and returns to the origin city?"
 It appears as subproblem in many other areas, is very well studied and there are methods solving it for large numbers
