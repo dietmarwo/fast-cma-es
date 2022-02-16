@@ -25,16 +25,16 @@ setup(
     ],
     classifiers = [
       "Intended Audience :: Manufacturing",
-      "Intended Audience :: Financial and Insurance Industry"
-      "Intended Audience :: Healthcare Industry"
-      "Intended Audience :: Telecommunications Industry"
-      "Intended Audience :: Information Technology"
+      "Intended Audience :: Financial and Insurance Industry",
+      "Intended Audience :: Healthcare Industry",
+      "Intended Audience :: Telecommunications Industry",
+      "Intended Audience :: Information Technology",
       "Intended Audience :: Science/Research",
       "Intended Audience :: Education",
-      "Topic :: Office/Business :: Financial"
-      "Topic :: Office/Business :: Scheduling"
+      "Topic :: Office/Business :: Financial",
+      "Topic :: Office/Business :: Scheduling",
       "Topic :: Scientific/Engineering",
-      "Topic :: Scientific/Engineering :: Information Analysis"
+      "Topic :: Scientific/Engineering :: Information Analysis",
       "Topic :: Scientific/Engineering :: Mathematics",
       "Topic :: Scientific/Engineering :: Artificial Intelligence",
       "Operating System :: OS Independent",
