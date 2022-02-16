@@ -37,10 +37,8 @@ def minimize(fun,
     ----------
     fun : callable
         The objective function to be minimized.
-            ``fun(x, *args) -> float``
-        where ``x`` is an 1-D array with shape (dim,) and ``args``
-        is a tuple of the fixed parameters needed to completely
-        specify the function.
+            ``fun(x) -> float``
+        where ``x`` is an 1-D array with shape (dim,)
     bounds : sequence or `Bounds`, optional
         Bounds on variables. There are two ways to specify the bounds:
             1. Instance of the `scipy.Bounds` class.

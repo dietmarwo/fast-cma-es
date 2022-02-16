@@ -52,10 +52,8 @@ def minimize(fun,
     ----------
     fun : callable
         The objective function to be minimized.
-            ``fun(x, *args) -> float``
-        where ``x`` is an 1-D array with shape (n,) and ``args``
-        is a tuple of the fixed parameters needed to completely
-        specify the function.
+            ``fun(x) -> float``
+        where ``x`` is an 1-D array with shape (n,)
     dim : int
         dimension of the argument of the objective function
         either dim or bounds need to be defined

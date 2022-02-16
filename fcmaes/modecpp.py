@@ -82,10 +82,8 @@ def minimize(mofun,
     ----------
     mofun : callable
         The objective function to be minimized.
-            ``mofun(x, *args) -> list(float)``
-        where ``x`` is an 1-D array with shape (n,) and ``args``
-        is a tuple of the fixed parameters needed to completely
-        specify the function.
+            ``mofun(x) -> list(float)``
+        where ``x`` is an 1-D array with shape (n,)
     nobj : int
         number of objectives
     ncon : int
