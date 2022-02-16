@@ -249,7 +249,7 @@ How much did we earn on average applying the optimized strategy parameters? Its 
 richer in about 3 years. This explains why https://cryptocurrencyfacts.com/fud-and-fomo-explained/[FOMO] (fear of missing out)
 is such a thing in the crypto scene. You can fight FOMO easily by reading one of the 400 
 Bitcoin https://99bitcoins.com/bitcoin-obituaries/[obituaries] - stating that its value soon will become zero.   
-Another idea is to switch the start end end date of the optimization to cover a bear market time window. 
+Another idea is to switch the start and end date of the optimization to cover a bear market time window. 
 In practice FOMO and its counterpart FUD (Fear, Uncertainty, and Doubt) are you friend, because fear 
 driven emotional actions performed by traders are the exact thing we plan to exploit using trading strategies. 
 
