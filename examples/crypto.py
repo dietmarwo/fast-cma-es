@@ -17,7 +17,7 @@ import math, time
 from pathlib import Path
 
 from fcmaes import retry, modecpp
-from fcmaes.optimizer import logger, Bite_cpp, dtime
+from fcmaes.optimizer import logger, Bite_cpp, De_cpp, dtime
 from scipy.optimize import Bounds
 import ctypes as ct
 import multiprocessing as mp 
