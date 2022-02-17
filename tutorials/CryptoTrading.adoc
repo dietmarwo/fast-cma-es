@@ -473,7 +473,7 @@ Here are the new plots:
 
 image::crypto_opt.png[]
 
-=== Multi Objective optimization
+=== Multi Objective Optimization
 
 For multi-objective optimization we compute the pareto front (a set of non-redundant / non-dominated solutions) 
 with different good strategy-ROI / HODL-ROI factors for each ticker. Additionally we implement simple example constraints: 
