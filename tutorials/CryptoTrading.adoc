@@ -201,7 +201,7 @@ There is no intelligent "merging" with data already there.
 You may use an end date in the future to download all data until now, but there is no 
 update as long as the end date is the same.
 
-==== Single objective optimization
+=== Single Objective Optimization
 
 Applying single objective optimization our goal is to maximize the average strategy-ROI / HODL-ROI for a number of tickers. 
 In the example code we use BitCoin, Ethereum, XRP and ADA, but you may adapt the example using different tickers.
