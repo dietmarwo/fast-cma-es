@@ -44,6 +44,7 @@ def minimize(fun,
              f = 0.5, 
              cr = 0.9, 
              rg = Generator(MT19937()),
+             filter = None,
              logger = None):    
     """Minimization of a scalar function of one or more variables using
     Differential Evolution.
@@ -82,6 +83,11 @@ def minimize(fun,
         In the literature this is also known as the crossover probability.     
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
+    filter = filter object, optional 
+        needs to provide function add(x, y) and predicate is_improve(x, x_old, y_old).
+        used to decide if function evaluation of x is worth the effort. 
+        Either f(x) < f(x_old) or f(x) < y_old need to be approximated.     
+        add(x, y) can be used to learn from past results.
     logger : logger, optional
         logger for log output for tell_one, If None, logging
         is switched off. Default is a logger which logs both to stdout and
@@ -98,7 +104,7 @@ def minimize(fun,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
     
-    de = DE(dim, bounds, popsize, stop_fitness, keep, f, cr, rg, logger)
+    de = DE(dim, bounds, popsize, stop_fitness, keep, f, cr, rg, filter, logger)
     try:
         if workers and workers > 1:
             x, val, evals, iterations, stop = de.do_optimize_delayed_update(fun, max_evaluations, workers)
@@ -112,7 +118,7 @@ def minimize(fun,
 class DE(object):
     
     def __init__(self, dim, bounds, popsize = 31, stop_fitness = None, keep = 200, 
-                 F = 0.5, Cr = 0.9, rg = Generator(MT19937()), logger = None):
+                 F = 0.5, Cr = 0.9, rg = Generator(MT19937()), filter = None, logger = None):
         self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
         if popsize is None:
             popsize = 31
@@ -128,6 +134,7 @@ class DE(object):
         self.p = 0
         self.improves = deque()
         self._init()
+        self.filter = filter
         if not logger is None:
             self.logger = logger
             self.best_y = mp.RawValue(ct.c_double, 1E99)
@@ -203,6 +210,9 @@ class DE(object):
         -------
         stop : int termination criteria, if != 0 loop should stop."""
         
+        if not self.filter is None:
+            self.filter.add(x, y)
+        
         if (self.y[p] > y):
             # temporal locality
             if self.iterations > 1:
@@ -247,6 +257,19 @@ class DE(object):
         self.best_i = 0
         self.pop_iter = np.zeros(self.popsize)
        
+    def apply_fun(self, x, x_old, y_old):
+        if self.filter is None:
+            self.evals += 1
+            return self.fun(x)
+        else:
+            if self.filter.is_improve(x, x_old, y_old):
+                self.evals += 1
+                y = self.fun(x)
+                self.filter.add(x, y)
+                return y
+            else:    
+                return 1E99
+       
     def do_optimize(self, fun, max_evals):
         self.fun = fun
         self.max_evals = max_evals    
@@ -255,14 +278,12 @@ class DE(object):
         while self.evals < self.max_evals:
             for p in range(self.popsize):
                 xb, xi, x = self._next_x(p)
-                y = self.fun(x)
-                self.evals += 1
+                y = self.apply_fun(x, xi, self.y[p])
                 if y < self.y[p]:
                     # temporal locality
                     if self.iterations > 1:
                         x2 = self._next_improve(xb, x, xi)
-                        y2 = self.fun(x2)
-                        self.evals += 1
+                        y2 = self.apply_fun(x2, x, y)
                         if y2 < y:
                             y = y2
                             x = x2
@@ -310,7 +331,11 @@ class DE(object):
             if self.stop != 0 or self.evals >= self.max_evals:
                 break # shutdown worker if stop criteria met
             
-            p, x = self.ask_one() # create new x          
+            for _ in range(workers):
+                p, x = self.ask_one() # create new x          
+                if self.filter is None or \
+                    self.filter.is_improve(x, self.x[p], self.y[p]):
+                        break
             evaluator.pipe[0].send((self.evals, x))       
             evals_x[self.evals] = p, x  # store x
             self.evals += 1

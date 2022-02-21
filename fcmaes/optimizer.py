@@ -561,13 +561,13 @@ class Csma_cpp(Optimizer):
 class Bite_cpp(Optimizer):
     """Bite C++ implementation."""
    
-    def __init__(self, max_evaluations=50000,
-                 popsize = 31, guess=None, stop_fitness = None, M = None, workers = None):        
+    def __init__(self, max_evaluations=50000, 
+                 guess=None, stop_fitness = None, M = None, stall_iterations = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'bite cpp')
-        self.popsize = popsize
-        self.stop_fitness = stop_fitness
         self.guess = guess
+        self.stop_fitness = stop_fitness
         self.M = 6 if M is None else M 
+        self.stall_iterations = 0 if stall_iterations is None else stall_iterations 
         self.workers = workers
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), 
@@ -576,8 +576,8 @@ class Bite_cpp(Optimizer):
         ret = bitecpp.minimize(fun, bounds, 
                 self.guess if guess is None else guess,
                 max_evaluations = self.max_eval_num(store), 
-                popsize=self.popsize, 
-                stop_fitness = self.stop_fitness, M = self.M,
+                stop_fitness = self.stop_fitness, M = self.M, 
+                stall_iterations = self.stall_iterations,
                 rg=rg, runid = self.get_count_runs(store))     
         return ret.x, ret.fun, ret.nfev
         
