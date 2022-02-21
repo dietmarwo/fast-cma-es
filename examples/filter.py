@@ -63,8 +63,6 @@ class filter():
                 return True
 
     def optimize(self, problem):
-        self.bestY = 1E99
-        self.bestX = [] 
         
         return de.minimize(problem, 
                 dim = problem.d,
