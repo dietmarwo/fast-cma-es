@@ -44,8 +44,12 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/examples/noisy_tsp.py[noisy
 can solve the noisy 17 cities problem BR17 in about 2 seconds utilizing the parallel threads modern CPUs provide. 
 
 The other problem shown in the paper is artificial and based on matrix multiplication using 
-random matrices with objective function: f(x) = (x − x^∗ )^T A(x − x^∗) applied to binary input values. 
-Here IDONE indeed uses far less function evaluations as all standard algorithms we tried. But what happens if
+random matrices with objective function: 
+
+- `f(x) = (x − x^∗ )^T A(x − x^∗)` 
+
+applied to binary input values. Here IDONE indeed uses far less function 
+evaluations as all standard algorithms we tried. But what happens if
 instead dimension = 100 we use dimension = 5000 ? IDONE doesn't scale very well, I wasn't able to apply it successfully. 
 A standard algorithm (BiteOpt) uses about 900.000 function evaluations and about 5 hours (single threaded), 
 but at least I got the problem solved. You could argue: Real world problems are too expensive to apply their objective
