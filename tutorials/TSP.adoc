@@ -26,6 +26,31 @@ problems from this problem suite, but only for this one we provide our own alter
 All results were produced using a 16 core / 32 thread AMD CPU 5950x. Some algorithms use only a single thread, 
 others utilize the whole processor.  
 
+
+=== Motivation
+
+From https://arxiv.org/abs/1911.08817[Black-box Combinatorial Optimization using Models with Integer-valued Minima]:
+
+"When a black-box optimization objective can only be evaluated with costly or noisy measurements, most standard optimization algorithms are unsuited to find the optimal solution. Specialized algorithms that deal with exactly this situation make use of surrogate models."
+
+Such a method - specialized for integer-valued minima - is presented in the paper (https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/IDONE[IDONE]) and applied to a noisy variant of an asymmetric traveling salesman problem (17 cities).
+
+The statement "most standard optimization algorithms are unsuited" is probably true, but what about the other ones?
+We will identify "suited" standard optimization algorithms and prove
+that they work fine for https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/TSP.py[TSP.py],
+the implementation of the objective function used in the paper. Additionally we can show that for an
+alternative implementation of the same noisy TSP problem (100 iterations, noise=1.0)  
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/noisy_tsp.py[noisy_tsp.py] standard optimization algorithms
+can solve the noisy 17 cities problem BR17 in about 2 seconds utilizing the parallel threads modern CPUs provide. 
+
+The other problem shown in the paper is artificial and based on matrix multiplication using 
+random matrices with objective function: f(x) = (x − x^∗ )^T A(x − x^∗) applied to binary input values. 
+Here IDONE indeed uses far less function evaluations as all standard algorithms we tried. But what happens if
+instead dimension = 100 we use dimension = 5000 ? IDONE doesn't scale very well, I wasn't able to apply it successfully. 
+A standard algorithm (BiteOpt) uses about 900.000 function evaluations and about 5 hours (single threaded), 
+but at least I got the problem solved. You could argue: Real world problems are too expensive to apply their objective
+function so often, but on the other hand they usually cannot be solved so exceptionally well using IDONE.
+
 === The noisy Traveling Salesman Problem / TSP
 
 The https://en.wikipedia.org/wiki/Traveling_salesman_problem[Traveling Salesman Problem/TSP] asks the question:
@@ -38,10 +63,9 @@ But what if the distance between cities is not known exactly?
 This problem can be "simulated" by adding some random noise to the individual distances and determining a "robust"
 solution: We compute the path length n times and determine the "worst case", the longest path we got for all iterations
 each time adding different random noise to the individual distances. For all our experiments we use 100 iterations
-and a random noise between 0 and 50 added to all distances. 
+and a random noise between 0 and 1 added to all distances. 
 
-Solving this "noisy TSP" is more challenging, standard branch and bound algorithms like https://github.com/LukasErlenbach/tsp_solver[tsp_solver]
-cannot be applied. 
+Solving this "noisy TSP" is more challenging, standard branch and bound algorithms like https://github.com/LukasErlenbach/tsp_solver[tsp_solver] cannot be applied. 
 
 === The original implementation
 
@@ -90,35 +114,35 @@ At https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveop
 we find a number of optimization algorithms to test. Many are not applicable for the TSP problem, 
 so we choose the following selection for testing:
 
-- https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/CMA[CMA-ES]
 - https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/MVRSM[MVRSM]
 - https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/IDONE[IDONE]
 - https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/SA[Simulated Annealing]
 
 We don't need a huge problem instance to drive these algorithms at and beyond their limits:
-http://elib.zib.de/pub/mp-testdata/tsp/tsplib/tsp/gr17.tsp[gr17] is a small TSP instance involving only 
-17 cities. We configured `noise_factor=50` because otherwise the noise has no significant impact on `gr17`. 
-According to http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/STSP.html[TSP-solutions] the shortest path without noise 
-has length 2085. 
+http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/atsp/br17.atsp.gz[br17] is a small TSP instance involving only 
+17 cities. According to http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/ATSP.html[ATSP-solutions] the shortest path without noise 
+has length 39.
 
 image::original_solvers_comparison.png[]
 
-The CMA results are hard to see, reason is that we get a "termination on tolstagnation" 
-after about 8000 function evaluations. It seems the default termination criteria don't work for the TSP problem.
-As we will later see, this is not a problem with the CMA-ES algorithm itself. 
+Next lets have a look how fcmaes standard optimization algorithhms perform - also single threaded:
+We use the Python wrapper of the following three algorithms implemented using Eigen/{cpp}: 
 
-https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/CMA[CMA-ES] is based on 
-https://github.com/CMA-ES/pycma[pycma] from Nikolaus Hansen. 
-The fcmaes variants (https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[cmaes.py] and
-https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[acmaesoptimizer.cpp]) and 
-https://github.com/CMA-ES/pycma[pycma] are derived from the same old matlab code but the fcmaes variant
-is much closer to the original. The fcmaes variant can solve the `gr17` noisy TSP problem quite effectively. 
-But as we will see: fcmaes provides an algorithm which fits even better: 
-https://github.com/avaneev/biteopt[BiteOpt] from Aleksey Vaneev. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/deoptimizer.cpp[Differential Evolution].
+- https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/biteoptimizer.cpp[BiteOpt] from Aleksey Vaneev, see also https://github.com/avaneev/biteopt[BiteOpt]. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[CMA-ES].
 
-Here are the results applying fcmaes-CMA and BiteOpt, both utilizing all 32 threads provided by the processor:
+image::fcmaes_single_thread_original_problem.png[]
 
-image::BiteOpt_fcmaes_CMA_original_comparison.png[]
+The fcmaes CMA variant terminates fast, but provides inconsistent results. 
+
+fcmaes supports the parallel retry of optimization algorithms, lets see what happens if we apply 32 optimization
+runs in parallel using https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/retry.py[retry.py] :
+
+image::fcmaes_32_thread_original_problem.png[]
+
+The original algorithms are clearly outperformed, 
+even CMA-ES performs quite well when applied in a parallel retry scenario. 
 
 ==== An alternative implementation of the objective function
 
@@ -150,17 +174,16 @@ algorithms. We used this idea also in
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling] 
 and https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop]. 
  
-The following diagram shows the results applying the same algorithms, fcmaes-CMA and BiteOpt, 
-both utilizing all 32 threads to the new objective function:
-
-image::BiteOpt_fcmaes_CMA_new_comparison.png[]
-
-Now the probem can be "solved" in a few seconds. 
-
-Next is a table comparing the number of function evaluations per second for all algorithms and 
+Applying fcmaes standard optimization algorithms to the modified objective function 
+ 
+image::fcmaes_32_thread_optimized_problem.png[] 
+ 
+results in a solution time of about 2 seconds, even for CMA-ES its only about 5 seconds. 
+ 
+Here a table comparing the number of function evaluations per second for all algorithms and 
 objective function variants. https://numba.pydata.org/[numba] and the way the new implementation is designed 
 speeds up the computation by about factor 100 thereby also improving convergence:
-
+ 
 .Evaluations / second on CPU AMD 5950x
 [width="80%",cols="2,^2,^2,^2",options="header"]
 |=========================================================
@@ -175,6 +198,31 @@ speeds up the computation by about factor 100 thereby also improving convergence
 |fcmaes-CMA |numba based |1190000 |32
 |=========================================================
 
+=== Increasing the noise
+
+What happens if we increase the noise? 
+Another experiment uses the symmetrical TSP http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/tsp/gr17.tsp.gz[gr17]. 
+This time we configured `noise_factor=50`. 
+According to http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/STSP.html[TSP-solutions] the shortest path without noise 
+has length 2085. 
+
+image::original_solvers_comparison_b.png[]
+
+The CMA algorithm shown here is not the one from fcmaes, but the original one:
+
+- https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/CMA[CMA-ES]
+
+The CMA results are hard to see, reason is that we get a "termination on tolstagnation" 
+after about 8000 function evaluations. It seems the default termination criteria don't work for the TSP problem.
+As we will later see, this is not a problem with the CMA-ES algorithm itself. 
+
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/CMA[CMA-ES] is based on 
+https://github.com/CMA-ES/pycma[pycma] from Nikolaus Hansen. 
+
+Here are the results applying fcmaes-CMA (not the original one) 
+and BiteOpt, both utilizing all 32 threads provided by the processor:
+
+image::BiteOpt_fcmaes_CMA_original_comparison.png[]
 
 Finally we see a direct comparison of the different objective function 
 implementations for the same optimization algorithm. Beside 
@@ -189,10 +237,10 @@ image::fcmaes_CMA_comparison.png[]
 
 We have to be very careful when implementing an objective function representing a specific problem. 
 Not always the implementation requiring the least number of variables wins. Use https://numba.pydata.org/[numba]
-whenever possible for the time critical parts. BiteOpt + parallel retry is a very good first algorithm
-choice which should be tried early, if the problem is single objective and there are no
+whenever possible for the time critical parts. BiteOpt or Differential Evolution, specially if used with parallel retry, 
+are very good algorithm choices which should be tried early, if the problem is single objective and there are no
 constraints (which cannot be easily expressed using the weighted sum approach). 
-Algorithms with huge overhead like idone and MSVRM should only be applied for very expensive
+Algorithms with huge overhead like IDONE and MSVRM should only be applied for very expensive
 objective functions. Noisy TSP can be evaluated nearly 1.2 million times / sec, so it definitely
-doesn't fall into this category. 
+doesn't fall into that category. 
 
