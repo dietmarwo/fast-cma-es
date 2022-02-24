@@ -324,20 +324,21 @@ class De_cpp(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fitness = None, 
-                 keep = 200, f = 0.5, cr = 0.9):        
+                 keep = 200, f = 0.5, cr = 0.9, ints = None):        
         Optimizer.__init__(self, max_evaluations, 'de cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.keep = keep
         self.f = f
         self.cr = cr
+        self.ints = ints
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
         ret = decpp.minimize(fun, None, bounds, 
                 popsize=self.popsize, 
                 max_evaluations = self.max_eval_num(store), 
                 stop_fitness = self.stop_fitness,
-                keep = self.keep, f = self.f, cr = self.cr,
+                keep = self.keep, f = self.f, cr = self.cr, ints=self.ints,
                 rg=rg, runid = self.get_count_runs(store))
         return ret.x, ret.fun, ret.nfev
 
@@ -346,19 +347,20 @@ class De_python(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fitness = None, 
-                 keep = 200, f = 0.5, cr = 0.9):        
+                 keep = 200, f = 0.5, cr = 0.9, ints = None):        
         Optimizer.__init__(self, max_evaluations, 'de py')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.keep = keep
         self.f = f
         self.cr = cr
+        self.ints = ints
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
         ret = de.minimize(fun, None, 
                 bounds, self.popsize, self.max_eval_num(store), workers=None,
                 stop_fitness = self.stop_fitness,
-                keep = self.keep, f = self.f, cr = self.cr,
+                keep = self.keep, f = self.f, cr = self.cr, ints=self.ints,
                 rg=rg)
         return ret.x, ret.fun, ret.nfev
 
