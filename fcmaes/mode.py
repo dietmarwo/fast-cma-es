@@ -31,6 +31,14 @@
     parameter to parallelize objective function evaluation. The workers parameter is limited by the 
     population size.
     
+    The ints parameter is a boolean array indicating which parameters are discrete integer values. This 
+    parameter was introduced after observing non optimal DE-results for the ESP2 benchmark problem: 
+    https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py
+    If defined it causes a "special treatment" for discrete variables: They are rounded to the next integer value and
+    there is an additional mutation to avoid getting stuck at local minima. This behavior is specified by the internal
+    function _modifier which can be overwritten by providing the optional modifier argument. If modifier is defined,
+    ints is ignored. 
+    
     See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc for a detailed description.
 """
 
@@ -58,6 +66,8 @@ def minimize(mofun,
              cr = 0.9, 
              nsga_update = False,
              pareto_update = 0,
+             ints = None,
+             modifier = None,
              rg = Generator(MT19937()),
              logger = None,
              plot_name = None,
@@ -100,7 +110,13 @@ def minimize(mofun,
     pareto_update = float, optional
         Only applied if nsga_update = False. Use the pareto front for population update 
         with probability pareto_update, else use the whole population. Default 0 - use always 
-        the whole population.      
+        the whole population.   
+    ints = list or array, optional
+        indicating which parameters are discrete integer values. If defined these parameters will be
+        rounded to the next integer and some additional mutation of discrete parameters are performed.
+    modifier = callable, optional
+        used to overwrite the default behaviour induced by ints. If defined, the ints parameter is
+        ignored. Modifies all generated x vectors.
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     logger : logger, optional
@@ -118,7 +134,7 @@ def minimize(mofun,
     x, y: list of argument vectors and corresponding value vectors of the optimization results. """
 
     mode = MODE(nobj, ncon, bounds, popsize, workers if not workers is None else 0, 
-            f, cr, nsga_update, pareto_update, rg, logger, plot_name)
+            f, cr, nsga_update, pareto_update, rg, ints, modifier, logger, plot_name)
     try:
         if workers and workers > 1:
             x, y, evals, iterations, stop = mode.do_optimize_delayed_update(mofun, max_evaluations, workers)
@@ -201,7 +217,7 @@ class MODE(object):
     
     def __init__(self, nobj, ncon, bounds, popsize = 64, workers = 0,
                  F = 0.5, Cr = 0.9, nsga_update = False, pareto_update = False, 
-                 rg = Generator(MT19937()), logger = None, plot_name = None):
+                 rg = Generator(MT19937()), ints = None, modifier = None, logger = None, plot_name = None):
         self.nobj = nobj
         self.ncon = ncon
         self.dim, self.lower, self.upper = _check_bounds(bounds, None)
@@ -222,6 +238,15 @@ class MODE(object):
         self.mutex = mp.Lock()
         self.p = 0
         self.best_p = None
+        self.ints = np.array(ints)
+        # use default variable modifier for int variables if modifier is None
+        if modifier is None and not ints is None:
+            # adjust bounds because ints are rounded
+            self.lower[ints] -= .499999999
+            self.upper[ints] += .499999999
+            self.modifier = self._modifier
+        else:
+            self.modifier = modifier
         self._init()
         if not logger is None:
             self.logger = logger
@@ -414,7 +439,9 @@ class MODE(object):
         r = self.rg.integers(0, self.dim)
         tr = np.array(
             [i != r and self.rg.random() > self.Cr for i in range(self.dim)])    
-        x[tr] = xp[tr]       
+        x[tr] = xp[tr]    
+        if not self.modifier is None:
+            x = self.modifier(x)   
         return x
     
     def _sample(self):
@@ -428,6 +455,23 @@ class MODE(object):
             return x
         else:
             return np.maximum(np.minimum(x, self.upper), self.lower)
+        
+    # default modifier for integer variables
+    def _modifier(self, x):
+        x_ints = x[self.ints]
+        n_ints = len(self.ints)
+        lb = self.lower[self.ints]
+        ub = self.upper[self.ints]
+        min_mutate = 0.5
+        max_mutate = max(1.0, n_ints/20.0)
+        to_mutate = self.rg.uniform(min_mutate, max_mutate)
+        # mututate some integer variables
+        x_ints = np.array([x if self.rg.random() > to_mutate/n_ints else 
+                           self.rg.uniform(lb[i], ub[i])
+                           for i, x in enumerate(x_ints)])
+        # round to int values
+        x[self.ints] = np.around(x_ints,0)
+        return x   
                     
 def _check_bounds(bounds, dim):
     if bounds is None and dim is None:

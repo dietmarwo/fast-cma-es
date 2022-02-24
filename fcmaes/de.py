@@ -16,6 +16,19 @@
     You may keep parameters F and Cr at their defaults since this implementation works well with the given settings for most problems,
     since the algorithm oscillates between different F and Cr settings. 
     
+    The filter parameter is inspired by "Surrogate-based Optimisation for a Hospital Simulation"
+    (https://dl.acm.org/doi/10.1145/3449726.3463283) where a machine learning classifier is used to 
+    filter candidate solutions for DE. A filter object needs to provide function add(x, y) to enable learning and
+    a predicate is_improve(x, x_old, y_old) used to decide if function evaluation of x is worth the effort. 
+    
+    The ints parameter is a boolean array indicating which parameters are discrete integer values. This 
+    parameter was introduced after observing non optimal results for the ESP2 benchmark problem: 
+    https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py
+    If defined it causes a "special treatment" for discrete variables: They are rounded to the next integer value and
+    there is an additional mutation to avoid getting stuck at local minima. This behavior is specified by the internal
+    function _modifier which can be overwritten by providing the optional modifier argument. If modifier is defined,
+    ints is ignored. 
+    
     Use the C++ implementation combined with parallel retry instead for objective functions which are fast to evaluate. 
     For expensive objective functions (e.g. machine learning parameter optimization) use the workers
     parameter to parallelize objective function evaluation. This causes delayed population update.
@@ -45,6 +58,8 @@ def minimize(fun,
              cr = 0.9, 
              rg = Generator(MT19937()),
              filter = None,
+             ints = None,
+             modifier = None,
              logger = None):    
     """Minimization of a scalar function of one or more variables using
     Differential Evolution.
@@ -88,6 +103,12 @@ def minimize(fun,
         used to decide if function evaluation of x is worth the effort. 
         Either f(x) < f(x_old) or f(x) < y_old need to be approximated.     
         add(x, y) can be used to learn from past results.
+    ints = list or array of bool, optional
+        indicating which parameters are discrete integer values. If defined these parameters will be
+        rounded to the next integer and some additional mutation of discrete parameters are performed.    
+    modifier = callable, optional
+        used to overwrite the default behaviour induced by ints. If defined, the ints parameter is
+        ignored. Modifies all generated x vectors.
     logger : logger, optional
         logger for log output for tell_one, If None, logging
         is switched off. Default is a logger which logs both to stdout and
@@ -104,7 +125,7 @@ def minimize(fun,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
     
-    de = DE(dim, bounds, popsize, stop_fitness, keep, f, cr, rg, filter, logger)
+    de = DE(dim, bounds, popsize, stop_fitness, keep, f, cr, rg, filter, ints, modifier, logger)
     try:
         if workers and workers > 1:
             x, val, evals, iterations, stop = de.do_optimize_delayed_update(fun, max_evaluations, workers)
@@ -118,7 +139,8 @@ def minimize(fun,
 class DE(object):
     
     def __init__(self, dim, bounds, popsize = 31, stop_fitness = None, keep = 200, 
-                 F = 0.5, Cr = 0.9, rg = Generator(MT19937()), filter = None, logger = None):
+                 F = 0.5, Cr = 0.9, rg = Generator(MT19937()), filter = None, 
+                 ints = None, modifier = None, logger = None):
         self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
         if popsize is None:
             popsize = 31
@@ -133,8 +155,17 @@ class DE(object):
         self.evals = 0
         self.p = 0
         self.improves = deque()
-        self._init()
         self.filter = filter
+        self.ints = np.array(ints)
+        # use default variable modifier for int variables if modifier is None
+        if modifier is None and not ints is None:
+            # adjust bounds because ints are rounded
+            self.lower[ints] -= .499999999
+            self.upper[ints] += .499999999
+            self.modifier = self._modifier
+        else:
+            self.modifier = modifier
+        self._init()                     
         if not logger is None:
             self.logger = logger
             self.best_y = mp.RawValue(ct.c_double, 1E99)
@@ -209,7 +240,7 @@ class DE(object):
         Returns
         -------
         stop : int termination criteria, if != 0 loop should stop."""
-        
+
         if not self.filter is None:
             self.filter.add(x, y)
         
@@ -361,24 +392,49 @@ class DE(object):
         r = self.rg.integers(0, self.dim)
         tr = np.array(
             [i != r and self.rg.random() > self.Cr for i in range(self.dim)])    
-        x[tr] = xp[tr]       
+        x[tr] = xp[tr]  
+        if not self.modifier is None:
+            x = self.modifier(x)
         return xb, xp, x
 
     def _next_improve(self, xb, x, xi):
-        return self._feasible(xb + ((x - xi) * 0.5))
-    
+        x = self._feasible(xb + ((x - xi) * 0.5))
+        if not self.modifier is None:
+            x = self.modifier(x)
+        return x
+            
     def _sample(self):
         if self.upper is None:
             return self.rg.normal()
         else:
-            return self.rg.uniform(self.lower, self.upper)
+            x = self.rg.uniform(self.lower, self.upper)
+            if not self.modifier is None:
+                x = self.modifier(x)
+            return x
     
     def _feasible(self, x):
         if self.upper is None:
             return x
         else:
             return np.maximum(np.minimum(x, self.upper), self.lower)
-                
+    
+    # default modifier for integer variables
+    def _modifier(self, x):
+        x_ints = x[self.ints]
+        n_ints = len(self.ints)
+        lb = self.lower[self.ints]
+        ub = self.upper[self.ints]
+        min_mutate = 0.5
+        max_mutate = max(1.0, n_ints/20.0)
+        to_mutate = self.rg.uniform(min_mutate, max_mutate)
+        # mututate some integer variables
+        x_ints = np.array([x if self.rg.random() > to_mutate/n_ints else 
+                           self.rg.uniform(lb[i], ub[i])
+                           for i, x in enumerate(x_ints)])
+        # round to int values
+        x[self.ints] = np.around(x_ints,0)
+        return x   
+                        
 def _check_bounds(bounds, dim):
     if bounds is None and dim is None:
         raise ValueError('either dim or bounds need to be defined')
@@ -386,3 +442,5 @@ def _check_bounds(bounds, dim):
         return dim, None, None
     else:
         return len(bounds.ub), np.asarray(bounds.lb), np.asarray(bounds.ub)
+    
+

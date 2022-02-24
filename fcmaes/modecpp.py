@@ -33,6 +33,12 @@
     parameter to parallelize objective function evaluation. This causes delayed population update.
     It is usually preferrable if popsize > workers and workers = mp.cpu_count() to improve CPU utilization.  
     
+    The ints parameter is a boolean array indicating which parameters are discrete integer values. This 
+    parameter was introduced after observing non optimal DE-results for the ESP2 benchmark problem: 
+    https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py
+    If defined it causes a "special treatment" for discrete variables: They are rounded to the next integer value and
+    there is an additional mutation to avoid getting stuck to local minima. 
+    
     See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc for a detailed description.
 """
 
@@ -68,6 +74,7 @@ def minimize(mofun,
              dis_m = 20.0,
              nsga_update = False,
              pareto_update = 0,
+             ints = None,
              log_period = sys.maxsize,
              rg = Generator(MT19937()),
              plot_name = None,
@@ -114,7 +121,10 @@ def minimize(mofun,
     pareto_update = float, optional
         Only applied if nsga_update = False. Use the pareto front for population update 
         with probability pareto_update, else use the whole population. Default 0 - use always 
-        the whole population.      
+        the whole population.  
+    ints = list or array of bool, optional
+        indicating which parameters are discrete integer values. If defined these parameters will be
+        rounded to the next integer and some additional mutation of discrete parameters are performed.    
     log_period = int, optional
         The log callback is called each log_period iterations. As default the callback is never called.
     rg = numpy.random.Generator, optional
@@ -143,9 +153,12 @@ def minimize(mofun,
     if lower is None:
         lower = [0]*dim
         upper = [0]*dim  
+    if ints is None:
+        ints = [False]*dim
     if workers is None:
         workers = 0        
     array_type = ct.c_double * dim   
+    bool_array_type = ct.c_bool * dim 
     c_callback = mo_call_back_type(callback_mo(mofun, dim, nobj + ncon, is_terminate))
     c_log = mo_call_back_type(log_mo(plot_name, dim, nobj, ncon))
     seed = int(rg.uniform(0, 2**32 - 1))
@@ -153,7 +166,7 @@ def minimize(mofun,
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
         optimizeMODE_C(runid, c_callback, c_log, dim, nobj, ncon, seed,
-                           array_type(*lower), array_type(*upper), 
+                           array_type(*lower), array_type(*upper), bool_array_type(*ints), 
                            max_evaluations, popsize, workers, f, cr, 
                            pro_c, dis_c, pro_m, dis_m,
                            nsga_update, pareto_update, log_period, res_p)
@@ -284,7 +297,7 @@ class log_mo(object):
 
 optimizeMODE_C = libcmalib.optimizeMODE_C
 optimizeMODE_C.argtypes = [ct.c_long, mo_call_back_type, mo_call_back_type, ct.c_int, ct.c_int, \
-            ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+            ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
             ct.c_int, ct.c_int, ct.c_int,\
             ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
             ct.c_bool, ct.c_double, ct.c_int, ct.POINTER(ct.c_double)]
