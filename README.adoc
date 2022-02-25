@@ -45,7 +45,7 @@ support both parallel fitness function evaluation and a parallel retry mechanism
 - BiteOpt algorithm from Aleksey Vaneev.
 - New DE (differential evolution) variant optimized for usage with parallel retry.
 - GCL-DE (differential evolution) variant from Mingcheng Zuo.
-- NEW: DE and MODE now have explicit support for mixed integer problems. https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[noisy TSP] shows the performance improvement. Use one of these algorithms when your problem contains discrete arguments and add 
+- NEW: DE and MODE now have explicit support for mixed integer problems. https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[Noisy TSP] shows the performance improvement. Use one of these algorithms when your problem contains discrete arguments and add 
 the `ints` parameter which specifies which parameters are discrete. Real world mixed integer problems like 
 https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py[ESP/ESP2] cannot
 be solved without. 
@@ -287,11 +287,11 @@ https://github.com/dietmarwo/fcmaes-ray/blob/master/README.adoc[fcmaesray] shows
 
 [source]
 ----
-@misc{fcmaes2021,
+@misc{fcmaes2022,
     author = {Dietmar Wolz},
     title = {fcmaes - A Python-3 derivative-free optimization library},
     note = {Python/C++ source code, with description and examples},
-    year = {2021},
+    year = {2022},
     publisher = {GitHub},
     journal = {GitHub repository},
     howpublished = {Available at \url{https://github.com/dietmarwo/fast-cma-es}},

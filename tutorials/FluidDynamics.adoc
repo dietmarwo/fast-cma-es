@@ -99,7 +99,7 @@ these results.
 
 === How is mixed integer support implemented
 
-There is nothing magic behind the mixed integer support, it a minor - but quite effective - modification:
+There is nothing magic behind the mixed integer support, it is a minor - but quite effective - modification:
 The first change is related to the bounds: Since the algorithm internally works with continuous variables
 (floats) we should assign the same value range to each discrete choice inside the bounds. This range has
 the size 1.0, so we have to adapt the lower and upper bounds, which are expected to be given as integer
@@ -127,7 +127,8 @@ the number of integer variables.
 This is because I observed stagnation related to the integer variables in the later stages of the optimization
 process. Checking the https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/MVRSM[MVRSM]
 code I noticed there are plenty of mutations for the discrete variables, so I thought may be doing something similar
-could help. 
+could help. Using the Python variants of the algorithms you can define you own sample `modifier` overwriting the default behavior. 
+Please notice me when you found an improvement. 
 
 [source,python]
 ----
@@ -157,7 +158,7 @@ TBD.
 
 PitzDaily is another benchmark included in https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py[ESP2 and PitzDaily]. The problem assesses the effect of combustion on the
 mean flowfield properties such as mixing layer growth, entrainment rate, and reattachment length. 
-Here https://www.thevisualroom.com/33_machine_learning/optimiserTestProblemSuite/PitzDailyAlma.html[PitzDaily] is a nice visualization of the problem. It is chosen as an https://www.youtube.com/watch?v=f6U8fdNqsec[OpenFOAM] tutorial, because
+Here https://www.thevisualroom.com/33_machine_learning/optimiserTestProblemSuite/PitzDailyAlma.html[PitzDaily] is a nice visualization of the problem. It was chosen as an https://www.youtube.com/watch?v=f6U8fdNqsec[OpenFOAM] tutorial, because
 it has limited complexity: Only continuous variables and low dimension = 10. Our 16 core processor is able to perform 
 about 2 simulations per second. So it is not very surprising that fcmaes-DE can solve it easily.  
 
@@ -190,9 +191,9 @@ What is a bit surprising is that solutions < 0.079 are hard to find in the liter
 
 To summarize: 
 
-- We couldn't prove the superiority of surrogate based methods even for for complex mixed integer CFD 
-simulation based methods. 
-- fcmaes Differential Evolution thanks to its mixed integer support is a serious competition - already
+- We couldn't confirm the superiority of surrogate based methods for for complex mixed integer CFD 
+simulation based methods as suggested by some publications. 
+- fcmaes Differential Evolution, thanks to its mixed integer support is a serious competition - already
 equipped with the ability to perform parallel function evaluations which is very helpful with costly CDF simulations. 
 - The fcmaes multi objective solver (MO-DE) with mixed integer support is ready to be tested in this area.
 
