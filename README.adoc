@@ -19,9 +19,9 @@ support both parallel fitness function evaluation and a parallel retry mechanism
 === Documentation
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc[Tutorial] Solving simple example problems from space flight dynamics.  
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[crypto trading] Optimize your crypto trading strategy.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[Crypto Trading] Optimize your crypto trading strategy.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] Optimize CFD simulation based problems.  
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[noisy TSP] Solve the noisy Traveling Salesman Problem.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[Noisy TSP] Solve the noisy Traveling Salesman Problem.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] Managing hospital resources during a pandemic.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop] Solving the flexible job shop scheduling problem. 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling] Solving a complex scheduling problem, part of the GTOC11 competition.
