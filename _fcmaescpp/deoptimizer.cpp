@@ -18,6 +18,12 @@
 // For expensive objective functions (e.g. machine learning parameter optimization) use the workers
 // parameter to parallelize objective function evaluation. The workers parameter is limited by the
 // population size.
+//
+// The ints parameter is a boolean array indicating which parameters are discrete integer values. This
+// parameter was introduced after observing non optimal DE-results for the ESP2 benchmark problem:
+// https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py
+// If defined it causes a "special treatment" for discrete variables: They are rounded to the next integer value and
+// there is an additional mutation to avoid getting stuck at local minima.
 
 #include <Eigen/Core>
 #include <iostream>
@@ -40,7 +46,7 @@ public:
 
     DeOptimizer(long runid_, Fitness *fitfun_, int dim_, int seed_,
             int popsize_, int maxEvaluations_, double keep_,
-            double stopfitness_, double F_, double CR_) {
+            double stopfitness_, double F_, double CR_, bool *isInt_) {
         // runid used to identify a specific run
         runid = runid_;
         // fitness function to minimize
@@ -65,6 +71,9 @@ public:
         pos = 0;
         //std::random_device rd;
         rs = new pcg64(seed_);
+        // Indicating which parameters are discrete integer values. If defined these parameters will be
+        // rounded to the next integer and some additional mutation of discrete parameters are performed.
+        isInt = isInt_;
         init();
     }
 
@@ -100,11 +109,33 @@ public:
         for (int j = 0; j < dim; j++)
             if (j != r && rnd01() > CR)
                 x[j] = xp[j];
-        return fitfun->getClosestFeasible(x);
+        vec nextx = fitfun->getClosestFeasible(x);
+        modify(nextx);
+        return nextx;
     }
 
     vec next_improve(const vec &xb, const vec &x, const vec &xi) {
-        return fitfun->getClosestFeasible(xb + ((x - xi) * 0.5));
+        vec nextx = fitfun->getClosestFeasible(xb + ((x - xi) * 0.5));
+        modify(nextx);
+        return nextx;
+    }
+
+    void modify(vec &x) {
+        if (isInt == NULL)
+            return;
+        double n_ints = 0;
+        for (int i = 0; i < dim; i++)
+            if (isInt[i]) n_ints++;
+        double min_mutate = 0.5;
+        double max_mutate = std::max(1.0, n_ints/20.0);
+        double to_mutate = min_mutate + rnd01()*(max_mutate - min_mutate);
+        for (int i = 0; i < dim; i++) {
+            if (isInt[i]) {
+                if (rnd01() < to_mutate/n_ints)
+                    x[i] = fitfun->sample_i(i, *rs); // resample
+                x[i] = std::round(x[i]);
+            }
+        }
     }
 
     vec ask(int &p) {
@@ -158,7 +189,7 @@ public:
 
         // -------------------- Generation Loop --------------------------------
         for (iterations = 1; fitfun->evaluations() < maxEvaluations
-        && !fitfun->terminate(); iterations++) {
+        		&& !fitfun->terminate(); iterations++) {
 
             CR = iterations % 2 == 0 ? 0.5 * CR0 : CR0;
             F = iterations % 2 == 0 ? 0.5 * F0 : F0;
@@ -184,7 +215,7 @@ public:
                             x[j] = fitfun->sample_i(j, *rs);
                     }
                 }
-
+                modify(x);
                 double y = fitfun->eval(x)(0);
                 if (isfinite(y) && y < popY[p]) {
                     // temporal locality
@@ -220,41 +251,41 @@ public:
     }
 
     void do_optimize_delayed_update(int workers) {
-        iterations = 0;
-        fitfun->resetEvaluations();
-        workers = std::min(workers, popsize); // workers <= popsize
-        evaluator eval(fitfun, 1, workers);
-        int evals_size = popsize*10;
-        vec evals_x[evals_size];
-        int evals_p[evals_size];
-        int cp = 0;
-
-        // fill eval queue with initial population
-        for (int i = 0; i < workers; i++) {
-            int p;
-            vec x = ask(p);
-            eval.evaluate(x, cp);
-            evals_x[cp] = x;
-            evals_p[cp] = p;
-            cp = (cp + 1) % evals_size;
-        }
-        while (fitfun->evaluations() < maxEvaluations && !fitfun->terminate()) {
-            vec_id* vid = eval.result();
-            vec y = vec(vid->_v);
-            int id = vid->_id;
-            delete vid;
-            vec x = evals_x[id];
-            int p = evals_p[id];
-            tell(y(0), x, p); // tell evaluated x
-            if (fitfun->evaluations() >= maxEvaluations)
-                break;
-            x = ask(p);
-            eval.evaluate(x, cp);
-            evals_x[cp] = x;
-            evals_p[cp] = p;
-            cp = (cp + 1) % evals_size;
-        }
-    }
+    	 iterations = 0;
+    	 fitfun->resetEvaluations();
+         workers = std::min(workers, popsize); // workers <= popsize
+    	 evaluator eval(fitfun, 1, workers);
+         int evals_size = popsize*10;
+    	 vec evals_x[evals_size];
+   	     int evals_p[evals_size];
+         int cp = 0; 
+         
+	     // fill eval queue with initial population
+    	 for (int i = 0; i < workers; i++) {
+    		 int p;
+    		 vec x = ask(p);
+    		 eval.evaluate(x, cp);
+    		 evals_x[cp] = x;
+    		 evals_p[cp] = p;
+             cp = (cp + 1) % evals_size;             
+    	 }
+    	 while (fitfun->evaluations() < maxEvaluations && !fitfun->terminate()) {
+    		 vec_id* vid = eval.result();
+    		 vec y = vec(vid->_v);
+    		 int id = vid->_id;
+    		 delete vid;
+    		 vec x = evals_x[id];
+             int p = evals_p[id];
+    		 tell(y(0), x, p); // tell evaluated x
+    		 if (fitfun->evaluations() >= maxEvaluations)
+    			 break;
+    		 x = ask(p);
+    		 eval.evaluate(x, cp);
+    		 evals_x[cp] = x;
+    		 evals_p[cp] = p;
+             cp = (cp + 1) % evals_size; 
+    	 }
+	}
 
     void init() {
         popX = mat(dim, popsize);
@@ -318,6 +349,7 @@ private:
     queue<vec> improvesX;
     queue<int> improvesP;
     int pos;
+    bool *isInt;
 };
 
 }
@@ -326,16 +358,26 @@ using namespace differential_evolution;
 
 extern "C" {
 void optimizeDE_C(long runid, callback_type func, int dim, int seed,
-        double *lower, double *upper, int maxEvals, double keep,
+        double *lower, double *upper, bool *ints,
+        int maxEvals, double keep,
         double stopfitness, int popsize, double F, double CR, int workers, double* res) {
     vec lower_limit(dim), upper_limit(dim);
+    bool isInt[dim];
+    bool useIsInt = false;
     for (int i = 0; i < dim; i++) {
         lower_limit[i] = lower[i];
         upper_limit[i] = upper[i];
+        isInt[i] = ints[i];
+        useIsInt |= ints[i];
+        if (isInt[i]) {
+            // adjust bounds because ints are rounded
+            lower_limit[i] -= .499999999;
+            upper_limit[i] += .499999999;
+        }
     }
     Fitness fitfun(func, dim, 1, lower_limit, upper_limit);
     DeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, keep,
-            stopfitness, F, CR);
+            stopfitness, F, CR, useIsInt ? isInt : NULL);
     try {
         if (workers <= 1)
             opt.doOptimize();

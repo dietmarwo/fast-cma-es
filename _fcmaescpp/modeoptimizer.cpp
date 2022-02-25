@@ -28,6 +28,13 @@
 // For expensive objective functions (e.g. machine learning parameter optimization) use the workers
 // parameter to parallelize objective function evaluation. The workers parameter is limited by the
 // population size.
+//
+// The ints parameter is a boolean array indicating which parameters are discrete integer values. This
+// parameter was introduced after observing non optimal DE-results for the ESP2 benchmark problem:
+// https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py
+// If defined it causes a "special treatment" for discrete variables: They are rounded to the next integer value and
+// there is an additional mutation to avoid getting stuck at local minima.
+
 
 #include <Eigen/Core>
 #include <iostream>
@@ -50,7 +57,7 @@ public:
             int nobj_, int ncon_, int seed_,
             int popsize_, int maxEvaluations_, double F_, double CR_,
             double pro_c_, double dis_c_, double pro_m_, double dis_m_,
-            bool nsga_update_, double pareto_update_, int log_period_) {
+            bool nsga_update_, double pareto_update_, int log_period_, bool *isInt_) {
         // runid used to identify a specific run
         runid = runid_;
         // fitness function to minimize
@@ -97,6 +104,9 @@ public:
         log_period = log_period_;
         if (log_period <= 0)
             log_period = 1000;
+        // Indicating which parameters are discrete integer values. If defined these parameters will be
+        // rounded to the next integer and some additional mutation of discrete parameters are performed.
+        isInt = isInt_;
         init();
     }
 
@@ -159,7 +169,27 @@ public:
         for (int j = 0; j < dim; j++)
             if (j != r && rnd01() > CR)
                 x[j] = xp[j];
-        return fitfun->getClosestFeasible(x);
+        x = fitfun->getClosestFeasible(x);
+        modify(x);
+        return x;
+    }
+
+    void modify(vec &x) {
+        if (isInt == NULL)
+            return;
+        double n_ints = 0;
+        for (int i = 0; i < dim; i++)
+            if (isInt[i]) n_ints++;
+        double min_mutate = 0.5;
+        double max_mutate = std::max(1.0, n_ints/20.0);
+        double to_mutate = min_mutate + rnd01()*(max_mutate - min_mutate);
+        for (int i = 0; i < dim; i++) {
+            if (isInt[i]) {
+                if (rnd01() < to_mutate/n_ints)
+                    x[i] = fitfun->sample_i(i, *rs); // resample
+                x[i] = std::round(x[i]);
+            }
+        }
     }
 
     vec crowd_dist(mat& y) { // crowd distance for 1st objective
@@ -555,6 +585,7 @@ private:
     bool nsga_update;
     double pareto_update;
     int log_period;
+    bool *isInt;
 };
 }
 
@@ -563,20 +594,29 @@ using namespace mode_optimizer;
 extern "C" {
 void optimizeMODE_C(long runid, callback_type func, callback_type log,
         int dim, int nobj, int ncon, int seed,
-        double *lower, double *upper, int maxEvals,
+        double *lower, double *upper, bool *ints, int maxEvals,
         int popsize, int workers, double F, double CR,
         double pro_c, double dis_c, double pro_m, double dis_m,
         bool nsga_update, double pareto_update, int log_period, double* res) {
     vec lower_limit(dim), upper_limit(dim);
+    bool isInt[dim];
+    bool useIsInt = false;
     for (int i = 0; i < dim; i++) {
         lower_limit[i] = lower[i];
         upper_limit[i] = upper[i];
+        isInt[i] = ints[i];
+        useIsInt |= ints[i];
+        if (isInt[i]) {
+            // adjust bounds because ints are rounded
+            lower_limit[i] -= .499999999;
+            upper_limit[i] += .499999999;
+        }
     }
     Fitness fitfun(func, dim, nobj + ncon, lower_limit, upper_limit);
     MoDeOptimizer opt(runid, &fitfun, log, dim, nobj, ncon,
             seed, popsize, maxEvals, F, CR,
             pro_c, dis_c, pro_m, dis_m,
-            nsga_update, pareto_update, log_period);
+            nsga_update, pareto_update, log_period, useIsInt ? isInt : NULL);
     try {
         if (workers <= 1)
             opt.doOptimize();
