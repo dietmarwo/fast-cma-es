@@ -40,10 +40,14 @@ support both parallel fitness function evaluation and a parallel retry mechanism
 - fcmaes is focused on optimization problems hard to solve utilizing modern many-core CPUs.
 - Parallel fitness function evaluation and different parallel retry mechanisms. 
 - Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
-- New multi-objective/constrained optimization algorithm combining features from Differential evolution and NSGA-II, supporting parallel function evaluation. Features https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/[enhanced multiple constraint ranking] improving its performance in handling constraints for engineering design optimization.
+- New multi-objective/constrained optimization algorithm MODE combining features from Differential evolution and NSGA-II, supporting parallel function evaluation. Features https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/[enhanced multiple constraint ranking] improving its performance in handling constraints for engineering design optimization.
 - BiteOpt algorithm from Aleksey Vaneev.
 - New DE (differential evolution) variant optimized for usage with parallel retry.
 - GCL-DE (differential evolution) variant from Mingcheng Zuo.
+- NEW: DE and MODE now have explicit support for mixed integer problems. https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[noisy TSP] shows the performance improvement. Use one of these algorithms when your problem contains discrete arguments and add 
+the `ints` parameter which specifies which parameters are discrete. Real world mixed integer problems like 
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py[ESP/ESP2] cannot
+be solved without. 
 
 === Performance
 
