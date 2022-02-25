@@ -94,7 +94,7 @@ in the best out of these 8 runs. For a fair comparison only the best MVRSM run s
 There is not enough data to identify a "winner" here: Both approaches reach excellent results - which 
 all other optimization methods tested did not - including fcmaes-DE without mixed integer enhancement. 
 
-But it is obvious that any claim about the superiority of surrogate based methods are not justified considering
+But it is obvious that any claim about the superiority of surrogate based methods is not justified considering
 these results. 
 
 === How is mixed integer support implemented
@@ -156,7 +156,7 @@ TBD.
 
 === PitzDaily
 
-PitzDaily is another benchmark included in https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py[ESP2 and PitzDaily]. The problem assesses the effect of combustion on the
+PitzDaily is another benchmark included in https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py[ESP and PitzDaily]. The problem assesses the effect of combustion on the
 mean flowfield properties such as mixing layer growth, entrainment rate, and reattachment length. 
 Here https://www.thevisualroom.com/33_machine_learning/optimiserTestProblemSuite/PitzDailyAlma.html[PitzDaily] is a nice visualization of the problem. It was chosen as an https://www.youtube.com/watch?v=f6U8fdNqsec[OpenFOAM] tutorial, because
 it has limited complexity: Only continuous variables and low dimension = 10. Our 16 core processor is able to perform 
