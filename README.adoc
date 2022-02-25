@@ -126,12 +126,12 @@ To utilize modern many-core processors all single-objective algorithms should be
 
 - MO-DE: A new multi-objective optimization algorithm merging concepts from differential evolution and NSGA. 
 Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[C++]. Provides an ask/tell interface and supports constraints and parallel function evaluation. 
-Can also be applied to single-objective problems with constraints. 
+Can also be applied to single-objective problems with constraints. Supports mixed integer problems (see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] for details)
 
 - BiteOpt algorithm from Aleksey Vaneev https://github.com/avaneev/biteopt[BiteOpt]. Only a C++ version is provided. If your problem is single objective and if you have no clue what algorithm to apply, try this first. Works well with almost all problems. For constraints you have to use weighted penalties.
 
 - Differential Evolution: Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/de.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/deoptimizer.cpp[C++]. Additional concepts implemented are 
-https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model[temporal locality], stochastic reinitialization of individuals based on their age and oscillating CR/F parameters. Provides an ask/tell interface and supports parallel function evaluation. 
+https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model[temporal locality], stochastic reinitialization of individuals based on their age and oscillating CR/F parameters. Provides an ask/tell interface and supports parallel function evaluation. Supports mixed integer problems (see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] for details)
 
 - CMA-ES: Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[C++]. Provides an ask/tell interface and supports parallel function evaluation.
  
