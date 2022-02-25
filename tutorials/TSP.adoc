@@ -153,8 +153,8 @@ even CMA-ES performs quite well when applied in a parallel retry scenario.
 Both the Differential Evolution and multiobjective DE/NSGA (MODE) algorithm got an update: 
 
 - Both algorithms now have specific mixed-integer support. If you tell the algo via a new boolean
-array `ints` argument which are your discrete integer variables, convergence will be much faster. 
-This works both for the Python and the C++ variants. `ints = [true, true, false]` for instance means
+array `ints` parameter which are your discrete integer variables, convergence will be much faster. 
+This works both for the Python and the C++ variants. `ints = [True, True, False]` for instance means
 that the first two variables are discrete. Using `np.argsort(x)` together with continuous variables for
 sequences as shown below is still a valid option. But this trick doesn't work if the same discrete value
 can occur in different variables. The original problem is now solvable in about 10 seconds using multiple

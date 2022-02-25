@@ -20,6 +20,7 @@ support both parallel fitness function evaluation and a parallel retry mechanism
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc[Tutorial] Solving simple example problems from space flight dynamics.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[crypto trading] Optimize your crypto trading strategy.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] Optimize CFD simulation based problems.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[noisy TSP] Solve the noisy Traveling Salesman Problem.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] Managing hospital resources during a pandemic.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop] Solving the flexible job shop scheduling problem. 
@@ -60,11 +61,11 @@ parts thereby fulfilling 54 constraints. 2017 there was a competition related to
 but until now not many of the ideas produced there have found their way into open source optimization libraries. 
 
 We applied https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/modecpp.py[modecpp.py] for 
-about 1 hour runtime using one AMD 5950x CPU on Linux, de/rand/1 strategy (nsga_update=False, pareto_update=False), 
-population size = 512. We choose the best run out of two executed in parallel, each utilizing 16 threads (workers=16). 
+about 1 hour runtime using one AMD 5950x CPU on Linux, de/rand/1 strategy (nsga_update=False, pareto_update=False, ints=[True]*dim), 
+population size = 256. We choose the best run out of two executed in parallel, each utilizing 16 threads (workers=16). 
 This way about 8200 function evaluations are performed per second for both runs combined.  
 
-The resulting pareto front with hypervolume 0.3844 is:
+The resulting pareto front with hypervolume 0.4074 is:
 
 image::mazda.png[] 
 
