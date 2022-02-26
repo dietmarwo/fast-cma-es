@@ -252,6 +252,8 @@ are discrete, the result improved significantly:
 
 image::DE_ESP_CFD_Optimization_problem.png[]
 
+Parallel execution on an AMD 5950x CPU enabled an execution time
+of about `1.4` sec / evaluation.
 
 === Optimizing a Windmill Wake
 
@@ -265,6 +267,9 @@ having windmills be located in each others wake. The objective is to maximize po
 We executed the `WindWakeLayout('example_input.json', n_samples=5)` benchmark using https://raw.githubusercontent.com/NREL/floris/master/examples/example_input.json[example_input.json] with parallel differential evolution:
 
 image::WindWake_Optimization.png[]
+
+Parallel execution on an AMD 5950x CPU enabled an execution time
+of about `0.1` sec / evaluation. 
 
 === Optimizing Hyper-Parameters
 
@@ -284,6 +289,9 @@ After the fcmaes DE algorithm got an "mixed integer" upgrade, we executed the ex
 are discrete, the result improved:
 
 image::DE_Hyper_Parameter_Optimization_problem.png[]
+
+Parallel execution on an AMD 5950x CPU enabled an execution time
+of about `0.15` sec / evaluation.
 
 In https://dl.acm.org/doi/10.1145/3449726.3463136[Bliek21] 
 you may find results for surrogate based optimizers for this problem.

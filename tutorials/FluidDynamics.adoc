@@ -78,7 +78,7 @@ monitor progress like:
 since the objective function is called in parallel. On Windows you should replace the `decpp.minimize` by 
 `de.minimize`, the Python variant. Parallel retry works on Windows, parallel function evaluation has issues. 
 
-On an AMD 5950x 16-core processor we get about 0.7 ESP2 function evaluations per second. These Docker calls 
+On an AMD 5950x 16-core processor we get about 0.7 ESP2 function evaluations per second. Docker calls 
 scale not optimally, but we get a decent performance gain. 
 
 Lowerering `popsize` to 16 or 8 will speed up convergence but greatly increases the chance getting stuck in a local
@@ -174,7 +174,9 @@ ret = decpp.minimize(problem.evaluate,
 print(ret.x, ret.fun)
 ----
 
-`popsize` can be reduced to 24 for this problem. 
+`popsize` can be reduced to 24 for this problem. Parallel execution on an AMD 5950x CPU enabled an execution time
+of about `1.5` sec / evaluation. 
+
 
 image::DE_ESP3_CFD_problem.png[]
 
@@ -213,6 +215,8 @@ image::DE_PitzDaily_CFD_problem.png[]
 
 After about 600 seconds all but one out of 13 runs reach 0.08. And this last one also succeeds after about 1100 seconds.  
 What is a bit surprising is that solutions < 0.079 are hard to find in the literature. 
+Parallel execution on an AMD 5950x CPU enabled an execution time
+of about `0.7` sec / evaluation. 
 
 ==== Conclusion
 
