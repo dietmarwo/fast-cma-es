@@ -135,7 +135,7 @@ for use with fcmaes:
 
 Most of the changes are for the super class `BaseProblem`. We adapt the other classes similarly. 
 If on Linux you may replace the `de` and `cmaes` by their {cpp} counterparts `decpp` and `cmaescpp` which are 
-slightly nore efficient. 
+slightly more efficient. 
 
 [source,python]
 ---- 
