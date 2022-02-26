@@ -246,7 +246,7 @@ image::CFD_ESP_Optimization.png[]
 
 ==== UPDATE:
 
-After the fcmaes DE algorithm got an "mixed integer" upgrade, we executed the experiment again. Since almost all ESP variables
+After the fcmaes DE algorithm got a "mixed integer" upgrade, we executed the experiment again. Since almost all ESP variables
 are discrete, the result improved significantly:
 
 image::DE_ESP_CFD_Optimization_problem.png[]
@@ -284,7 +284,7 @@ image::Hyper_Parameter_Optimization2.png[]
 
 ==== UPDATE:
 
-After the fcmaes DE algorithm got an "mixed integer" upgrade, we executed the experiment again. Since many HPO variables
+After the fcmaes DE algorithm got a "mixed integer" upgrade, we executed the experiment again. Since many HPO variables
 are discrete, the result improved:
 
 image::DE_Hyper_Parameter_Optimization_problem.png[]
