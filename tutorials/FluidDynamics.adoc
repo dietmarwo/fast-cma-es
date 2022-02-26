@@ -188,8 +188,7 @@ you may find results for surrogate based optimizers for this problem.
 PitzDaily is another benchmark included in https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py[ESP and PitzDaily]. The problem assesses the effect of combustion on the
 mean flowfield properties such as mixing layer growth, entrainment rate, and reattachment length. 
 Here https://www.thevisualroom.com/33_machine_learning/optimiserTestProblemSuite/PitzDailyAlma.html[PitzDaily] is a nice visualization of the problem. It was chosen as an https://www.youtube.com/watch?v=f6U8fdNqsec[OpenFOAM] tutorial, because
-it has limited complexity: Only continuous variables and low dimension = 10. Our 16 core processor is able to perform 
-about 2 simulations per second. So it is not very surprising that fcmaes-DE can solve it easily.  
+it has limited complexity: Only continuous variables and low dimension = 10. fcmaes-DE can solve it easily.  
 
 [source,python]
 ---- 
