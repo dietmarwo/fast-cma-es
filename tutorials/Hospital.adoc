@@ -282,7 +282,7 @@ with parallel differential evolution:
 
 image::Hyper_Parameter_Optimization2.png[]
 
-====UPDATE:
+==== UPDATE:
 
 After the fcmaes DE algorithm got an "mixed integer" upgrade, we executed the experiment again. Since many HPO variables
 are discrete, the result improved:
