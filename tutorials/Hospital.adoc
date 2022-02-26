@@ -154,7 +154,6 @@ class BaseProblem:
         self.evals = mp.RawValue(ct.c_long, 0)  # writable across python processes
         self.best_y = mp.RawValue(ct.c_double, math.inf) # writable across python processes
         self.t0 = time.perf_counter()
-        self.ints = [v != 'cont' for v in problem.vartype()]
 
     def bounds(self):
         return Bounds(self.lbs(),self.ubs())
@@ -177,7 +176,7 @@ class BaseProblem:
             dim = self.dims(),
             bounds = self.bounds(), 
             popsize = 24, 
-            ints = self.ints,
+            ints = [v != 'cont' for v in problem.vartype()],
             max_evaluations = 5000, 
             workers = 12,
         )
