@@ -58,9 +58,9 @@ ret = decpp.minimize(problem.evaluate,
             dim = problem.dims(),
             bounds = Bounds(problem.lbs(),problem.ubs()), 
             popsize = 31, 
-            max_evaluations = 100000, 
+            max_evaluations = 10000, 
             workers = 12,
-            ints = [v != 'cont' for v in problem.vt]
+            ints = [v != 'cont' for v in problem.vartype()]
             )
             
 print(ret.x, ret.fun)
@@ -127,7 +127,7 @@ the number of integer variables.
 This is because I observed stagnation related to the integer variables in the later stages of the optimization
 process. Checking the https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/MVRSM[MVRSM]
 code I noticed there are plenty of mutations for the discrete variables, so I thought may be doing something similar
-could help. Using the Python variants of the algorithms you can define you own sample `modifier` overwriting the default behavior. 
+could help. Using the Python variants of the algorithms you can define your own sample `modifier` overwriting the default behavior. 
 Please notice me when you found an improvement. 
 
 [source,python]
@@ -152,7 +152,34 @@ Please notice me when you found an improvement.
 
 === ESP3
 
-TBD.
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py[ESP3]
+is another mixed integer modification of the ESP CFD problem with less continuous variables.  
+
+[source,python]
+---- 
+from scipy.optimize import Bounds
+from fcmaes import decpp, de
+
+problem = ESP3
+
+ret = decpp.minimize(problem.evaluate, 
+            dim = problem.dims(),
+            bounds = Bounds(problem.lbs(),problem.ubs()), 
+            popsize = 24, 
+            max_evaluations = 5000, 
+            workers = 12,
+            ints = [v != 'cont' for v in problem.vartype()]
+            )
+            
+print(ret.x, ret.fun)
+----
+
+`popsize` can be reduced to 24 for this problem. 
+
+image::DE_ESP3_CFD_problem.png[]
+
+In https://dl.acm.org/doi/10.1145/3449726.3463136[Bliek21] 
+you may find results for surrogate based optimizers for this problem.
 
 === PitzDaily
 
@@ -173,7 +200,7 @@ ret = decpp.minimize(problem.evaluate,
             dim = problem.dims(),
             bounds = Bounds(problem.lbs(),problem.ubs()), 
             popsize = 24, 
-            max_evaluations = 100000, 
+            max_evaluations = 5000, 
             workers = 12,
             )
             
@@ -195,5 +222,5 @@ To summarize:
 simulation based methods as suggested by some publications. 
 - fcmaes Differential Evolution, thanks to its mixed integer support is a serious competition - already
 equipped with the ability to perform parallel function evaluations which is very helpful with costly CDF simulations. 
-- The fcmaes multi objective solver (MO-DE) with mixed integer support is ready to be tested in this area.
+- The fcmaes multi objective solver (MO-DE) with mixed integer support is ready to be tested in this application area.
 

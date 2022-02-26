@@ -131,14 +131,17 @@ for use with fcmaes:
 
 - To monitor progress we need some variables shared across python processes and wrap `evaluate(xs)`.
 - We add a method `optimize(self, popsize, max_evaluations)` calling the optimizer.
+- We intitialize `self.ints`, a list of booleans indicating which variables are discrete. Used by the `de` algorithm. 
 
 Most of the changes are for the super class `BaseProblem`. We adapt the other classes similarly. 
+If on Linux you may replace the `de` and `cmaes` by their {cpp} counterparts `decpp` and `cmaescpp` which are 
+slightly nore efficient. 
 
 [source,python]
 ---- 
 ...
 from scipy.optimize import Bounds
-from fcmaes import de, cmaes,
+from fcmaes import de, cmaes, decpp, cmaescpp
 import time
 import ctypes as ct
 import multiprocessing as mp 
@@ -151,6 +154,7 @@ class BaseProblem:
         self.evals = mp.RawValue(ct.c_long, 0)  # writable across python processes
         self.best_y = mp.RawValue(ct.c_double, math.inf) # writable across python processes
         self.t0 = time.perf_counter()
+        self.ints = [v != 'cont' for v in problem.vartype()]
 
     def bounds(self):
         return Bounds(self.lbs(),self.ubs())
@@ -166,19 +170,28 @@ class BaseProblem:
                     ))
         return y
         
-    def optimize(self):
+    def optimizeDE(self):
         self.bestY = 1E99
         self.bestX = []
         return de.minimize(self.fun, 
             dim = self.dims(),
             bounds = self.bounds(), 
-            popsize = 16, 
+            popsize = 24, 
+            ints = self.ints,
             max_evaluations = 5000, 
-            workers = 16,
+            workers = 12,
         )
-    
-    ...
 
+    def optimizeCMA(self):
+        self.bestY = 1E99
+        self.bestX = []
+        return cma.minimize(self.fun, 
+            bounds = self.bounds(), 
+            popsize = 24, 
+            max_evaluations = 5000, 
+            workers = 12,
+        )   
+    ...
 
 class DockerHospitalBenchmarkProblem(BaseProblem):
 
@@ -189,7 +202,8 @@ class DockerHospitalBenchmarkProblem(BaseProblem):
     ...
 
 if __name__ == '__main__':
-    Hospital.optimize()
+    Hospital.optimizeDE()
+    # Hospital.optimizeCMA()
 ----
 
 After about four hours runtime (using a standard 16 core CPU AMD 5950x) we get a result 
@@ -227,9 +241,17 @@ https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptim
 see also https://algtudelft.github.io/ExpensiveOptimBenchmark/problems.html[Electrostatic Precipitator]
 An Electrostatic Precipitator is a large gas filtering installation, whose efficiencyis dependent on how well the intake gas is distributed. This installation has slots which can be of various types, each having a different impact on the distribution. This benchmark problem employs the OpenFOAM Computational Fluid Dynamics simulator. The goal is to find a configuration that has the best resulting distribution. 
 
-We executed the "ESP" benchmark using the original "frehbach/cfd-test-problem-suite" docker image with parallel differential evolution:
+We executed the "ESP" benchmark with parallel differential evolution:
 
 image::CFD_ESP_Optimization.png[]
+
+==== UPDATE:
+
+After the fcmaes DE algorithm got an "mixed integer" upgrade, we executed the experiment again. Since almost all ESP variables
+are discrete, the result improved significantly:
+
+image::DE_ESP_CFD_Optimization_problem.png[]
+
 
 === Optimizing a Windmill Wake
 
@@ -255,3 +277,13 @@ We executed the `HPOSFP` benchmark using the dataset provided by Semeion, Resear
 with parallel differential evolution:
 
 image::Hyper_Parameter_Optimization2.png[]
+
+====UPDATE:
+
+After the fcmaes DE algorithm got an "mixed integer" upgrade, we executed the experiment again. Since many HPO variables
+are discrete, the result improved:
+
+image::DE_Hyper_Parameter_Optimization_problem.png[]
+
+In https://dl.acm.org/doi/10.1145/3449726.3463136[Bliek21] 
+you may find results for surrogate based optimizers for this problem.
