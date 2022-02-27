@@ -246,7 +246,7 @@ The way results are presented here are even worse: Average and best values for a
 are given, but not the number of experiments performed.
 Because of the extremely high variation of the simulation results for the same argument vectors
 we need the number of experiments to assess the "best result of all runs". This value will
-definitely increase for higher number of runs or evaluations. So we should completely ignore their
+definitely improve for higher number of runs or evaluations. So we should completely ignore their
 "best results" and focus on the average values:
 
 - DE mean after 750 evaluations: 14.26
@@ -257,6 +257,7 @@ They use a Differential Evolution variant (population
 size of 8 and a rand/1/exp as mutation strategy, both mutation and
 recombination factors are set to 0.5) which is very different to fcmaes DE. 
 It is enhanced by "blocking" candidates using different machine learning classifiers/regressors (DTC, XRGB). This "enhancement" seems to have a negative effect on the average results.  
+Compare with our DE average results after 750 evaluations / 3750 sec using the diagram above.   
 
 Other publications for the hospital management problem only present
 relative but no absolute optimization results. Although
