@@ -212,26 +212,67 @@ After about four hours runtime (using a standard 16 core CPU AMD 5950x) we get a
 
 image::Hospital_Management_Optimization.png[]
 
-When we search for published results for the hospital management problem we often find
+To compare with other results we need the number of evaluations achieved by the parallel optimization 
+algorithm (including the algorithm overhead): 0.2. So in 1000 seconds 200 evaluations can be performed.
+So you have to check the result in the diagram above at 1000 sec for comparisons. 
+
+==== Results from the literature
+
+In the literature we found the following results:
+
+- https://ir.cwi.nl/pub/31037/31037.pdf[Optimisation with a Random ReLU Expansion Surrogate Model] 
+
+They report a result of their surrogate model based method (which later evolved to
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/MVRSM[MVRSM]) of 
+
+- 16.29 (+-2.16) and
+- 14.81 (+-0.69) limiting the number of points suggested by the surrogate model
+
+These results are more or less consistent with our DE results after 200 evaluations. 
+Unfortunately it is not stated how many runs were executed. 
+
+From the paper: 
+"Still, we choose to further fine-tune our approach while
+disregarding other approaches, and look for ways to reduce the variance"
+
+Unfortunately this will not work, since the variance is caused by the simulation itself: 
+Results vary by about +-2 if you run the simulation multiple time for the same input variable values. 
+This value increases further for bad input values. For this reason it would be essential to 
+report the number of experiments performed. 
+
+- https://www.researchgate.net/publication/353114806_Surrogate-based_optimisation_for_a_hospital_simulation_scenario_using_pairwise_classifiers[Naharro2021]
+
+The way results are presented here are even worse: Average and best values for all runs
+are given, but not the number of experiments performed.
+Because of the extremely high variation of the simulation results for the same argument vectors
+we need the number of experiments to assess the "best result of all runs". This value will
+definitely increase for higher number of runs or evaluations. So we should completely ignore their
+"best results" and focus on the average values:
+
+- DE mean after 750 evaluations: 14.26
+- DE + DTC mean after 750 evaluations: 14.52
+- DE + XGBR mean after 750 evaluations: 16.67
+
+They use a Differential Evolution variant (population
+size of 8 and a rand/1/exp as mutation strategy, both mutation and
+recombination factors are set to 0.5) which is very different to fcmaes DE. 
+It is enhanced by "blocking" candidates using different machine learning classifiers/regressors (DTC, XRGB). This "enhancement" seems to have a negative effect on the average results.  
+
+Other publications for the hospital management problem only present
 relative but no absolute optimization results. Although
 https://www.youtube.com/watch?v=Riio1eKOSKg&t=711s[Jan Hendrik Schön]  
 proved that you can almost get a nobel price using relative results, 
 see https://en.wikipedia.org/wiki/Sch%C3%B6n_scandal[Schön], this 
 makes it difficult to evaluate the tested methods compared to other ones. 
-Specifically to the 12.3 / 12.9 result we already have for parallel DE / CMA-ES.
 
-An exception is: https://ir.cwi.nl/pub/31037/31037.pdf[Optimisation with a Random ReLU Expansion Surrogate Model] 
+==== Exercise: Filtering candidate solutions for DE and MO-DE
 
-They report a result of their surrogate model based method of 
-
-- 16.29 (+-2.16) and
-- 14.81 (+-0.69) limiting the number of points suggested by the surrogate model
-
-after only 200 evaluations. These results are very good, surpassing what we got from CMA-ES after only
-200 evaluations. How do these methods scale when investing more evaluations? 
-And even more important: How do they scale when investing more time considering parallelization?
-All we know is that using the surrogate model based method you get better than random solutions quite fast.
-As we do using differential evolution. 
+Although the results above regarding filtering of DE candidates are discouraging, we created
+an example which shows how that could be done so that you can perform your experiment. 
+The exercise is to adapt the following example 
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/filter.py[filter.py] which 
+uses a `xgboost.XGBRegressor(objective='rank:pairwise')` to do the filtering of
+DE (or MO-DE) candidates to another optimization problem. 
 
 === Optimizing the CFD Electrostatic Precipitator problem
 
