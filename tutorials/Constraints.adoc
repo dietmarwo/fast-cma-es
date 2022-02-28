@@ -9,6 +9,12 @@ Using a real life example we will discuss how such a problem can be converted in
 We will investigate the drawbacks of this conversion. There are dedicated optimizers solving problems with constraints and we will 
 show how they can be applied. 
 
+=== UPDATE
+
+Note that fcmaes recently added constraint support to its multi-objective algorithm https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[MO-DE]. Even for single objective problems try this first. Play with its parameters
+`nsga_update` and `pareto_update` to check which fits best to your problem. Don't forget to specify the `ints`
+parameter if it is a mixed integer problem.
+
 === Fly to near earth asteroid K14Y00D
 
 We will use https://github.com/esa/pykep/blob/master/pykep/examples/_ex11.py[pykep example 11] which is based on 
