@@ -35,6 +35,10 @@ With the first result you may reevaluate the limited number of solution vectors 
 model and only then compute the pareto front. A solution which was slightly dominated at first could come up as
 non dominated now. 
 
+=== UPDATE
+
+Note that fcmaes recently added a multi-objective algorithm https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[MO-DE] which supports constraints. Try this first before what is described here, specially for fitness functions with expensive evaluation. In this case MO-DE with parallel function evaluations is superior to https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/moretry.py[moretry.py] using parallel retry of single objetive algorithms. Play with its parameters `nsga_update` and `pareto_update` to check which fits best to your problem. Don't forget to specify the `ints` parameter if it is a mixed integer problem.
+
 === Experiments with artificial benchmark functions
 
 Note that fcmaes doesn't use dedicated multi-objective algorithms but relies instead on the parallel execution of
