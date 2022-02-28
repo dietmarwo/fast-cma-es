@@ -16,6 +16,7 @@
 # https://www.researchgate.net/publication/334220017_Single-_and_multi-objective_game-benchmark
 
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc for a detailed description.
+
 import sys
 import os
 import numpy as np
@@ -88,8 +89,8 @@ class tt_problem(object):
     def fun(self, x):
         return objectives_rw(self.suite, self.numObjs, self.function, self.instance, self.rep, x)
 
-from fcmaes.optimizer import de_cma, Bite_cpp, Cma_cpp, LDe_cpp, dtime,  De_cpp, random_search, wrapper, logger
-from fcmaes import moretry, advretry, retry, mode
+from fcmaes.optimizer import Bite_cpp, Cma_cpp, dtime, De_cpp, random_search, wrapper, logger
+from fcmaes import moretry, retry, mode, modecpp
 
 def mo_minimize_plot(problem, opt, name, exp = 3.0, num_retries = 256):
     moretry.minimize_plot(name, opt, wrapper(problem.fun), problem.bounds, problem.weight_bounds, 
@@ -127,13 +128,17 @@ def main():
     name = suite + '_f' + str(function) + 'i' + str(instance) + 'd' + str(dim)
     problem = tt_problem(suite, name, dim, nobj, function, instance, rep)    
     
-    mo_minimize_plot(problem, random_search(4000), name + '_4k512', num_retries = 512)
-    mo_minimize_plot(problem, Cma_cpp(4000), name + '_4k512', num_retries = 512)
-    mo_minimize_plot(problem, De_cpp(4000), name + '_4k512', num_retries = 512)
-    mo_minimize_plot(problem, Bite_cpp(4000, M=16), name + '_4k512', num_retries = 512)
-    mode.minimize_plot(name, problem.fun, problem.bounds, 2, popsize = 200, nsga_update=True, max_eval = 1000000)
-    mode.minimize_plot(name, problem.fun, problem.bounds, 2, popsize = 200, nsga_update=False, max_eval = 1000000)
-    
+    # mo_minimize_plot(problem, random_search(4000), name + '_4k512', num_retries = 512)
+    # mo_minimize_plot(problem, Cma_cpp(4000), name + '_4k512', num_retries = 512)
+    # mo_minimize_plot(problem, De_cpp(4000), name + '_4k512', num_retries = 512)
+    # mo_minimize_plot(problem, Bite_cpp(4000, M=16), name + '_4k512', num_retries = 512)
+    # mode.minimize_plot(name, problem.fun, problem.bounds, 2, popsize = 200, nsga_update=True, max_eval = 100000, workers=16)
+    # mode.minimize_plot(name, problem.fun, problem.bounds, 2, popsize = 200, nsga_update=False, max_eval = 100000, workers=16)
+    modecpp.minimize(problem.fun, 2, 0, problem.bounds, popsize = 200, nsga_update=True, max_evaluations = 100000, 
+                     log_period=100, plot_name=name, workers=16)
+    modecpp.minimize(problem.fun, 2, 0, problem.bounds, popsize = 200, nsga_update=False, max_evaluations = 100000, 
+                     log_period=100, plot_name=name, workers=16)
+
 if __name__ == '__main__':
     main()
 

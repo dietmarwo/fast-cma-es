@@ -4,6 +4,7 @@
 
 == Designing a Card Game
 
+
 The code for this tutorial is at 
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/top_trumps.py[top_trumps.py] and uses 
 https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/retry.py[retry.py] and
@@ -35,6 +36,15 @@ We show:
 - How budged management influences the performance of optimization algorithms. 
 - We discuss the well established term ERT (Expected Running Time), and show in which way this performance index influences
 the design of optimization algorithms. Question is if it "incentivizes" the best algorithms also for hard real world problems. 
+
+=== UPDATE
+
+Note that fcmaes recently added a multi-objective algorithm https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[MO-DE] which supports constraints. This tutorial was written before. For the multi-objective problem variant it is now the preferred algorithm. 
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/top_trumps.py[top_trumps.py] is updated and shows how to call both the Python
+and the {cpp} variant. Play with its parameter `nsga_update` to check which setting fits best. `nsga_update=False`, using the DE update method
+works better for this problem, it is also superior to all other methods presented here.  
+Since it is a mixed integer problem, the `ints` parameter specifying the discrete parameters could be used, but then you have to adapt the 
+bounds to integer values.  
 
 === coco-gbea
 
