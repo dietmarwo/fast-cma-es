@@ -93,8 +93,8 @@ for evaluation.
 
 In the optimization context the asynchronous interface we need is known as "ask/tell" interface, for instance implemented in the 
 https://facebookresearch.github.io/nevergrad/optimization.html[nevergrad] framework. fcmaes supports this interface
-for the python variants of its differential evolution and CMA-ES implementations, and if multiple objectives and constraints
-are involved, with its MODE optimizer. 
+for its differential evolution and CMA-ES implementations, and if multiple objectives and constraints
+are involved, with its MO-DE optimizer which integrates ideas from DE and NSGA-II. 
 
 Providing a reactive/asynchronous interface imposes some restrictions for the optimization:
 
