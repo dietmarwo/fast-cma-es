@@ -1,6 +1,7 @@
 :encoding: utf-8
 :imagesdir: img
 :cpp: C++
+:call: __call__
 
 = Determine Robust Routes for the Noisy Traveling Salesman Problem
 
@@ -322,7 +323,7 @@ argument.
 an integer vector representing the tour using the `np.argsort` sorting trick.
 - `value` computes the minimal or average score performing `n` calls to `check_solution` 
 which gives a noisy tour evaluation. For small `n` the minimum is a more reliable value. 
-- The objective function itself `__call__` uses `value` for incremental `n` values to compute
+- The objective function itself `{call}` uses `value` for incremental `n` values to compute
 the final evaluation of the tour. This method represents a compromise between accuracy and performance.
 For low `n` penalized noisy values may be overlooked. For good candidates we have to increase `n` to get
 a reliable result which works with `n=10000` used for the final test. 
