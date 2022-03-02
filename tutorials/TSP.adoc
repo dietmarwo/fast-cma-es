@@ -428,7 +428,7 @@ Optimization reaches `11.20` consistently after about 400-500 sec, but can need 
 for the TD-OPSWTW instance from the competition using an AMD-5950x 16 core CPU. 
 
 Even for 10000 evaluations there is still some noise, so the final test is slightly worse although
-we use 40000 evaluations inside the objective function. It seems pure optimization is a valid alternative for TD-OPSWTW
+we use 100000 evaluations inside the objective function. It seems pure optimization is a valid alternative for TD-OPSWTW
 and other realistic TSP variants.  
 
 Compare yourself with the machine learning based approach of one of the winners:
