@@ -9,6 +9,7 @@ This tutorial
 - Shows how to implement the noisy TSP problem aiming at a robust route efficiently using https://numba.pydata.org/[numba].
 - Compares with an alternative implementation.
 - Compares different optimization algorithms applied to both implementations
+- Use optimization to evaluate machine learning based results for another TSP variant
 
 There is a dramatic performance difference > factor 10000 when comparing optimization algorithms  
 and objective function implementations. The purpose of this tutorial is to "sharpen your senses"
@@ -216,7 +217,7 @@ speeds up the computation by about factor 100 thereby also improving convergence
 |fcmaes-CMA |numba based |1190000 |32
 |=========================================================
 
-=== Increasing the noise
+==== Increasing the noise
 
 What happens if we increase the noise? 
 Another experiment uses the symmetrical TSP http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/tsp/gr17.tsp.gz[gr17]. 
@@ -262,3 +263,166 @@ Algorithms with huge overhead like IDONE and MSVRM should only be applied for ve
 objective functions. Noisy TSP can be evaluated nearly 1.2 million times / sec, so it definitely
 doesn't fall into that category. 
 
+=== One more noisy TSP problem
+
+Lets have a look at https://github.com/paulorocosta/ai-for-tsp-competition[ai-for-tsp-competition] which contains
+the Python code for a machine learning competition to solve another TSP variant called TD-OPSWTW.  
+Results and the details of the TSP variant are described in https://arxiv.org/abs/2201.10453[BliekEtAl2021]:
+
+"The stochastic travel times between locations are only revealed as the salesman
+travels in the network. The salesman starts from a depot and must return to the depot at the end of the tour.
+Moreover, each node (customer) in the network is assigned a prize, representing how important it is to visit
+a given customer on a given tour. Each node has associated time windows. We consider that a salesman
+may arrive earlier at a node without compromising its prize, but the salesman must wait until the opening
+time to serve the customer. Lastly, the tour must not violate a total travel time budget while collecting prizes
+in the network. The goal is to collect the most prizes in the network while respecting the time windows and
+the total travel time of a tour allowed to the salesman."
+
+We will focus on the first task described by the paper: A specific 65 node instance of this TSP
+has to be solved using machine learning techniques. Lets suppose we are the organizer of this competition
+and want to evaluate the applicability of machine learning for this problem by comparing the winner results
+with a pure optimization based approach. 
+
+We do (as with the first TSP problem above) the following
+
+- Apply numba to speed up the evaluation of a solution tour
+- Formulate an objective function which needs to be fast to evaluate thereby being accurate enough for the final test - 
+  which in this case is computing the average of 10000 noisy tour evaluations. 
+- Apply the BiteOpt optimizer with parallel retry.   
+
+==== Speeding up the evaluation of a tour (numbafication)
+
+The central routine evaluating a given tour is 
+https://github.com/paulorocosta/ai-for-tsp-competition/blob/8dda7ce1ed4f4805db40e47055a4d7df747a4e61/op_utils/op.py#L59[tour_check]
+which we have to adapt: 
+
+[source,python]
+----
+from numba import njit
+
+def tour_check(tour, x, time_matrix, maxT_pen, tw_pen, n_nodes):
+    return tour_check_numba(np.array(tour, dtype=np.int32), np.array(x, dtype=np.float32), 
+                            np.array(time_matrix, dtype=np.int32), maxT_pen, tw_pen, n_nodes)
+
+@njit(fastmath=True) 
+def tour_check_numba(tour, x, time_matrix, maxT_pen, tw_pen, n_nodes): 
+----
+
+numba is very picky regarding argument array types, so we have to wrap it converting into float32 and int32 arrays which
+make numba happy. This minimal change causes a factor 8 speedup of the evaluation of TSP tours. 
+
+==== Objective function for TD-OPSWTW
+
+The fitness object representing the objective function used for optimization gets an
+https://github.com/paulorocosta/ai-for-tsp-competition/blob/master/env.py[Env] object representing a problem instance as
+argument. 
+
+- Progress is monitored using `mp.RawValue` variables which share their values between processes. 
+- We define the bounds for all continuous variables as `[0,1]` which in `solution` is converted into
+an integer vector representing the tour using the `np.argsort` sorting trick.
+- `value` computes the average score performing `n` calls to `check_solution` which gives a noisy tour evaluation. 
+- The objective function itself `__call__` uses `value` for incremental `n` values to compute
+the final evaluation of the tour. This method represents a compromise between accuracy and performance.
+For low `n` penalized noisy values may be overlooked. For good candidates we have to increase `n` to get
+a reliable result which works with `n=10000` used for the final test. 
+- Note that we finally use `n=40000`, because `n=10000` inside the objective function didn't 
+deliver reliable results. The optimizer will find noisy "outliers" delivering worse results when called again. 
+
+[source,python]
+----
+
+from scipy.optimize import Bounds
+import time, math
+import ctypes as ct
+import multiprocessing as mp 
+from fcmaes.optimizer import logger, Bite_cpp, dtime
+from fcmaes import retry
+
+class fitness:
+
+    def __init__(self, env):
+        self.evals = mp.RawValue(ct.c_long, 0)  # writable across python processes
+        self.best_y = mp.RawValue(ct.c_double, math.inf) 
+        self.t0 = time.perf_counter()
+        self.env = env
+        self.d = env.n_nodes
+
+    def bounds(self):
+        return Bounds(np.zeros(self.d), np.array([1]*self.d))    
+
+    def value(self, sol, n):
+        val = 0
+        for _ in range(n):
+            _, rewards, pen, _ = self.env.check_solution(sol)
+            val += rewards + pen
+        return val/n
+    
+    def solution(self, x): # disjoined all locations
+        return [1] + [int(xi) for xi in (np.argsort(x) + 1)]
+        
+    def __call__(self, x):  
+        self.evals.value += 1
+        sol = self.solution(x)
+        n = 10
+        while n <= 10000:
+            y = -self.value(sol, n)
+            if y >= self.best_y.value:
+                return y
+            n *= 10
+        y = -self.value(sol, 40000)
+        if y < self.best_y.value:
+            self.best_y.value = y            
+            logger().info("evals = {0}: time = {1:.1f} y = {2:.5f} x= {3:s}"
+                  .format(self.evals.value, dtime(self.t0), y, str(sol)))
+        return y
+    
+    def optimize(self):
+        self.bestY = 1E99
+        self.bestX = []  
+        ret = retry.minimize(self, self.bounds(), optimizer=Bite_cpp(200000,M=16,stall_iterations=3), num_retries=32) 
+        sol = self.solution(ret.x)
+        num = 10000
+        logger().info("val" + str(num) + " = " + str(self.value(sol, num)))
+        return sol
+        
+if __name__ == '__main__':    
+    
+    env = Env(n_nodes=65, seed=6537855)
+    sol = fitness(env).optimize()
+----
+
+A typical output is:
+
+[source,python]
+----
+evals = 32: time = 6.3 y = 69.11000 x= [1, 2, 30, 3, 65, 25, 12, 7, 36, 33, 45, 1, 13, 17, 43, 53, 63, 4, 55, 20, 19, 38, 50, 18, 60, 21, 58, 44, 59, 16, 48, 54, 62, 64, 61, 40, 35, 9, 32, 11, 8, 29, 39, 24, 57, 31, 41, 15, 56, 28, 6, 52, 37, 5, 34, 27, 46, 22, 51, 10, 49, 14, 26, 47, 23, 42]
+evals = 33: time = 6.3 y = 67.93000 x= [1, 22, 47, 29, 26, 64, 6, 1, 63, 59, 31, 54, 48, 62, 11, 21, 34, 43, 65, 10, 25, 51, 38, 8, 33, 36, 45, 39, 60, 20, 35, 37, 40, 23, 19, 46, 58, 50, 24, 55, 17, 4, 57, 52, 7, 15, 9, 30, 16, 27, 56, 42, 18, 3, 12, 14, 2, 13, 44, 32, 49, 28, 53, 41, 61, 5]
+evals = 38: time = 6.3 y = 1.82537 x= [1, 55, 62, 7, 40, 41, 1, 23, 53, 15, 64, 46, 5, 31, 63, 65, 51, 56, 18, 54, 11, 38, 42, 34, 16, 59, 30, 9, 49, 22, 47, 25, 6, 37, 60, 48, 2, 35, 4, 28, 8, 13, 58, 26, 24, 12, 43, 52, 17, 29, 39, 36, 27, 19, 10, 3, 14, 57, 45, 50, 21, 20, 32, 44, 33, 61]
+evals = 46: time = 6.4 y = -0.00000 x= [1, 1, 34, 23, 5, 21, 64, 9, 46, 61, 60, 56, 65, 39, 16, 15, 48, 42, 51, 55, 6, 28, 10, 3, 11, 22, 59, 18, 2, 35, 32, 27, 31, 13, 36, 12, 4, 54, 8, 50, 44, 19, 58, 47, 7, 57, 33, 25, 45, 63, 14, 40, 17, 62, 37, 29, 26, 41, 24, 30, 52, 38, 49, 20, 53, 43]
+evals = 6080: time = 11.8 y = -0.28000 x= [1, 9, 1, 62, 12, 63, 33, 50, 8, 2, 4, 60, 51, 42, 23, 5, 38, 40, 49, 44, 65, 11, 30, 41, 3, 59, 26, 64, 7, 45, 43, 47, 36, 56, 15, 29, 10, 25, 34, 21, 16, 39, 37, 54, 6, 19, 48, 35, 14, 31, 18, 17, 55, 22, 13, 27, 52, 57, 20, 28, 24, 58, 46, 32, 53, 61]
+evals = 6105: time = 11.8 y = -0.94000 x= [1, 55, 9, 48, 1, 51, 23, 18, 16, 21, 65, 54, 34, 39, 5, 15, 61, 32, 3, 44, 56, 12, 10, 19, 13, 64, 28, 6, 27, 8, 59, 43, 58, 31, 22, 4, 11, 36, 29, 7, 42, 46, 2, 14, 50, 24, 35, 60, 37, 26, 41, 47, 17, 25, 53, 40, 20, 49, 30, 38, 57, 45, 62, 52, 33, 63]
+e
+...
+evals = 5927379: time = 499.6 y = -11.31173 x= [1, 32, 45, 55, 41, 47, 44, 5, 49, 23, 57, 2, 6, 16, 46, 11, 33, 60, 42, 13, 64, 19, 43, 29, 7, 22, 9, 35, 65, 62, 63, 4, 24, 30, 40, 48, 1, 20, 36, 14, 21, 51, 53, 52, 50, 25, 8, 38, 54, 59, 26, 17, 56, 61, 28, 27, 37, 18, 15, 10, 39, 34, 12, 58, 31, 3]
+...
+evals = 5949975: time = 1212.6 y = -11.31946 x= [1, 32, 45, 41, 55, 47, 44, 5, 49, 23, 6, 2, 16, 57, 60, 46, 11, 33, 42, 64, 13, 19, 43, 29, 7, 22, 9, 35, 65, 62, 63, 4, 24, 30, 40, 48, 1, 36, 52, 51, 50, 25, 8, 38, 54, 17, 27, 18, 15, 10, 12, 58, 53, 37, 21, 56, 28, 59, 39, 3, 31, 34, 14, 61, 20, 26]
+evals = 5952007: time = 1345.8 y = -11.31946 x= [1, 32, 45, 41, 55, 47, 44, 5, 49, 23, 6, 2, 16, 57, 46, 11, 60, 33, 42, 43, 64, 13, 19, 29, 7, 22, 9, 35, 65, 62, 63, 4, 24, 30, 40, 48, 1, 36, 8, 17, 15, 54, 37, 52, 27, 56, 51, 39, 12, 18, 10, 59, 25, 50, 61, 38, 28, 3, 53, 31, 14, 21, 58, 20, 34, 26]
+evals = 5953782: time = 1486.7 y = -11.31961 x= [1, 32, 45, 41, 55, 47, 44, 5, 49, 23, 6, 2, 16, 57, 60, 46, 11, 33, 42, 64, 13, 19, 43, 29, 7, 22, 9, 35, 65, 62, 63, 4, 24, 30, 40, 48, 1, 36, 52, 51, 50, 25, 8, 38, 54, 17, 27, 18, 15, 10, 12, 58, 53, 37, 21, 56, 28, 59, 39, 3, 31, 34, 14, 61, 20, 26]
+evals = 5959120: time = 1864.0 y = -11.32000 x= [1, 32, 45, 5, 41, 55, 47, 44, 49, 23, 6, 2, 16, 57, 46, 11, 60, 33, 42, 64, 13, 43, 19, 29, 7, 22, 9, 35, 65, 62, 63, 4, 24, 30, 40, 48, 1, 36, 27, 8, 52, 17, 37, 54, 15, 18, 58, 51, 39, 12, 25, 50, 53, 10, 56, 59, 61, 38, 21, 28, 3, 31, 14, 34, 26, 20]
+
+val10000 = 11.28336497053504
+
+----
+
+==== Conclusion
+
+Both the machine learning and the optimization approach achieve almost the same result of `11.32`.
+Optimization reaches `11.31` consistently after about 400-550 sec, but can need up to 1800 sec to reach `11.32`
+for the TD-OPSWTW instance from the competition using an AMD-5950x 16 core CPU. 
+
+Even for 10000 evaluations there is still some noise, so the final test is slightly worse although
+we use 40000 evaluations inside the objective function. It seems pure optimization is a valid alternative for TD-OPSWTW
+and other realistic TSP variants.  
+
+Compare yourself with the machine learning based approach of one of the winners:
+https://github.com/mustelideos/td-opswtw-competition-rl . Which solution do you prefer? 
