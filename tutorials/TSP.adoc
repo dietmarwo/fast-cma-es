@@ -320,13 +320,15 @@ argument.
 - Progress is monitored using `mp.RawValue` variables which share their values between processes. 
 - We define the bounds for all continuous variables as `[0,1]` which in `solution` is converted into
 an integer vector representing the tour using the `np.argsort` sorting trick.
-- `value` computes the average score performing `n` calls to `check_solution` which gives a noisy tour evaluation. 
+- `value` computes the minimal or average score performing `n` calls to `check_solution` 
+which gives a noisy tour evaluation. For small `n` the minimum is a more reliable value. 
 - The objective function itself `__call__` uses `value` for incremental `n` values to compute
 the final evaluation of the tour. This method represents a compromise between accuracy and performance.
 For low `n` penalized noisy values may be overlooked. For good candidates we have to increase `n` to get
 a reliable result which works with `n=10000` used for the final test. 
-- Note that we finally use `n=40000`, because `n=10000` inside the objective function didn't 
-deliver reliable results. The optimizer will find noisy "outliers" delivering worse results when called again. 
+- Note that the optimizer could find noisy "outliers" delivering worse results when called again. 
+  Therefore we finally use `n=100000`, because `n=10000` inside the objective function didn't 
+  deliver reliable results.
 
 [source,python]
 ----
@@ -350,7 +352,16 @@ class fitness:
     def bounds(self):
         return Bounds(np.zeros(self.d), np.array([1]*self.d))    
 
+    def value_min(self, sol, n):
+        val = math.inf
+        for _ in range(n):
+            _, rewards, pen, _ = self.env.check_solution(sol)
+            val = min(val, rewards + pen)
+        return val
+
     def value(self, sol, n):
+        if n < 10000: # for small n take the minimum instead
+            return self.value_min(sol, n)
         val = 0
         for _ in range(n):
             _, rewards, pen, _ = self.env.check_solution(sol)
@@ -364,12 +375,11 @@ class fitness:
         self.evals.value += 1
         sol = self.solution(x)
         n = 10
-        while n <= 10000:
+        while n <= 100000:
             y = -self.value(sol, n)
             if y >= self.best_y.value:
                 return y
             n *= 10
-        y = -self.value(sol, 40000)
         if y < self.best_y.value:
             self.best_y.value = y            
             logger().info("evals = {0}: time = {1:.1f} y = {2:.5f} x= {3:s}"
@@ -395,29 +405,26 @@ A typical output is:
 
 [source,python]
 ----
-evals = 32: time = 6.3 y = 69.11000 x= [1, 2, 30, 3, 65, 25, 12, 7, 36, 33, 45, 1, 13, 17, 43, 53, 63, 4, 55, 20, 19, 38, 50, 18, 60, 21, 58, 44, 59, 16, 48, 54, 62, 64, 61, 40, 35, 9, 32, 11, 8, 29, 39, 24, 57, 31, 41, 15, 56, 28, 6, 52, 37, 5, 34, 27, 46, 22, 51, 10, 49, 14, 26, 47, 23, 42]
-evals = 33: time = 6.3 y = 67.93000 x= [1, 22, 47, 29, 26, 64, 6, 1, 63, 59, 31, 54, 48, 62, 11, 21, 34, 43, 65, 10, 25, 51, 38, 8, 33, 36, 45, 39, 60, 20, 35, 37, 40, 23, 19, 46, 58, 50, 24, 55, 17, 4, 57, 52, 7, 15, 9, 30, 16, 27, 56, 42, 18, 3, 12, 14, 2, 13, 44, 32, 49, 28, 53, 41, 61, 5]
-evals = 38: time = 6.3 y = 1.82537 x= [1, 55, 62, 7, 40, 41, 1, 23, 53, 15, 64, 46, 5, 31, 63, 65, 51, 56, 18, 54, 11, 38, 42, 34, 16, 59, 30, 9, 49, 22, 47, 25, 6, 37, 60, 48, 2, 35, 4, 28, 8, 13, 58, 26, 24, 12, 43, 52, 17, 29, 39, 36, 27, 19, 10, 3, 14, 57, 45, 50, 21, 20, 32, 44, 33, 61]
-evals = 46: time = 6.4 y = -0.00000 x= [1, 1, 34, 23, 5, 21, 64, 9, 46, 61, 60, 56, 65, 39, 16, 15, 48, 42, 51, 55, 6, 28, 10, 3, 11, 22, 59, 18, 2, 35, 32, 27, 31, 13, 36, 12, 4, 54, 8, 50, 44, 19, 58, 47, 7, 57, 33, 25, 45, 63, 14, 40, 17, 62, 37, 29, 26, 41, 24, 30, 52, 38, 49, 20, 53, 43]
-evals = 6080: time = 11.8 y = -0.28000 x= [1, 9, 1, 62, 12, 63, 33, 50, 8, 2, 4, 60, 51, 42, 23, 5, 38, 40, 49, 44, 65, 11, 30, 41, 3, 59, 26, 64, 7, 45, 43, 47, 36, 56, 15, 29, 10, 25, 34, 21, 16, 39, 37, 54, 6, 19, 48, 35, 14, 31, 18, 17, 55, 22, 13, 27, 52, 57, 20, 28, 24, 58, 46, 32, 53, 61]
-evals = 6105: time = 11.8 y = -0.94000 x= [1, 55, 9, 48, 1, 51, 23, 18, 16, 21, 65, 54, 34, 39, 5, 15, 61, 32, 3, 44, 56, 12, 10, 19, 13, 64, 28, 6, 27, 8, 59, 43, 58, 31, 22, 4, 11, 36, 29, 7, 42, 46, 2, 14, 50, 24, 35, 60, 37, 26, 41, 47, 17, 25, 53, 40, 20, 49, 30, 38, 57, 45, 62, 52, 33, 63]
+evals = 32: time = 12.7 y = 72.28609 x= [1, 28, 44, 36, 4, 17, 54, 40, 19, 45, 1, 14, 37, 12, 6, 11, 34, 13, 52, 38, 62, 60, 42, 5, 8, 61, 63, 35, 33, 65, 2, 30, 53, 27, 48, 56, 20, 26, 3, 25, 55, 10, 22, 59, 18, 58, 46, 57, 24, 29, 16, 49, 64, 47, 51, 50, 21, 31, 39, 32, 23, 43, 9, 41, 15, 7]
+evals = 36: time = 12.7 y = 67.64000 x= [1, 34, 20, 18, 63, 1, 26, 43, 10, 36, 24, 44, 56, 62, 3, 17, 42, 27, 25, 41, 21, 64, 12, 54, 31, 22, 7, 9, 16, 28, 4, 60, 11, 45, 2, 23, 32, 39, 51, 8, 46, 29, 61, 65, 47, 35, 14, 40, 13, 52, 33, 55, 57, 48, 53, 38, 6, 19, 58, 15, 59, 50, 37, 5, 49, 30]
+evals = 56: time = 12.7 y = 66.42925 x= [1, 36, 13, 56, 62, 17, 1, 55, 30, 46, 25, 53, 34, 10, 38, 27, 7, 9, 54, 64, 28, 22, 57, 23, 31, 2, 6, 18, 47, 58, 44, 39, 50, 43, 42, 8, 12, 65, 32, 37, 61, 5, 24, 21, 26, 14, 48, 11, 15, 63, 33, 45, 16, 52, 51, 59, 35, 41, 49, 20, 4, 19, 40, 3, 60, 29]
 e
 ...
-evals = 5927379: time = 499.6 y = -11.31173 x= [1, 32, 45, 55, 41, 47, 44, 5, 49, 23, 57, 2, 6, 16, 46, 11, 33, 60, 42, 13, 64, 19, 43, 29, 7, 22, 9, 35, 65, 62, 63, 4, 24, 30, 40, 48, 1, 20, 36, 14, 21, 51, 53, 52, 50, 25, 8, 38, 54, 59, 26, 17, 56, 61, 28, 27, 37, 18, 15, 10, 39, 34, 12, 58, 31, 3]
+evals = 930879: time = 142.3 y = -5.00259 x= [1, 45, 5, 44, 47, 42, 2, 46, 9, 22, 7, 4, 24, 30, 40, 48, 1, 41, 39, 43, 49, 52, 51, 38, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 50, 37, 33, 35, 3, 6, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 23, 25, 26, 27, 28, 29, 31, 32, 64, 34, 36, 65, 21]
 ...
-evals = 5949975: time = 1212.6 y = -11.31946 x= [1, 32, 45, 41, 55, 47, 44, 5, 49, 23, 6, 2, 16, 57, 60, 46, 11, 33, 42, 64, 13, 19, 43, 29, 7, 22, 9, 35, 65, 62, 63, 4, 24, 30, 40, 48, 1, 36, 52, 51, 50, 25, 8, 38, 54, 17, 27, 18, 15, 10, 12, 58, 53, 37, 21, 56, 28, 59, 39, 3, 31, 34, 14, 61, 20, 26]
-evals = 5952007: time = 1345.8 y = -11.31946 x= [1, 32, 45, 41, 55, 47, 44, 5, 49, 23, 6, 2, 16, 57, 46, 11, 60, 33, 42, 43, 64, 13, 19, 29, 7, 22, 9, 35, 65, 62, 63, 4, 24, 30, 40, 48, 1, 36, 8, 17, 15, 54, 37, 52, 27, 56, 51, 39, 12, 18, 10, 59, 25, 50, 61, 38, 28, 3, 53, 31, 14, 21, 58, 20, 34, 26]
-evals = 5953782: time = 1486.7 y = -11.31961 x= [1, 32, 45, 41, 55, 47, 44, 5, 49, 23, 6, 2, 16, 57, 60, 46, 11, 33, 42, 64, 13, 19, 43, 29, 7, 22, 9, 35, 65, 62, 63, 4, 24, 30, 40, 48, 1, 36, 52, 51, 50, 25, 8, 38, 54, 17, 27, 18, 15, 10, 12, 58, 53, 37, 21, 56, 28, 59, 39, 3, 31, 34, 14, 61, 20, 26]
-evals = 5959120: time = 1864.0 y = -11.32000 x= [1, 32, 45, 5, 41, 55, 47, 44, 49, 23, 6, 2, 16, 57, 46, 11, 60, 33, 42, 64, 13, 43, 19, 29, 7, 22, 9, 35, 65, 62, 63, 4, 24, 30, 40, 48, 1, 36, 27, 8, 52, 17, 37, 54, 15, 18, 58, 51, 39, 12, 25, 50, 53, 10, 56, 59, 61, 38, 21, 28, 3, 31, 14, 34, 26, 20]
+evals = 6060526: time = 474.5 y = -11.20464 x= [1, 32, 45, 55, 49, 47, 41, 5, 23, 57, 6, 16, 2, 42, 46, 60, 11, 33, 43, 64, 13, 19, 29, 9, 22, 65, 7, 35, 62, 63, 4, 24, 30, 40, 48, 1, 17, 56, 26, 3, 36, 27, 37, 10, 34, 8, 58, 61, 39, 12, 25, 59, 44, 52, 15, 14, 28, 51, 54, 20, 18, 31, 53, 50, 38, 21]
+...
+evals = 6186914: time = 492.6 y = -11.31701 x= [1, 32, 45, 55, 5, 49, 41, 47, 44, 23, 6, 57, 16, 33, 60, 46, 42, 2, 11, 64, 19, 43, 13, 29, 65, 9, 22, 35, 7, 62, 63, 4, 24, 30, 40, 48, 1, 21, 8, 61, 14, 50, 54, 17, 38, 59, 27, 28, 26, 36, 15, 58, 20, 56, 34, 37, 18, 12, 31, 51, 10, 25, 3, 53, 39, 52]
+evals = 6232151: time = 501.8 y = -11.31998 x= [1, 32, 45, 55, 5, 49, 41, 47, 44, 23, 6, 57, 16, 33, 2, 60, 46, 42, 11, 64, 19, 43, 13, 29, 65, 9, 22, 35, 7, 62, 63, 4, 24, 30, 40, 48, 1, 21, 8, 61, 14, 50, 54, 17, 38, 59, 27, 28, 26, 36, 15, 58, 20, 56, 34, 37, 18, 12, 31, 51, 10, 25, 3, 53, 39, 52]
+evals = 6260525: time = 518.0 y = -11.32000 x= [1, 32, 45, 55, 5, 49, 41, 47, 44, 23, 6, 57, 16, 33, 2, 60, 46, 42, 11, 64, 19, 43, 13, 29, 65, 9, 22, 35, 7, 62, 63, 4, 24, 30, 40, 48, 1, 21, 8, 61, 14, 50, 54, 17, 38, 59, 27, 28, 26, 36, 15, 56, 58, 20, 34, 37, 18, 12, 31, 51, 10, 25, 3, 53, 39, 52]
 
-val10000 = 11.28336497053504
-
+val10000 = 11.319876970495283
 ----
 
 ==== Conclusion
 
 Both the machine learning and the optimization approach achieve almost the same result of `11.32`.
-Optimization reaches `11.31` consistently after about 400-550 sec, but can need up to 1800 sec to reach `11.32`
+Optimization reaches `11.20` consistently after about 400-500 sec, but can need up to 1800 sec to reach `11.32`
 for the TD-OPSWTW instance from the competition using an AMD-5950x 16 core CPU. 
 
 Even for 10000 evaluations there is still some noise, so the final test is slightly worse although
