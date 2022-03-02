@@ -360,7 +360,7 @@ class fitness:
         return val
 
     def value(self, sol, n):
-        if n < 10000: # for small n take the minimum instead
+        if n < 1000: # for small n take the minimum instead
             return self.value_min(sol, n)
         val = 0
         for _ in range(n):
