@@ -217,6 +217,44 @@ What is a bit surprising is that solutions < 0.079 are hard to find in the liter
 Parallel execution on an AMD 5950x CPU enabled an execution time
 of about `0.7` sec / evaluation. 
 
+=== ESP4 comparison with Bayesian Optimization
+
+From https://arxiv.org/abs/1807.02811[Frazier2018]:
+"Bayesian optimization is an approach to optimizing objective functions that take a long time (minutes or hours) to evaluate. It is best-suited for optimization over continuous domains of less than 20 dimensions, and tolerates stochastic noise in function evaluations. It builds a surrogate for the objective and quantifies the uncertainty in that surrogate using a Bayesian machine learning technique, Gaussian process regression, and then uses an acquisition function defined from this surrogate to decide where to sample."
+
+We use https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py[ESP4] to check if it is also applicable to larger dimensions - ESP4 has 54. Bayesian Optimization is an interesting method for this problem because:
+
+- There are implementations supporting mixed integer problems like https://github.com/SheffieldML/GPyOpt 
+and https://github.com/wangronin/Bayesian-Optimization.
+- Some implementations support parallel function evaluations like the two above and https://github.com/wujian16/Cornell-MOE . 
+
+Unfortunately for https://github.com/wangronin/Bayesian-Optimization we got an
+[source,python]
+---- 
+_pickle.PicklingError: Could not pickle the task to send it to the workers.
+----
+error with the docker based ESP4 problem. 
+https://github.com/SheffieldML/GPyOpt works but slows down to one thread after the initial 
+population is evaluated in parallel. And https://github.com/wujian16/Cornell-MOE doesn't support
+mixed integer problems. 
+
+So we chose to use https://github.com/SheffieldML/GPyOpt single threaded for this comparison.
+To utilize the CPU we performed 8 optimizations in parallel. 
+
+- GPyOpt needs about 17.6 sec per evaluation (8 parallel optimizations), 1000 evaluations need about 17500 sec. 
+- fcmaes DE needs about 1.5 sec per evaluation (12 parallel function evaluations), 1000 evaluations need about 1500 sec.
+
+Here are the results for fcmaes DE using the mixed integer enhancement, limited to 5000 evaluations:
+
+image::DE_mixed_integer_ESP4_CFD_problem.png[]
+
+Even if you compare the DE results after 1500 sec / 1000 evals with the BO results after 17500 sec / 1000 evals
+this is a clear win for fcmaes DE with mixed integer enhancement. Independent from the fact that the algorithmic overhead
+for Bayesian Optimization is much higher and we couldn't get parallel evaluation working, if we just compare the
+results after 1000 evaluations, we can conclude that for ESP4 (dim = 54) Bayesian Optimization should not be applied. 
+
+image::BO_mixed_integer_ESP4_CFD_problem.png[]
+
 ==== Conclusion
 
 To summarize: 
