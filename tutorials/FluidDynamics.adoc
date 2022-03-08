@@ -217,7 +217,7 @@ What is a bit surprising is that solutions < 0.079 are hard to find in the liter
 Parallel execution on an AMD 5950x CPU enabled an execution time
 of about `0.7` sec / evaluation. 
 
-=== ESP4 comparison with Bayesian Optimization
+=== ESP4 comparison with Bayesian Optimization and MVRSM
 
 From https://arxiv.org/abs/1807.02811[Frazier2018]:
 "Bayesian optimization is an approach to optimizing objective functions that take a long time (minutes or hours) to evaluate. It is best-suited for optimization over continuous domains of less than 20 dimensions, and tolerates stochastic noise in function evaluations. It builds a surrogate for the objective and quantifies the uncertainty in that surrogate using a Bayesian machine learning technique, Gaussian process regression, and then uses an acquisition function defined from this surrogate to decide where to sample."
@@ -242,16 +242,22 @@ So we chose to use https://github.com/SheffieldML/GPyOpt single threaded for thi
 To utilize the CPU we performed 8 optimizations in parallel. 
 
 - GPyOpt needs about 17.6 sec per evaluation (8 parallel optimizations), 1000 evaluations need about 17500 sec. 
+- MVRSM needs about 17 sec per evaluation (8 parallel optimizations), 1000 evaluations need about 17000 sec. 
 - fcmaes DE needs about 1.5 sec per evaluation (12 parallel function evaluations), 1000 evaluations need about 1500 sec.
 
 Here are the results for fcmaes DE using the mixed integer enhancement, limited to 5000 evaluations:
 
 image::DE_mixed_integer_ESP4_CFD_problem.png[]
 
-Even if you compare the DE results after 1500 sec / 1000 evals with the BO results after 17500 sec / 1000 evals
+Even if you compare the DE results after 1000 evals / 1500 sec with the BO results after 1000 evals / 17500 sec 
 this is a clear win for fcmaes DE with mixed integer enhancement. Independent from the fact that the algorithmic overhead
 for Bayesian Optimization is much higher and we couldn't get parallel evaluation working, if we just compare the
-results after 1000 evaluations, we can conclude that for ESP4 (dim = 54) Bayesian Optimization should not be applied. 
+results after 1000 evaluations, we can conclude that for ESP4 (dim = 54) Bayesian Optimization doesn't work well. 
+MVRSM is more competitive compared to DE if you compare the result after 1000 evals / 17000 sec. 
+Note that after only 200 evaluations BO and MVRSM are very close - and both beat Differential Evolution. 
+For problems which are so expensive to evaluate that you can afford only 200 evaluations, both BO and MVRSM could
+be the right choice - if parallel evaluation is supported (and really works). After 1000 evaluations only DE
+and MVRSM can be recommended for problems with high dimensionality. 
 
 image::BO_mixed_integer_ESP4_CFD_problem.png[]
 
@@ -259,9 +265,12 @@ image::BO_mixed_integer_ESP4_CFD_problem.png[]
 
 To summarize: 
 
-- We couldn't confirm the superiority of surrogate based methods for for complex mixed integer CFD 
-simulation based methods as suggested by some publications. 
-- fcmaes Differential Evolution, thanks to its mixed integer support is a serious competition - already
-equipped with the ability to perform parallel function evaluations which is very helpful with costly CDF simulations. 
+- We could confirm the superiority of surrogate based methods like BO and MVRSM for for complex mixed integer CFD 
+simulation based methods if we only can afford about 200 function evaluations. But the results after only
+200 evaluations are poor and parallel execution can help to increase the feasible evaluation budged.  
+- fcmaes Differential Evolution, thanks to its mixed integer support, is a serious competition if more than 
+500 evaluations can be performed - already
+equipped with the ability to perform parallel function evaluations. 
+- MVRSM is (as DE) superior to Bayesian Optimization for higher evaluation budgets. 
 - The fcmaes multi objective solver (MO-DE) with mixed integer support is ready to be tested in this application area.
 
