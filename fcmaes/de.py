@@ -160,6 +160,8 @@ class DE(object):
         # use default variable modifier for int variables if modifier is None
         if modifier is None and not ints is None:
             # adjust bounds because ints are rounded
+            self.lower = self.lower.astype(float)
+            self.upper = self.upper.astype(float)
             self.lower[ints] -= .499999999
             self.upper[ints] += .499999999
             self.modifier = self._modifier

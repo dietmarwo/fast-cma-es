@@ -241,6 +241,8 @@ class MODE(object):
         # use default variable modifier for int variables if modifier is None
         if modifier is None and not ints is None:
             # adjust bounds because ints are rounded
+            self.lower = self.lower.astype(float)
+            self.upper = self.upper.astype(float)
             self.lower[ints] -= .499999999
             self.upper[ints] += .499999999
             self.modifier = self._modifier
@@ -378,10 +380,12 @@ class MODE(object):
         return x, y, self.evals, self.iterations, self.stop
 
     def pop_update(self):
-        # sort the population using the fist objective, helps pareto computation.
-        yi = np.flip(np.argsort(self.y[:,0]))
-        y0 = self.y[yi]
-        x0 = self.x[yi]
+        y0 = self.y
+        x0 = self.x
+        if self.nobj == 1:
+            yi = np.flip(np.argsort(self.y[:,0]))
+            y0 = self.y[yi]
+            x0 = self.x[yi]    
         domination = pareto(y0, self.nobj, self.ncon)
         x = []
         y = []
