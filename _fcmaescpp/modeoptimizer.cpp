@@ -35,7 +35,6 @@
 // If defined it causes a "special treatment" for discrete variables: They are rounded to the next integer value and
 // there is an additional mutation to avoid getting stuck at local minima.
 
-
 #include <Eigen/Core>
 #include <iostream>
 #include <float.h>
@@ -54,10 +53,10 @@ class MoDeOptimizer {
 public:
 
     MoDeOptimizer(long runid_, Fitness *fitfun_, callback_type log_, int dim_,
-            int nobj_, int ncon_, int seed_,
-            int popsize_, int maxEvaluations_, double F_, double CR_,
-            double pro_c_, double dis_c_, double pro_m_, double dis_m_,
-            bool nsga_update_, double pareto_update_, int log_period_, bool *isInt_) {
+            int nobj_, int ncon_, int seed_, int popsize_, int maxEvaluations_,
+            double F_, double CR_, double pro_c_, double dis_c_, double pro_m_,
+            double dis_m_, bool nsga_update_, double pareto_update_,
+            int log_period_, bool *isInt_) {
         // runid used to identify a specific run
         runid = runid_;
         // fitness function to minimize
@@ -95,10 +94,8 @@ public:
         // Use DE update to diversify your results.
         nsga_update = nsga_update_;
         // DE population update parameter. Only applied if nsga_update = false.
-        // Use the pareto front for population update
-        // with probability pareto_update, else use the whole population.
-        // If pareto_update == 0: use always the whole population.
-        // usually should be 0, optimization can get stuck in local minima otherwise.
+        // Favor better solutions for sample generation. Default 0 -
+        // use all population members with the same probability.
         pareto_update = pareto_update_;
         // The log callback is called each log_period iterations
         log_period = log_period_;
@@ -141,11 +138,10 @@ public:
             F = iterations % 2 == 0 ? 0.5 * F0 : F0;
         }
         int r3;
-        if (rnd01() < pareto_update) {
-            // sample from pareto front
+        if (pareto_update > 0) {
+            // sample elite solutions
             do {
-                r3 = rndInt(bestP.size());
-                r3 = bestP[r3];
+                r3 = (int) (pow(rnd01(), 1.0 + pareto_update) * popsize);
             } while (r3 == p);
         } else {
             // sample from whole population
@@ -179,51 +175,52 @@ public:
             return;
         double n_ints = 0;
         for (int i = 0; i < dim; i++)
-            if (isInt[i]) n_ints++;
+            if (isInt[i])
+                n_ints++;
         double min_mutate = 0.5;
-        double max_mutate = std::max(1.0, n_ints/20.0);
-        double to_mutate = min_mutate + rnd01()*(max_mutate - min_mutate);
+        double max_mutate = std::max(1.0, n_ints / 20.0);
+        double to_mutate = min_mutate + rnd01() * (max_mutate - min_mutate);
         for (int i = 0; i < dim; i++) {
             if (isInt[i]) {
-                if (rnd01() < to_mutate/n_ints)
+                if (rnd01() < to_mutate / n_ints)
                     x[i] = fitfun->sample_i(i, *rs); // resample
                 x[i] = std::round(x[i]);
             }
         }
     }
 
-    vec crowd_dist(mat& y) { // crowd distance for 1st objective
+    vec crowd_dist(mat &y) { // crowd distance for 1st objective
         int n = y.cols();
         vec y0 = y.row(0);
         ivec si = sort_index(y0); // sort 1st objective
         vec y0s = y0(si); // sorted y0
-        vec d(n-1);
-        for (int i = 0; i < n-1; i++)
-            d(i) = y0s[i+1] - y0s[i]; // neighbor distance
+        vec d(n - 1);
+        for (int i = 0; i < n - 1; i++)
+            d(i) = y0s[i + 1] - y0s[i]; // neighbor distance
         if (d.maxCoeff() == 0)
             return zeros(n);
         vec dsum = zeros(n);
         for (int i = 0; i < n; i++) {
             if (i > 0)
-                dsum(i) += d(i-1); // distance to left
-            if (i < n-1)
+                dsum(i) += d(i - 1); // distance to left
+            if (i < n - 1)
                 dsum(i) += d(i); //  distance to right
         }
         dsum(0) = DBL_MAX; // keep borders
-        dsum(n-1) = DBL_MAX;
+        dsum(n - 1) = DBL_MAX;
         vec ds(n);
         ds(si) = dsum;  // inverse order
         return ds;
     }
 
-    bool is_dominated(const mat& y, int i, int index) {
+    bool is_dominated(const mat &y, int i, int index) {
         for (int j = 0; j < y.rows(); j++)
-            if (y(j,i) < y(j,index))
+            if (y(j, i) < y(j, index))
                 return false;
         return true;
     }
 
-    vec pareto_levels(const mat& y) {
+    vec pareto_levels(const mat &y) {
         int n = y.cols();
         ivec pareto(n);
         for (int i = 0; i < n; i++)
@@ -242,7 +239,7 @@ public:
                     domination[i] += 1;
             }
             index++;
-            while(!mask[index] && index < n)
+            while (!mask[index] && index < n)
                 index++;
         }
         return domination;
@@ -255,7 +252,7 @@ public:
         mat rank(objs.rows(), objs.cols());
         for (int j = 0; j < objs.rows(); j++)
             for (int i = 0; i < objs.cols(); i++) {
-                rank(j, ci(i,j)) = i;
+                rank(j, ci(i, j)) = i;
             }
         return rank.colwise().sum();
     }
@@ -268,22 +265,22 @@ public:
         vec alpha = zeros(cons.rows());
         for (int j = 0; j < cons.rows(); j++) {
             for (int i = 0; i < cons.cols(); i++) {
-                if (cons(j,i) <= 0) {
-                    rank(j, ci(i,j)) = 0;
+                if (cons(j, i) <= 0) {
+                    rank(j, ci(i, j)) = 0;
                 } else {
-                    rank(j, ci(i,j)) = i;
+                    rank(j, ci(i, j)) = i;
                     alpha[j]++;
                 }
             }
         }
         for (int j = 0; j < cons.rows(); j++) {
             for (int i = 0; i < cons.cols(); i++)
-                rank(j, ci(i,j)) *= alpha[j] / cons.rows();
+                rank(j, ci(i, j)) *= alpha[j] / cons.rows();
         }
         return rank.colwise().sum();
     }
 
-    vec pareto(const mat& ys) {
+    vec pareto(const mat &ys) {
         if (ncon == 0)
             return pareto_levels(ys);
         int popn = ys.cols();
@@ -303,8 +300,9 @@ public:
         vec domination = zeros(popn);
         std::vector<int> cyv;
         for (int i = 0; i < ys.cols(); i++) // collect feasibles
-            if (feasible[i]) cyv.push_back(i);
-        ivec cy =  Eigen::Map<ivec, Eigen::Unaligned>(cyv.data(), cyv.size());
+            if (feasible[i])
+                cyv.push_back(i);
+        ivec cy = Eigen::Map<ivec, Eigen::Unaligned>(cyv.data(), cyv.size());
         if (hasFeasible) { // compute pareto levels only for feasible
             vec ypar = pareto_levels(yobj(Eigen::all, cy));
             domination(cy) += ypar;
@@ -313,9 +311,11 @@ public:
         ivec ci = sort_index(csum);
         std::vector<int> civ;
         for (int i = 0; i < ci.size(); i++)
-            if (!feasible[ci(i)]) civ.push_back(ci(i));
+            if (!feasible[ci(i)])
+                civ.push_back(ci(i));
         if (civ.size() > 0) {
-            ivec ci =  Eigen::Map<ivec, Eigen::Unaligned>(civ.data(), civ.size());
+            ivec ci = Eigen::Map<ivec, Eigen::Unaligned>(civ.data(),
+                    civ.size());
             int maxcdom = ci.size();
             // higher constraint violation level gets lower domination level assigned
             for (int i = 0; i < ci.size(); i++)
@@ -328,11 +328,11 @@ public:
         return domination;
     }
 
-    mat variation(const mat& x) {
+    mat variation(const mat &x) {
         int n2 = x.cols() / 2;
         int n = 2 * n2;
-        mat parent1 = x(Eigen::all, Eigen::seq(0, n2-1));
-        mat parent2 = x(Eigen::all, Eigen::seq(n2, n-1));
+        mat parent1 = x(Eigen::all, Eigen::seq(0, n2 - 1));
+        mat parent2 = x(Eigen::all, Eigen::seq(n2, n - 1));
         mat beta = mat(dim, n2);
         vec to1;
         if (pro_c < 1.0) {
@@ -384,7 +384,11 @@ public:
     }
 
     void pop_update() {
-        vec domination = pareto(popY);
+        // sort the population using the fist objective, helps pareto computation.
+        ivec yi = sort_index(popY.row(0)).reverse();
+        mat x0 = popX(Eigen::all, yi);
+        mat y0 = popY(Eigen::all, yi);
+        vec domination = pareto(y0);
         std::vector<vec> x;
         std::vector<vec> y;
         int maxdom = (int) domination.maxCoeff();
@@ -393,13 +397,11 @@ public:
             for (int i = 0; i < domination.size(); i++)
                 if (domination(i) == dom)
                     level.push_back(i);
-            ivec domlevel =  Eigen::Map<ivec, Eigen::Unaligned>(level.data(), level.size());
-            mat domx = popX(Eigen::all, domlevel);
-            mat domy = popY(Eigen::all, domlevel);
-            if (dom == maxdom) // store pareto front in bestP
-                bestP = domlevel;
-
-            if ((int)(x.size() + domlevel.size()) <= popsize) {
+            ivec domlevel = Eigen::Map<ivec, Eigen::Unaligned>(level.data(),
+                    level.size());
+            mat domx = x0(Eigen::all, domlevel);
+            mat domy = y0(Eigen::all, domlevel);
+            if ((int) (x.size() + domlevel.size()) <= popsize) {
                 // whole level fits
                 for (int i = 0; i < domy.cols(); i++) {
                     x.push_back(domx.col(i));
@@ -412,7 +414,7 @@ public:
                     vec cd = crowd_dist(domy);
                     ivec si = sort_index(cd).reverse();
                     for (int i = 0; i < si.size(); i++) {
-                        if (((int)x.size()) >= popsize)
+                        if (((int) x.size()) >= popsize)
                             break;
                         x.push_back(domx.col(si(i)));
                         y.push_back(domy.col(si(i)));
@@ -439,13 +441,15 @@ public:
     int tell(const vec &y, const vec &x, int p) {
         long unsigned int dp = 0;
         for (; dp < vdone.size(); dp++)
-            if (!vdone[dp]) break;
+            if (!vdone[dp])
+                break;
         nX.col(dp) = x;
         nY.col(dp) = y;
         vdone[dp] = true;
         int ndone = 0;
         for (long unsigned int i = 0; i < vdone.size(); i++)
-            if (vdone[i]) ndone++;
+            if (vdone[i])
+                ndone++;
         if (ndone >= popsize) {
             int p = popsize;
             for (dp = 0; dp < vdone.size(); dp++) {
@@ -493,7 +497,7 @@ public:
             evals_x[p] = x;
         }
         while (fitfun->evaluations() < maxEvaluations && !fitfun->terminate()) {
-            vec_id* vid = eval.result();
+            vec_id *vid = eval.result();
             vec y = vec(vid->_v);
             int p = vid->_id;
             delete vid;
@@ -508,21 +512,18 @@ public:
     }
 
     void init() {
-        popX = mat(dim, 2*popsize);
-        popY = mat(nobj + ncon, 2*popsize);
+        popX = mat(dim, 2 * popsize);
+        popY = mat(nobj + ncon, 2 * popsize);
         for (int p = 0; p < popsize; p++) {
             popX.col(p) = fitfun->sample(*rs);
             popY.col(p) = constant(nobj + ncon, DBL_MAX);
         }
-        next_size = 2*popsize;
+        next_size = 2 * popsize;
         vdone = std::vector<bool>(next_size, false);
         nX = mat(dim, next_size);
         nY = mat(nobj + ncon, next_size);
         vX = mat(popX);
         vp = 0;
-        bestP = ivec(popsize);
-        for (int i = 0; i < popsize; i++)
-            bestP(i) = i;
     }
 
     mat getX() {
@@ -549,6 +550,14 @@ public:
         return dim;
     }
 
+    int getNobj() {
+        return nobj;
+    }
+
+    int getNcon() {
+        return ncon;
+    }
+
 private:
     long runid;
     Fitness *fitfun;
@@ -562,7 +571,6 @@ private:
     double stopfitness;
     int iterations;
     int n_evals;
-    ivec bestP;
     int stop;
     double F0;
     double CR0;
@@ -592,12 +600,11 @@ private:
 using namespace mode_optimizer;
 
 extern "C" {
-void optimizeMODE_C(long runid, callback_type func, callback_type log,
-        int dim, int nobj, int ncon, int seed,
-        double *lower, double *upper, bool *ints, int maxEvals,
-        int popsize, int workers, double F, double CR,
+void optimizeMODE_C(long runid, callback_type func, callback_type log, int dim,
+        int nobj, int ncon, int seed, double *lower, double *upper, bool *ints,
+        int maxEvals, int popsize, int workers, double F, double CR,
         double pro_c, double dis_c, double pro_m, double dis_m,
-        bool nsga_update, double pareto_update, int log_period, double* res) {
+        bool nsga_update, double pareto_update, int log_period, double *res) {
     vec lower_limit(dim), upper_limit(dim);
     bool isInt[dim];
     bool useIsInt = false;
@@ -613,21 +620,18 @@ void optimizeMODE_C(long runid, callback_type func, callback_type log,
         }
     }
     Fitness fitfun(func, dim, nobj + ncon, lower_limit, upper_limit);
-    MoDeOptimizer opt(runid, &fitfun, log, dim, nobj, ncon,
-            seed, popsize, maxEvals, F, CR,
-            pro_c, dis_c, pro_m, dis_m,
-            nsga_update, pareto_update, log_period, useIsInt ? isInt : NULL);
+    MoDeOptimizer opt(runid, &fitfun, log, dim, nobj, ncon, seed, popsize,
+            maxEvals, F, CR, pro_c, dis_c, pro_m, dis_m, nsga_update,
+            pareto_update, log_period, useIsInt ? isInt : NULL);
     try {
         if (workers <= 1)
             opt.doOptimize();
         else
             opt.do_optimize_delayed_update(workers);
-        double* xdata = opt.getX().data();
+        double *xdata = opt.getX().data();
         memcpy(res, xdata, sizeof(double) * opt.getX().size());
     } catch (std::exception &e) {
         std::cout << e.what() << std::endl;
     }
 }
 }
-
-

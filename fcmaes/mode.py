@@ -108,9 +108,8 @@ def minimize(mofun,
     nsga_update = boolean, optional
         Use of NSGA-II or DE population update. Default is False    
     pareto_update = float, optional
-        Only applied if nsga_update = False. Use the pareto front for population update 
-        with probability pareto_update, else use the whole population. Default 0 - use always 
-        the whole population.   
+        Only applied if nsga_update = False. Favor better solutions for sample generation. Default 0 - 
+        use all population members with the same probability.   
     ints = list or array, optional
         indicating which parameters are discrete integer values. If defined these parameters will be
         rounded to the next integer and some additional mutation of discrete parameters are performed.
@@ -144,6 +143,7 @@ def minimize(mofun,
             store.add_results(x, y)
         return x, y
     except Exception as ex:
+        print(str(ex))  
         return None, None  
 
     
@@ -237,7 +237,6 @@ class MODE(object):
         self.evals = 0
         self.mutex = mp.Lock()
         self.p = 0
-        self.best_p = None
         self.ints = np.array(ints)
         # use default variable modifier for int variables if modifier is None
         if modifier is None and not ints is None:
@@ -379,21 +378,23 @@ class MODE(object):
         return x, y, self.evals, self.iterations, self.stop
 
     def pop_update(self):
-        domination = pareto(self.y, self.nobj, self.ncon)
+        # sort the population using the fist objective, helps pareto computation.
+        yi = np.flip(np.argsort(self.y[:,0]))
+        y0 = self.y[yi]
+        x0 = self.x[yi]
+        domination = pareto(y0, self.nobj, self.ncon)
         x = []
         y = []
         maxdom = int(max(domination))
         for dom in range(maxdom, -1, -1):
             domlevel = [p for p in range(len(domination)) if domination[p] == dom]
-            if dom == maxdom: # store pareto front in self.best_p
-                self.best_p =  domlevel
             if len(x) + len(domlevel) <= self.popsize:
                 # whole level fits
-                x = [*x, *self.x[domlevel]]
-                y = [*y, *self.y[domlevel]]
+                x = [*x, *x0[domlevel]]
+                y = [*y, *y0[domlevel]]
             else: # sort for crowding
-                nx = self.x[domlevel]
-                ny = self.y[domlevel]    
+                nx = x0[domlevel]
+                ny = y0[domlevel]    
                 si = [0]
                 if len(ny) > 1:                
                     cd = crowd_dist(ny)
@@ -420,17 +421,15 @@ class MODE(object):
             self.Cr = 0.5*self.Cr0 if self.iterations % 2 == 0 else self.Cr0
             self.F = 0.5*self.F0 if self.iterations % 2 == 0 else self.F0
         while True:
-            if self.rg.random() < self.pareto_update and (not self.best_p is None) and len(self.best_p) > 3: 
-                # sample from pareto front
-                rb = self.rg.integers(0, len(self.best_p))
-                rb = self.best_p[rb]
+            if self.pareto_update > 0: # sample elite solutions
+                rb = int(self.popsize * (self.rg.random() ** (1.0 + self.pareto_update)))
                 r1, r2 = self.rg.integers(0, self.popsize, 2)
             else:
                 # sample from whole population
                 r1, r2, rb = self.rg.integers(0, self.popsize, 3)
-                if r1 != p and r1 != rb and r1 != r2 and r2 != rb \
-                        and r2 != p and rb != p:
-                    break
+            if r1 != p and r1 != rb and r1 != r2 and r2 != rb \
+                and r2 != p and rb != p:
+                break
         xp = self.x[p]
         xb = self.x[rb]
         x1 = self.x[r1]

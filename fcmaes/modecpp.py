@@ -119,9 +119,8 @@ def minimize(mofun,
     nsga_update = boolean, optional
         Use of NSGA-II or DE population update. Default is False    
     pareto_update = float, optional
-        Only applied if nsga_update = False. Use the pareto front for population update 
-        with probability pareto_update, else use the whole population. Default 0 - use always 
-        the whole population.  
+        Only applied if nsga_update = False. Favor better solutions for sample generation. Default 0 - 
+        use all population members with the same probability.   
     ints = list or array of bool, optional
         indicating which parameters are discrete integer values. If defined these parameters will be
         rounded to the next integer and some additional mutation of discrete parameters are performed.    
