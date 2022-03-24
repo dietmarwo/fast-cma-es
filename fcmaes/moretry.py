@@ -195,7 +195,7 @@ def plot(name, ncon, xs, ys, eps = 1E-2):
                 return
         retry.plot(ys, 'all_' + name + '.png', interp=False)
         xs, front = pareto(xs, ys)
-        retry.plot(front, 'front_' + name + '.png', interp=False)
+        retry.plot(front, 'front_' + name + '.png', interp=True)
         if ncon > 0:
             for x, y, feas, in zip(xs, front, con[feasible]):
                 print(str(list(y)) + ' ' +  #str(feas) + ' ' + 
