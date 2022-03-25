@@ -8,31 +8,19 @@ import math
 import os
 import ctypes as ct
 from scipy.optimize import Bounds
+from fcmaes.decpp import libcmalib
 
-basepath = os.path.dirname(os.path.abspath(__file__))
-if sys.platform.startswith('linux'):   
-    libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.so')    
-elif 'mac' in sys.platform:
-    libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.dylib')  
-else:
-    os.environ['PATH'] = (basepath + '/lib') + os.pathsep + os.environ['PATH']
-    libgtoplib = ct.cdll.LoadLibrary(basepath + '/lib/libgtoplib.dll')
-
-freemem = libgtoplib.free_mem
-freemem.argtypes = [ct.POINTER(ct.c_double)]
-
-# for windows compatibility. Linux can pickle c pointers, windows can not
 astro_map = {  
-    "messengerfullC": libgtoplib.messengerfullC,
-    "messengerC": libgtoplib.messengerC,
-    "gtoc1C": libgtoplib.gtoc1C,
-    "cassini1C": libgtoplib.cassini1C,
-    "cassini1minlpC": libgtoplib.cassini1minlpC,
-    "cassini2C": libgtoplib.cassini2C,
-    "rosettaC": libgtoplib.rosettaC,
-    "sagasC": libgtoplib.sagasC,
-    "tandemC": libgtoplib.tandemC,
-    "tandemCu": libgtoplib.tandemCu
+    "messengerfullC": libcmalib.messengerfullC,
+    "messengerC": libcmalib.messengerC,
+    "gtoc1C": libcmalib.gtoc1C,
+    "cassini1C": libcmalib.cassini1C,
+    "cassini1minlpC": libcmalib.cassini1minlpC,
+    "cassini2C": libcmalib.cassini2C,
+    "rosettaC": libcmalib.rosettaC,
+    "sagasC": libcmalib.sagasC,
+    "tandemC": libcmalib.tandemC,
+    "tandemCu": libcmalib.tandemCu
     }
 
 class Astrofun(object):

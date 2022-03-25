@@ -225,6 +225,17 @@ def _avg_exp(y, y_exp):
         weighted = sum([y[i]**y_exp for i in range(len(y))])**(1.0/y_exp)
     return weighted
 
+def _pareto_values(ys):
+    ys = ys[ys.sum(1).argsort()[::-1]]
+    undominated = np.ones(ys.shape[0], dtype=bool)
+    for i in range(ys.shape[0]):
+        n = ys.shape[0]
+        if i >= n:
+            break
+        undominated[i+1:n] = (ys[i+1:] >= ys[i]).any(1) 
+        ys = ys[undominated[:n]]
+    return ys
+
 def _pareto(ys):
     pareto = np.arange(ys.shape[0])
     index = 0  # Next index to search for
