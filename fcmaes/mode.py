@@ -4,9 +4,8 @@
 # LICENSE file in the root directory.
 
 """ Numpy based implementation of multi objective
-    Differential Evolution using either DE/rand/1 or DE/best/1 strategy ('best' refers to the current pareto front'). 
-     
-    Can switch to NSGA-II like population update via parameter 'nsga_update'.
+    Differential Evolution using either the DE/rand/1 strategy
+    or a NSGA-II like population update (parameter 'nsga_update=True)'.
     Then it works essentially like NSGA-II but instead of the tournament selection
     the whole population is sorted and the best individuals survive. To do this
     efficiently the crowd distance ordering is slightly inaccurate. 

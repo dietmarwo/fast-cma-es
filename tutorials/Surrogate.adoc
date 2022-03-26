@@ -1,0 +1,624 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+:call: __call__
+
+= Customized Surrogate Models
+
+This tutorial
+
+- Discusses the use of customized surrogate models based on the Mazda car design optimization problem
+- Compares with the application of a generic surrogate model.
+
+=== Motivation
+
+Since 2006 I am participating in the https://sophia.estec.esa.int/gtoc_portal/[GTOC] competition about
+global space trajectory optimization problems. Up to now (2022) there were eleven competitions, each
+including optimization problems not solvable without a surrogate model approximating the real world
+model specified in the tasks. In almost all cases the participants choose to use a customized
+domain specific surrogate. 
+See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc[Tutorial] for details 
+about the first competition https://sophia.estec.esa.int/gtoc_portal/?page_id=13[Save the Earth].
+In this case continuous thrust specified by ODEs is modeled by so called 
+http://nbodyphysics.com/blog/gravity-engine-doc-1-3-2-2-2/demonstrations-2/lambert-transfer/Lambert/[Lambert transfers].
+Local optimization applied to segments of the trajectories is used to convert the surrogate model results
+into a trajectory fulfilling the ODEs of the real problem. 
+
+Is this approach specific to the space flight dynamics domain? 
+
+Another example for a customized surrogate model is the http://ladse.eng.isas.jaxa.jp/benchmark/[Mazda Benchmark Problem]
+jointly developed by the Mazda Motor
+Corporation, Japan Aerospace Exploration Agency, and Tokyo
+University of Science. The problem is 
+multi-objective involving 222 discrete decision variables,
+and 54 inequality constraints.
+Three cars are designed simultaneously thereby minimizing their weight and maximizing 
+the number of common thickness parts among the three types of cars - which minimizes their production 
+cost. The original constraints of the problem simulate collisions to evaluate car safety. In the 
+benchmark these expensive simulations are modeled by response surface approximations which can be 
+viewed as a domain specific surrogate model. After generating solutions for the approximated
+model, real collision simulations can be applied to the solution to filter solutions valid in the real world. 
+
+Is it a good idea to apply an additional "generic surrogate layer" to solve this problem? To check
+this we will compare results from   
+https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions].
+This paper contains an interesting debatable statement: 
+
+- "However, when one single
+objective or constraint function evaluation potentially takes
+many hours, which is the case for many practical problems,
+this computational overhead is relatively small, and it makes
+sense to use a surrogate-based method given the substantial
+improvement in the best feasible solution obtained through
+the surrogate."
+
+"Surrogate" in this statement means generic surrogate methods like radial basis functions. 
+We will show the obvious fact:
+
+- It is a bad idea to apply a generic surrogate model to a problem where we have already a domain specific
+surrogate model and therefore can execute a large number of function / constraints evaluations. 
+
+A result which needs about 6 hours using the method proposed by the paper needs about 8 seconds using fcmaes. 
+We use a cheap 600$ CPU (AMD5950x), so it is not the hardware responsible for the difference.  
+Parallel function evaluation enables about 4000 evaluations per second (including the 54 constraints and the
+optimization algorithm overhead). In the paper only 4000 function evaluations are required, 
+but does this really help if these need over 6 hours instead of a single second? Additionally, 
+our optimization starts from a random population and don't require a feasible solution as input 
+as CONDOR, the method from the paper.  
+
+The interesting question is about the statement above:
+
+- Should we apply a generic or a domain specific customized surrogate model? Of course 
+it is easier to use a generic surrogate, but for many domains like space flight dynamics
+and car design there exist already domain specific surrogate models which can be reused. 
+
+Even when it is impossible to create a domain specific surrogate, we still can think of
+other means to speed up the simulation:
+
+- Parallelization: Utilizing all cores of the CPU.
+- Clusterization: Distributing expensive simulations on separate cluster nodes. 
+See https://github.com/dietmarwo/fcmaes-java/blob/master/temporal/Tutorial.adoc[Temporal-tutorial] for an example. 
+- Applying https://numba.pydata.org/[numba] can speed up simulations by factor 10-100 as shown
+in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[Crypto Trading], 
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[Noisy TSP],    
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop] and
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling].
+
+Most generic surrogate methods - with the exception of 
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/MVRSM[MVRSM] - 
+share one deficiency:  
+
+- They are very good for the first few hundred function evaluations, but often don't scale well for larger budgets.
+
+=== Car design
+
+From the https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc[README], section
+"Engineering Design Optimization" we know already that the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[MODE]
+algorithm can solve the two-objective Mazda car design task. This problem requires the corresponding
+shared library which is not included in fcmaes for licensing reasons. Therefore we will show how to define the corresponding 
+objective function, but this code cannot be executed without the shared library. 
+
+==== Single objective variant results
+
+To compare with 
+https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions].
+we have to use a single objective variant of the Mazda car design problem optimizing only for the combined masses of the car models. 
+In the real world a result for this problem variant is of limited value, since the low number of shared part thicknesses obtained largely 
+increase the production cost. This problem is an order of magnitude easier to solve than the two objective variant, which 
+we will see later by comparing the results for both cases.  
+We only need a few seconds to obtain a good feasible solution. We can either apply Differential Evolution using the 
+weighted sum approach for the constraints: 
+
+In the following image we see a comparison of the three discussed methods with a tim budged of 160 seconds (AMD 5950x using 32 threads)
+
+- fcmaes Differential Evolution, population size = 64, weighted sum approach.
+- fcmaes MODE, nsga_update=False, population size = 64, using constraints.
+- fcmaes MODE, nsga_update=False, population size = 64, weighted sum approach.
+
+The results show that:
+
+- All fcmaes methods surpass the best result from 
+https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions].
+(2.65) after a few seconds. 
+- After 160 seconds results between 2.578 and 2.625 are reached. Either investing over 6 hours was not enough, or initializing CONDOR with 
+feasible solutions (fcmaes starts with random solutions) traps the search in local minima. 
+- fcmaes MODE works better here than fcmaes DE, even with a single objective and if the same weighted sum approach is used for the constraints. 
+  Reason could be the DE/rand/1 strategy (nsga_update=False) - DE uses DE/best/1 strategy. 
+- fcmaes MODE works best with explicit constraints, since these are prioritized by the algorithm. 
+
+Note that both DE and MODE utilize the `ints = np.array([True]*dim)' parameter indicating that we only have discrete decision variables. 
+
+image::Mazda_single_objective_mixed_integer_constrained_problem.png[]
+
+==== Multi objective variant results
+
+The multi-objective problem variant optimizes both for the masses of the car models and for the number of shared part thicknesses. 
+First we see all pareto fronts computed after 160 seconds (AMD 5950x CPU utilizing 32 threads) for about 20 optimization runs. 
+Best masses vary between 2.65 and 2.79 and best common part thicknesses are between 41 and 59. The red line is the pareto front of all 
+20 runs combined. 
+
+image::Mazda_multi_objective_MODE_32_threads_160_sec.png[]
+
+Increasing the time budged by factor 10 (1600 sec) changes the picture significantly.
+Best masses vary between 2.57 and 2.63 and best common part thicknesses are between 71 and 74.
+Even for a good mass of 2.7 we get 64 - 69 common parts, a quite consistent result for the 20 runs
+executed. The red line which combines the results for all runs can be viewed as a reference
+for other methods and can reduce production cost significantly. These results cannot be reproduced
+using NSGA-II update (nsga_update=True), but this setting proved to be superior for other problems. 
+
+image::Mazda_multi_objective_MODE_32_threads_1600_sec.png[]
+
+=== Wrapping the objective function
+First download the http://ladse.eng.isas.jaxa.jp/benchmark/Mazda_CdMOBP.zip[Mazda sources]. 
+We show everything only for the three car problem, the two car problem is very similar. 
+
+Calling the C++ code via command line causes a significant overhead - much more than the
+function execution itself, and there are only executables
+for linux+win64. Therefore we first we need to enable calling the C++ code via 
+Python and add the following to `mazda_mop.cpp`:
+
+[source,c++]
+---- 
+extern "C" {
+
+    void fitness_MazdaMop_C(double* x, int dim, double* objs, double* constr) {    
+        try { 
+            bp::MazdaMop mop;
+            if (dim != mop.nvar) {
+                cerr << "[Error] The number of variables is different from the benchmark problem." << endl;
+                cerr << "dim: " << dim << endl;
+                cerr << "benchmark problem: " << mop.nvar << endl;
+                return;
+            }
+            vector<double> var(mop.nvar);
+            for (int i = 0; i < mop.nvar; i++)
+                var[i] = x[i];
+            vector<double> obj(mop.nobj); 
+            vector<double> con(mop.ncon);
+            mop.evaluate(var, obj, con);
+            for (int i = 0; i < mop.nobj; i++)
+                objs[i] = obj[i];
+            for (int i = 0; i < mop.ncon; i++)
+                constr[i] = con[i];
+            var.clear();
+            obj.clear();
+            con.clear();
+        } catch (std::exception &e) {
+            cout << e.what() << endl;
+        }
+    }
+}
+----
+
+Undefine the `cout << "[Info] Acknowledge of your ...` line because this doesn't work from Python. 
+
+Next we create a CMakeList.txt to create the library file 
+
+[source]
+---- 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
+INCLUDE_DIRECTORIES(/path_to/Mazda_CdMOBP/Mazda_CdMOBP/src/RSM/)
+
+if(NOT CMAKE_BUILD_TYPE)
+   set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+      "Choose the type of build, options are: Debug Release
+      RelWithDebInfo MinSizeRel." FORCE)
+endif()
+
+PROJECT(mazda)
+add_library(mazda SHARED mazda_mop.cpp mazda_mop_sca.cpp RSM/g01_SUV_FrFL.cpp  RSM/g20_LV_ODB.cpp RSM/g39_SV_ODB.cpp RSM/g02_SUV_ODB.cpp   RSM/g21_LV_ODB.cpp   RSM/g40_SV_ODB.cpp RSM/g03_SUV_ODB.cpp   RSM/g22_LV_ODB.cpp   RSM/g41_SV_SIDE.cpp RSM/g04_SUV_ODB.cpp   RSM/g23_LV_SIDE.cpp  RSM/g42_SV_SIDE.cpp RSM/g05_SUV_SIDE.cpp  RSM/g24_LV_SIDE.cpp  RSM/g43_SV_SIDE.cpp RSM/g06_SUV_SIDE.cpp  RSM/g25_LV_SIDE.cpp  RSM/g44_SV_REAR.cpp RSM/g07_SUV_SIDE.cpp  RSM/g26_LV_REAR.cpp  RSM/g45_SV_REAR.cpp RSM/g08_SUV_REAR.cpp  RSM/g27_LV_REAR.cpp  RSM/g46_SV_LEV.cpp RSM/g09_SUV_REAR.cpp  RSM/g28_LV_LEV.cpp   RSM/g47_SV_LEV.cpp RSM/g10_SUV_LEV.cpp   RSM/g29_LV_LEV.cpp   RSM/g48_SV_LEV.cpp RSM/g11_SUV_LEV.cpp   RSM/g30_LV_LEV.cpp   RSM/g49_SV_BS.cpp RSM/g12_SUV_LEV.cpp   RSM/g31_LV_BS.cpp    RSM/g50_SV_BS.cpp RSM/g13_SUV_BS.cpp    RSM/g32_LV_BS.cpp    RSM/m01_SUV_Mass.cpp RSM/g14_SUV_BS.cpp    RSM/g37_SV_FrFL.cpp  RSM/m02_LV_Mass.cpp RSM/g19_LV_FrFL.cpp   RSM/g38_SV_ODB.cpp   RSM/m03_SV_Mass.cpp )
+
+set(CMAKE_INSTALL_LIBDIR ${CMAKE_BINARY_DIR}/../Mazda_CdMOBP/lib)
+----
+
+By executing cmake and make we should get a libmazda.so / libmazda.dll file we can read from Python:
+
+Now we can use this code from Python:
+
+[source,python]
+---- 
+basepath = os.path.dirname(os.path.abspath(__file__))
+if sys.platform.startswith('linux'):
+    libmazda = ct.cdll.LoadLibrary(basepath + '/../fcmaes/lib/libmazda.so')  
+else:
+    os.environ['PATH'] = (basepath + '/lib') + os.pathsep + os.environ['PATH']
+    libmazda = ct.cdll.LoadLibrary(basepath + '/../fcmaes/lib/libmazda.dll')  
+
+fitness_MazdaMop = libmazda.fitness_MazdaMop_C
+fitness_MazdaMop.argtypes = [ct.POINTER(ct.c_double), ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double)]         
+----
+
+From Info_Mazda_CdMOBP.xlsx we need to copy the info about the discrete values for the 222 decision variables
+and define fitness(x) which calls the C++ library: 
+
+[source,python]
+---- 
+dim = 222
+nobj = 5
+ncon = 54
+decision_x = [   \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0], \
+    [1.5, 1.6, 1.8, 2.0, 2.2, 2.3], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.3, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [1.7, 1.8, 2.0, 2.2, 2.3, 2.4, 2.6], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [1.5, 1.6, 1.8, 2.0, 2.2, 2.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9], \
+    [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2], \
+    [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [1.5, 1.6, 1.8, 2.0, 2.2, 2.3], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.3, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [1.3, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [2.0, 2.2, 2.3, 2.4, 2.6], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [2.0, 2.2, 2.3, 2.4, 2.6], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0], \
+    [1.5, 1.6, 1.8, 2.0, 2.2, 2.3], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.3, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [1.7, 1.8, 2.0, 2.2, 2.3, 2.4, 2.6], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [1.5, 1.6, 1.8, 2.0, 2.2, 2.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9], \
+    [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2], \
+    [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [1.5, 1.6, 1.8, 2.0, 2.2, 2.3], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.3, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [1.3, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [2.0, 2.2, 2.3, 2.4, 2.6], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [2.0, 2.2, 2.3, 2.4, 2.6], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0], \
+    [1.5, 1.6, 1.8, 2.0, 2.2, 2.3], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.3, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [1.7, 1.8, 2.0, 2.2, 2.4, 2.6], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [1.5, 1.6, 1.8, 2.0, 2.2, 2.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9], \
+    [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2], \
+    [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [1.5, 1.6, 1.8, 2.0, 2.2, 2.3], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.3, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [1.3, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [2.0, 2.2, 2.3, 2.4, 2.6], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9], \
+    [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1], \
+    [1.3, 1.4, 1.6, 1.8, 1.9], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.5], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [1.1, 1.2, 1.4, 1.6, 1.7], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.1], \
+    [1.1, 1.2, 1.4, 1.6, 1.8, 1.9], \
+    [0.9, 0.95, 1.0, 1.2, 1.4, 1.6, 1.7], \
+    [1.7, 1.8, 2.0, 2.2, 2.3], \
+    [2.0, 2.2, 2.3, 2.4, 2.6], \
+    [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
+    ]
+    
+def fitness(x):
+    try:
+        x = np.array(x)
+        y = np.empty(nobj)
+        c = np.empty(ncon)
+        # the integer x values are converted into the discrete values from the table
+        x = np.array([decision_x[i][int(xi)] for i, xi in enumerate(x)])
+        x_p = x.ctypes.data_as(ct.POINTER(ct.c_double))
+        y_p = y.ctypes.data_as(ct.POINTER(ct.c_double))  
+        c_p = c.ctypes.data_as(ct.POINTER(ct.c_double))  
+        fitness_MazdaMop(x_p, dim, y_p, c_p)   
+        return y[:2], c * -1
+    except Exception as ex:
+        return None    
+----
+
+We are only interested in the first two objectives and need to negate the constraint values, 
+therefore the `return y[:2], c * -1`. Now we can define the problem class:
+
+[source,python]
+---- 
+
+max_decision_x = [len(x)-1 for x in decision_x]
+
+class madzda_problem(object):
+
+    def __init__(self):
+        self.dim = dim
+        self.nobj = nobj
+        self.ncon = ncon
+        lb, ub = np.array([0]*dim), np.array(max_decision_x)
+        self.bounds = Bounds(lb, ub)
+        # RawValue because the fitness function is called from different processes
+        self.n_evals = mp.RawValue(ct.c_long, 0) 
+        self.time_0 = time.perf_counter()
+        self.best_y =  mp.RawValue(ct.c_double, 1E10)
+
+    def eval(self, x, is_multi):
+        y, constr = fitness(x)
+        constr = np.maximum(constr, 0) # we are only interested in constraint violations       
+        fval = np.array(list(y) + list(constr))              
+        ys = self.eval_single(x, fval, is_multi)
+        self.n_evals.value += 1                               
+        if ys < self.best_y.value: # monitor progress
+            self.best_y.value = ys
+            print(str(dtime(self.time_0)) + ' ' + 
+                str(self.n_evals.value) + ' ' + 
+                str(round(self.n_evals.value/(1E-10 + dtime(self.time_0)),0)) + ' ' + 
+                str(self.best_y.value) + ' ' +
+                str(list(y)) + ' ' + str(list(constr)))                  
+        return y, ys, fval, constr
+        
+    def fun(self, x): # multi objective value
+        y, ys, fval, constr = self.eval(x, True)
+        return fval
+        
+    def sfun(self, x): # single objective value, constraint via weighted sum
+        y, ys, fval, constr = self.eval(x, False)
+        return ys
+
+    def sfun_c(self, x): # single objective value, separate constraints
+        y, ys, fval, constr = self.eval(x, False)           
+        return np.array([y[0]] + list(constr))
+           
+    def sfun_m(self, x): # MODE expects a list / array as result. 
+        return [self.sfun(x)]
+        
+    def eval_single(self, x, fval, is_multi):
+        # constraints get a higher weight than the objectives
+        weights = np.array([1, 1] + [3]*ncon) if is_multi else np.array([1, 0] + [3]*ncon)
+        return sum(weights*fval)         
+----
+
+
+=== Configuring fcmaes Differential Evolution - single objective weighted sum
+
+Adapt `workers` to your processor. It may be better to not utilize all threads (hyperthreading),
+on the AMD5950x it is ok to use all 16 cores / 32 threads.  
+
+We use population size 64. DE uses always the best population member
+to generate the descendants, but has a special mechanism (killing old population members)
+to avoid getting stuck in a local minimum. 
+
+[source,python]
+---- 
+       for i in range(20):
+            problem = madzda_problem()
+            ret = de.minimize(problem.sfun, dim, problem.bounds,
+                                max_evaluations = 1000000, 
+                                popsize=64, workers=32, ints=np.array([True]*dim))
+----
+
+=== Configuring fcmaes MODE
+
+==== Single objective weighted sum
+
+We again use population size 64 and use "better" population members with higher probability
+to generate the descendants `pareto_update=1`. `sfun_m` uses the weighted sum approach to handle
+the constraints, with a 3 times higher weight on constraint values compared to objective values. 
+
+[source,python]
+---- 
+        problem = madzda_problem()
+        x, y = modecpp.minimize(problem.sfun_m, 1, 0, problem.bounds, popsize = 64, 
+                                 max_evaluations = 1000000, pareto_update=1, log_period = 100000,
+                                 nsga_update=False, workers=32, ints=np.array([True]*dim))
+----
+
+==== Single objective, separate constraints
+
+We again use the same setting as above, just leave the treatment of constraints to MODE this time.
+This way we not only get better results, we avoid having to "guess" good weight values. 
+
+[source,python]
+---- 
+        problem = madzda_problem()
+        x, y = modecpp.minimize(problem.sfun_c, 1, problem.ncon, problem.bounds, popsize = 64, 
+            max_evaluations = 1000000, pareto_update=1, log_period=100000,
+            nsga_update=False, workers=32, ints = np.array([True]*dim))
+----
+
+==== Multi objective, separate constraints
+
+We increase the population size to 256 and use each population member with the same probability
+to generate the descendants `pareto_update=0`. Again we leave the treatment of constraints to MODE, so 
+we don't have to "guess" weights both for the objectives and the constraints. 
+
+[source,python]
+---- 
+       x, y = modecpp.minimize(problem.fun, problem.nobj, problem.ncon, problem.bounds, popsize=256, 
+            max_evaluations = 1000000, pareto_update=0, log_period = 1000000, 
+            nsga_update=False, workers=32,  ints = np.array([True]*dim))
+----
+
+==== Conclusion
+
+The comparison with the results of https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions].
+is not intended to be "fair", if you consider the number
+of objective function evaluations. Instead we want to highlight:
+
+- The Mazda benchmark function, if not called via command line but as shared library and in parallel, can be 
+executed several thousand times per second, so it is in fact not expensive to execute. 
+- Exploiting this fact and using optimization algorithms which can handle multiple parallel function executions,
+this benchmark can easily be "solved", both for the single objective and the multiple objective case. 
+- The Mazda benchmark's collision analysis already uses a kind if domain specific surrogate / approximation
+which renders the application of a very expensive generic surrogate based method to this problem useless. 
+
+This should serve as a motivation to search for alternative implementations / parallelization / clustering
+before using generic surrogate based methods which often don't scale well for higher evaluation budgets
+and often are slow to execute. Trivial changes like
+
+- calling a library instead using the command line
+- using https://numba.pydata.org/[Numba] for objective functions coded in Python
+- utilizing all threads of a modern many-core-CPU
+
+can cause a dramatic speedup. https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions].
+reports 21 minutes for 4440 function evaluations even without using the expensive generic surrogate. 
+This is a whopping factor > 1000 compared to our implementation. Note that both are based on the
+same unmodified Mazda benchmark code implemented in C++.
+
