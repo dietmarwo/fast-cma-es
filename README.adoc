@@ -169,9 +169,6 @@ If performance of the fitness function is an issue and you don't want to use the
 ==== MacOS
 
 * `pip install fcmaes`
-* For using the {cpp} optimization algorithms: 
-** adapt https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/CMakeLists.txt[CMakeLists.txt]
-** generate the shared library: `cmake . ; make install` 
 
 === Usage
 
