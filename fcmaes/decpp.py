@@ -181,10 +181,7 @@ basepath = os.path.dirname(os.path.abspath(__file__))
 
 if sys.platform.startswith('linux'):
     libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.so')  
-master
-
 elif 'mac' in sys.platform or 'darwin' in sys.platform:
-master
     libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
 else:
     os.environ['PATH'] = (basepath + '/lib') + os.pathsep + os.environ['PATH']
