@@ -13,7 +13,7 @@ __all__ = [
     'decpp',
     'gcldecpp',
     'ldecpp',
-    'lgcldecpp',
+    'lcldecpp',
     'bitecpp',
     'csmacpp',
     'retry',
