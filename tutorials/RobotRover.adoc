@@ -76,9 +76,9 @@ for all parallel runs is shown.
 
 image::Rover_trajectory_optimization_32_threads_parallel_retry.png[]
 
-https://arxiv.org/pdf/1706.01445.pdf[Wang 2018] reports: "CEM achieved a maximum reward of 10.19 while EBO achieved 9.50". 
-As can be seen in the diagram above, none of the 40 experiments needed more than 7 seconds to improve the CEM result (10.19),
-all 40 runs converge to a result > 11 after 20 seconds. 
+https://arxiv.org/pdf/1706.01445.pdf[Wang 2018] reports CEM and EBO results all below 4.0. 
+As can be seen in the diagram above, none of the 40 experiments needed more than 5 seconds to improve over 4.0,
+all 40 runs converge to a result > 4.7 after 8 seconds. 
 
 === Optimizing the control parameters for robot pushing
 
@@ -125,14 +125,14 @@ for all parallel runs is shown.
 
 image::Push_robot_optimization_32_threads_parallel_retry.png[] 
 
-https://arxiv.org/pdf/1706.01445.pdf[Wang 2018] reports CEM and EBO results all below 4.0. 
-As can be seen in the diagram above, none of the 40 experiments needed more than 5 seconds to improve over 4.0,
-all 40 runs converge to a result > 4.7 after 8 seconds. 
+https://arxiv.org/pdf/1706.01445.pdf[Wang 2018] reports: "CEM achieved a maximum reward of 10.19 while EBO achieved 9.50". 
+As can be seen in the diagram above, none of the 40 experiments needed more than 7 seconds to improve the CEM result (10.19),
+all 40 runs converge to a result > 11 after 20 seconds. 
 
 ==== Conclusion
 
 Neither the robot pushing nor the rover trajectory optimization example do a good job motivating the application 
-of advanced Bayesian optimization methods like EBO (Ensemble Bayesian optimization) or CEM (noisy cross-entropy method)
+of advanced Bayesian optimization methods like EBO (Ensemble Bayesian optimization) or CEM (noisy cross-entropy method),
 although https://arxiv.org/pdf/1706.01445.pdf[Wang 2018] shows that they are vastly superior to 
 other Bayesian methods like BO-SVI and BO-Add-SVI. fcmaes parallel retry either using Differential Evolution or BiteOpt
 delivers superior solutions in a few seconds. 
