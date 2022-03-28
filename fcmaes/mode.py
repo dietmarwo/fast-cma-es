@@ -42,15 +42,13 @@
 """
 
 import numpy as np
-import os
-import time
+import os, sys, time
 import ctypes as ct
 from numpy.random import Generator, MT19937
 from fcmaes.evaluator import Evaluator
 from fcmaes import moretry
 import multiprocessing as mp
-from fcmaes.optimizer import logger
-from fcmaes import moretry
+from fcmaes.optimizer import logger, dtime
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -607,6 +605,32 @@ def variation(pop, lower, upper, rg, pro_c = 1, dis_c = 20, pro_m = 1, dis_m = 2
                                1. / (dis_m + 1.)))
     offspring = np.maximum(np.minimum(offspring, upper), lower)
     return offspring
+
+class wrapper(object):
+    """thread safe wrapper for objective function monitoring evaluation count and optimization result."""
+   
+    def __init__(self, fun, nobj):
+        self.fun = fun   
+        self.n_evals = mp.RawValue(ct.c_long, 0)
+        self.time_0 = time.perf_counter()
+        self.best_y = mp.RawArray(ct.c_double, nobj)  
+        for i in range(nobj):
+            self.best_y[i] = sys.float_info.max
+    
+    def __call__(self, x):
+        y = self.fun(x)
+        improve = False
+        for i in range(len(y)):
+            if y[i] < self.best_y[i]:
+                improve = True 
+                self.best_y[i] = y[i] 
+        self.n_evals.value += 1
+        if improve:
+            logger().info(str(dtime(self.time_0)) + ' ' + 
+                str(self.n_evals.value) + ' ' + 
+                str(round(self.n_evals.value/(1E-9 + dtime(self.time_0)),0)) + ' ' + 
+                str(self.best_y[:]) + ' ' + str(list(x)))     
+        return y
 
 def minimize_plot(name, fun, nobj, ncon, bounds, popsize = 64, max_evaluations = 100000, nsga_update=False, 
                   pareto_update=0, workers = mp.cpu_count(), logger=logger(), plot_name = None):

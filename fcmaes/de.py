@@ -39,7 +39,6 @@ import numpy as np
 import math, sys
 from time import time
 import ctypes as ct
-from fcmaes.testfun import Wrapper, Rosen, Rastrigin, Eggholder
 from numpy.random import Generator, MT19937
 from scipy.optimize import OptimizeResult
 from fcmaes.evaluator import Evaluator

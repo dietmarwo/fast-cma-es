@@ -21,6 +21,7 @@ support both parallel fitness function evaluation and a parallel retry mechanism
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc[Tutorial] Solving simple example problems from space flight dynamics.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[Crypto Trading] Optimize your crypto trading strategy.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Surrogate.adoc[Surrogate] Optimize the Mazda car design problem.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc[Robot Pushing and Navigating Rovers]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] Optimize CFD simulation based problems.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[Noisy TSP] Solve the noisy Traveling Salesman Problem.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] Managing hospital resources during a pandemic.  

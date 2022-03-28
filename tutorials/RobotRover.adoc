@@ -1,0 +1,138 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+:call: __call__
+
+= Robot Pushing and Navigating Rovers 
+
+This tutorial shows how to push a robot and navigate a rover based on two real world optimization benchmarks adapted
+from https://github.com/zi-w/Ensemble-Bayesian-Optimization/tree/master/test_functions[Bayesian test functions] 
+originally created to evaluate an advanced Bayesian optimizer.
+
+=== Motivation
+
+Bayesian optimizers are very good for the first few thousand evaluations of an objective function
+as can be seen from the results reported in https://arxiv.org/pdf/1706.01445.pdf[Wang 2018]. 
+But there are drawbacks:
+
+- High overhead spent for the optimizer. Kernel learning part is the computationally dominating factor of large scale BO.
+- Reported research results don't consider parallelization but just the number of evaluations performed. 
+- Bad scaling for higher evaluation budged. 
+
+To evaluate the real world "value" of Bayesian optimization for the two example problems -
+pushing a robot and computing a trajectory for a rover - we investigate how long it takes
+to surpass the best results reported in https://arxiv.org/pdf/1706.01445.pdf[Wang 2018] 
+utilizing all parallel threads on a modern multi-core processor (AMD 5950x). 
+In both cases this takes only a few seconds on a single CPU. 
+https://arxiv.org/pdf/1706.01445.pdf[Wang 2018] states: "EBO uses 240 cores via the Batch Service of Microsoft Azure"
+although it is not clear if this is the setting applied to the two problems. 
+
+=== Optimizing the trajectory of a rover
+
+The code for this example is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/rover.py[rover.py]
+(adapted from https://github.com/zi-w/Ensemble-Bayesian-Optimization/tree/master/test_functions[Bayesian test functions]).
+It implements a 60 dimensional trajectory optimization task in 2D, meant to emulate a rover navigation task.
+See https://arxiv.org/pdf/1706.01445.pdf[Wang 2018] for more details. 
+
+To utilize the 32 parallel threads of our AMD5950x CPU, it is best to use parallel retry of the whole 
+optimization because:
+
+- Objective function evaluation is cheap, so we can run 32 optimizations in parallel without investing much time. 
+- This way we improve the "reliability" of the convergence. 
+- The fcmaes DE algorithm alternatively supports parallel function evaluation, but this mechanism scales not as 
+good with the number of threads. 
+
+We execute 20 runs each using the fcmaes DE and Biteopt algorithm with limited evaluation budget.
+
+[source,python]
+---- 
+from fcmaes.optimizer import De_cpp, Bite_cpp, wrapper, logger
+from fcmaes import retry
+from scipy.optimize import Bounds
+
+...
+
+    f_max = 5.0
+    f = ConstantOffsetFn(domain, f_max)
+    f = NormalizedInputFn(f, raw_x_range)
+    x_range = f.get_range()
+
+    bounds = Bounds(x_range[0], x_range[1]) 
+        
+    def negated(x): # negation because we minimize we minimize
+        return -f(x)
+    
+    logger().info("rover retry.minimize(wrap(f, dim), bounds, De_cpp(10000), num_retries=32)")
+    for i in range(20):
+        retry.minimize(wrapper(negated), bounds, optimizer=De_cpp(10000), num_retries=32)
+
+    logger().info("rover retry.minimize(wrap(f, dim), bounds, Bite_cpp(10000), num_retries=32)")
+    for i in range(20):
+        retry.minimize(wrapper(negated), bounds, optimizer=Bite_cpp(10000), num_retries=32)
+----
+
+We plotted the results of all 40 runs - each performing 32 parallel optimizations. Only the best result
+for all parallel runs is shown. 
+
+image::Rover_trajectory_optimization_32_threads_parallel_retry.png[]
+
+https://arxiv.org/pdf/1706.01445.pdf[Wang 2018] reports: "CEM achieved a maximum reward of 10.19 while EBO achieved 9.50". 
+As can be seen in the diagram above, none of the 40 experiments needed more than 7 seconds to improve the CEM result (10.19),
+all 40 runs converge to a result > 11 after 20 seconds. 
+
+=== Optimizing the control parameters for robot pushing
+
+The code for this example is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/robot.py[robot.py]
+(adapted from https://github.com/zi-w/Ensemble-Bayesian-Optimization/tree/master/test_functions[Bayesian test functions]).
+It implements a 14 dimensional control parameter tuning problem for robot pushing using fcmaes. 
+See https://arxiv.org/pdf/1706.01445.pdf[Wang 2018] for more details. 
+
+We switched of the GUI animation (`do_gui=False`) to speed up the function evaluation, but it may be switched on to 
+visualize the optimization result. 
+
+Before executing the example code on anaconda please do:
+
+- pip install more-itertools
+- pip install pygame
+- conda install swig
+- pip install box2d-py
+
+We execute 20 runs each using the fcmaes DE and Biteopt algorithm with limited evaluation budget.
+We use again parallel retry motivated by the same arguments as for the rover example:
+
+[source,python]
+---- 
+from fcmaes.optimizer import De_cpp, Bite_cpp, wrapper, logger
+from fcmaes import retry
+from scipy.optimize import Bounds
+
+...
+
+    f = PushReward()
+    bounds = Bounds(f.xmin, f.xmax) 
+  
+    logger().info("push retry.minimize(wrap(f, dim), bounds, De_cpp(10000), num_retries=32)")
+    for i in range(20):
+        retry.minimize(wrapper(f), bounds, optimizer=De_cpp(10000), num_retries=32)
+
+    logger().info("push retry.minimize(wrap(f, dim), bounds, Bite_cpp(10000), num_retries=32)")
+    for i in range(20):
+        retry.minimize(wrapper(f), bounds, optimizer=Bite_cpp(10000), num_retries=32)
+----
+
+We plotted the results of all 40 runs - each performing 32 parallel optimizations. Only the best result
+for all parallel runs is shown. 
+
+image::Push_robot_optimization_32_threads_parallel_retry.png[] 
+
+https://arxiv.org/pdf/1706.01445.pdf[Wang 2018] reports CEM and EBO results all below 4.0. 
+As can be seen in the diagram above, none of the 40 experiments needed more than 5 seconds to improve over 4.0,
+all 40 runs converge to a result > 4.7 after 8 seconds. 
+
+==== Conclusion
+
+Neither the robot pushing nor the rover trajectory optimization example do a good job motivating the application 
+of advanced Bayesian optimization methods like EBO (Ensemble Bayesian optimization) or CEM (noisy cross-entropy method)
+although https://arxiv.org/pdf/1706.01445.pdf[Wang 2018] shows that they are vastly superior to 
+other Bayesian methods like BO-SVI and BO-Add-SVI. fcmaes parallel retry either using Differential Evolution or BiteOpt
+delivers superior solutions in a few seconds. 
