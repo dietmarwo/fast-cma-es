@@ -5,6 +5,7 @@ A Python 3 gradient-free optimization library.
 - [Tutorial](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc)
 - [Crypto Trading](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc)
 - [Surrogate](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Surrogate.adoc)
+- [Robots and Rovers](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc)
 - [CFD](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc)
 - [Noisy TSP](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc)
 - [Hospital](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc)
