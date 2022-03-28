@@ -582,7 +582,7 @@ def main():
 
     bounds = Bounds(x_range[0], x_range[1]) 
         
-    def negated(x): # negation because we minimize we minimize
+    def negated(x): # negation because we minimize
         return -f(x)
     
     logger().info("rover retry.minimize(wrap(f, dim), bounds, De_cpp(10000), num_retries=32)")
