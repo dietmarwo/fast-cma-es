@@ -496,10 +496,6 @@ class madzda_problem(object):
         self.ncon = ncon
         lb, ub = np.array([0]*dim), np.array(max_decision_x)
         self.bounds = Bounds(lb, ub)
-        # RawValue because the fitness function is called from different processes
-        self.n_evals = mp.RawValue(ct.c_long, 0) 
-        self.time_0 = time.perf_counter()
-        self.best_y =  mp.RawValue(ct.c_double, 1E10)
 
     def eval(self, x, is_multi):
         y = fitness(x)
