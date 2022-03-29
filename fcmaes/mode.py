@@ -610,7 +610,8 @@ class wrapper(object):
     """thread safe wrapper for objective function monitoring evaluation count and optimization result."""
    
     def __init__(self, fun, nobj):
-        self.fun = fun   
+        self.fun = fun 
+        self.nobj = nobj 
         self.n_evals = mp.RawValue(ct.c_long, 0)
         self.time_0 = time.perf_counter()
         self.best_y = mp.RawArray(ct.c_double, nobj)  
@@ -620,16 +621,17 @@ class wrapper(object):
     def __call__(self, x):
         y = self.fun(x)
         improve = False
-        for i in range(len(y)):
+        for i in range(self.nobj):
             if y[i] < self.best_y[i]:
                 improve = True 
                 self.best_y[i] = y[i] 
         self.n_evals.value += 1
+        constr = np.maximum(y[self.nobj:], 0) 
         if improve:
             logger().info(str(dtime(self.time_0)) + ' ' + 
                 str(self.n_evals.value) + ' ' + 
                 str(round(self.n_evals.value/(1E-9 + dtime(self.time_0)),0)) + ' ' + 
-                str(self.best_y[:]) + ' ' + str(list(x)))     
+                str(self.best_y[:]) + ' ' + str(list(constr)) + ' ' + str(list(x)))     
         return y
 
 def minimize_plot(name, fun, nobj, ncon, bounds, popsize = 64, max_evaluations = 100000, nsga_update=False, 

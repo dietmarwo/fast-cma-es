@@ -80,6 +80,106 @@ https://arxiv.org/pdf/1706.01445.pdf[Wang 2018] reports CEM and EBO results all 
 As can be seen in the diagram above, none of the 40 experiments needed more than 5 seconds to improve over 4.0,
 all 40 runs converge to a result > 4.7 after 8 seconds. 
 
+When we carefully check the diagram above we see that BiteOpt created a single outlier which turned out
+to be hard to reproduce. fcmaes provides a special meta algorithm for that, the smart boundary management. 
+But even using this you need patience and luck. 
+
+[source,python]
+---- 
+    from fcmaes import advretry
+    advretry.minimize(wrapper(negated), bounds, num_retries=10000, max_eval_fac=5)
+---- 
+
+Using this we found a solution with reward = 4.922955944784702. 
+[source,python]
+---- 
+x = [0.08758383922294699, 0.28777608968376023, 0.37328808895554505, 0.0043381587210094795, 0.5383500175857339, 0.3510703935822824, 0.0030455390115092205, 0.8648400280085118, 0.07811932333841023, 0.5460177920661256, 0.4905636539961319, 0.7649544294506356, 0.2881006294931306, 0.7530736569481544, 0.5290621252472553, 0.9808427006512184, 0.5844194042218169, 0.8105477496464752, 0.6376884704466743, 0.7673028267533775, 0.7858470312335528, 0.4253686398575787, 0.1629990874037975, 0.808059766956296, 0.920883548506546, 0.9950223403480997, 0.8359973409613228, 0.8265379456184525, 0.9592582347752052, 0.9410315127889962, 0.3533737906965529, 0.9865294145252513, 0.8319077595955651, 0.6001369012272951, 0.4401274229007553, 0.9659369478713423, 0.3163442168705767, 0.7947645974747063, 0.8637257175268558, 0.9668728752424104, 0.766022487783223, 0.8740175737977381, 0.5684345360258591, 0.6238959237463229, 0.18820124840423424, 0.39049473247972066, 0.8387313390289421, 0.8932401812171913, 0.918259744546493, 0.786097201524139, 0.8460110243542978, 0.854774393702024, 0.7860576966000867, 0.8890763440050662, 0.9980659011537129, 0.4324613479054223, 0.8087367751757639, 0.9451787277717226, 0.7748986740730587, 0.9931182529188718]
+----
+Finding a solution with reward > 4.9 is one of the hardest single objective problems I ever encountered. 
+
+==== What about the competition ? 
+
+There are not many open source optimization libraries out there matching the functionality of fcmaes regarding 
+support for parallelization, multiple objectives and constraints. https://pymoo.org/[pymoo] fulfills these
+criteria, has excellent documentation and is quite easy to use. Here is the code to apply it to the rover 
+trajectory problem. Check
+https://pymoo.org/algorithms/index.html for a list of alternative algorithms.
+The PSO algorithm has a nice animation feature which generates a video so that you can watch the progress
+of the algorithm. Unfortunately PSO seems not well suited for the rover trajectory problem.  
+
+[source,python]
+----
+    from fcmaes.optimizer import wrapper
+    from pymoo.core.problem import ElementwiseProblem 
+    from pymoo.algorithms.soo.nonconvex.de import DE  
+    from pymoo.algorithms.soo.nonconvex.ga import GA
+    from pymoo.algorithms.soo.nonconvex.pso import PSO
+    from pymoo.factory import get_termination
+    from pymoo.core.problem import starmap_parallelized_eval
+    from multiprocessing.pool import ThreadPool
+    import multiprocessing
+
+    f_max = 5.0
+    f = ConstantOffsetFn(domain, f_max)
+    f = NormalizedInputFn(f, raw_x_range)
+    x_range = f.get_range()
+        
+    def negated(x): # negation because we minimize
+        return -f(x)
+
+    class MyProblem(ElementwiseProblem):
+    
+        def __init__(self, **kwargs):
+            super().__init__(n_var=len(x_range[0]),
+                             n_obj=1,
+                             n_constr=0,
+                             xl=np.array(x_range[0]),
+                             xu=np.array(x_range[1]), **kwargs)
+    
+        def _evaluate(self, x, out, *args, **kwargs):   
+            out["F"] = wrapped(x)
+
+    pool = ThreadPool(32)
+    #pool = multiprocessing.Pool(32)
+
+    problem = MyProblem(runner=pool.starmap, func_eval=starmap_parallelized_eval)
+    
+    algorithm = DE(
+        pop_size=100,
+        #sampling=LHS(),
+        variant="DE/rand/1/bin",
+        CR=0.3,
+        dither="vector",
+        jitter=False,
+    )
+
+    algorithm2 = GA(
+        pop_size=100,
+        eliminate_duplicates=True)
+
+    algorithm3 = PSO()
+
+    res = minimize(problem,
+                   algorithm,
+                   #callback=PSOAnimation(fname="pso.mp4", nth_gen=5)
+                   get_termination("n_gen", 1000000),
+                   seed=1,
+                   save_history=True,
+                   verbose=False)
+----
+
+You can easily find a `reward = 4.7` solution with this setting. 
+Although pymoo supports parallel function evaluations, this support is limited.
+Using `pool = multiprocessing.Pool(32)` resulted in an 
+"AttributeError: Can't pickle local object 'check_pymoo.<locals>.MyProblem" exception. 
+As a result, instead of about 20000 evaluations per second pymoo executes only about 2000
+on the AMD5850 16 core processor. 
+There is no support for parallelized optimization runs. You need a few
+retries to overcome the local minimum at `reward = 3.95`. Note that 
+pymoos Differential Evolution is quite different to the one from fcmaes. It needs
+parameter fine-tuning and the correct population size setting. 
+With the settings above, it needs about 30 seconds to find a `reward = 4.7` solution if it succeeds.
+
 === Optimizing the control parameters for robot pushing
 
 The code for this example is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/robot.py[robot.py]

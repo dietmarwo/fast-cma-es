@@ -467,15 +467,17 @@ def fitness(x):
         x = np.array(x)
         y = np.empty(nobj)
         c = np.empty(ncon)
-        # the integer x values are converted into the discrete values from the table
         x = np.array([decision_x[i][int(xi)] for i, xi in enumerate(x)])
         x_p = x.ctypes.data_as(ct.POINTER(ct.c_double))
         y_p = y.ctypes.data_as(ct.POINTER(ct.c_double))  
         c_p = c.ctypes.data_as(ct.POINTER(ct.c_double))  
-        fitness_MazdaMop(x_p, dim, y_p, c_p)   
-        return y[:2], c * -1
+        if two_cars:
+            fitness_MazdaMop_sca(x_p, dim, y_p, c_p)  
+        else:
+            fitness_MazdaMop(x_p, dim, y_p, c_p)   
+        return np.array(list(y[:2]) + list(c * -1))
     except Exception as ex:
-        return None    
+        return None 
 ----
 
 We are only interested in the first two objectives and need to negate the constraint values, 
@@ -490,7 +492,7 @@ class madzda_problem(object):
 
     def __init__(self):
         self.dim = dim
-        self.nobj = nobj
+        self.nobj = 2
         self.ncon = ncon
         lb, ub = np.array([0]*dim), np.array(max_decision_x)
         self.bounds = Bounds(lb, ub)
@@ -500,38 +502,30 @@ class madzda_problem(object):
         self.best_y =  mp.RawValue(ct.c_double, 1E10)
 
     def eval(self, x, is_multi):
-        y, constr = fitness(x)
-        constr = np.maximum(constr, 0) # we are only interested in constraint violations       
-        fval = np.array(list(y) + list(constr))              
-        ys = self.eval_single(x, fval, is_multi)
-        self.n_evals.value += 1                               
-        if ys < self.best_y.value: # monitor progress
-            self.best_y.value = ys
-            print(str(dtime(self.time_0)) + ' ' + 
-                str(self.n_evals.value) + ' ' + 
-                str(round(self.n_evals.value/(1E-10 + dtime(self.time_0)),0)) + ' ' + 
-                str(self.best_y.value) + ' ' +
-                str(list(y)) + ' ' + str(list(constr)))                  
+        y = fitness(x)
+        constr = np.maximum(y[self.nobj:], 0) # we are only interested in constraint violations       
+        fval = np.array(list(y[:self.nobj]) + list(constr))              
+        ys = self.eval_single(fval, is_multi)
         return y, ys, fval, constr
         
     def fun(self, x): # multi objective value
-        y, ys, fval, constr = self.eval(x, True)
+        _, _, fval, _ = self.eval(x, True)
         return fval
         
     def sfun(self, x): # single objective value, constraint via weighted sum
-        y, ys, fval, constr = self.eval(x, False)
+        _, ys, _, _ = self.eval(x, False)
         return ys
 
     def sfun_c(self, x): # single objective value, separate constraints
-        y, ys, fval, constr = self.eval(x, False)           
+        y, _, _, constr = self.eval(x, False)           
         return np.array([y[0]] + list(constr))
            
     def sfun_m(self, x): # MODE expects a list / array as result. 
         return [self.sfun(x)]
         
-    def eval_single(self, x, fval, is_multi):
+    def eval_single(self, fval, is_multi):
         # constraints get a higher weight than the objectives
-        weights = np.array([1, 1] + [3]*ncon) if is_multi else np.array([1, 0] + [3]*ncon)
+        weights = np.array([1, 1] + [3]*self.ncon) if is_multi else np.array([1, 0] + [3]*self.ncon)
         return sum(weights*fval)         
 ----
 
@@ -546,10 +540,10 @@ to generate the descendants, but has a special mechanism (killing old population
 to avoid getting stuck in a local minimum. 
 
 [source,python]
----- 
-       for i in range(20):
+----        
+        for i in range(20):
             problem = madzda_problem()
-            ret = de.minimize(problem.sfun, dim, problem.bounds,
+            ret = decpp.minimize(optimizer.wrapper(problem.sfun), dim, problem.bounds,
                                 max_evaluations = 1000000, 
                                 popsize=64, workers=32, ints=np.array([True]*dim))
 ----
@@ -565,7 +559,8 @@ the constraints, with a 3 times higher weight on constraint values compared to o
 [source,python]
 ---- 
         problem = madzda_problem()
-        x, y = modecpp.minimize(problem.sfun_m, 1, 0, problem.bounds, popsize = 64, 
+        x, y = modecpp.minimize(mode.wrapper(problem.sfun_m, 1), 
+                                 1, 0, problem.bounds, popsize = 64, 
                                  max_evaluations = 1000000, pareto_update=1, log_period = 100000,
                                  nsga_update=False, workers=32, ints=np.array([True]*dim))
 ----
@@ -578,7 +573,8 @@ This way we not only get better results, we avoid having to "guess" good weight 
 [source,python]
 ---- 
         problem = madzda_problem()
-        x, y = modecpp.minimize(problem.sfun_c, 1, problem.ncon, problem.bounds, popsize = 64, 
+        x, y = modecpp.minimize(mode.wrapper(problem.sfun_c, 1), 
+            1, problem.ncon, problem.bounds, popsize = 64, 
             max_evaluations = 1000000, pareto_update=1, log_period=100000,
             nsga_update=False, workers=32, ints = np.array([True]*dim))
 ----
@@ -591,10 +587,117 @@ we don't have to "guess" weights both for the objectives and the constraints.
 
 [source,python]
 ---- 
-       x, y = modecpp.minimize(problem.fun, problem.nobj, problem.ncon, problem.bounds, popsize=256, 
+       x, y = modecpp.minimize(mode.wrapper(problem.fun, problem.nobj),
+            problem.nobj, problem.ncon, problem.bounds, popsize=256, 
             max_evaluations = 1000000, pareto_update=0, log_period = 1000000, 
             nsga_update=False, workers=32,  ints = np.array([True]*dim))
 ----
+
+==== What about the competition ? 
+
+There are not many open source optimization libraries out there matching the functionality of fcmaes regarding 
+support for parallelization, multiple objectives and constraints. https://pymoo.org/[pymoo] fulfills these
+criteria, has excellent documentation and is quite easy to use. Here is the code to apply it to the mazda car
+design problem. Check
+https://pymoo.org/algorithms/index.html for a list of alternative algorithms. 
+
+[source,python]
+----
+    from pymoo.core.problem import ElementwiseProblem 
+    from pymoo.algorithms.moo.nsga2 import NSGA2
+    from pymoo.algorithms.moo.age import AGEMOEA
+    from pymoo.algorithms.moo.ctaea import CTAEA
+    from pymoo.factory import get_sampling, get_crossover, get_mutation    
+    from pymoo.factory import get_termination, get_reference_directions
+    from pymoo.core.problem import starmap_parallelized_eval
+    from multiprocessing.pool import ThreadPool
+    from pymoo.operators.sampling.lhs import LHS
+    import multiprocessing
+     
+    lb, ub = np.array([0]*dim), np.array(max_decision_x)
+    wrapped = mode.wrapper(fitness, 2)        
+            
+    class MyProblem(ElementwiseProblem):
+    
+        def __init__(self, **kwargs):
+            super().__init__(n_var=dim,
+                             n_obj=2,
+                             n_constr=ncon,
+                             xl=np.array(lb),
+                             xu=np.array(ub), **kwargs)
+    
+        def _evaluate(self, x, out, *args, **kwargs):   
+            y = wrapped(x)
+            out["F"] = y[:2]
+            out["G"] = y[2:]
+
+    pool = ThreadPool(32)
+    #pool = multiprocessing.Pool(32)
+    problem = MyProblem(runner=pool.starmap, func_eval=starmap_parallelized_eval)
+
+    ref_dirs = get_reference_directions("das-dennis", problem.n_obj, n_partitions=12)
+     
+    algorithm = NSGA2(
+        pop_size=512,
+        n_offsprings=10,
+        sampling=get_sampling("int_lhs"),
+        crossover=get_crossover("int_sbx", prob=0.9, eta=15),
+        mutation=get_mutation("int_pm", eta=20),
+        eliminate_duplicates=True
+    )    
+    
+    algorithm2 = AGEMOEA(
+        pop_size=512,
+        n_offsprings=10,
+        sampling=get_sampling("int_lhs"),
+        crossover=get_crossover("real_sbx", prob=0.9, eta=15),
+        mutation=get_mutation("real_pm", eta=20),
+        eliminate_duplicates=True        
+    )
+    
+    algorithm2 = CTAEA(ref_dirs=ref_dirs,
+        sampling=get_sampling("int_lhs"),
+        crossover=get_crossover("int_sbx, prob=0.9, eta=15"),
+        mutation=get_mutation("int_pm", eta=20),
+        eliminate_duplicates=True
+    )
+
+    from pymoo.optimize import minimize
+    import matplotlib.pyplot as plt
+        
+    res = minimize(problem,
+                   algorithm,
+                   get_termination("n_gen", 200000),
+                   verbose=False)
+
+    X = res.X
+    F = res.F
+    plt.figure(figsize=(7, 5))
+    plt.scatter(F[:, 0], F[:, 1], s=30, facecolors='none', edgecolors='blue')
+    plt.title("Objective Space")
+    plt.savefig('NSGSII-objective-space.png')
+----
+
+Using `pool = multiprocessing.Pool(32)` resulted in an 
+"AttributeError: Can't pickle local object 'check_pymoo.<locals>.MyProblem" exception. pymoos 
+scaling utilizing multiple threads is comparable with fcmaes MODE python variant, but cannot
+compete with modecpp which uses C++ based multi-threading. 
+About 850 evaluations per second are possible on the AMD5950x 16 core
+processor (compared to > 5000 for modecpp). It is better to run 3 optimization experiments in parallel
+each using 8 threads, this way 3x650 = 1950 evaluations per seconds are possible.  
+
+We tried NSGA2, AGEMOEA and CTAEA. 
+
+- AGEMOEA slows down dramatically after about 10 minutes, so only a very limited number of generations
+could be tested (50000 using population size 512). The result are disappointing:
+
+- CTAEA seems not to be able to find feasible solutions. Very soon it shows very good objective values
+(2.1, 74) but there are sever constraint violations.
+
+- NSGA2 finally works as expected (as long as you don't use `save_history=True` which quite soon
+exhausts your available memory. We used population size 512 (twice as much as needed for modecpp) 
+and don't see much progress after 100000 generations. This is not sufficient to "solve" the
+car design problem, we miss about 20 common part thicknesses.  
 
 ==== Conclusion
 
