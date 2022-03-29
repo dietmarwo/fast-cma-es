@@ -481,7 +481,7 @@ def fitness(x):
 ----
 
 We are only interested in the first two objectives and need to negate the constraint values, 
-therefore the `return y[:2], c * -1`. Now we can define the problem class:
+therefore the `return np.array(list(y[:2]) + list(c * -1))`. Now we can define the problem class:
 
 [source,python]
 ---- 
