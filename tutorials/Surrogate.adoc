@@ -589,7 +589,7 @@ we don't have to "guess" weights both for the objectives and the constraints.
             nsga_update=False, workers=32,  ints = np.array([True]*dim))
 ----
 
-==== What about the competition ? 
+=== What about the competition ? 
 
 There are not many open source optimization libraries out there matching the functionality of fcmaes regarding 
 support for parallelization, multiple objectives and constraints. https://pymoo.org/[pymoo] fulfills these
