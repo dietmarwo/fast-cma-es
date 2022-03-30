@@ -173,7 +173,7 @@ Although pymoo supports parallel function evaluations, this support is limited.
 Using `pool = multiprocessing.Pool(32)` resulted in an 
 "AttributeError: Can't pickle local object 'check_pymoo.<locals>.MyProblem" exception. 
 As a result, instead of about 20000 evaluations per second pymoo executes only about 2000
-on the AMD5850 16 core processor. 
+on the AMD5950 16 core processor. 
 There is no support for parallelized optimization runs. You need a few
 retries to overcome the local minimum at `reward = 3.95`. Note that 
 pymoos Differential Evolution is quite different to the one from fcmaes. It needs

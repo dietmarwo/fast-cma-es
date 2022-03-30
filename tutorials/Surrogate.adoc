@@ -60,7 +60,7 @@ surrogate model and therefore can execute a large number of function / constrain
 
 A result which needs about 6 hours using the method proposed by the paper needs about 8 seconds using fcmaes. 
 We use a cheap 600$ CPU (AMD5950x), so it is not the hardware responsible for the difference.  
-Parallel function evaluation enables about 4000 evaluations per second (including the 54 constraints and the
+Parallel function evaluation enables about 6000 evaluations per second (including the 54 constraints and the
 optimization algorithm overhead). In the paper only 4000 function evaluations are required, 
 but does this really help if these need over 6 hours instead of a single second? Additionally, 
 our optimization starts from a random population and don't require a feasible solution as input 
@@ -635,25 +635,25 @@ https://pymoo.org/algorithms/index.html for a list of alternative algorithms.
     ref_dirs = get_reference_directions("das-dennis", problem.n_obj, n_partitions=12)
      
     algorithm = NSGA2(
-        pop_size=512,
+        pop_size=768,
         n_offsprings=10,
-        sampling=get_sampling("int_lhs"),
+        sampling=get_sampling("int_random"),
         crossover=get_crossover("int_sbx", prob=0.9, eta=15),
         mutation=get_mutation("int_pm", eta=20),
         eliminate_duplicates=True
     )    
     
     algorithm2 = AGEMOEA(
-        pop_size=512,
+        pop_size=768,
         n_offsprings=10,
-        sampling=get_sampling("int_lhs"),
+        sampling=get_sampling("int_random"),
         crossover=get_crossover("real_sbx", prob=0.9, eta=15),
         mutation=get_mutation("real_pm", eta=20),
         eliminate_duplicates=True        
     )
     
     algorithm3 = CTAEA(ref_dirs=ref_dirs,
-        sampling=get_sampling("int_lhs"),
+        sampling=get_sampling("int_random"),
         crossover=get_crossover("int_sbx, prob=0.9, eta=15"),
         mutation=get_mutation("int_pm", eta=20),
         eliminate_duplicates=True
@@ -679,34 +679,33 @@ Using `pool = multiprocessing.Pool(32)` resulted in an
 "AttributeError: Can't pickle local object 'check_pymoo.<locals>.MyProblem" exception. pymoos 
 scaling utilizing multiple threads is comparable with fcmaes MODE python variant, but cannot
 compete with modecpp which uses C++ based multi-threading. 
-About 850 evaluations per second are possible on the AMD5950x 16 core
-processor (compared to > 5000 for modecpp). It is better to run 3 optimization experiments in parallel
-each using 8 threads, this way 3x650 = 1950 evaluations per seconds are possible.  
+About 600 evaluations per second are possible on the AMD5950x 16 core
+processor (compared to > 5000 for modecpp). It is better to run 4 optimization experiments in parallel
+each using 8 threads, this way 4x486 = 1944 evaluations per seconds can be achieved.  
 
 We tried AGEMOEA, CTAEA and NSGA2. 
 
-- AGEMOEA slows down dramatically after about 10 minutes, so only a very limited number of generations
-could be tested (50000 using population size 512). The results are disappointing, each run took about 2 hours:
+- AGEMOEA slows down dramatically after about 20000 generations, so only a very limited number of generations
+could be tested (50000 using population size 768). The results are disappointing, 
+each run took about 3 hours:
 
-image::AGO512.50k.png[]
+image::AGO768.50k.png[]
 
 - CTAEA seems not to be able to find feasible solutions. Very soon it shows very good objective values
-(2.1, 74) but there are severe constraint violations.
+(2.1, 74) but there are severe constraint violations, even with 500000 generations.
 
 - NSGA2 finally works as expected - as long as you don't use `save_history=True` which quite soon
-exhausts your available memory. We used population size 512 (twice as much as needed for modecpp) 
-and don't see much progress after 100000 generations. This is not sufficient to "solve" the
-car design problem, we miss about 15-30 common part thicknesses.  
-
-Here are 6 runs with 500000 generations using population size 512 each taking about 2 hours:
+exhausts your available memory. We used population size 768 - three times as much as needed for modecpp
+using DE update (NSGA update needs more). The result is not sufficient to "solve" the
+car design problem, we miss about 15-20 common part thicknesses.  
  
-image::NSGAII512.500k.png[]
+image::NSGAII768.500k.png[]
 
-Next are 9 runs with 400000 generations using population size 768 delivering slightly better results:
+These results a quite far away from what we saw above what fcmaes MODE (modecpp) can do using only 1600 seconds using DE update. 
+But using NSGAII update the results are quite consistent.
+Here are 4 modecpp runs with NSGA- update using population size 768 each taking about 40 minutes each:
 
-image::NSGAII768.400k.png[]
-
-These results a quite far away from what we saw above what fcmaes MODE (modecpp) can do using only 1600 seconds. 
+image::MODE_NSGA768.10M.png[]
 
 ==== Conclusion
 
