@@ -701,7 +701,7 @@ car design problem, we miss about 15-20 common part thicknesses.
  
 image::NSGAII768.500k.png[]
 
-These results a quite far away from what we saw above what fcmaes MODE (modecpp) can do using only 1600 seconds using DE update. 
+These results are quite far away from what we saw above what fcmaes MODE (modecpp) can do using only 1600 seconds using DE update. 
 But using NSGAII update the results are quite consistent.
 Here are 4 modecpp runs with NSGA- update using population size 768 each taking about 40 minutes each:
 
