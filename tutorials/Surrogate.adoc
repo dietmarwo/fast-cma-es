@@ -608,6 +608,7 @@ https://pymoo.org/algorithms/index.html for a list of alternative algorithms.
     from pymoo.core.problem import starmap_parallelized_eval
     from multiprocessing.pool import ThreadPool
     from pymoo.operators.sampling.lhs import LHS
+    from fcmaes import mode
     import multiprocessing
      
     lb, ub = np.array([0]*dim), np.array(max_decision_x)
@@ -651,7 +652,7 @@ https://pymoo.org/algorithms/index.html for a list of alternative algorithms.
         eliminate_duplicates=True        
     )
     
-    algorithm2 = CTAEA(ref_dirs=ref_dirs,
+    algorithm3 = CTAEA(ref_dirs=ref_dirs,
         sampling=get_sampling("int_lhs"),
         crossover=get_crossover("int_sbx, prob=0.9, eta=15"),
         mutation=get_mutation("int_pm", eta=20),
@@ -663,7 +664,7 @@ https://pymoo.org/algorithms/index.html for a list of alternative algorithms.
         
     res = minimize(problem,
                    algorithm,
-                   get_termination("n_gen", 200000),
+                   get_termination("n_gen", 500000),
                    verbose=False)
 
     X = res.X
@@ -682,18 +683,30 @@ About 850 evaluations per second are possible on the AMD5950x 16 core
 processor (compared to > 5000 for modecpp). It is better to run 3 optimization experiments in parallel
 each using 8 threads, this way 3x650 = 1950 evaluations per seconds are possible.  
 
-We tried NSGA2, AGEMOEA and CTAEA. 
+We tried AGEMOEA, CTAEA and NSGA2. 
 
 - AGEMOEA slows down dramatically after about 10 minutes, so only a very limited number of generations
-could be tested (50000 using population size 512). The result are disappointing:
+could be tested (50000 using population size 512). The results are disappointing, each run took about 2 hours:
+
+image::AGO512.50k.png[]
 
 - CTAEA seems not to be able to find feasible solutions. Very soon it shows very good objective values
-(2.1, 74) but there are sever constraint violations.
+(2.1, 74) but there are severe constraint violations.
 
-- NSGA2 finally works as expected (as long as you don't use `save_history=True` which quite soon
+- NSGA2 finally works as expected - as long as you don't use `save_history=True` which quite soon
 exhausts your available memory. We used population size 512 (twice as much as needed for modecpp) 
 and don't see much progress after 100000 generations. This is not sufficient to "solve" the
-car design problem, we miss about 20 common part thicknesses.  
+car design problem, we miss about 15-30 common part thicknesses.  
+
+Here are 6 runs with 500000 generations using population size 512 each taking about 2 hours:
+ 
+image::NSGAII512.500k.png[]
+
+Next are 9 runs with 400000 generations using population size 768 delivering slightly better results:
+
+image::NSGAII768.400k.png[]
+
+These results a quite far away from what we saw above what fcmaes MODE (modecpp) can do using only 1600 seconds. 
 
 ==== Conclusion
 
