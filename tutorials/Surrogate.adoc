@@ -697,7 +697,7 @@ image::AGO768.50k.png[]
 - NSGA2 finally works as expected - as long as you don't use `save_history=True` which quite soon
 exhausts your available memory. We used population size 768 - three times as much as needed for modecpp
 using DE update (NSGA update needs more). The result obtained after 500000 generations
-(about 2.5 hours per optimization run on the AMD5959x) is not sufficient to "solve" the car design problem, 
+(about 2.5 hours per optimization run on the AMD5950x CPU) is not sufficient to "solve" the car design problem, 
 we miss about 15-20 common part thicknesses. But compared with the results shown in  
 https://www.researchgate.net/publication/326239326_Proposal_of_benchmark_problem_based_on_real-world_car_structure_design_optimization[Mazda benchmark description]
 the result is an improvement. Because of paralellizaiton and since we call the objective function 
