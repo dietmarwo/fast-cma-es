@@ -696,8 +696,12 @@ image::AGO768.50k.png[]
 
 - NSGA2 finally works as expected - as long as you don't use `save_history=True` which quite soon
 exhausts your available memory. We used population size 768 - three times as much as needed for modecpp
-using DE update (NSGA update needs more). The result is not sufficient to "solve" the
-car design problem, we miss about 15-20 common part thicknesses.  
+using DE update (NSGA update needs more). The result The result obtained after 500000 generations
+(about 2.5 hours per optimization run on the AMD5959x) is not sufficient to "solve" the car design problem, 
+we miss about 15-20 common part thicknesses. But compared with the results shown in  
+https://www.researchgate.net/publication/326239326_Proposal_of_benchmark_problem_based_on_real-world_car_structure_design_optimization[Mazda benchmark description]
+the result is an improvement. Because of paralellizaiton and since we call the objective function 
+via `ctypes` and not via command line we can afford a bigger population size and use more generations. 
  
 image::NSGAII768.500k.png[]
 
@@ -722,11 +726,12 @@ which renders the application of a very expensive generic surrogate based method
 
 This should serve as a motivation to search for alternative implementations / parallelization / clustering
 before using generic surrogate based methods which often don't scale well for higher evaluation budgets
-and often are slow to execute. Trivial changes like
+and often are slow to execute. Trivial changes like:
 
-- calling a library instead using the command line
-- using https://numba.pydata.org/[Numba] for objective functions coded in Python
-- utilizing all threads of a modern many-core-CPU
+- Calling a library via `ctypes` instead of using the command line.
+- Using https://numba.pydata.org/[Numba] for objective functions coded in Python.
+- Utilizing all threads of a modern many-core-CPU properly: Make sure the used method scales well with the number of cores used.
+- Creating a domain specific "surrogate" approximating costly simulations to be used for global optimization.
 
 can cause a dramatic speedup. https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions].
 reports 21 minutes for 4440 function evaluations even without using the expensive generic surrogate. 
