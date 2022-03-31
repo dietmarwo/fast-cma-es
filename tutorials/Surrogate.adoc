@@ -700,7 +700,8 @@ using DE update (NSGA update needs more). The result obtained after 500000 gener
 (about 2.5 hours per optimization run on the AMD5950x CPU) is not sufficient to "solve" the car design problem, 
 we miss about 15-20 common part thicknesses. But compared with the results shown in  
 https://www.researchgate.net/publication/326239326_Proposal_of_benchmark_problem_based_on_real-world_car_structure_design_optimization[Mazda benchmark description]
-the result is an improvement. Because of paralellizaiton and since we call the objective function 
+there is a significant improvement. 
+Because of parallelization and since we call the objective function 
 via `ctypes` and not via command line we can afford a bigger population size and use more generations. 
  
 image::NSGAII768.500k.png[]
