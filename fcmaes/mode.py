@@ -6,9 +6,7 @@
 """ Numpy based implementation of multi objective
     Differential Evolution using either the DE/rand/1 strategy
     or a NSGA-II like population update (parameter 'nsga_update=True)'.
-    Then it works essentially like NSGA-II but instead of the tournament selection
-    the whole population is sorted and the best individuals survive. To do this
-    efficiently the crowd distance ordering is slightly inaccurate. 
+    Then it works similar to NSGA-II.
     
     Supports parallel fitness function evaluation. 
     
@@ -279,6 +277,8 @@ class MODE(object):
         Returns
         -------
         stop : int termination criteria, if != 0 loop should stop."""
+        if self._is_dominated(y, p):
+            return self.stop
         
         with self.mutex:  
             for dp in range(len(self.done)):
@@ -472,6 +472,10 @@ class MODE(object):
         # round to int values
         x[self.ints] = np.around(x_ints,0)
         return x   
+    
+    def _is_dominated(self, y, p):
+        return np.all(np.array([y[i] >= self.y[p, i] for i in range(len(y))]))
+
                     
 def _check_bounds(bounds, dim):
     if bounds is None and dim is None:
@@ -610,8 +614,8 @@ class wrapper(object):
     """thread safe wrapper for objective function monitoring evaluation count and optimization result."""
    
     def __init__(self, fun, nobj):
-        self.fun = fun 
-        self.nobj = nobj 
+        self.fun = fun
+        self.nobj = nobj
         self.n_evals = mp.RawValue(ct.c_long, 0)
         self.time_0 = time.perf_counter()
         self.best_y = mp.RawArray(ct.c_double, nobj)  

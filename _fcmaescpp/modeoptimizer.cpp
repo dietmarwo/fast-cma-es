@@ -213,6 +213,13 @@ public:
         return ds;
     }
 
+    bool is_dominated(const vec &y, int p) {
+        for (int j = 0; j < popY.rows(); j++)
+            if (y(j) < popY(j, p))
+                return false;
+        return true;
+    }
+
     bool is_dominated(const mat &y, int i, int index) {
         for (int j = 0; j < y.rows(); j++)
             if (y(j, i) < y(j, index))
@@ -451,6 +458,8 @@ public:
     }
 
     int tell(const vec &y, const vec &x, int p) {
+        if (is_dominated(y, p))
+            return stop;
         long unsigned int dp = 0;
         for (; dp < vdone.size(); dp++)
             if (!vdone[dp])
