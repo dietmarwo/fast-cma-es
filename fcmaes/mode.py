@@ -423,8 +423,8 @@ class MODE(object):
             self.F = 0.5*self.F0 if self.iterations % 2 == 0 else self.F0
         while True:
             if self.pareto_update > 0: # sample elite solutions
-                rb = int(self.popsize * (self.rg.random() ** (1.0 + self.pareto_update)))
                 r1, r2 = self.rg.integers(0, self.popsize, 2)
+                rb = int(self.popsize * (self.rg.random() ** (1.0 + self.pareto_update)))
             else:
                 # sample from whole population
                 r1, r2, rb = self.rg.integers(0, self.popsize, 3)

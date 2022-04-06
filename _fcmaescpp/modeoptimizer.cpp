@@ -137,29 +137,21 @@ public:
             CR = iterations % 2 == 0 ? 0.5 * CR0 : CR0;
             F = iterations % 2 == 0 ? 0.5 * F0 : F0;
         }
-        int r3;
-        if (pareto_update > 0) {
-            // sample elite solutions
-            do {
-                r3 = (int) (pow(rnd01(), 1.0 + pareto_update) * popsize);
-            } while (r3 == p);
-        } else {
-            // sample from whole population
-            do {
-                r3 = rndInt(popsize);
-            } while (r3 == p);
-        }
         vec xp = popX.col(p);
-        vec x3 = popX.col(r3);
-        int r1, r2;
+        int r1, r2, r3;
         do {
             r1 = rndInt(popsize);
-        } while (r1 == p || r1 == r3);
-        do {
             r2 = rndInt(popsize);
-        } while (r2 == p || r2 == r3 || r2 == r1);
+            if (pareto_update > 0)
+                // sample elite solutions
+                 r3 = (int) (pow(rnd01(), 1.0 + pareto_update) * popsize);
+            else
+                // sample from whole population
+                 r3 = rndInt(popsize);
+        } while (r3 == p || r3 == r1 || r3 == r2 || r2 == p || r2 == r1 || r1 == p);
         vec x1 = popX.col(r1);
         vec x2 = popX.col(r2);
+        vec x3 = popX.col(r3);
         vec x = x3 + (x1 - x2) * F;
         int r = rndInt(dim);
         for (int j = 0; j < dim; j++)
@@ -269,20 +261,21 @@ public:
         for (int i = 0; i < cons.rows(); i++)
             ci.col(i) = sort_index(cons.row(i).transpose());
         mat rank(cons.rows(), cons.cols());
-        vec alpha = zeros(cons.rows());
+        vec alpha = zeros(cons.cols());
         for (int j = 0; j < cons.rows(); j++) {
             for (int i = 0; i < cons.cols(); i++) {
-                if (cons(j, i) <= 0) {
-                    rank(j, ci(i, j)) = 0;
+                int ci_ = ci(i, j);
+                if (cons(j, ci_) <= 0) {
+                    rank(j, ci_) = 0;
                 } else {
-                    rank(j, ci(i, j)) = i;
-                    alpha[j]++;
+                    rank(j, ci_) = i;
+                    alpha[ci_]++;
                 }
             }
         }
         for (int j = 0; j < cons.rows(); j++) {
             for (int i = 0; i < cons.cols(); i++)
-                rank(j, ci(i, j)) *= alpha[j] / cons.rows();
+                rank(j, i) *= alpha[i] / cons.rows();
         }
         return rank.colwise().sum();
     }
