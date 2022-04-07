@@ -547,7 +547,16 @@ significantly from NSGA-II. There is no tournament selection and MoDe can handle
 Different from the flexible job shop problem this time the DE population update seems to be a good alternative.
 The NSGA-II population update improves faster, but finally the DE population update often delivers better
 results. One DE-update-run delivered a score of 7067 using 60 trajectories after about 1000 seconds, 
-score 7203 using 120 trajectories.    
+score 7203 using 120 trajectories. With DE population update you can declare the first 10 variables
+(the station assignment) as integer variables using the `ints` parameter:   
+
+[source,python]
+----
+    # multi objective optimization 'modecpp' multi threaded, DE population update
+    xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 67, 
+                max_evaluations = 3000000, nsga_update = False, logger = logger(), workers=16, 
+                ints=[True]*10+[False]*(dim-10))
+----
 
 You may customize the termination criteria by providing an `is_terminate` callback:
 

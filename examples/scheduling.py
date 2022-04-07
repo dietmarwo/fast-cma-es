@@ -183,7 +183,8 @@ def optimize():
 
     # multi objective optimization 'modecpp' multi threaded, DE population update
     # xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 67, 
-    #               max_evaluations = 3000000, nsga_update = False, logger = logger(), workers=16)
+    #               max_evaluations = 3000000, nsga_update = False, logger = logger(), workers=16, 
+    #               ints=[True]*10+[False]*(dim-10))
     
     # smart boundary management (SMB) with DE->CMA
     # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
@@ -220,8 +221,6 @@ def optimize():
     # scipy differential evolution single threaded
     # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
     # retry.retry(store, Differential_evolution(1000000).minimize, num_retries=320, workers=1)    
-        
-    return store.get_xs(), store.get_ys()
 
 # utility functions
 
