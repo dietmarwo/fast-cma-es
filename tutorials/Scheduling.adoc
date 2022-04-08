@@ -506,6 +506,9 @@ single objective results. GTOC11 is basically also a multi-objective problem: Th
 The competition score weights these using a non-linear formula. As a participant of the competition
 you don't really need a pareto-front, the solution of the multi-objective problem. But what if 
 a multi-objective algorithm provides a better single-objective result?
+And since the result of the optimization is a pareto front, we find a number of alternative good scoring
+solutions. These results are still approximations, so it is better to have alternatives for the final
+phase where we convert these into continuous thrust trajectories. 
 
 To check this idea we first need a multi-objective variant of the fitness function - we just
 add a method `fun` to our `fitness` class:
@@ -546,16 +549,30 @@ Note that this algorithm uses (if configured) the NSGA-II population update, but
 significantly from NSGA-II. There is no tournament selection and MoDe can handle constraints. 
 Different from the flexible job shop problem this time the DE population update seems to be a good alternative.
 The NSGA-II population update improves faster, but finally the DE population update often delivers better
-results. One DE-update-run delivered a score of 7067 using 60 trajectories after about 1000 seconds, 
-score 7203 using 120 trajectories. With DE population update you can declare the first 10 variables
-(the station assignment) as integer variables using the `ints` parameter:   
+results. With DE population update you can declare the first 10 variables
+(the trajectory selection) as integer variables using the `ints` parameter:   
 
 [source,python]
 ----
     # multi objective optimization 'modecpp' multi threaded, DE population update
-    xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 67, 
-                max_evaluations = 3000000, nsga_update = False, logger = logger(), workers=16, 
+    xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 128, 
+                max_evaluations = 10000000, nsga_update = False, logger = logger(), workers=16, 
                 ints=[True]*10+[False]*(dim-10))
+----
+
+Increasing both evaluation budged and population size, DE population update after one hour found
+a score of 7197 using 60 trajectories:
+
+[source,python]
+----
+evals = 56562254: time = 3604.9 s = 7197 a = 385 t = [7.28, 8.75, 10.33, 11.12, 12.42, 13.59, 14.74, 15.9, 16.68, 17.86, 19.08] s = [12, 1, 2, 3, 4, 5, 6, 9, 8, 11, 7, 10] b = [19, 50, 4, 43, 36, 45, 54, 29, 55, 49] m = [1.67, 1.68, 1.68, 1.68, 1.68, 1.68, 1.68, 1.69, 1.71, 1.73, 1.74, 1.84] dv = [21.84, 20.04, 19.74, 19.5, 18.26, 19.12, 16.53, 19.9, 16.09, 22.18]
+----
+
+A score of 7329 was reached using 120 trajectories to choose from:
+
+[source,python]
+----
+evals = 39043304: time = 3067.0 s = 7329 a = 385 t = [7.15, 8.84, 10.14, 11.46, 12.47, 13.74, 14.72, 15.66, 16.6, 17.91, 19.12] s = [9, 1, 11, 10, 5, 8, 2, 4, 3, 12, 6, 7] b = [104, 70, 55, 117, 12, 66, 89, 106, 54, 34] m = [1.65, 1.65, 1.66, 1.66, 1.66, 1.66, 1.66, 1.67, 1.67, 1.69, 1.69, 1.69] dv = [15.77, 18.33, 16.09, 18.54, 20.66, 18.51, 19.62, 16.61, 16.53, 21.77]
 ----
 
 You may customize the termination criteria by providing an `is_terminate` callback:
@@ -802,5 +819,115 @@ image::modeNSGA.png[]
 
 image::modeDE120.png[]
  
+=== What about the competition ? 
 
- 
+There are not many open source optimization libraries out there matching the functionality of fcmaes regarding 
+support for parallelization, multiple objectives, constraints and mixed integer. https://pymoo.org/[pymoo] fulfills these
+criteria, has excellent documentation and is quite easy to use. The only thing which is a bit tricky here
+is that numba doesn't support mixed integer arrays. We have to use `x.astype(float)` to convert the decision 
+variables into a float array. 
+
+[source,python]
+----
+def check_pymoo(dim, fit, lb, ub, is_MO):
+    ...     
+    lb[:10] = 0 
+    ub[:10] = TRAJECTORY_NUM-1 # trajectory indices    
+            
+    class MyProblem(ElementwiseProblem):
+    
+        def __init__(self, **kwargs):
+            super().__init__(n_var=dim,
+                             n_obj=2,
+                             n_constr=0,
+                             xl=np.array(lb),
+                             xu=np.array(ub), **kwargs)
+    
+        def _evaluate(self, x, out, *args, **kwargs):   
+            if is_MO:
+                out["F"] = fit.fun(x.astype(float)) # numba requires all floats
+            else:
+                out["F"] = fit(x.astype(float))  #  fit returns the score 
+
+    pool = ThreadPool(16)
+    problem = MyProblem(runner=pool.starmap, func_eval=starmap_parallelized_eval)
+  
+    mask = ["int"]*10+["real"]*(dim-10)
+
+    sampling = MixedVariableSampling(mask, {
+        "real": get_sampling("real_random"),
+        "int": get_sampling("int_random")
+    })
+    
+    crossover = MixedVariableCrossover(mask, {
+        "real": get_crossover("real_sbx", prob=0.9, eta=15),
+        "int": get_crossover("int_sbx", prob=0.9, eta=15)
+    })
+    
+    mutation = MixedVariableMutation(mask, {
+        "real": get_mutation("real_pm", eta=20),
+        "int": get_mutation("int_pm", eta=20)
+    })
+    
+    if is_MO:
+        algorithm = NSGA2(
+            pop_size=256,
+            n_offsprings=10,
+            sampling=sampling,
+            crossover=crossover,
+            mutation=mutation,
+            eliminate_duplicates=True
+        ) 
+    else:   
+        algorithm = DE(
+            pop_size=100,
+            variant="DE/rand/1/bin",
+            CR=0.3,
+            dither="vector",
+        )
+   
+    from pymoo.optimize import minimize
+        
+    res = minimize(problem,
+                   algorithm,
+                   get_termination("n_gen", 500000),
+                   verbose=False)
+----
+
+You find reasonable results quite fast, but I never found a score > 7000 using pymoo. 
+The number of evaluations per second is much lower than using fcmaes, partly because
+you only can parallelize function evaluations, not whole optimization runs. 
+As with fcmaes, the results using MOO (NSGA2) surpass what you find using single
+objective optimization (DE). Unfortunately, specifying MixedVariableSampling for DE
+leads to an error. As does `pool = multiprocessing.Pool(16)`.
+
+=== Conclusion
+
+There are four main conclusions which can be derived from the results:
+
+- Don't be afraid to add decision variables to your objective function. Almost all GTOC11 participants 
+chose the alternative path: Solving the problem incrementally step by step. Be aware that this way
+you restrict what the optimizer can do. Adding decision variables makes the job harder for the optimizer, 
+but it offers new opportunities. Don't underestimate what an optimizer can do. 
+
+- If you want to optimize a single objective - for a competition like GTOC11 it is the score - which is derived
+from different multiple objectives, also try a multi-objective optimizer. This way you may
+get more diverse results, and as shown here, you may even improve the single objective / score.
+This result could be confirmed using both fcmaes and pymoo. 
+
+- Python is a language suitable for expensive objective functions - but you have to use numba where it
+fits. Only numpy based matrix operations can be used without. As soon as loops are involved, numba
+is mandatory to be competitive with C++. 
+
+- Try to utilize all cores / threads your CPU provides. GTOC11 participants often used GPUs because
+of their huge number of cores. This can be done to create the database / table used as basis of the
+optimization. For the optimization itself we are currently restricted to CPU cores.  
+There we have two options: Parallel objective function evaluation and parallel optimization runs. 
+The second option usually scales better and proved to be advantageous for GTOC11.  
+
+The suitability of an optimization algorithm used for a competition like GTOC11 - a kind of real
+world application - cannot be checked using standard single threaded benchmarks ignoring
+parallelism. Standard benchmarks can be used to find errors, but never use
+them to tune your algorithms. Applying pymoo standard algorithms like DE or NSGA2 you find
+reasonable solutions very fast, but they fail to scale well with the time/evaluation budget or
+with the number of available CPU cores. 

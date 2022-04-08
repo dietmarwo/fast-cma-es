@@ -152,6 +152,81 @@ class fitness(object): # the objective function
                         ))
         return ys   
 
+
+def check_pymoo(dim, fit, lb, ub, is_MO):
+
+    from pymoo.core.problem import ElementwiseProblem 
+    from pymoo.algorithms.moo.nsga2 import NSGA2
+    from pymoo.algorithms.soo.nonconvex.de import DE
+    from pymoo.factory import get_sampling, get_crossover, get_mutation    
+    from pymoo.factory import get_termination
+    from pymoo.operators.mixed_variable_operator import MixedVariableSampling, MixedVariableMutation, MixedVariableCrossover
+    from pymoo.core.problem import starmap_parallelized_eval
+    from multiprocessing.pool import ThreadPool
+     
+    lb[:10] = 0 
+    ub[:10] = TRAJECTORY_NUM-1 # trajectory indices    
+            
+    class MyProblem(ElementwiseProblem):
+    
+        def __init__(self, **kwargs):
+            super().__init__(n_var=dim,
+                             n_obj=2,
+                             n_constr=0,
+                             xl=np.array(lb),
+                             xu=np.array(ub), **kwargs)
+    
+        def _evaluate(self, x, out, *args, **kwargs):   
+            if is_MO:
+                out["F"] = fit.fun(x.astype(float)) # numba requires all floats
+            else:
+                out["F"] = fit(x.astype(float))  #  fit returns the score 
+
+    pool = ThreadPool(16)
+    problem = MyProblem(runner=pool.starmap, func_eval=starmap_parallelized_eval)
+  
+    mask = ["int"]*10+["real"]*(dim-10)
+
+    sampling = MixedVariableSampling(mask, {
+        "real": get_sampling("real_random"),
+        "int": get_sampling("int_random")
+    })
+    
+    crossover = MixedVariableCrossover(mask, {
+        "real": get_crossover("real_sbx", prob=0.9, eta=15),
+        "int": get_crossover("int_sbx", prob=0.9, eta=15)
+    })
+    
+    mutation = MixedVariableMutation(mask, {
+        "real": get_mutation("real_pm", eta=20),
+        "int": get_mutation("int_pm", eta=20)
+    })
+    
+    if is_MO:
+        algorithm = NSGA2(
+            pop_size=256,
+            n_offsprings=10,
+            sampling=sampling,
+            crossover=crossover,
+            mutation=mutation,
+            eliminate_duplicates=True
+        ) 
+    else:   
+        algorithm = DE(
+            pop_size=100,
+            variant="DE/rand/1/bin",
+            CR=0.3,
+            dither="vector",
+        )
+   
+    from pymoo.optimize import minimize
+        
+    res = minimize(problem,
+                   algorithm,
+                   get_termination("n_gen", 500000),
+                   verbose=False)
+
+
 def optimize():    
     name = 'tsin3000.60' # 60 trajectories to choose from
     # name = 'tsin3000.10' # 10 fixed trajectories
@@ -176,6 +251,8 @@ def optimize():
     
     fit = fitness(transfers)
     fit.bounds = bounds
+    
+    #check_pymoo(dim, fit, lower_bound, upper_bound, False)
     
     # multi objective optimization 'modecpp' multi threaded, NSGA-II population update
     xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 96, 

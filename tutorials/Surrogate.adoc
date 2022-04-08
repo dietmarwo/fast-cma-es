@@ -712,7 +712,7 @@ Here are 4 modecpp runs with NSGA- update using population size 768 each taking 
 
 image::MODE_NSGA768.10M.png[]
 
-==== Conclusion
+=== Conclusion
 
 The comparison with the results of https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions].
 is not intended to be "fair", if you consider the number

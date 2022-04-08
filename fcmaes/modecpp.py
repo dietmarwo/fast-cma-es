@@ -189,6 +189,7 @@ def retry(mofun,
             max_evaluations = 100000, 
             workers = mp.cpu_count(),
             nsga_update = True,
+            pareto_update = 0,
             ints = None,
             logger = None,
             is_terminate = None):
@@ -236,7 +237,7 @@ def retry(mofun,
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
            args=(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
-                 max_evaluations, workers, nsga_update, is_terminate, store, logger, ints))
+                 max_evaluations, workers, nsga_update, pareto_update, is_terminate, store, logger, ints))
                 for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
@@ -246,14 +247,14 @@ def retry(mofun,
     return xs, ys
 
 def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
-                max_evaluations, workers, nsga_update, is_terminate, store, logger, ints):
+                max_evaluations, workers, nsga_update, pareto_update, is_terminate, store, logger, ints):
     t0 = time.perf_counter()
     num = max(1, num_retries - workers)
     while store.num_added.value < num: 
         if not is_terminate is None and hasattr(is_terminate, 'reinit'):
             is_terminate.reinit()
         minimize(mofun, nobj, ncon, bounds, popsize,
-                    max_evaluations = max_evaluations, nsga_update=nsga_update,
+                    max_evaluations = max_evaluations, nsga_update=nsga_update, pareto_update=pareto_update,
                     workers = 1, rg = rgs[pid], store = store, is_terminate=is_terminate, ints=ints) 
         if not logger is None:
             logger.info("retries = {0}: time = {1:.1f} i = {2}"
