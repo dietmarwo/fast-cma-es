@@ -575,7 +575,7 @@ A score of 7329 was reached using 120 trajectories to choose from:
 evals = 39043304: time = 3067.0 s = 7329 a = 385 t = [7.15, 8.84, 10.14, 11.46, 12.47, 13.74, 14.72, 15.66, 16.6, 17.91, 19.12] s = [9, 1, 11, 10, 5, 8, 2, 4, 3, 12, 6, 7] b = [104, 70, 55, 117, 12, 66, 89, 106, 54, 34] m = [1.65, 1.65, 1.66, 1.66, 1.66, 1.66, 1.66, 1.67, 1.67, 1.69, 1.69, 1.69] dv = [15.77, 18.33, 16.09, 18.54, 20.66, 18.51, 19.62, 16.61, 16.53, 21.77]
 ----
 
-You may customize the termination criteria by providing an `is_terminate` callback:
+You may customize the termination criteria by providing a `is_terminate` callback:
 
 [source,python]
 ----
