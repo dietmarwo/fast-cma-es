@@ -554,7 +554,9 @@ results. With DE population update you can declare the first 10 variables
 
 [source,python]
 ----
-    # multi objective optimization 'modecpp' multi threaded, DE population update
+    # mixed integer multi objective optimization 'modecpp' multi threaded, DE population update
+    fit.bounds.lb[:10] = 0 
+    fit.bounds.ub[:10] = TRAJECTORY_NUM-1 # integer variables include upper bound 
     xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 128, 
                 max_evaluations = 10000000, nsga_update = False, logger = logger(), workers=16, 
                 ints=[True]*10+[False]*(dim-10))

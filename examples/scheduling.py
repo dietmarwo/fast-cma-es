@@ -164,8 +164,9 @@ def check_pymoo(dim, fit, lb, ub, is_MO):
     from pymoo.core.problem import starmap_parallelized_eval
     from multiprocessing.pool import ThreadPool
      
-    lb[:10] = 0 
-    ub[:10] = TRAJECTORY_NUM-1 # pymoo includes the upper bound for int variables
+    if is_MO: 
+        lb[:10] = 0 
+        ub[:10] = TRAJECTORY_NUM-1 # integer variables include upper bound 
             
     class MyProblem(ElementwiseProblem):
     
@@ -226,6 +227,14 @@ def check_pymoo(dim, fit, lb, ub, is_MO):
                    get_termination("n_gen", 500000),
                    verbose=False)
 
+def check_de_update(dim, fit):
+    fit.bounds.lb[:10] = 0 
+    fit.bounds.ub[:10] = TRAJECTORY_NUM-1 # integer variables include upper bound 
+     # mixed integer multi objective optimization 'modecpp' multi threaded, DE population update
+    xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 128, 
+                  max_evaluations = 3000000, nsga_update = False, 
+                  logger = logger(), workers=16, 
+                  ints=[True]*10+[False]*(dim-10))
 
 def optimize():    
     name = 'tsin3000.60' # 60 trajectories to choose from
@@ -252,16 +261,12 @@ def optimize():
     fit = fitness(transfers)
     fit.bounds = bounds
     
-    #check_pymoo(dim, fit, lower_bound, upper_bound, False)
+    # check_pymoo(dim, fit, lower_bound, upper_bound, False)
+    # check_de_update(dim, fit)
     
     # multi objective optimization 'modecpp' multi threaded, NSGA-II population update
     xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 96, 
                   max_evaluations = 3000000, nsga_update = True, logger = logger(), workers=16)
-
-    # multi objective optimization 'modecpp' multi threaded, DE population update
-    # xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 67, 
-    #               max_evaluations = 3000000, nsga_update = False, logger = logger(), workers=16, 
-    #               ints=[True]*10+[False]*(dim-10))
     
     # smart boundary management (SMB) with DE->CMA
     # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
