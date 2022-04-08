@@ -623,20 +623,25 @@ class wrapper(object):
             self.best_y[i] = sys.float_info.max
     
     def __call__(self, x):
-        y = self.fun(x)
-        improve = False
-        for i in range(self.nobj):
-            if y[i] < self.best_y[i]:
-                improve = True 
-                self.best_y[i] = y[i] 
-        self.n_evals.value += 1
-        constr = np.maximum(y[self.nobj:], 0) 
-        if improve:
-            logger().info(str(dtime(self.time_0)) + ' ' + 
-                str(self.n_evals.value) + ' ' + 
-                str(round(self.n_evals.value/(1E-9 + dtime(self.time_0)),0)) + ' ' + 
-                str(self.best_y[:]) + ' ' + str(list(constr)) + ' ' + str(list(x)))     
-        return y
+        try:
+            y = self.fun(x)
+            improve = False
+            for i in range(self.nobj):
+                if y[i] < self.best_y[i]:
+                    improve = True 
+                    self.best_y[i] = y[i] 
+            self.n_evals.value += 1
+            constr = np.maximum(y[self.nobj:], 0) 
+            if improve:
+                logger().info(str(dtime(self.time_0)) + ' ' + 
+                    str(self.n_evals.value) + ' ' + 
+                    str(round(self.n_evals.value/(1E-9 + dtime(self.time_0)),0)) + ' ' + 
+                    str(self.best_y[:]) + ' ' + str(list(constr)) + ' ' + str(list(x)))     
+            return y
+        except Exception as ex:
+            print(str(ex))  
+            return np.array([sys.float_info.max]*self.nobj)  
+        
 
 def minimize_plot(name, fun, nobj, ncon, bounds, popsize = 64, max_evaluations = 100000, nsga_update=False, 
                   pareto_update=0, workers = mp.cpu_count(), logger=logger(), plot_name = None):

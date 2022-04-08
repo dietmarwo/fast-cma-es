@@ -75,19 +75,23 @@ class wrapper(object):
         self.logger = logger
 
     def __call__(self, x):
-        self.evals.value += 1
-        y = self.fit(x)
-        y0 = y if np.isscalar(y) else sum(y)
-        if y0 < self.best_y.value:
-            self.best_y.value = y0
-            if not self.logger is None:
-                self.logger.info(str(dtime(self.t0)) + ' '  + 
-                          str(self.evals.value) + ' ' + 
-                          str(round(self.evals.value/(1E-9 + dtime(self.t0)),0)) + ' ' + 
-                          str(self.best_y.value) + ' ' + 
-                          str(list(x)))
-        return y
-
+        try:
+            self.evals.value += 1
+            y = self.fit(x)
+            y0 = y if np.isscalar(y) else sum(y)
+            if y0 < self.best_y.value:
+                self.best_y.value = y0
+                if not self.logger is None:
+                    self.logger.info(str(dtime(self.t0)) + ' '  + 
+                              str(self.evals.value) + ' ' + 
+                              str(round(self.evals.value/(1E-9 + dtime(self.t0)),0)) + ' ' + 
+                              str(self.best_y.value) + ' ' + 
+                              str(list(x)))
+            return y
+        except Exception as ex:
+            print(str(ex))  
+            return sys.float_info.max  
+    
 class Optimizer(object):
     """Provides different optimization methods for use with parallel retry."""
     
