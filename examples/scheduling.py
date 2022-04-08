@@ -165,7 +165,7 @@ def check_pymoo(dim, fit, lb, ub, is_MO):
     from multiprocessing.pool import ThreadPool
      
     lb[:10] = 0 
-    ub[:10] = TRAJECTORY_NUM-1 # trajectory indices    
+    ub[:10] = TRAJECTORY_NUM-1 # pymoo includes the upper bound for int variables
             
     class MyProblem(ElementwiseProblem):
     
