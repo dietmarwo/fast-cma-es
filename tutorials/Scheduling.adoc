@@ -833,8 +833,9 @@ variables into a float array.
 ----
 def check_pymoo(dim, fit, lb, ub, is_MO):
     ...     
-    lb[:10] = 0 
-    ub[:10] = TRAJECTORY_NUM-1 # pymoo includes the upper bound for int variables
+    if is_MO: 
+        lb[:10] = 0 
+        ub[:10] = TRAJECTORY_NUM-1 # integer variables include upper bound 
             
     class MyProblem(ElementwiseProblem):
     
