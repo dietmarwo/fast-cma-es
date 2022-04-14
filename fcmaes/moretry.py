@@ -181,7 +181,7 @@ def minimize_plot(name, optimizer, fun, bounds, weight_bounds, ncon = 0,
     np.savez_compressed(name, xs=xs, ys=ys) 
     plot(name, ncon, xs, ys)
     
-def plot(name, ncon, xs, ys, eps = 1E-2):   
+def plot(name, ncon, xs, ys, eps = 1E-2, all=True):   
     try:  
         if ncon > 0: # select feasible
             ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])  
@@ -189,18 +189,17 @@ def plot(name, ncon, xs, ys, eps = 1E-2):
             nobj = len(ys[0]) - ncon
             feasible = np.array([i for i in range(len(ys)) if con[i] < eps])
             if len(feasible) > 0:
-                #yc = [y[nobj:] for y in ys[feasible]]
                 xs, ys = xs[feasible], np.array([ y[:nobj] for y in ys[feasible]])
             else:
                 print("no feasible")
                 return
-        retry.plot(ys, 'all_' + name + '.png', interp=False)
-        xs, front = pareto(xs, ys)
-        retry.plot(front, 'front_' + name + '.png', interp=True)
-        if ncon > 0:
-            for x, y, feas, in zip(xs, front, con[feasible]):
+        if all:
+            retry.plot(ys, 'all_' + name + '.png', interp=False)
+            xs, ys = pareto(xs, ys)
+            for x, y, _, in zip(xs, ys, con[feasible]):
                 print(str(list(y)) + ' ' +  #str(feas) + ' ' + 
                     str([int(xi) for xi in x]))
+        retry.plot(ys, 'front_' + name + '.png', interp=False)
     except Exception as ex:
         print(str(ex))
 

@@ -53,7 +53,7 @@ import numpy as np
 from numpy.random import MT19937, Generator
 from fcmaes.decpp import mo_call_back_type, callback_mo, libcmalib
 from fcmaes import de, mode, moretry
-from fcmaes.mode import filter
+from fcmaes.mode import _filter
 from numpy.random import Generator, MT19937, SeedSequence
 from fcmaes.optimizer import dtime
 
@@ -173,7 +173,7 @@ def minimize(mofun,
         for p in range(2*popsize):
             x[p] = res[p*dim : (p+1)*dim]
         y = np.array([mofun(xi) for xi in x])
-        x, y = filter(x, y)
+        x, y = _filter(x, y)
         if not store is None:
             store.add_results(x, y)
         return x, y

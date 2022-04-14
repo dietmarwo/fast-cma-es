@@ -166,28 +166,39 @@ class store():
         self.num_stored = mp.RawValue(ct.c_int, 0) 
         self.num_added = mp.RawValue(ct.c_int, 0) 
 
+    def add_result(self, x, y):
+        with self.add_mutex:
+            self.num_added.value += 1
+            i = self.num_stored.value
+            if i < self.capacity:                
+                self.set_x(i, x) 
+                self.set_y(i, y)
+                i += 1
+            self.num_stored.value = i
+
     def add_results(self, xs, ys):
         with self.add_mutex:
             self.num_added.value += 1
             i = self.num_stored.value
             for j in range(len(xs)):
-                if i < self.capacity:                      
+                if i < self.capacity:                
                     self.set_x(i, xs[j]) 
                     self.set_y(i, ys[j])
                     i += 1
-                else: # store is full, replace with pareto front
-                    xf, yf = self.get_front()
-                    i = 0
-                    for k in range(len(xf)):                   
-                        self.set_x(i, xf[k]) 
-                        self.set_y(i, yf[k])
-                        i += 1
-                    if i == self.capacity:
-                        break
             self.num_stored.value = i
                       
-    def get_front(self):
-        return moretry.pareto(self.get_xs(), self.get_ys())
+    def get_front(self, update=False):
+        stored = self.num_stored.value
+        xs = np.array([self.get_x(i) for i in range(stored)])
+        ys = np.array([self.get_y(i) for i in range(stored)])
+        xf, yf = moretry.pareto(xs, ys)
+        if update:
+            with self.add_mutex:
+                for i in range(len(yf)):                   
+                    self.set_x(i, xf[i]) 
+                    self.set_y(i, yf[i])
+                self.num_stored.value = len(yf)
+        return xf, yf
        
     def get_xs(self):
         return np.array([self.get_x(i) for i in range(self.num_stored.value)])
@@ -341,7 +352,7 @@ class MODE(object):
                 self.x[self.popsize + p] = x
                 self.evals += 1
             self.pop_update()
-        x, y = filter(self.x, self.y)
+        x, y = _filter(self.x, self.y)
         return x, y, self.evals, self.iterations, self.stop
 
     def do_optimize_delayed_update(self, fun, max_evals, workers=mp.cpu_count()):
@@ -373,7 +384,7 @@ class MODE(object):
             self.evals += 1
             
         evaluator.stop()
-        x, y = filter(self.x, self.y)
+        x, y = _filter(self.x, self.y)
         return x, y, self.evals, self.iterations, self.stop
 
     def pop_update(self):
@@ -485,7 +496,7 @@ def _check_bounds(bounds, dim):
     else:
         return len(bounds.ub), np.asarray(bounds.lb), np.asarray(bounds.ub)
  
-def filter(x, y):
+def _filter(x, y):
     ym = np.amax(y,axis=1)
     sorted = np.argsort(ym)
     x = x[sorted]
@@ -610,10 +621,31 @@ def variation(pop, lower, upper, rg, pro_c = 1, dis_c = 20, pro_m = 1, dis_m = 2
     offspring = np.maximum(np.minimum(offspring, upper), lower)
     return offspring
 
+
+def feasible(xs, ys, ncon, eps = 0.002):
+    if ncon > 0: # select feasible
+        ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])  
+        con = np.sum(ycon, axis=1)
+        nobj = len(ys[0]) - ncon
+        feasible = np.array([i for i in range(len(ys)) if con[i] < eps])
+        if len(feasible) > 0:
+            xs, ys = xs[feasible], np.array([ y[:nobj] for y in ys[feasible]])
+        else:
+            print("no feasible")
+    return xs, ys
+
+def is_feasible(y, nobj, eps = 0.002):
+    ncon = len(y) - nobj
+    if ncon == 0:
+        return True
+    else:
+        c = np.sum(np.maximum(y[-ncon:], 0))
+        return c < eps
+
 class wrapper(object):
     """thread safe wrapper for objective function monitoring evaluation count and optimization result."""
    
-    def __init__(self, fun, nobj):
+    def __init__(self, fun, nobj, store = None, interval = 100000, plot = False, name = None):
         self.fun = fun
         self.nobj = nobj
         self.n_evals = mp.RawValue(ct.c_long, 0)
@@ -621,10 +653,17 @@ class wrapper(object):
         self.best_y = mp.RawArray(ct.c_double, nobj)  
         for i in range(nobj):
             self.best_y[i] = sys.float_info.max
+        self.store = store
+        self.interval = interval
+        self.plot = plot
+        self.name = fun.name if name is None else name
     
     def __call__(self, x):
         try:
             y = self.fun(x)
+            if not self.store is None and is_feasible(y, self.nobj):
+            #if not self.store is None:
+                self.store.add_result(x, y[:self.nobj])
             improve = False
             for i in range(self.nobj):
                 if y[i] < self.best_y[i]:
@@ -632,15 +671,28 @@ class wrapper(object):
                     self.best_y[i] = y[i] 
             self.n_evals.value += 1
             constr = np.maximum(y[self.nobj:], 0) 
-            if improve:
-                logger().info(str(dtime(self.time_0)) + ' ' + 
+            if improve or self.n_evals.value % self.interval == 0:
+                logger().info(
+                    str(dtime(self.time_0)) + ' ' + 
                     str(self.n_evals.value) + ' ' + 
                     str(round(self.n_evals.value/(1E-9 + dtime(self.time_0)),0)) + ' ' + 
-                    str(self.best_y[:]) + ' ' + str(list(constr)) + ' ' + str(list(x)))     
+                    str(self.best_y[:]) + ' ' + str(list(constr)) + ' ' + str(list(x))) 
+                if not self.store is None and self.store.num_stored.value > 10:
+                    try:
+                        xs, ys = self.store.get_front(True)
+                        num = self.store.num_stored.value
+                        logger().info(str(num) + ' ' + 
+                                      ', '.join(['(' + ', '.join([str(round(yi,3)) for yi in y]) + ')' for y in ys]))
+                        name = self.name + '_' + str(num)
+                        np.savez_compressed(name, xs=xs, ys=ys)
+                        if self.plot:
+                            moretry.plot(name, 0, xs, ys, all=False)
+                    except Exception as ex:
+                        print(str(ex))                                                
             return y
         except Exception as ex:
             print(str(ex))  
-            return np.array([sys.float_info.max]*self.nobj)  
+            return None  
         
 
 def minimize_plot(name, fun, nobj, ncon, bounds, popsize = 64, max_evaluations = 100000, nsga_update=False, 
