@@ -73,6 +73,7 @@ def minimize(mofun,
              pro_m = 1.0,
              dis_m = 20.0,
              nsga_update = False,
+             switch_nsga = False,
              pareto_update = 0,
              ints = None,
              log_period = 10000000,
@@ -168,7 +169,8 @@ def minimize(mofun,
                            array_type(*lower), array_type(*upper), bool_array_type(*ints), 
                            max_evaluations, popsize, workers, f, cr, 
                            pro_c, dis_c, pro_m, dis_m,
-                           nsga_update, pareto_update, log_period, res_p)
+                           nsga_update, switch_nsga, pareto_update,
+                           log_period, res_p)
         x = np.empty((2*popsize,dim))
         for p in range(2*popsize):
             x[p] = res[p*dim : (p+1)*dim]
@@ -188,7 +190,8 @@ def retry(mofun,
             popsize = 64, 
             max_evaluations = 100000, 
             workers = mp.cpu_count(),
-            nsga_update = True,
+            nsga_update = False,
+            switch_nsga = False,
             pareto_update = 0,
             ints = None,
             logger = None,
@@ -237,7 +240,8 @@ def retry(mofun,
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
            args=(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
-                 max_evaluations, workers, nsga_update, pareto_update, is_terminate, store, logger, ints))
+                 max_evaluations, workers, nsga_update, switch_nsga, pareto_update, 
+                 is_terminate, store, logger, ints))
                 for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
@@ -247,14 +251,16 @@ def retry(mofun,
     return xs, ys
 
 def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
-                max_evaluations, workers, nsga_update, pareto_update, is_terminate, store, logger, ints):
+                max_evaluations, workers, nsga_update, switch_nsga, pareto_update, 
+                is_terminate, store, logger, ints):
     t0 = time.perf_counter()
     num = max(1, num_retries - workers)
     while store.num_added.value < num: 
         if not is_terminate is None and hasattr(is_terminate, 'reinit'):
             is_terminate.reinit()
         minimize(mofun, nobj, ncon, bounds, popsize,
-                    max_evaluations = max_evaluations, nsga_update=nsga_update, pareto_update=pareto_update,
+                    max_evaluations = max_evaluations, 
+                    nsga_update=nsga_update, switch_nsga=switch_nsga, pareto_update=pareto_update,
                     workers = 1, rg = rgs[pid], store = store, is_terminate=is_terminate, ints=ints) 
         if not logger is None:
             logger.info("retries = {0}: time = {1:.1f} i = {2}"
@@ -301,5 +307,6 @@ optimizeMODE_C.argtypes = [ct.c_long, mo_call_back_type, mo_call_back_type, ct.c
             ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
             ct.c_int, ct.c_int, ct.c_int,\
             ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
-            ct.c_bool, ct.c_double, ct.c_int, ct.POINTER(ct.c_double)]
+            ct.c_bool, ct.c_bool, ct.c_double, 
+            ct.c_int, ct.POINTER(ct.c_double)]
 

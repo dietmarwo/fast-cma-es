@@ -64,8 +64,6 @@ def minimize(mofun,
              ints = None,
              modifier = None,
              rg = Generator(MT19937()),
-             logger = None,
-             plot_name = None,
              store = None):  
       
     """Minimization of a multi objjective function of one or more variables using
@@ -113,12 +111,6 @@ def minimize(mofun,
         ignored. Modifies all generated x vectors.
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
-    logger : logger, optional
-        logger for log output for tell_one, If None, logging
-        is switched off. Default is a logger which logs both to stdout and
-        appends to a file ``optimizer.log``.
-    plot_name : plot_name, optional
-        if defined the pareto front is plotted during the optimization to monitor progress
     store : result store, optional
         if defined the optimization results are added to the result store. For multi threaded execution.
         use workers=1 if you call minimize from multiple threads
@@ -128,7 +120,7 @@ def minimize(mofun,
     x, y: list of argument vectors and corresponding value vectors of the optimization results. """
 
     mode = MODE(nobj, ncon, bounds, popsize, workers if not workers is None else 0, 
-            f, cr, nsga_update, pareto_update, rg, ints, modifier, logger, plot_name)
+            f, cr, nsga_update, pareto_update, rg, ints, modifier)
     try:
         if workers and workers > 1:
             x, y, evals, iterations, stop = mode.do_optimize_delayed_update(mofun, max_evaluations, workers)
@@ -223,7 +215,7 @@ class MODE(object):
     
     def __init__(self, nobj, ncon, bounds, popsize = 64, workers = 0,
                  F = 0.5, Cr = 0.9, nsga_update = False, pareto_update = False, 
-                 rg = Generator(MT19937()), ints = None, modifier = None, logger = None, plot_name = None):
+                 rg = Generator(MT19937()), ints = None, modifier = None):
         self.nobj = nobj
         self.ncon = ncon
         self.dim, self.lower, self.upper = _check_bounds(bounds, None)
@@ -255,14 +247,7 @@ class MODE(object):
         else:
             self.modifier = modifier
         self._init()
-        if not logger is None:
-            self.logger = logger
-            self.n_evals = mp.RawValue(ct.c_long, 0)
-            self.time_0 = time.perf_counter()
-            if not plot_name is None:
-                self.plot_name = plot_name + '_mode_' + str(popsize) + '_' + \
-                    ('nsga_update' if nsga_update else ('de_update_' + str(pareto_update)))
-        
+                
     def ask(self):
         """ask for one new argument vector.
         
@@ -310,20 +295,6 @@ class MODE(object):
                         break
                     p += 1
                 self.pop_update()
-        
-        if hasattr(self, 'logger'):
-            self.n_evals.value += 1
-            if self.n_evals.value % 100000 == 99999:           
-                t = time.perf_counter() - self.time_0
-                c = self.n_evals.value
-                message = '"c/t={0:.2f} c={1:d} t={2:.2f} y={3!s} x={4!s}'.format(
-                    c/t, c, t, str(list(y)), str(list(x)))
-                self.logger.info(message)   
-                if hasattr(self, "plot_name") and not self.plot_name is None:           
-                    name = self.plot_name + ' '  + str(self.n_evals.value)
-                    np.savez_compressed(name, xs=self.x, ys=self.y) 
-                    moretry.plot(name, self.ncon, self.x, self.y)
-
         return self.stop 
 
     def _init(self):
@@ -622,7 +593,7 @@ def variation(pop, lower, upper, rg, pro_c = 1, dis_c = 20, pro_m = 1, dis_m = 2
     return offspring
 
 
-def feasible(xs, ys, ncon, eps = 0.002):
+def feasible(xs, ys, ncon, eps = 1E-2):
     if ncon > 0: # select feasible
         ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])  
         con = np.sum(ycon, axis=1)
@@ -634,7 +605,7 @@ def feasible(xs, ys, ncon, eps = 0.002):
             print("no feasible")
     return xs, ys
 
-def is_feasible(y, nobj, eps = 0.002):
+def is_feasible(y, nobj, eps = 1E-2):
     ncon = len(y) - nobj
     if ncon == 0:
         return True
@@ -645,7 +616,8 @@ def is_feasible(y, nobj, eps = 0.002):
 class wrapper(object):
     """thread safe wrapper for objective function monitoring evaluation count and optimization result."""
    
-    def __init__(self, fun, nobj, store = None, interval = 100000, plot = False, name = None):
+    def __init__(self, fun, nobj, store = None, interval = 100000, plot = False, 
+                 name = None, logger=logger()):
         self.fun = fun
         self.nobj = nobj
         self.n_evals = mp.RawValue(ct.c_long, 0)
@@ -656,7 +628,10 @@ class wrapper(object):
         self.store = store
         self.interval = interval
         self.plot = plot
-        self.name = fun.name if name is None else name
+        self.name = (fun.name if hasattr(fun, 'name') else 
+                     (fun.__name__ if hasattr(fun, '__name__') else fun.__class__.__name__)) \
+                        if name is None else name
+        self.logger = logger
     
     def __call__(self, x):
         try:
@@ -672,7 +647,7 @@ class wrapper(object):
             self.n_evals.value += 1
             constr = np.maximum(y[self.nobj:], 0) 
             if improve or self.n_evals.value % self.interval == 0:
-                logger().info(
+                self.logger.info(
                     str(dtime(self.time_0)) + ' ' + 
                     str(self.n_evals.value) + ' ' + 
                     str(round(self.n_evals.value/(1E-9 + dtime(self.time_0)),0)) + ' ' + 
@@ -681,7 +656,7 @@ class wrapper(object):
                     try:
                         xs, ys = self.store.get_front(True)
                         num = self.store.num_stored.value
-                        logger().info(str(num) + ' ' + 
+                        self.logger.info(str(num) + ' ' + 
                                       ', '.join(['(' + ', '.join([str(round(yi,3)) for yi in y]) + ')' for y in ys]))
                         name = self.name + '_' + str(num)
                         np.savez_compressed(name, xs=xs, ys=ys)
@@ -696,12 +671,11 @@ class wrapper(object):
         
 
 def minimize_plot(name, fun, nobj, ncon, bounds, popsize = 64, max_evaluations = 100000, nsga_update=False, 
-                  pareto_update=0, workers = mp.cpu_count(), logger=logger(), plot_name = None):
+                  pareto_update=0, workers = mp.cpu_count()):
     name += '_mode_' + str(popsize) + '_' + \
                 ('nsga_update' if nsga_update else ('de_update_' + str(pareto_update)))
     logger.info('optimize ' + name) 
     xs, ys = minimize(fun, nobj, ncon, bounds, popsize = popsize, max_evaluations = max_evaluations,
-                   nsga_update = nsga_update, pareto_update = pareto_update, workers=workers, 
-                   logger=logger, plot_name = plot_name)
+                   nsga_update = nsga_update, pareto_update = pareto_update, workers=workers)
     np.savez_compressed(name, xs=xs, ys=ys)
     moretry.plot(name, ncon, xs, ys)

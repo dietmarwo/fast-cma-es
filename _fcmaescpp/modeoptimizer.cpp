@@ -55,7 +55,7 @@ public:
     MoDeOptimizer(long runid_, Fitness *fitfun_, callback_type log_, int dim_,
             int nobj_, int ncon_, int seed_, int popsize_, int maxEvaluations_,
             double F_, double CR_, double pro_c_, double dis_c_, double pro_m_,
-            double dis_m_, bool nsga_update_, double pareto_update_,
+            double dis_m_, bool nsga_update_, bool switch_nsga_, double pareto_update_,
             int log_period_, bool *isInt_) {
         // runid used to identify a specific run
         runid = runid_;
@@ -104,6 +104,7 @@ public:
         // Indicating which parameters are discrete integer values. If defined these parameters will be
         // rounded to the next integer and some additional mutation of discrete parameters are performed.
         isInt = isInt_;
+        switch_nsga = switch_nsga_;
         init();
     }
 
@@ -119,12 +120,72 @@ public:
         return (int) (max * distr_01(*rs));
     }
 
+    mat variation(const mat &x) {
+        int n2 = x.cols() / 2;
+        int n = 2 * n2;
+        mat parent1 = x(Eigen::all, Eigen::seq(0, n2 - 1));
+        mat parent2 = x(Eigen::all, Eigen::seq(n2, n - 1));
+        mat beta = mat(dim, n2);
+        vec to1;
+        if (pro_c < 1.0) {
+            to1 = uniformVec(dim, *rs);
+        }
+        for (int p = 0; p < n2; p++) {
+            for (int i = 0; i < dim; i++) {
+                if (rnd01() > 0.5 || (pro_c < 1.0 && to1(i) < pro_c))
+                    beta(i, p) = 1.0;
+                else {
+                    double r = rnd01();
+                    if (r <= 0.5)
+                        beta(i, p) = pow(2 * r, 1.0 / (dis_c + 1.0));
+                    else
+                        beta(i, p) = pow(2 * r, -1.0 / (dis_c + 1.0));
+                    if (rnd01() > 0.5)
+                        beta(i, p) = -beta(i, p);
+                }
+            }
+        }
+        mat offspring1 = ((parent1 + parent2) * 0.5);
+        mat offspring2 = mat(offspring1);
+        mat delta = (beta.array() * (parent1 - parent2).array()).matrix() * 0.5;
+        offspring1 += delta;
+        offspring2 -= delta;
+        mat offspring = mat(dim, n);
+        offspring << offspring1, offspring2;
+
+        double limit = pro_m / dim;
+        vec scale = fitfun->scale();
+        for (int p = 0; p < n; p++) {
+            for (int i = 0; i < dim; i++) {
+                if (rnd01() < limit) { // site
+                    double mu = rnd01();
+                    double norm = fitfun->norm_i(i, offspring(i, p));
+                    if (mu <= 0.5) // temp
+                        offspring(i, p) += scale(i) *
+                        (pow(2. * mu + (1. - 2. * mu) * pow(1. - norm, dis_m + 1.),
+                                1. / (dis_m + 1.)) - 1.);
+                    else
+                        offspring(i, p) += scale(i) *
+                        (1. - pow(2. * (1. - mu) + 2. * (mu - 0.5) * pow(1. - norm, dis_m + 1.),
+                                1. / (dis_m + 1.)));
+                }
+            }
+        }
+        fitfun->setClosestFeasible(offspring);
+        return offspring;
+    }
+
     vec nextX(int p) {
         if (p == 0) {
             iterations++;
             if (iterations % log_period == 0) {
                 if (log(popX.cols(), popX.data(), popY.data()))
                     fitfun->setTerminate();
+            }
+            if (switch_nsga) {
+                nsga_update = !nsga_update;
+                if (nsga_update)
+                    vX = variation(popX(Eigen::all, Eigen::seqN(0, popsize)));
             }
         }
         if (nsga_update) {
@@ -206,7 +267,7 @@ public:
     }
 
     bool is_dominated(const vec &y, int p) {
-        for (int j = 0; j < popY.rows(); j++)
+        for (int j = 0; j < y.rows(); j++)
             if (y(j) < popY(j, p))
                 return false;
         return true;
@@ -326,61 +387,6 @@ public:
             }
         } // higher dominates lower
         return domination;
-    }
-
-    mat variation(const mat &x) {
-        int n2 = x.cols() / 2;
-        int n = 2 * n2;
-        mat parent1 = x(Eigen::all, Eigen::seq(0, n2 - 1));
-        mat parent2 = x(Eigen::all, Eigen::seq(n2, n - 1));
-        mat beta = mat(dim, n2);
-        vec to1;
-        if (pro_c < 1.0) {
-            to1 = uniformVec(dim, *rs);
-        }
-        for (int p = 0; p < n2; p++) {
-            for (int i = 0; i < dim; i++) {
-                if (rnd01() > 0.5 || (pro_c < 1.0 && to1(i) < pro_c))
-                    beta(i, p) = 1.0;
-                else {
-                    double r = rnd01();
-                    if (r <= 0.5)
-                        beta(i, p) = pow(2 * r, 1.0 / (dis_c + 1.0));
-                    else
-                        beta(i, p) = pow(2 * r, -1.0 / (dis_c + 1.0));
-                    if (rnd01() > 0.5)
-                        beta(i, p) = -beta(i, p);
-                }
-            }
-        }
-        mat offspring1 = ((parent1 + parent2) * 0.5);
-        mat offspring2 = mat(offspring1);
-        mat delta = (beta.array() * (parent1 - parent2).array()).matrix() * 0.5;
-        offspring1 += delta;
-        offspring2 -= delta;
-        mat offspring = mat(dim, n);
-        offspring << offspring1, offspring2;
-
-        double limit = pro_m / dim;
-        vec scale = fitfun->scale();
-        for (int p = 0; p < n; p++) {
-            for (int i = 0; i < dim; i++) {
-                if (rnd01() < limit) { // site
-                    double mu = rnd01();
-                    double norm = fitfun->norm_i(i, offspring(i, p));
-                    if (mu <= 0.5) // temp
-                        offspring(i, p) += scale(i) *
-                        (pow(2. * mu + (1. - 2. * mu) * pow(1. - norm, dis_m + 1.),
-                                1. / (dis_m + 1.)) - 1.);
-                    else
-                        offspring(i, p) += scale(i) *
-                        (1. - pow(2. * (1. - mu) + 2. * (mu - 0.5) * pow(1. - norm, dis_m + 1.),
-                                1. / (dis_m + 1.)));
-                }
-            }
-        }
-        fitfun->setClosestFeasible(offspring);
-        return offspring;
     }
 
     ivec random_int_vector(int size) {
@@ -608,6 +614,7 @@ private:
     double pareto_update;
     int log_period;
     bool *isInt;
+    bool switch_nsga;
 };
 }
 
@@ -618,7 +625,8 @@ void optimizeMODE_C(long runid, callback_type func, callback_type log, int dim,
         int nobj, int ncon, int seed, double *lower, double *upper, bool *ints,
         int maxEvals, int popsize, int workers, double F, double CR,
         double pro_c, double dis_c, double pro_m, double dis_m,
-        bool nsga_update, double pareto_update, int log_period, double *res) {
+        bool nsga_update, bool switch_nsga, double pareto_update,
+        int log_period, double *res) {
     vec lower_limit(dim), upper_limit(dim);
     bool isInt[dim];
     bool useIsInt = false;
@@ -635,7 +643,7 @@ void optimizeMODE_C(long runid, callback_type func, callback_type log, int dim,
     }
     Fitness fitfun(func, dim, nobj + ncon, lower_limit, upper_limit);
     MoDeOptimizer opt(runid, &fitfun, log, dim, nobj, ncon, seed, popsize,
-            maxEvals, F, CR, pro_c, dis_c, pro_m, dis_m, nsga_update,
+            maxEvals, F, CR, pro_c, dis_c, pro_m, dis_m, nsga_update, switch_nsga,
             pareto_update, log_period, useIsInt ? isInt : NULL);
     try {
         if (workers <= 1)

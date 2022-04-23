@@ -235,11 +235,10 @@ def main():
         problem = problems[p]
         for i in range(1,20):
             pname = "nsga_off1M_" + names[p] + "_" + str(i)
-            x, y = mode.minimize(mode.wrapper(problem, problem.n_obj), problem.n_obj, 0,
+            x, y = mode.minimize(mode.wrapper(problem, problem.n_obj, name=pname), problem.n_obj, 0,
                         Bounds(problem.xl,problem.xu), popsize = 64, 
                         max_evaluations = 100000, 
-                        nsga_update=False, 
-                        plot_name = pname, workers=32)
+                        nsga_update=False, workers=16)
             np.savez_compressed(pname, xs=x, ys=y)
             moretry.plot(pname, 0, x, y)
     

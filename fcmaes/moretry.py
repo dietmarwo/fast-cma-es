@@ -196,9 +196,8 @@ def plot(name, ncon, xs, ys, eps = 1E-2, all=True):
         if all:
             retry.plot(ys, 'all_' + name + '.png', interp=False)
             xs, ys = pareto(xs, ys)
-            for x, y, _, in zip(xs, ys, con[feasible]):
-                print(str(list(y)) + ' ' +  #str(feas) + ' ' + 
-                    str([int(xi) for xi in x]))
+            for x, y in zip(xs, ys):
+                print(str(list(y)) + ' ' + str([int(xi) for xi in x]))
         retry.plot(ys, 'front_' + name + '.png', interp=False)
     except Exception as ex:
         print(str(ex))
