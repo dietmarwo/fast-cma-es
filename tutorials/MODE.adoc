@@ -45,11 +45,8 @@ Differences to GDE3 are:
 - GDE3 uses the DE/rand/1/bin strategy where mode.py uses the pareto front to generate the offspring, similar to 
 the DE/best/1/bin strategy for the single objective variant. 
 
-- GDE3 distinguishes between constraints and objectives, mode.py only supports boxed decision vector constraints (yet). 
-
 - GDE3 directly compares a new decision vector with its anchestor and decides depending on dominance and crowding value which one survives. mode.py uses the pareto hierarchy and the crowdedness value to sort the whole population, only the
-best survive. The sorting approach is more difficult to implement since you have to avoid the potentially quadratic
-comparison effort. Adding constraint support to mode.py could be implemented if required: 
+best survive. Adding constraint support to mode.py could is implemented as follows: 
 We compute - and priorize - the pareto hierarchy for feasible decision vectors, and then the constraint 
 pareto hierarchy for the infeasible ones. The crowdedness/diversity value is only interesting for the hierarchy level
 at the "population size border" since diversity has the lowest priority in the decision whether an individual survives. 

@@ -148,6 +148,30 @@ using NSGA-II update (nsga_update=True), but this setting proved to be superior 
 
 image::Mazda_multi_objective_MODE_32_threads_1600_sec.png[]
 
+Looking at the picture above, there is an idea which can be derived from it: Instead of parallel function evaluation we 
+could use parallel retries and use the combined pareto front as result:
+
+image::Mazda_multi_objective_MODE_32_parallel_retries_popsize_96.png[]
+
+We exchanged x- and y- axis to enable direct comparison with the
+https://www.jstage.jst.go.jp/article/tjpnsec/9/2/9_86/_article/-char/en[Evolutionary Competition 2017] results:
+
+image::mazdacomp.png[]
+
+In the competition there was a evaluation number limit of 30000. Considering this the shown results are
+excellent, but unfortunately the used algorithms cannot be found as open source, so they are hard
+to reproduce. Hypervolume 0.45 after 30000 evaluations is really fast, MODE converges much slower:
+
+image::Mazda_multi_objective_MODE_32_parallel_retries_hypervolume_popsize_96.png[]
+
+On the other hand: If you for instance really want to produce the three car models using a specific combined
+mass of 2.625, the number of common part thicknesses shown for the best competition results is
+31. MODEs number is 62, twice as much, although the hypervolume looks similar: 0.49 for MODE, 0.45
+for the best competition results. 62 common part thicknesses compared to 31 has a significant impact
+on production cost, which means the competition results are not really relevant in practice. 
+Is 10 hours execution time using a single mainstream CPU really an issue? Unfortunately we cannot 
+check if, and with which evaluation/time budged the competition methods can reach hypervolume 0.49. 
+
 === Wrapping the objective function
 First download the http://ladse.eng.isas.jaxa.jp/benchmark/Mazda_CdMOBP.zip[Mazda sources]. 
 We show everything only for the three car problem, the two car problem is very similar. 
@@ -583,11 +607,34 @@ we don't have to "guess" weights both for the objectives and the constraints.
 
 [source,python]
 ---- 
-       x, y = modecpp.minimize(mode.wrapper(problem.fun, problem.nobj),
-            problem.nobj, problem.ncon, problem.bounds, popsize=256, 
-            max_evaluations = 1000000, pareto_update=0, log_period = 1000000, 
-            nsga_update=False, workers=32,  ints = np.array([True]*dim))
+       store = mode.store(dim, problem.nobj, 10240)
+       fun = mode.wrapper(problem.fun, problem.nobj, store, plot=False, name="mazda")            
+       x, y = modecpp.minimize(fun, problem.nobj, problem.ncon, problem.bounds, popsize = 256, 
+                                max_evaluations = 12000000, ints = np.array([True]*dim), #pareto_update=1,
+                                nsga_update=False, workers=16)
 ----
+
+The code above uses parallel function evaluation. If we instead switch to parallel retries,
+we can lower population size. Progress is slower, but the result is more reliable. We
+get more or less the same pareto front if we repeat the parallel retry experiment. 
+
+On a 16 core CPU as our AMD 5950x it is best to perform two parallel experiments each 
+using 16 worker threads with parallel function evaluation. Using parallel retry
+we can use all 32 parallel threads in a single run and reach about 8000 evaluations per second. 
+Note that `mode.wrapper`, the wrapper used to monitor progress of all parallel threads,
+uses a shared `mode.store` and logs the pareto front each 100000 evaluations. This number is
+configurable (parameter `interval`)
+
+[source,python]
+---- 
+           store = mode.store(dim, problem.nobj, 10240)
+           fun = mode.wrapper(problem.fun, problem.nobj, store, plot=False, name="mazda")            
+           xs, front = modecpp.retry(fun, 
+                                    problem.nobj, problem.ncon, problem.bounds, popsize = 96, 
+                                max_evaluations = 12000000, ints = np.array([True]*dim),
+                                nsga_update=False, workers=32)
+----
+
 
 === What about the competition ? 
 

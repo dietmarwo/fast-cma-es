@@ -265,8 +265,8 @@ def optimize():
     # check_de_update(dim, fit)
     
     # multi objective optimization 'modecpp' multi threaded, NSGA-II population update
-    xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 96, 
-                  max_evaluations = 3000000, nsga_update = True, logger = logger(), workers=16)
+    # xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 96, 
+    #               max_evaluations = 3000000, nsga_update = True, logger = logger(), workers=16)
     
     # smart boundary management (SMB) with DE->CMA
     # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
@@ -277,8 +277,8 @@ def optimize():
     # advretry.retry(store, Cma_cpp(10000).minimize)    
 
     # BiteOpt algorithm multi threaded
-    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
-    # retry.retry(store, Bite_cpp(1000000, M=1).minimize, num_retries=3200)    
+    store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    retry.retry(store, Bite_cpp(1000000, M=1).minimize, num_retries=3200)    
 
     # CMA-ES multi threaded
     # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
