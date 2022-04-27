@@ -197,7 +197,7 @@ using any additional wall-time.
 
 ==== How to replicate the results?
 
-The code for this example is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/hbv/hbv.py[lrgv.py]. 
+The code for this example is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/hbv/hbv.py[hbv.py]. 
 The shared library for linux is part of the fcmaes github repo, for other OS
 please use the fork at https://github.com/dietmarwo/awr-hbv-benchmark to create one.
 
