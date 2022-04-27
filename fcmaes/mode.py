@@ -645,7 +645,7 @@ class wrapper(object):
                     self.best_y[i] = y[i] 
             improve = improve and self.n_evals.value > 100
             self.n_evals.value += 1
-            if self.n_evals.value % self.interval == 0:# or improve:
+            if self.n_evals.value % self.interval == 0 or improve:
                 constr = np.maximum(y[self.nobj:], 0) 
                 self.logger.info(
                     str(dtime(self.time_0)) + ' ' + 
