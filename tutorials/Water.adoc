@@ -174,7 +174,7 @@ computing the pareto front of the joined results from all runs. A "consistent re
 result for each run is exactly what we want to avoid as basis algorithm for use with automated parallel retry.  
 
 As with LRGV we forked the repository https://github.com/dietmarwo/awr-hbv-benchmark , added a Python ctypes API 
-and removed all global variables to enable parallel execution. This was fcmaes MODE parallel retry can 
+and removed all global variables to enable parallel execution. This way fcmaes MODE parallel retry can 
 execute about 30000 evaluations per second on a single 16 core AMD 5950 CPU. This means, HBV is not very
 relevant as a real world benchmark, since you get nearly perfect results in a few seconds (see below).  
 Note that for this problem - compared to LRGV- parallel objective function evaluation is much slower, only about 1650 evals/sec. 
