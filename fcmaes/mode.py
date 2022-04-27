@@ -637,22 +637,22 @@ class wrapper(object):
         try:
             y = self.fun(x)
             if not self.store is None and is_feasible(y, self.nobj):
-            #if not self.store is None:
                 self.store.add_result(x, y[:self.nobj])
             improve = False
             for i in range(self.nobj):
                 if y[i] < self.best_y[i]:
                     improve = True 
                     self.best_y[i] = y[i] 
+            improve = improve and self.n_evals.value > 100
             self.n_evals.value += 1
-            constr = np.maximum(y[self.nobj:], 0) 
-            if improve or self.n_evals.value % self.interval == 0:
+            if self.n_evals.value % self.interval == 0:# or improve:
+                constr = np.maximum(y[self.nobj:], 0) 
                 self.logger.info(
                     str(dtime(self.time_0)) + ' ' + 
                     str(self.n_evals.value) + ' ' + 
                     str(round(self.n_evals.value/(1E-9 + dtime(self.time_0)),0)) + ' ' + 
                     str(self.best_y[:]) + ' ' + str(list(constr)) + ' ' + str(list(x))) 
-                if not self.store is None and self.store.num_stored.value > 10:
+                if not self.store is None:
                     try:
                         xs, ys = self.store.get_front(True)
                         num = self.store.num_stored.value

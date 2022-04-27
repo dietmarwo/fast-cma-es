@@ -1,0 +1,211 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+:call: __call__
+
+= Water Resource Management
+
+This tutorial
+
+- Discusses two complex multi objective water management optimization problems.
+- Shows how the implementations can be modified to add a Python API and support Python
+  multiprocessing to speed up the computation of the objective function. 
+- Shows how fcmaes-MODE and pymoo can be applied to the adapted test cases. 
+
+=== Motivation
+
+https://theimportantsite.com/10-reasons-why-water-management-is-important[Water management is important]
+lists 10 reasons why water management is important now, and will become even more important
+in the future. 2 billion people lack access to a safely-managed drinking water service already today. 
+Most water resource challenges are of multiobjective nature. We have to balance many objectives
+to calibrate our models, to plan and manage our water resources.  
+The stochastic nature of monte carlo based simulations often used as part of the objective function further
+complicates its optimization. 
+
+Computed pareto fronts for these many objective problems offer valuable 
+insights into the inherent structure of the problem domain. See for instance:
+https://www.researchgate.net/publication/258757478_Visual_analytics_clarify_the_scalability_and_effectiveness_of_massively_parallel_many-objective_optimization_A_groundwater_monitoring_design_example[Visual analytics clarify the scalability and effectiveness of massively
+parallel many-objective optimization].
+ 
+Water resource management optimization problems can be so complex that they justify the use of up to 524,288 compute cores:
+https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2014WR015976[Evolving many-objective water management to exploit exascale computing]
+
+We will not focus on the visualization aspect here, but instead show how to reduce the 
+524,288 compute-core requirement to a single mainstream 16 core CPU. This involves not only the choice of the optimization
+algorithm, but also the speedup of the objective function call by adding a ctypes based Python API which supports 
+multi processing. The corresponding code is hosted in the following two github forks, one for each problem we will analyze here:
+
+- https://github.com/dietmarwo/LRGV 
+- https://github.com/dietmarwo/awr-hbv-benchmark
+
+Note, that we not only have to compete with half a million cores, the used optimizer http://borgmoea.org/[Borg], although 
+the source code is available for academic use, is a highly sophisticated closed source product written 
+in ANSI C, including auto-adaptive multioperator recombination, see https://pubmed.ncbi.nlm.nih.gov/22385134/[Borg paper]. 
+
+=== Lower Rio Grande Valley (LRGV) problem framework
+
+The Lower Rio Grande Valley (LRGV) problem framework implements a risk-based
+water supply portfolio management problem. A single city has to find 
+an efficient combination of market-based
+and traditional reservoir sources for its water supply minimizing the risk of 
+having insufficient water available at any time.
+An option based market enables the city to buy water later at a fixed price
+by paying an option price in advance. 
+
+The implementation https://github.com/jrkasprzyk/LRGV is highly configurable, including
+the choice of the objectives and the definition of the constraints. 
+
+To ensure comparability with 
+https://www.researchgate.net/publication/258757478_Visual_analytics_clarify_the_scalability_and_effectiveness_of_massively_parallel_many-objective_optimization_A_groundwater_monitoring_design_example[Visual analytics clarify the scalability and effectiveness of massively
+parallel many-objective optimization]
+we configure the problem framework to use the following five objectives:
+
+- minimize water supply costs
+- maximize the reliability of meeting demands
+- minimize surplus water
+- minimize dropped or unused water transfers
+- minimize the number of leases required over a 10 year planning horizon
+
+==== Results
+
+Is this problem really that hard? 
+We reduced the number of monte carlo iterations from 10000 to its default
+5000 which seems to be sufficient and used a single 16 core AMD 5850x CPU
+for all experiments. 
+
+First we performed 8 NSGA II runs 
+using the https://pymoo.org/[pymoo] optimizer. 
+Parallel function execution didn't work, so we started 8 optimization runs in parallel by
+hand:
+
+image::LRGV_multi_objective_NSGA_II_8_parallel_retries_hypervolume.png[]
+
+We see immediately that only one of our 8 NSGA-II runs produced a reasonable result. 
+
+Then we used the fcmaes MODE with parallel function evaluation. 
+Hypervolume normalization was done consistently with the previous experiment to ensure
+comparability. 
+
+image::LRGV_multi_objective_MODE_16_workers_hypervolume_popsize_512.png[]
+
+This time about half of the runs succedeed in producing a hypervolume >= 0.82. 
+The other half is caught by non optimal local minima. 
+
+Here is a 2 dimensional projection of the 5 dimensional pareto front covering only 
+the first two objectives for all 8 NSGAII runs:
+
+image::nsga8lrgv.png[]
+
+For comparison, here are different 2 dimensional projections of the MODE pareto front
+for one of the successful runs (hypervolume > 0.82). 
+The first one also covers the first two objectives:
+
+image::lrgvDe512.16.succ.png[]
+
+Here is the pareto front for a failed MODE run:
+
+image::lrgvDE.512.16.failed.png[]
+
+Even standard NSGA-II can produce reasonable results if you perform a number of 
+retries. But not in 20 minutes which was the time limit with the exascale computer, 
+and using 5000 instead of 10000 monte carlo iterations per function evaluation. 
+
+fcmaes-MODE is even more successful, in reaching consistently a hypervolume >= 0.82
+in about half of the experiments in about 30 minutes. 
+
+Alternatively the fcmaes MODE parallel retry mechanism can be used 
+to perform 32 parallel MODE optimizations thereby merging all results into a single pareto front.  
+You trade a very reliable result against additional run time. Since parallel retry scales
+better with the number of cores this option should be preferred if time is no concern
+or if you have a really big CPU >= 32 cores. If you can use a whole CPU cluster,
+you should use parallel function evaluation on each CPU and merge the results 
+from all CPUs.  
+
+Unfortunately in https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2014WR015976[Evolving many-objective water management to exploit exascale computing]
+not enough details are given (what is the hypervolume scaling / the "ideal" hypervolume used) 
+to compare the results.
+They report 1.2 sec per function call (10000 monte carlo iterations each), 
+we observe about 9 evals/sec single threaded (5000 monte carlo iterations each).
+
+MODE parallel function evaluation performs 110 evals/sec (16 threads). 
+To fully utilize the CPU two 16 thread experiments can be executed in parallel, resulting
+in about 72 evals/sec each. 
+fcmaes MODE parallel retry executes about 152 evals/sec, so it scales better than parallel 
+function evaluation. It is not completely clear why the exascale cores are so slow. 
+
+About one hour should be sufficient for fcmaes MODE on a standard 16 core CPU to produce a
+very good pareto front. Even a number of NSGA-II runs executed in parallel for two or three hours seem to be 
+sufficient to fully inform decision makers of key tradeoffs in the problem domain. 
+
+You can decide yourself if the investment in an exascale machine is justified. 
+
+==== How to replicate the results?
+
+The code for this example is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/lrgv/lrgv.py[lrgv.py]. 
+Adapt https://github.com/dietmarwo/fast-cma-es/blob/master/examples/lrgv/AllDecAll_control.txt[AllDecAll_control.txt]
+if you want to reconfigure the experiment. But don't forget to adapt the python code accordingly of you change the
+number of objectives / constraints. The shared library for linux is part of the fcmaes github repo, for other OS
+please use the fork at https://github.com/dietmarwo/LRGV to create one.
+
+=== HBV Rainfall-Runoff Model 
+
+The rainfall-runoff multiobjective problem (see https://www.sciencedirect.com/science/article/abs/pii/S0309170812000073[Evolutionary multiobjective optimization in water resources])
+
+has three primary routines:
+
+- snow accumulation and melt
+- soil moisture accounting
+- transformation of the linear outflow from two sub-basins
+
+The model contains 14 real-valued decision variables that require calibration.
+It is a "real world problem", its corresponding multi-objective optimization problem
+was used to calibrate the HBV model for the Williams River, West Virginia, United States.
+
+From https://www.sciencedirect.com/science/article/abs/pii/S0309170812000073[Evolutionary multiobjective optimization in water resources]):
+
+"If an algorithm exhibits very good performance with
+respect to its best single run, but only a small percentage of runs
+attain this good performance, it would be very difficult for users
+to implement effectively."
+
+Our viewpoint on this topic is quite the opposite: Modern many-core CPUs enable the parallel execution of many optimization 
+runs "for free" considering wall-time. Diversity of the single runs helps to improve the overall result by
+computing the pareto front of the joined results from all runs. A "consistent reliable" algorithm producing the same
+result for each run is exactly what we want to avoid as basis algorithm for use with automated parallel retry.  
+
+As with LRGV we forked the repository https://github.com/dietmarwo/awr-hbv-benchmark , added a Python ctypes API 
+and removed all global variables to enable parallel execution. This was fcmaes MODE parallel retry can 
+execute about 30000 evaluations per second on a single 16 core AMD 5950 CPU. This means, HBV is not very
+relevant as a real world benchmark, since you get nearly perfect results in a few seconds (see below).  
+Note that for this problem - compared to LRGV- parallel objective function evaluation is much slower, only about 1650 evals/sec. 
+This is because function execution time is low compared to the parallelization overhead.  
+
+Here is a typical pareto front (some of its 2 dimensional projections) which looks the same for all algorithms we tried:
+
+image::hbvpareto.png[]
+
+After about 100 seconds we get a nearly optimal hypervolume independent of the algorithm used. 
+
+image::HBV_multi_objective_hypervolume_popsize_256.png[]
+
+MODE using parallel function evaluation is the fastest one. Note that this time `nsga-update=True` produces better
+results, which is typically not the case for more complex problems. 
+Even pymoo NSGA-II single threaded (appying multi-threading results in an error) works well and is very fast. 
+You see that the results for the eight pymoo NSGA-II runs differ a bit, but 
+you can easily start multiple pymoo NSGA-II runs in parallel on a 16-core machine and use the best run without
+using any additional wall-time. 
+
+==== How to replicate the results?
+
+The code for this example is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/hbv/hbv.py[lrgv.py]. 
+The shared library for linux is part of the fcmaes github repo, for other OS
+please use the fork at https://github.com/dietmarwo/awr-hbv-benchmark to create one.
+
+=== Conclusion
+
+We haven't found a water related multi objective benchmark where a modern many core CPU is not sufficient, if about
+one hour wall time can be used. Please write me, if you know one. 
+There is a widespread misconception regarding algorithms where multiple runs show different results, 
+where only a small percentage of runs attain good performance. Actually these algorithms are optimally suited for
+parallel execution. For multi-objective problems we can simply join the pareto fronts from different parallel runs, 
+diversity is very helpful. 
