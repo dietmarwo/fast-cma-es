@@ -141,7 +141,7 @@ def main():
         fun = mode.wrapper(problem, nobj, store, plot=True, interval = 1000000, name='mode256.16')
         
         # parallel function evaluation
-        # modecpp.minimize, the C++ variantm, works only with workers=1 because of limitations of the
+        # modecpp.minimize, the C++ variant, works only with workers=1 because of limitations of the
         # used parallelization mechanism in combination with the way the objective function is initialized.
          
         # mode.minimize(fun, nobj, 0, problem.bounds, popsize = 256, 
