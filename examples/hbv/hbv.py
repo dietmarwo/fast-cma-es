@@ -1,3 +1,8 @@
+# HBV Rainfall-Runoff Model 
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc
+# See http://www.sciencedirect.com/science/article/pii/S0309170812000073
+# See https://github.com/jdherman/awr-hbv-benchmark
+
 import numpy as np
 import os, sys, time
 import ctypes as ct
