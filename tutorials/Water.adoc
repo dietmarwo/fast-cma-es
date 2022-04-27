@@ -42,6 +42,27 @@ Note, that we not only have to compete with half a million cores, the used optim
 the source code is available for academic use, is a highly sophisticated closed source product written 
 in ANSI C, including auto-adaptive multioperator recombination, see https://pubmed.ncbi.nlm.nih.gov/22385134/[Borg paper]. 
 
+=== Issues with the objective function implementations
+
+Both implementations are very efficiently implemented in C++. This way executing 5000 monte carlo iterations is
+a matter of milliseconds. But please avoid the following issues when implementing future models/problems:
+
+- API: A command line based interface as implemented for both problems can be used from any programming language. But it
+can cause a huge performance bottleneck, specially if used in the context of parallelization. The HBV objective function
+can be executed 30000 times/sec on a modern 16 core CPU, so the overhead is significant. 
+
+- Implement the objective function reentrant so that multiple invocations can safely run concurrently. This way it is
+easy to add an API for another programming language like Python. In practice this means: No global variables. 
+All shared variables should be member variables of a singleton instance of a class. This way each reentrant API call
+can create its own singleton instance not shared with other parallel calls. You may check the two forks above to see
+how this can be done. 
+
+- Don't hide from the optimizer the fact that decision variables are discrete. Use integer decision variables
+to generate the discrete values. The optimizer may use this fact to adapt its algorithm (as fcmaes MODE and DE do). 
+
+- Separate initialization code from objective function code. Sometimes an expensive initialization is required
+  which should be executed only once. 
+
 === Lower Rio Grande Valley (LRGV) problem framework
 
 The Lower Rio Grande Valley (LRGV) problem framework implements a risk-based
