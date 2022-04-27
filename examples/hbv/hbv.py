@@ -140,12 +140,18 @@ def main():
         store = mode.store(dim, nobj, 2048)
         fun = mode.wrapper(problem, nobj, store, plot=True, interval = 1000000, name='mode256.16')
         
+        # parallel function evaluation
+        # modecpp.minimize, the C++ variantm, works only with workers=1 because of limitations of the
+        # used parallelization mechanism in combination with the way the objective function is initialized.
+         
         # mode.minimize(fun, nobj, 0, problem.bounds, popsize = 256, 
-        #             max_evaluations = 2000000, nsga_update=False, workers=16)
+        #             max_evaluations = 2000000, nsga_update=True, workers=16)
 
+        # parallel optimization retry
+        
         modecpp.retry(fun, nobj, 0, 
                       problem.bounds, num_retries=32, popsize = 256, 
-                  max_evaluations = 500000, nsga_update = False, workers=32)
+                  max_evaluations = 500000, nsga_update = True, workers=32)
         
         
     except Exception as ex:
