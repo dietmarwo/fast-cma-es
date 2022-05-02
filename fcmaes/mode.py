@@ -177,6 +177,11 @@ class store():
                     self.set_x(i, xs[j]) 
                     self.set_y(i, ys[j])
                     i += 1
+                else:
+                    self.get_front(update=True)
+                    i = self.num_stored.value
+                    if i > 0.9*self.capacity: # give up
+                        return
             self.num_stored.value = i
                       
     def get_front(self, update=False):
@@ -185,11 +190,10 @@ class store():
         ys = np.array([self.get_y(i) for i in range(stored)])
         xf, yf = moretry.pareto(xs, ys)
         if update:
-            with self.add_mutex:
-                for i in range(len(yf)):                   
-                    self.set_x(i, xf[i]) 
-                    self.set_y(i, yf[i])
-                self.num_stored.value = len(yf)
+            for i in range(len(yf)):                   
+                self.set_x(i, xf[i]) 
+                self.set_y(i, yf[i])
+            self.num_stored.value = len(yf)
         return xf, yf
        
     def get_xs(self):
@@ -235,14 +239,15 @@ class MODE(object):
         self.evals = 0
         self.mutex = mp.Lock()
         self.p = 0
-        self.ints = np.array(ints)
+        # nsga update doesn't support mixed integer
+        self.ints = None if nsga_update else np.array(ints)
         # use default variable modifier for int variables if modifier is None
-        if modifier is None and not ints is None:
+        if modifier is None and not self.ints is None:
             # adjust bounds because ints are rounded
             self.lower = self.lower.astype(float)
             self.upper = self.upper.astype(float)
-            self.lower[ints] -= .499999999
-            self.upper[ints] += .499999999
+            self.lower[self.ints] -= .499999999
+            self.upper[self.ints] += .499999999
             self.modifier = self._modifier
         else:
             self.modifier = modifier
@@ -656,8 +661,8 @@ class wrapper(object):
                     try:
                         xs, ys = self.store.get_front(True)
                         num = self.store.num_stored.value
-                        self.logger.info(str(num) + ' ' + 
-                                      ', '.join(['(' + ', '.join([str(round(yi,3)) for yi in y]) + ')' for y in ys]))
+                        # self.logger.info(str(num) + ' ' + 
+                        #               ', '.join(['(' + ', '.join([str(round(yi,3)) for yi in y]) + ')' for y in ys]))
                         name = self.name + '_' + str(num)
                         np.savez_compressed(name, xs=xs, ys=ys)
                         if self.plot:

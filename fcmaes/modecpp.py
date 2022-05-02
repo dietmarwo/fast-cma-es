@@ -153,7 +153,7 @@ def minimize(mofun,
     if lower is None:
         lower = [0]*dim
         upper = [0]*dim  
-    if ints is None:
+    if ints is None or nsga_update: # nsga update doesn't support mixed integer
         ints = [False]*dim
     if workers is None:
         workers = 0        
