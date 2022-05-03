@@ -166,7 +166,7 @@ But this way multi-objective optimization delivers also excellent single-objecti
 
 Before you implement a problem specific optimization algorithm first check whether a standard 
 continuous optimization algorithm is applicable. Our https://github.com/dietmarwo/fast-cma-es/blob/master/README.md[README]
-contains many example application where you may be surprised that this approach works. Some of these are
+contains many example applications where you may be surprised that this approach works. Some of these are
 scheduling or task assignment related. Advantages are:
 
 - Parallelization comes for free. 
@@ -174,11 +174,11 @@ scheduling or task assignment related. Advantages are:
 - Often the standard algorithms perform better.
 - Algorithm overhead is reduced, since many algorithms are implemented in C++. 
 
-Objective function implementation sometimes may be a bit tricky, specially for problems using discrete
+Objective function implementation sometimes may be a bit tricky, specifically for problems using discrete
 arguments. First try BiteOpt for single objective problems and fcmaes MODE with `nsga_update=True`
 for multi objective problems with or without constraints.  
 Other algorithms may be better for specific problems, but these never fail completely. 
 For Multi-UAV Task Assignment both algorithms perform exceptionally good. 
 Whether reinforcment learning can further improve the results is an open question. 
-BiteOpt's performance slowly detoriates with a number of decision variables > 60, may
+BiteOpt's performance slowly deteriorates with a number of decision variables > 60, may
 be machine learning can be helpful for very large problem instances. 
