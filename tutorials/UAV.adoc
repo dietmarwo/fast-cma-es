@@ -1,0 +1,184 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+:call: __call__
+
+= Multi-UAV Task Assignment
+
+This tutorial
+
+- Discusses how BiteOpt can be applied to a Multi-UAV Task Assignment problem thereby
+  beating other proposed algorithms specifically created to solve this problem. 
+- Extends the problem to multiple objectives and shows how this modification can 
+  be solved using the fcmaes-MODE algorithm. 
+
+=== Motivation
+
+Unmanned aerial vehicles (UAVs) have a large application potential in 
+transportation, disaster rescue, reconnaissance and surveillance.
+Swarms of UAVs can be viewed as distributed intelligent autonomous systems.
+
+There are many variants of the UAV task assignment problem. As an example
+we will investigate the following variant:
+
+What is the optimal set of routes for
+a fleet of vehicles to traverse in order to deliver to a set of targets
+thereby fulfilling a time limit constraint. Each vehicle has
+its own speed and the targets have different time costs and rewards.  
+
+The chosen variant is suitable for a wide range of multi-UAV task assignment problems. 
+Therefore in https://arxiv.org/pdf/2009.00363.pdf it was chosen as the basis
+for a benchmark to evaluate different optimization algorithms:
+https://github.com/robin-shaun/Multi-UAV-Task-Assignment-Benchmark . 
+
+Three different algorithms: GA, PSO and ACO, were implemented in a problem specific
+way and can be evaluated by executing the benchmark. Additionally a `step` function
+is provided which can support the application of machine learning approaches like
+reinforcement learning. 
+
+A problem specific optimizer has obvious disadvantages:
+
+- Additional implementation effort.
+- Harder to adapt for other problem variants.
+- Utilizing the whole CPU (all cores) is difficult. All three implementations are single threaded. 
+
+It makes only sense if the performance is superior compared to the a standard continuous optimizer
+which is easy to parallelize. So first we will investigate if this is the case: In fact it is
+not, BiteOpt parallel retry outperforms all three algorithms by a big margin as we can see in the 
+diagrams below:
+
+image::uav_reward.png[]
+
+Only for small problems GA can compete. Additionally PSO and ACO CPU time requirements raise 
+superlinear compared with the problem size. The following diagram shows selected solutions for
+small, medium and large problem sizes for all four algorithms:
+
+image::uav_results.png[]
+
+If we apply a generic continuous optimization algorithm like BiteOpt to this problem, 
+adaption to a different variant means that only the objective function needs
+to be adapted. 
+
+=== Implementation
+
+We forked https://github.com/robin-shaun/Multi-UAV-Task-Assignment-Benchmark[Multi-UAV-Task-Assignment-Benchmark]
+in https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark 
+and implemented the following enhancements:
+
+- GA objective function (also used for BiteOpt) is much faster using https://numba.pydata.org/[numba].
+- We applied numba also to the GA operations (selection, mutation, crossover), see
+https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/ga.py[ga.py]
+- BiteOpt parallel retry is added as Benchmark and as a stand-alone experiment.
+- Multi-objective MODE parallel retry is added as stand-alone experiment. 
+
+==== BiteOpt Single Objective 
+
+Fitness class `Bite` delegates to the fitness function "borrowed" from GA. 
+
+[source,python]
+----   
+        def get_fitness(vehicle_num, target_num, map_size):
+            env = Env(vehicle_num,target_num,map_size,visualized=True)
+            return Bite(vehicle_num,env.vehicles_speed,target_num,env.targets,env.time_lim, 0)
+         
+        workers = mp.cpu_count()
+        #generate environment and fitness object
+        so_problem = get_fitness(15,90,1.5e4)         
+        # add logging to monitor progress
+        so_fun = wrapper(so_problem.fitness)
+        # Bite parallel optimization retry      
+        res = retry.minimize(so_fun, bounds, optimizer=Bite_cpp(evals), 
+                                 num_retries=workers, workers=workers)
+----
+
+The complete code is in
+https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_bite.py[test_bite.py]
+and https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/bite.py[bite.py]
+Only minor adjustments to the objective function initially created for GA are needed to 
+apply https://numba.pydata.org/[numba] for a dramatic speedup.
+
+==== Multiple Objectives
+
+Instead of only optimizing the overall reward we can add more objectives:
+
+- used time - to be minimized
+- used energy - to be minimized
+
+By applying a multi-objective algorithm we gain additional knowledge about
+the tradeoffs associated with these objectives. As a result we could for instance
+reconsider the time limit for the single objective optimization, if we see
+that more time means less energy and higher reward. So we adapted the
+objective function and applied the fcmaes MODE multi-objective optimization
+algorithm. In the diagrams below you see two 2-dimensional projections 
+of the resulting three dimensional pareto front: 
+
+image::1_front_pareto_uav100.png[]
+
+image::2_front_pareto_uav100.png[]
+
+We used about 25 minutes / 8*10^8 evaluations for this optimization. Multi-objective
+optimization needs more function evaluations than BiteOpt to find a solution
+- as part of the pareto front - with comparable reward.  But to reach a reward
+achieved by GA, PSO or ACO only a few seconds are required. Note that this
+problem doesn't work with differential evolution. Both single- and multi-objective. 
+So you have to configure MODE with parameter `nsga_update = True`, if you don't want
+to loose up to 200 reward. MODE's mixed integer support is DE-population-update 
+specific, so you don't have to configure the `ints` parameter. 
+
+[source,python]
+----   
+        def get_fitness(vehicle_num, target_num, map_size):
+            env = Env(vehicle_num,target_num,map_size,visualized=True)
+            return Fitness(vehicle_num,env.vehicles_speed,target_num,env.targets,env.time_lim)
+        
+        workers = mp.cpu_count()
+        #generate environment and fitness object
+        mo_problem = get_fitness(15,90,1.5e4)         
+        # add logging to monitor progress
+        mo_fun = mode.wrapper(mo_problem, nobj, interval = 1E12)
+        # MO parallel optimization retry      
+        xs, ys = modecpp.retry(mo_fun, nobj, 0, 
+                      mo_problem.bounds, num_retries=workers, popsize = 512,
+                      max_evaluations = evals, nsga_update = True, workers=workers)
+----
+
+The complete code is in 
+https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_mode.py[test_mode.py]
+
+Is it possible to use reinforcement learning to compute a pareto front?
+It seems so: https://arxiv.org/abs/1908.08342 , it would be interesting
+to apply this to UAV task assignment and compare results.
+  
+==== How to replicate the results?
+
+Do a `git clone https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark.git`
+and execute one of the following files:
+
+- The benchmark (including BiteOpt): https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/evaluate.py[evaluate.py]
+- BiteOpt stand-alone: https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_bite.py[test_bite.py]
+- MODE stand-alone: https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_mode.py[test_mode.py]
+
+MODE can use up to `evals = 100000000` with `workers=32` and `popsize=512` for large problem instances. 
+Even a fast 16 core CPU like the AMD 5950x needs one hour for the optimization using these parameters.
+But this way multi-objective optimization delivers also excellent single-objective results similar to BiteOpt.
+
+=== Conclusion
+
+Before you implement a problem specific optimization algorithm first check whether a standard 
+continuous optimization algorithm is applicable. Our https://github.com/dietmarwo/fast-cma-es/blob/master/README.md[README]
+contains many example application where you may be surprised that this approach works. Some of these are
+scheduling or task assignment related. Advantages are:
+
+- Parallelization comes for free. 
+- Only the objective function has to be implemented. 
+- Often the standard algorithms perform better.
+- Algorithm overhead is reduced, since many algorithms are implemented in C++. 
+
+Objective function implementation sometimes may be a bit tricky, specially for problems using discrete
+arguments. First try BiteOpt for single objective problems and fcmaes MODE with `nsga_update=True`
+for multi objective problems with or without constraints.  
+Other algorithms may be better for specific problems, but these never fail completely. 
+For Multi-UAV Task Assignment both algorithms perform exceptionally good. 
+Whether reinforcment learning can further improve the results is an open question. 
+BiteOpt's performance slowly detoriates with a number of decision variables > 60, may
+be machine learning can be helpful for very large problem instances. 
