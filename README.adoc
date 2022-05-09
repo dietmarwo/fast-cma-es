@@ -53,6 +53,8 @@ support both parallel fitness function evaluation and a parallel retry mechanism
 the `ints` parameter which specifies which parameters are discrete. Real world mixed integer problems like 
 https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py[ESP/ESP2] cannot
 be solved without. 
+- NEW: Python and C++ implementation of Fast Moving Natural Evolution Strategy for High-Dimensional Problems (CR-FM-NES), see 
+    https://arxiv.org/abs/2201.11422. Derived from https://github.com/nomuramasahir0/crfmnes -
 
 === Performance
 

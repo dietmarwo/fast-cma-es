@@ -23,6 +23,9 @@ astro_map = {
     "tandemCu": libcmalib.tandemCu
     }
 
+freemem = libcmalib.free_mem
+freemem.argtypes = [ct.POINTER(ct.c_double)]
+
 class Astrofun(object):
     """Provides access to ESAs GTOP optimization test functions."""
     def __init__(self, name, fun_c, lower, upper):    
@@ -206,6 +209,7 @@ def cassini1multi(x):
         if not math.isfinite(dv):
             dv = 1E10
     except Exception as ex:
+        print(ex)
         dv = 1E10
         launch_dv = 1E10 
     tof = x[1] + x[2] + x[3] + x[4]

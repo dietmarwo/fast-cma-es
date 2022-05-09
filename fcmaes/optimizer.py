@@ -13,7 +13,7 @@ import logging
 import ctypes as ct
 import multiprocessing as mp 
 
-from fcmaes import cmaes, de, cmaescpp, decpp, dacpp, gcldecpp, lcldecpp, ldecpp, csmacpp, bitecpp
+from fcmaes import crfmnes, crfmnescpp, cmaes, de, cmaescpp, decpp, dacpp, gcldecpp, lcldecpp, ldecpp, csmacpp, bitecpp
 
 _logger = None
 
@@ -228,6 +228,50 @@ def da_cma(max_evaluations = 50000, da_max_evals = None, cma_max_evals = None,
     opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
                    stop_fitness = stop_fitness)
     return Sequence([opt1, opt2])
+
+class Crfmnes(Optimizer):
+    """CRFMNES Python implementation."""
+    
+    def __init__(self, max_evaluations=50000,
+                 popsize = 32, guess=None, stop_fitness = None,
+                 sdevs = None):        
+        Optimizer.__init__(self, max_evaluations, 'crfmnes')
+        self.popsize = popsize
+        self.stop_fitness = stop_fitness
+        self.guess = guess
+        self.sdevs = sdevs
+
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
+        ret = crfmnes.minimize(fun, bounds, 
+                self.guess if not self.guess is None else guess,
+                input_sigma = self.sdevs if not self.sdevs is None else sdevs,
+                max_evaluations = self.max_eval_num(store), 
+                popsize=self.popsize, 
+                stop_fitness = self.stop_fitness,
+                rg=rg, runid=self.get_count_runs(store))     
+        return ret.x, ret.fun, ret.nfev
+
+class Crfmnes_cpp(Optimizer):
+    """CRFMNES C++ implementation."""
+    
+    def __init__(self, max_evaluations=50000,
+                 popsize = 32, guess=None, stop_fitness = None,
+                 sdevs = None):        
+        Optimizer.__init__(self, max_evaluations, 'crfmnes cpp')
+        self.popsize = popsize
+        self.stop_fitness = stop_fitness
+        self.guess = guess
+        self.sdevs = sdevs
+
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
+        ret = crfmnescpp.minimize(fun, bounds, 
+                self.guess if not self.guess is None else guess,
+                input_sigma = self.sdevs if not self.sdevs is None else sdevs,
+                max_evaluations = self.max_eval_num(store), 
+                popsize=self.popsize, 
+                stop_fitness = self.stop_fitness,
+                rg=rg, runid=self.get_count_runs(store))     
+        return ret.x, ret.fun, ret.nfev
 
 class Cma_python(Optimizer):
     """CMA_ES Python implementation."""

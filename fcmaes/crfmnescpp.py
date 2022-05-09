@@ -3,9 +3,9 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-""" Wraps an Eigen based C++ implementation of Fast Moving Natural Evolution Strategy 
-    for High-Dimensional Problems (CR-FM-NES), see https://arxiv.org/abs/2201.11422 .
-    Derived from https://github.com/nomuramasahir0/crfmnes .
+""" Eigen based implementation of active CMA-ES.
+    Derived from http://cma.gforge.inria.fr/cmaes.m which follows
+    https://www.researchgate.net/publication/227050324_The_CMA_Evolution_Strategy_A_Comparing_Review
 """
 
 import sys
@@ -23,15 +23,20 @@ os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 def minimize(fun, 
              bounds=None, 
              x0=None, 
-             input_sigma = 0.166, 
-             popsize = 0, 
+             input_sigma = 0.3, 
+             popsize = 32, 
              max_evaluations = 100000, 
              stop_fitness = None, 
              rg = Generator(MT19937()),
-             runid=0):
+             runid=0,
+             workers = 1,
+             normalize = False,
+             use_constraint_violation = False,
+             penalty_coef = 1E5
+             ):
        
     """Minimization of a scalar function of one or more variables using a 
-    C++ SCMA implementation called via ctypes.
+    C++ CMA-ES implementation called via ctypes.
      
     Parameters
     ----------
@@ -47,8 +52,8 @@ def minimize(fun,
     x0 : ndarray, shape (dim,)
         Initial guess. Array of real elements of size (dim,),
         where 'dim' is the number of independent variables.  
-    input_sigma : ndarray, shape (dim,) or scalar
-        Initial step size for each dimension.
+    input_sigma : float, optional
+        Initial step size.
     popsize = int, optional
         CMA-ES population size.
     max_evaluations : int, optional
@@ -58,7 +63,12 @@ def minimize(fun,
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     runid : int, optional
-        id used to identify the run for debugging / logging. 
+        id used by the is_terminate callback to identify the CMA-ES run. 
+    workers : int or None, optional
+        If not workers is None, function evaluation is performed in parallel for the whole population. 
+        Useful for costly objective functions but is deactivated for parallel retry.      
+    normalize : boolean, optional
+        pheno -> if true geno transformation maps arguments to interval [-1,1] 
            
     Returns
     -------
@@ -73,23 +83,31 @@ def minimize(fun,
     
     lower, upper, guess = _check_bounds(bounds, x0, rg)      
     dim = guess.size   
+    if popsize is None:
+        popsize = 32      
+    if popsize % 2 == 1: # requires even popsize
+        popsize += 1
     if lower is None:
         lower = [0]*dim
         upper = [0]*dim
+    if workers is None:
+        workers = 0
     if callable(input_sigma):
         input_sigma=input_sigma()
-    if np.ndim(input_sigma) == 0:
-        input_sigma = [input_sigma] * dim
+    if np.ndim(input_sigma) > 0:
+        input_sigma = np.mean(input_sigma)
     if stop_fitness is None:
-        stop_fitness = -math.inf   
+        stop_fitness = -math.inf    
     array_type = ct.c_double * dim 
     c_callback = mo_call_back_type(callback(fun, dim))
     res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        optimizeCsma_C(runid, c_callback, dim, int(rg.uniform(0, 2**32 - 1)), 
-                array_type(*guess), array_type(*lower), array_type(*upper), 
-                array_type(*input_sigma), max_evaluations, stop_fitness, popsize, res_p)
+        optimizeCRFMNES_C(runid, c_callback, dim, array_type(*guess), 
+                       array_type(*lower), array_type(*upper), 
+                input_sigma, max_evaluations, stop_fitness,
+                popsize, int(rg.uniform(0, 2**32 - 1)), penalty_coef, 
+                use_constraint_violation, normalize, res_p)
         x = res[:dim]
         val = res[dim]
         evals = int(res[dim+1])
@@ -99,8 +117,11 @@ def minimize(fun,
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
 
-optimizeCsma_C = libcmalib.optimizeCsma_C
-optimizeCsma_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, ct.c_int, \
+optimizeCRFMNES_C = libcmalib.optimizeCRFMNES_C
+optimizeCRFMNES_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_int, ct.POINTER(ct.c_double)]
-        
+            ct.c_double, ct.c_int, ct.c_double, ct.c_int, 
+            ct.c_long, ct.c_double, 
+            ct.c_bool, ct.c_bool, ct.POINTER(ct.c_double)]
+
+

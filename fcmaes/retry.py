@@ -120,8 +120,13 @@ def minimize_plot(name, optimizer, fun, bounds, value_limit = math.inf,
     ret = retry(store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
     impr = store.get_improvements()
     np.savez_compressed(name, ys=impr)
-    filtered = np.array([imp for imp in impr if imp[1] < plot_limit])
-    if len(filtered) > 0: impr = filtered
+    for _ in range(10):
+        filtered = np.array([imp for imp in impr if imp[1] < plot_limit])
+        if len(filtered) > 0: 
+            impr = filtered
+            break
+        else:
+            plot_limit *= 3
     logger.info(name + ' time ' + str(dtime(time0))) 
     plot(impr, 'progress_ret.' + name + '.png', label = name, 
          xlabel = 'time in sec', ylabel = r'$f$')
@@ -235,6 +240,7 @@ class Store(object):
             if not self.logger is None:
                 self.logger.info(str(self.time[si]) + ' '  + 
                           str(self.sevals.value) + ' ' + 
+                          str(int(self.sevals.value / self.time[si])) + ' ' + 
                           str(y) + ' ' + 
                           str(list(x)))
         return y
