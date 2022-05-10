@@ -68,7 +68,7 @@ def minimize(fun,
         If not workers is None, function evaluation is performed in parallel for the whole population. 
         Useful for costly objective functions but is deactivated for parallel retry.      
     normalize : boolean, optional
-        pheno -> if true geno transformation maps arguments to interval [-1,1] 
+        if true pheno -> geno transformation maps arguments to interval [-1,1] 
            
     Returns
     -------

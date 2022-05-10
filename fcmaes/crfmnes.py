@@ -46,7 +46,7 @@ def minimize(fun,
         Initial guess. Array of real elements of size (n,),
         where 'n' is the number of independent variables.  
     input_sigma : ndarray, shape (n,) or scalar
-        Initial step size for each dimension.
+        Initial step size.
     popsize = int, optional
         CMA-ES population size.
     max_evaluations : int, optional

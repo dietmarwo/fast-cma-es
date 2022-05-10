@@ -31,7 +31,7 @@ def minimize(fun,
              rg = Generator(MT19937()),
              runid=0,
              workers = 1, 
-             normalize = True,
+             normalize = False,
              update_gap = None):   
     """Minimization of a scalar function of one or more variables using a 
     C++ CMA-ES implementation called via ctypes.
@@ -68,7 +68,7 @@ def minimize(fun,
         If not workers is None, function evaluation is performed in parallel for the whole population. 
         Useful for costly objective functions but is deactivated for parallel retry.      
     normalize : boolean, optional
-        pheno -> if true geno transformation maps arguments to interval [-1,1] 
+        if true pheno -> geno transformation maps arguments to interval [-1,1] 
     update_gap : int, optional
         number of iterations without distribution update
            
