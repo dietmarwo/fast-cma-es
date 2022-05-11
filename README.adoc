@@ -154,22 +154,50 @@ Not only the five single objective algorithms above, but also scipy and NLopt op
 
 ==== Linux
  
-* `pip install fcmaes`. In case of issues with dependent libraries on old systems all dependent so-files are in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/lib. 
+* `pip install fcmaes`. 
+
+To use the {cpp} optimizers a gcc-9.3 (or newer) runtime is required. This is the default on newer Linux versions. 
+If you are on an old Linux distribution you need to install gcc-9 or a newer 
+version. On ubuntu this is: 
+
+- sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+- sudo apt update
+- sudo apt install gcc-9
+
+If you have a new anaconda version installed, the required gcc runtime libraries should already be there. 
 
 ==== Windows
 
 * `pip install fcmaes`
+
 * install {cpp} runtime libraries https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
 
-Parallel fitness function evaluation works only with the native Python optimizers, not with the {cpp} ones. Use "workers = 1" for the 
-{cpp}-optimizers. Python multiprocessing is currently generally flawed on Windows. To get optimal scaling from parallel retry and parallel function evaluation use:
+* install https://docs.epics-controls.org/projects/how-tos/en/latest/getting-started/installation-windows-msys2.html[MSYS2] using mingw-64:
 
-* Linux subsystem for Windows:
-- https://docs.microsoft.com/en-us/windows/wsl/install-win10[Linux subsystem] or
-- https://superuser.com/questions/1271682/is-there-a-way-of-installing-ubuntu-windows-subsystem-for-linux-on-win10-v170[Ubuntu subsystem].
+- download and install the MSYS2 installer https://www.msys2.org/ . 
+- start a MSYS2 shell then execute:
+- pacman -S mingw-w64-x86_64-cmake
+- pacman -S mingw-w64-x86_64-gcc
+- pacman -S mingw-w64-x86_64-ninja
+- pacman -S mingw-w64-x86_64-jemalloc
+- pacman -S mingw64/mingw-w64-x86_64-python
+- pacman -S mingw64/mingw-w64-x86_64-python-pip
+- pacman -S mingw64/mingw-w64-x86_64-python-scipy
+- pacman -S mingw64/mingw-w64-x86_64-python-matplotlib
+
+Make sure that the MSYS2 mingw-w64 binary path is set in your environment. 
+If you have anaconda or other mingw versions installed, make sure there is no path priority issue. 
+For fcmaes it is better to use the MSYS2 python installation. 
+
+Parallel fitness function evaluation works only with the native Python optimizers, not with the {cpp} ones. Use "workers = 1" for the 
+{cpp}-optimizers. Python multiprocessing is currently generally flawed on Windows. 
+To get optimal scaling from parallel retry and parallel function evaluation use:
+
+* Linux subsystem for Windows https://docs.microsoft.com/en-us/windows/wsl/[WSL].
 
 The Linux subsystem can read/write NTFS, so you can do your development on a NTFS partition. Just the Python call is routed to Linux. 
-If performance of the fitness function is an issue and you don't want to use the Linux subsystem for Windows, think about switching to https://github.com/dietmarwo/fcmaes-java[fcmaes-java]. 
+If performance of the fitness function is an issue and you don't want to use the Linux subsystem for Windows, 
+think about using the fcmaes java port: https://github.com/dietmarwo/fcmaes-java[fcmaes-java]. 
 
 ==== MacOS
 
