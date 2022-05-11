@@ -123,8 +123,8 @@ public:
     mat variation(const mat &x) {
         int n2 = x.cols() / 2;
         int n = 2 * n2;
-        mat parent1 = x(Eigen::all, Eigen::seq(0, n2 - 1));
-        mat parent2 = x(Eigen::all, Eigen::seq(n2, n - 1));
+        mat parent1 = x(Eigen::indexing::all, Eigen::seq(0, n2 - 1));
+        mat parent2 = x(Eigen::indexing::all, Eigen::seq(n2, n - 1));
         mat beta = mat(dim, n2);
         vec to1;
         if (pro_c < 1.0) {
@@ -185,7 +185,7 @@ public:
             if (switch_nsga) {
                 nsga_update = !nsga_update;
                 if (nsga_update)
-                    vX = variation(popX(Eigen::all, Eigen::seqN(0, popsize)));
+                    vX = variation(popX(Eigen::indexing::all, Eigen::seqN(0, popsize)));
             }
         }
         if (nsga_update) {
@@ -345,8 +345,8 @@ public:
         if (ncon == 0)
             return pareto_levels(ys);
         int popn = ys.cols();
-        mat yobj = ys(Eigen::seqN(0, nobj), Eigen::all);
-        mat ycon = ys(Eigen::lastN(ncon), Eigen::all);
+        mat yobj = ys(Eigen::seqN(0, nobj), Eigen::indexing::all);
+        mat ycon = ys(Eigen::indexing::lastN(ncon), Eigen::indexing::all);
         vec csum = ranks(ycon);
         bool feasible[ys.cols()];
         bool hasFeasible = false;
@@ -365,7 +365,7 @@ public:
                 cyv.push_back(i);
         ivec cy = Eigen::Map<ivec, Eigen::Unaligned>(cyv.data(), cyv.size());
         if (hasFeasible) { // compute pareto levels only for feasible
-            vec ypar = pareto_levels(yobj(Eigen::all, cy));
+            vec ypar = pareto_levels(yobj(Eigen::indexing::all, cy));
             domination(cy) += ypar;
         }
         // then constraint violations
@@ -403,8 +403,8 @@ public:
         mat y0 = popY;
         if (nobj == 1) {
             ivec yi = sort_index(popY.row(0)).reverse();
-            x0 = popX(Eigen::all, yi);
-            y0 = popY(Eigen::all, yi);
+            x0 = popX(Eigen::indexing::all, yi);
+            y0 = popY(Eigen::indexing::all, yi);
         }
         vec domination = pareto(y0);
         std::vector<vec> x;
@@ -417,8 +417,8 @@ public:
                     level.push_back(i);
             ivec domlevel = Eigen::Map<ivec, Eigen::Unaligned>(level.data(),
                     level.size());
-            mat domx = x0(Eigen::all, domlevel);
-            mat domy = y0(Eigen::all, domlevel);
+            mat domx = x0(Eigen::indexing::all, domlevel);
+            mat domy = y0(Eigen::indexing::all, domlevel);
             if ((int) (x.size() + domlevel.size()) <= popsize) {
                 // whole level fits
                 for (int i = 0; i < domy.cols(); i++) {
@@ -446,7 +446,7 @@ public:
             popY.col(i) = y[i];
         }
         if (nsga_update)
-            vX = variation(popX(Eigen::all, Eigen::seqN(0, popsize)));
+            vX = variation(popX(Eigen::indexing::all, Eigen::seqN(0, popsize)));
     }
 
     vec ask(int &p) {

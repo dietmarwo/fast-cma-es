@@ -55,7 +55,7 @@ public:
 
     AcmaesOptimizer(long runid_, Fitness *fitfun_, int popsize_, int mu_,
             const vec &guess_, const vec &inputSigma_, int maxEvaluations_,
-            double accuracy_, double stopfitness_,
+			double accuracy_, double stopfitness_,
             int update_gap_, long seed) {
         // runid used for debugging / logging
         runid = runid_;
@@ -116,16 +116,16 @@ public:
         cs = (mueff + 2.) / (dim + mueff + 3.);
         // damping for step-size.
         damps = (1. + 2. * std::max(0., sqrt((mueff - 1.) / (dim + 1.)) - 1.))
-                        * max(0.3,
-                                1. - // modification for short runs
+                * max(0.3,
+                        1. - // modification for short runs
                                 dim / (1e-6 + (maxEvaluations/popsize)))
-                                + cs; // minor increment
+                + cs; // minor increment
         // learning rate for rank-one update.
         ccov1 = 2. / ((dim + 1.3) * (dim + 1.3) + mueff);
         // learning rate for rank-mu update'
         ccovmu = min(1. - ccov1,
                 2. * (mueff - 2. + 1. / mueff)
-                / ((dim + 2.) * (dim + 2.) + mueff));
+                        / ((dim + 2.) * (dim + 2.) + mueff));
         // expectation of ||N(0,I)|| == norm(randn(N,1)).
         chiN = sqrt(dim) * (1. - 1. / (4. * dim) + 1 / (21. * dim * dim));
         ccov1Sep = min(1., ccov1 * (dim + 1.5) / 3.);
@@ -211,7 +211,7 @@ public:
             double negalphaold = 0.5; // where to make up for the variance loss,
             // prepare vectors, compute negative updating matrix Cneg
             ivec arReverseIndex = arindex.reverse();
-            mat arzneg = arz(Eigen::all, arReverseIndex.head(mu));
+            mat arzneg = arz(Eigen::indexing::all, arReverseIndex.head(mu));
             vec arnorms = arzneg.colwise().norm();
             ivec idxnorms = sort_index(arnorms);
             vec arnormsSorted = arnorms(idxnorms);
@@ -220,7 +220,7 @@ public:
             arnorms = arnormsReverse.cwiseQuotient(arnormsSorted);
             vec arnormsInv = arnorms(inverse(idxnorms));
             mat sqarnw = arnormsInv.cwiseProduct(arnormsInv).transpose()
-                            * weights;
+                    * weights;
             double negcovMax = (1. - negminresidualvariance) / sqarnw(0);
             if (negccov > negcovMax)
                 negccov = negcovMax;
@@ -325,9 +325,9 @@ public:
         // calculate new xmean, this is selection and recombination
         vec xold = xmean; // for speed up of Eq. (2) and (3)
         ivec bestIndex = arindex.head(mu);
-        mat bestArx = arx(Eigen::all, bestIndex);
+        mat bestArx = arx(Eigen::indexing::all, bestIndex);
         xmean = bestArx * weights;
-        mat bestArz = arz(Eigen::all, bestIndex);
+        mat bestArz = arz(Eigen::indexing::all, bestIndex);
         mat zmean = bestArz * weights;
         bool hsig = updateEvolutionPaths(zmean, xold);
         // adapt step size sigma
@@ -368,7 +368,7 @@ public:
         double historyWorst = fitnessHistory.maxCoeff();
         if (iterations > 2
                 && max(historyWorst, worstFitness)
-        - min(historyBest, bestFitness) < stopTolFun) {
+                        - min(historyBest, bestFitness) < stopTolFun) {
             stop = 4;
             return;
         }
@@ -388,7 +388,7 @@ public:
         }
         if (iterations > 2
                 && max(historyWorst, bestFitness)
-        - std::min(historyBest, bestFitness) == 0) {
+                        - std::min(historyBest, bestFitness) == 0) {
             sigma *= ::exp(0.2 + cs / damps);
         }
         // store best in history
@@ -416,30 +416,30 @@ public:
     }
 
     void do_optimize_delayed_update(int workers) {
-        iterations = 0;
-        fitfun->resetEvaluations();
-        evaluator eval(fitfun, 1, workers);
-        vec evals_x[workers];
-        // fill eval queue with initial population
-        for (int i = 0; i < workers; i++) {
-            vec x = ask();
-            eval.evaluate(x, i);
-            evals_x[i] = x;
-        }
-        while (fitfun->evaluations() < maxEvaluations) {
-            vec_id* vid = eval.result();
-            vec y = vec(vid->_v);
-            int p = vid->_id;
-            delete vid;
-            vec x = evals_x[p];
-            tell(y(0), x); // tell evaluated x
-            if (fitfun->evaluations() >= maxEvaluations)
-                break;
-            x = ask();
-            eval.evaluate(x, p);
-            evals_x[p] = x;
-        }
-    }
+    	 iterations = 0;
+    	 fitfun->resetEvaluations();
+    	 evaluator eval(fitfun, 1, workers);
+    	 vec evals_x[workers];
+	     // fill eval queue with initial population
+    	 for (int i = 0; i < workers; i++) {
+    		 vec x = ask();
+    		 eval.evaluate(x, i);
+    		 evals_x[i] = x;
+    	 }
+    	 while (fitfun->evaluations() < maxEvaluations) {
+    		 vec_id* vid = eval.result();
+    		 vec y = vec(vid->_v);
+    		 int p = vid->_id;
+    		 delete vid;
+    		 vec x = evals_x[p];
+    		 tell(y(0), x); // tell evaluated x
+    		 if (fitfun->evaluations() >= maxEvaluations)
+    			 break;
+    		 x = ask();
+    		 eval.evaluate(x, p);
+    		 evals_x[p] = x;
+    	 }
+	}
 
     vec getBestX() {
         return bestX;

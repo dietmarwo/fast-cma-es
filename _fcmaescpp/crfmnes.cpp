@@ -116,9 +116,9 @@ public:
         int best_eval_id = sorted_indices[0];
         double f_best_ = evals_no_sort[best_eval_id];
 
-        z = mat(z)(Eigen::all, sorted_indices);
-        y = mat(y)(Eigen::all, sorted_indices);
-        x = mat(x)(Eigen::all, sorted_indices);
+        z = mat(z)(Eigen::indexing::all, sorted_indices);
+        y = mat(y)(Eigen::indexing::all, sorted_indices);
+        x = mat(x)(Eigen::indexing::all, sorted_indices);
         no_of_evals += lamb;
         g += 1;
         if (f_best_ < f_best) {
