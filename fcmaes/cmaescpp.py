@@ -31,7 +31,7 @@ def minimize(fun,
              rg = Generator(MT19937()),
              runid=0,
              workers = 1, 
-             normalize = False,
+             normalize = True,
              update_gap = None):   
     """Minimization of a scalar function of one or more variables using a 
     C++ CMA-ES implementation called via ctypes.
