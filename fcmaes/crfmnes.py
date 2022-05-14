@@ -148,7 +148,7 @@ class CRFMNES:
         
         self.D = np.ones([dim, 1])
         self.penalty_coef = options.get('penalty_coef', 1e5)
-        self.use_constraint_violation = options.get('use_constraint_violation', False)
+        self.use_constraint_violation = options.get('use_constraint_violation', True)
 
         self.w_rank_hat = (np.log(self.lamb / 2 + 1) - np.log(np.arange(1, self.lamb + 1))).reshape(self.lamb, 1)
         self.w_rank_hat[np.where(self.w_rank_hat < 0)] = 0
