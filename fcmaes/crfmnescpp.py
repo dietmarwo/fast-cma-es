@@ -26,12 +26,11 @@ def minimize(fun,
              input_sigma = 0.3, 
              popsize = 32, 
              max_evaluations = 100000, 
-             stop_fitness = None, 
+             stop_fitness = -math.inf, 
              rg = Generator(MT19937()),
              runid=0,
-             workers = 1,
              normalize = False,
-             use_constraint_violation = False,
+             use_constraint_violation = True,
              penalty_coef = 1E5
              ):
        
@@ -63,10 +62,7 @@ def minimize(fun,
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     runid : int, optional
-        id used by the is_terminate callback to identify the CMA-ES run. 
-    workers : int or None, optional
-        If not workers is None, function evaluation is performed in parallel for the whole population. 
-        Useful for costly objective functions but is deactivated for parallel retry.      
+        id used by the is_terminate callback to identify the CMA-ES run.     
     normalize : boolean, optional
         if true pheno -> geno transformation maps arguments to interval [-1,1] 
            
@@ -90,8 +86,6 @@ def minimize(fun,
     if lower is None:
         lower = [0]*dim
         upper = [0]*dim
-    if workers is None:
-        workers = 0
     if callable(input_sigma):
         input_sigma=input_sigma()
     if np.ndim(input_sigma) > 0:

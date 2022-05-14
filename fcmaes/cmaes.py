@@ -124,7 +124,7 @@ class Cmaes(object):
                         rg = Generator(MT19937()), # used if x0 is undefined
                         randn = np.random.randn, # used for random offspring 
                         runid=0, 
-                        normalize = False,
+                        normalize = True,
                         update_gap = None,
                         fun = None,
                         logger = None

@@ -47,7 +47,7 @@ public:
         runid = runid_;
         fitfun = fitfun_;
         dim = dim_;
-        m = m_;
+        m = fitfun->encode(m_);
         sigma = sigma_;
         lamb = lamb_;
         mu = lamb_/2;
@@ -123,7 +123,7 @@ public:
         g += 1;
         if (f_best_ < f_best) {
             f_best = f_best_;
-            x_best = x.col(best_eval_id);
+            x_best = fitfun->decode(x.col(best_eval_id));
         }
         // This operation assumes that if the solution is infeasible, infinity comes in as input.
         double lambF = 0;

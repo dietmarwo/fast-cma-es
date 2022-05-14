@@ -2,7 +2,7 @@
 import math
 import numpy as np
 import copy
-from fcmaes.cmaes import _check_bounds, serial
+from fcmaes.cmaes import _check_bounds, _fitness, serial
 from scipy.optimize import OptimizeResult
 from numpy.random import MT19937, Generator
 import os, sys, time
@@ -27,6 +27,7 @@ def minimize(fun,
              is_terminate = None, 
              rg = Generator(MT19937()),
              runid=0,
+             normalize = False,
              options={}
              ):       
     """Minimization of a scalar function of one or more variables using CMA-ES.
@@ -59,7 +60,9 @@ def minimize(fun,
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     runid : int, optional
-        id used by the is_terminate callback to identify the CMA-ES run. 
+        id used by the is_terminate callback to identify the optimization run.
+    normalize : boolean, optional
+        if true pheno -> geno transformation maps arguments to interval [-1,1]  
     options : dict, optional
    
     Returns
@@ -74,26 +77,24 @@ def minimize(fun,
         popsize += 1
 
     lower, upper, guess = _check_bounds(bounds, x0, rg)   
+    f = _fitness(serial(fun), lower, upper, normalize)      
     dim = guess.size  
      
     sigma = input_sigma
     if not np.isscalar(sigma):
         sigma = np.mean(sigma)
-           
-    def checked(x): # avoid fitness calls outside the defined boundaries
-        x = x.flatten()
-        return fun(np.maximum(np.minimum(x, upper), lower))
-     
-    mean = np.array([guess]).T
+         
+    mean = np.array([f.encode(guess)]).T
     if options is None:
         options = {}
     options['constraint'] = [ [lower[i], upper[i]] for i in range(dim)]
-    cr = CRFMNES(dim, serial(checked), mean, sigma, popsize, 
+
+    cr = CRFMNES(dim, f, mean, sigma, popsize, 
                  max_evaluations, stop_fitness, is_terminate, runid, options)
     
     cr.optimize()
 
-    return OptimizeResult(x=cr.x_best, fun=cr.f_best, nfev=cr.no_of_evals, 
+    return OptimizeResult(x=f.decode(cr.x_best), fun=cr.f_best, nfev=cr.no_of_evals, 
                           nit=cr.g, status=cr.stop, 
                           success=True)
 
@@ -132,6 +133,7 @@ class CRFMNES:
             np.random.seed(options['seed'])
         self.dim = dim
         self.f = f
+        self.constraint = options.get('constraint', [[-np.inf, np.inf] for _ in range(dim)])
         self.m = m
         self.sigma = sigma
         self.lamb = lamb
@@ -145,7 +147,6 @@ class CRFMNES:
         self.v = options.get('v', self.randn(dim, 1) / np.sqrt(dim))
         
         self.D = np.ones([dim, 1])
-        self.constraint = options.get('constraint', [[- np.inf, np.inf] for _ in range(dim)])
         self.penalty_coef = options.get('penalty_coef', 1e5)
         self.use_constraint_violation = options.get('use_constraint_violation', False)
 
@@ -202,6 +203,7 @@ class CRFMNES:
             try:
                 _ = self.one_iteration()
             except Exception as ex:
+                self.stop = -1
                 break
 
     def one_iteration(self):
@@ -215,7 +217,7 @@ class CRFMNES:
         vbar = self.v / normv
         y = self.z + ((np.sqrt(1 + normv2) - 1) * (vbar @ (vbar.T @ self.z)))
         x = self.m + (self.sigma * y) * self.D
-        evals_no_sort = self.f(x.T)
+        evals_no_sort = self.f.values(self.f.closestFeasible(x.T))
 
         violations = np.zeros(lamb)
         if self.use_constraint_violation:
