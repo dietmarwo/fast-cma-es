@@ -21,7 +21,6 @@ from fcmaes import retry, advretry
 from fcmaes.optimizer import logger, de_cma, single_objective, de, Bite_cpp
 
 import matplotlib.pyplot as plt
-import pygmo as pg
 from pykep import RAD2DEG, AU
 
 from solo_mgar_udp import solo_mgar_udp
@@ -71,6 +70,7 @@ def verify(ys, xs):
         assert abs(y0 - y < 0.23)
 
 def check_good_solution(x):
+    import pygmo as pg
     solo_mgar = solo_mgar_udp([7000, 8000])  
     prob = pg.problem(solo_mgar)
     print (str(prob.fitness(x))) 
@@ -100,20 +100,24 @@ def print_good_solutions(xs):
         print (str(i) + ' ' + str(incl*RAD2DEG) + ' ' + str(final_perhelion) + ' [' + str(y[0]), ', [' + resos + '], ' + str(x) + '],')
      
 def optimize():   
+    from scipy.optimize import Bounds
     solo_mgar = solo_mgar_udp([7000, 8000])  
-    prob = pg.problem(solo_mgar)
-    fprob = single_objective(prob)   
-       
+    
+    def fun(x):
+        return solo_mgar.fitness(x)[0]
+        
     # logger().info('solar orbiter' + ' de -> cmaes c++ smart retry')
     # ret = advretry.minimize(fprob.fun, bounds=fprob.bounds, num_retries = 60000, 
         # logger = logger(), optimizer=de_cma(1500))
     
     logger().info('solar orbiter' + ' BiteOpt parallel retry')
-    ret = retry.minimize(fprob.fun, bounds=fprob.bounds, num_retries = 32000, 
+    bounds = solo_mgar.get_bounds()
+    ret = retry.minimize(fun, bounds=Bounds(bounds[0], bounds[1]), num_retries = 32000, 
                          logger = logger(), optimizer=Bite_cpp(120000, M=6))
     return ret
 
-def archipelago():    
+def archipelago():   
+    import pygmo as pg 
     udp = solo_mgar_udp([7000, 8000])  
     #uda = pg.sga(gen = 6000)
     uda = pg.sade(memory=True,variant=1,gen=6000)
@@ -130,7 +134,8 @@ def archipelago():
         archi.evolve()
         archi.wait_check()
 
-def optimize_pagmo():   
+def optimize_pagmo():  
+    import pygmo as pg  
     solo_mgar = solo_mgar_udp([7000, 8000])  
     for i in range(6000):
         prob = pg.problem(solo_mgar)   
@@ -140,7 +145,7 @@ def optimize_pagmo():
         print(i, pop.champion_f, solo_mgar.fitness(pop.champion_x))
 
 if __name__ == '__main__':
-    #optimize()
+    optimize()
     #archipelago()
     ys, xs = read_solutions('data/solo_results.txt')
     #print_good_solutions(xs) 

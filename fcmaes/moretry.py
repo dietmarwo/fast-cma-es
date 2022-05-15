@@ -181,7 +181,7 @@ def minimize_plot(name, optimizer, fun, bounds, weight_bounds, ncon = 0,
     np.savez_compressed(name, xs=xs, ys=ys) 
     plot(name, ncon, xs, ys)
     
-def plot(name, ncon, xs, ys, eps = 1E-2, all=True):   
+def plot(name, ncon, xs, ys, eps = 1E-2, all=True, interp=False, plot3d=False):   
     try:  
         if ncon > 0: # select feasible
             ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])  
@@ -198,7 +198,7 @@ def plot(name, ncon, xs, ys, eps = 1E-2, all=True):
             xs, ys = pareto(xs, ys)
             for x, y in zip(xs, ys):
                 print(str(list(y)) + ' ' + str([int(xi) for xi in x]))
-        retry.plot(ys, 'front_' + name + '.png', interp=False)
+        retry.plot(ys, 'front_' + name + '.png', interp=interp, plot3d=plot3d)
     except Exception as ex:
         print(str(ex))
 

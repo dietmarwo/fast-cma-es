@@ -142,6 +142,11 @@ def plot(front, fname, interp=True, label=r'$\chi$',
             plot(front.T[np.array([0,i])].T, str(i) + '_' + fname, 
                  interp=interp, ylabel = r'$f_{0}$'.format(i+1))     
         return   
+    if len(front[0]) == 1:
+        ys = np.array(list(zip(range(100), [front[0][0]]*100)))
+        plot(ys, str(1) + '_' + fname, 
+                 interp=interp, xlabel = '', ylabel = r'$f_{0}$'.format(1))     
+        return      
     import matplotlib.pyplot as pl
     fig, ax = pl.subplots(1, 1)
     x = front[:, 0]; y = front[:, 1]
