@@ -51,7 +51,7 @@ def re_2(x, feasible_values):
         [(x1 * x3) - 7.735 * div((x1 * x1), x2) - 180.0, 
         4.0 - div(x3, x2)
     ])
-    g = np.minimum(g, 0)*-1
+    g = np.maximum(g*-1, 0)
 
     return np.array([f1] + list(g))
 
@@ -76,7 +76,7 @@ def re_3(x):
         1 - (delta / deltaMax),
         1 - div(sigmaB, sigmaK)
     ])
-    g = np.minimum(g, 0)*-1
+    g = np.maximum(g*-1, 0)
  
     return np.array([f1] + list(g))
         
@@ -115,7 +115,7 @@ def re_4(x):
         x4 - x1,
         PC - P
     ])
-    g = np.minimum(g, 0)*-1
+    g = np.maximum(g*-1, 0)
 
     return np.array([f1,f2] + list(g))
 
@@ -132,7 +132,7 @@ def re_5(x):
         1.0 - div(2.22 * 1e-3 * x3 * (x2 * x2 * x2 - x1 * x1 * x1), np.power((x2 * x2 - x1 * x1), 2)),
         div(2.66 * 1e-2 * x3 * x4 * (x2 * x2 * x2 - x1 * x1 * x1), x2 * x2 - x1 * x1) - 900.0
     ])
-    g = np.minimum(g, 0)*-1
+    g = np.maximum(g*-1, 0)
 
     return np.array([f1,f2] + list(g))
 
@@ -144,7 +144,7 @@ def re_6(x):
     f2 = np.max(np.array([x1, x2, x3, x4]))
     
     g = np.array([0.5 - (f1 / 6.931)])
-    g = np.minimum(g, 0)*-1
+    g = np.maximum(g*-1, 0)
     
     return np.array([f1,f2] + list(g))
 
