@@ -20,7 +20,8 @@ astro_map = {
     "rosettaC": libcmalib.rosettaC,
     "sagasC": libcmalib.sagasC,
     "tandemC": libcmalib.tandemC,
-    "tandemCu": libcmalib.tandemCu
+    "tandemCu": libcmalib.tandemCu,
+    "cassini2minlpC": libcmalib.cassini2minlpC,
     }
 
 freemem = libcmalib.free_mem
@@ -166,7 +167,7 @@ class Cassini1multi(object):
     """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/ """
     
     def __init__(self, weights = [1,0,0,0], planets = [2,2,3,5]):    
-        Astrofun.__init__(self, 'Cassini1minlp', "Cassini1minlpC", 
+        Astrofun.__init__(self, 'Cassini1', "cassini1C", 
                            [-1000.,30.,100.,30.,400.,1000.],
                            [0.,400.,470.,400.,2000.,6000.]       
         )
@@ -182,18 +183,33 @@ class Cassini1multi(object):
 class Cassini1minlp(object):
     """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/ """
     
-    def __init__(self, weights = [1,0,0,0]):    
-        Astrofun.__init__(self, 'Cassini1minlp', "Cassini1minlpC", 
-                           [-1000.,30.,100.,30.,400.,1000., 1.0,1.0,1.0,1.0 ],
-                           [0.,400.,470.,400.,2000.,6000., 9.0,9.0,9.0,9.0 ]       
+    def __init__(self, planets = [2,2,3,5]):    
+        Astrofun.__init__(self, 'Cassini1', "cassini1C", 
+                           [-1000.,30.,100.,30.,400.,1000.],
+                           [0.,400.,470.,400.,2000.,6000.]       
         )
-        self.fun = self.cassini1minlp
-        self.weights = weights
-        self.mfun = cassini1multi
-         
-    def cassini1minlp(self, x):
-        r = cassini1multi(x)
-        return self.weights[0]*r[0] + self.weights[1]*r[1] + self.weights[2]*r[2] + self.weights[3]*r[3]
+        self.fun = self.cassini1
+        self.planets = planets
+   
+    def cassini1(self, x):
+        return cassini1minlp(list(x) + self.planets)
+      
+def cassini1minlp(x):
+    n = len(x)
+    array_type = ct.c_double * n   
+    fun_c = astro_map["cassini1minlpC"]      
+    fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double)]
+    fun_c.restype = ct.POINTER(ct.c_double)  
+    try: # function is only defined inside bounds
+        res = fun_c(n, array_type(*x))
+        dv = res[0]
+        freemem(res)
+        if not math.isfinite(dv):
+            dv = 1E10
+    except Exception as ex:
+        print(ex)
+        dv = 1E10
+    return dv
 
 def cassini1multi(x):
     n = len(x)
@@ -214,9 +230,41 @@ def cassini1multi(x):
         launch_dv = 1E10 
     tof = x[1] + x[2] + x[3] + x[4]
     launch_time = x[0] 
-    return [dv, tof, launch_time, launch_dv]
+    return [dv, tof, launch_time]
 
-  
+def cassini2multi(x):
+    n = len(x)
+    array_type = ct.c_double * n   
+    fun_c = astro_map["cassini2minlpC"]      
+    fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double)]
+    fun_c.restype = ct.c_double  
+    try: # function is only defined inside bounds
+        dv = fun_c(n, array_type(*x))
+    except Exception as ex:
+        print(ex)
+        dv = 1E99
+    tof = sum(x[4:9])
+    launch_time = x[0] 
+    return [dv, tof, launch_time]
+ 
+class python_fun(object):
+    
+    def __init__(self, cfun, bounds):
+        self.cfun = cfun
+        self.bounds = bounds
+    
+    def __call__(self, x):
+        fun_c = astro_map[self.cfun]      
+        n = len(x)
+        array_type = ct.c_double * n   
+        try: # function is only defined inside bounds
+            # x = np.array(x).clip(self.bounds.lb, self.bounds.ub)
+            val = float(fun_c(n, array_type(*x)))
+            if not math.isfinite(val):
+                val = 1E10
+        except Exception as ex:
+            val = 1E10
+        return val 
 class python_fun(object):
     
     def __init__(self, cfun, bounds):

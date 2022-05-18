@@ -17,7 +17,7 @@
 
 import math
 from math import cos, pi, sin, sqrt
-from fcmaes import retry, advretry 
+from fcmaes import retry, advretry, modecpp, mode
 from fcmaes.optimizer import logger, de_cma, single_objective, de, Bite_cpp
 
 import matplotlib.pyplot as plt
@@ -112,9 +112,22 @@ def optimize():
     
     logger().info('solar orbiter' + ' BiteOpt parallel retry')
     bounds = solo_mgar.get_bounds()
-    ret = retry.minimize(fun, bounds=Bounds(bounds[0], bounds[1]), num_retries = 32000, 
-                         logger = logger(), optimizer=Bite_cpp(120000, M=6))
-    return ret
+    
+    # ret = retry.minimize(fun, bounds=Bounds(bounds[0], bounds[1]), num_retries = 32000, 
+    #                      logger = logger(), optimizer=Bite_cpp(120000, M=6))
+    
+    # x, y = modecpp.retry(mode.wrapper(solo_mgar.mo_fitness, 3, interval = 1000000000), 3, 1,
+    #           Bounds(bounds[0], bounds[1]), popsize = 128, 
+    #           max_evaluations = 200000, 
+    #           nsga_update=False, num_retries = 32000,
+    #           workers=32)
+    
+    x, y = modecpp.retry(mode.wrapper(solo_mgar.mo_fitness, 3, interval = 1000000000), 3, 3,
+             Bounds(bounds[0], bounds[1]), popsize = 64, 
+             max_evaluations = 100000, 
+             nsga_update=False, num_retries = 320,
+             workers=32)
+    #return ret
 
 def archipelago():   
     import pygmo as pg 

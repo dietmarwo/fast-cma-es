@@ -13,7 +13,7 @@ from scipy.optimize import OptimizeResult
 from fcmaes.optimizer import logger, de_cma, eprint
 from fcmaes import advretry
 
-def minimize(problems, ids=None, num_retries = min(256, 8*mp.cpu_count()), 
+def minimize(problems, ids=None, retries_inc = min(256, 8*mp.cpu_count()), num_retries = 10000,
              keep = 0.7, optimizer = de_cma(1500), logger = None, datafile = None):
       
     """Minimization of a list of optimization problems by first applying parallel retry
@@ -34,10 +34,13 @@ def minimize(problems, ids=None, num_retries = min(256, 8*mp.cpu_count()),
         list of objects corresponding to the list of problems used in logging to identify the 
         problem variant currently logged. If None, the index of the problem 
         variant is used instead.
-    
-    num_retries:  int, optional
+
+    retries_inc:  int, optional
         number of coordinated retries applied in the problem filter for each problem 
         in each iteration.
+    
+    num_retries:  int, optional
+        number of coordinated retries applied in the problem filter for the winner problem.
  
     keep:  float, optional
         rate of the problems kept after each iteration. 100*(1 - keep) % will be deleted. 
@@ -66,7 +69,7 @@ def minimize(problems, ids=None, num_retries = min(256, 8*mp.cpu_count()),
         
     for i in range(n):    
         id = str(i+1) if ids is None else ids[i]   
-        solver.add(problem_stats(problems[i], id, i, num_retries, logger))
+        solver.add(problem_stats(problems[i], id, i, retries_inc, num_retries, logger))
     
     if not datafile is None:
         solver.load(datafile)
@@ -86,21 +89,21 @@ def minimize(problems, ids=None, num_retries = min(256, 8*mp.cpu_count()),
         
 class problem_stats:
 
-    def __init__(self, prob, id, index, num_retries = 64, logger = None):
-        self.store = advretry.Store(prob.bounds, logger = logger, num_retries=num_retries)
+    def __init__(self, prob, id, index, retries_inc = 64, num_retries = 10000, logger = None):
+        self.store = advretry.Store(prob.fun, prob.bounds, logger = logger, num_retries=num_retries)
         self.prob = prob
         self.name = prob.name
         self.fun = prob.fun
-        self.num_retries = num_retries
-        self.retries = 0
+        self.retries_inc = retries_inc
         self.value = 0
         self.id = id
         self.index = index
         self.ret = None
+        self.store.num_retries = self.retries_inc
 
     def retry(self, optimizer):
-        self.retries += self.num_retries
-        self.ret = advretry.retry(self.fun, self.store, optimizer.minimize)
+        self.store.num_retries += self.retries_inc
+        self.ret = advretry.retry(self.store, optimizer.minimize)
         self.value = self.store.get_y_best()
  
 class multiretry:

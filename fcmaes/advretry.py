@@ -350,7 +350,7 @@ class Store(object):
     def add_result(self, y, xs, lower, upper, evals, limit=math.inf):
         """registers an optimization result at the store."""
         with self.add_mutex:
-            self.incr_count_evals(evals)
+            self.count_evals.value += evals
             if y < limit:
                 if y < self.best_y.value:
                     self.best_y.value = y
@@ -396,22 +396,17 @@ class Store(object):
         self.ys[pid] = y            
 
     def get_runs_compare_incr(self, limit):
+        """trigger sorting after check_interval calls. """
         with self.add_mutex:
             if self.count_runs.value < limit:
                 self.count_runs.value += 1
+                if self.count_runs.value % self.check_interval == self.check_interval-1:
+                    if self.eval_fac.value < self.max_eval_fac:
+                        self.eval_fac.value += self.eval_fac_incr
+                    self.sort()                
                 return True
             else:
                 return False 
-
-    def incr_count_evals(self, evals):
-        """registers the number of evaluations of an optimization run; 
-        trigger sorting after check_interval calls. """
-        if self.count_runs.value % self.check_interval == self.check_interval-1:
-            if self.eval_fac.value < self.max_eval_fac:
-                self.eval_fac.value += self.eval_fac_incr
-                #print(self.eval_fac.value)
-            self.sort()
-        self.count_evals.value += evals
 
     def dump(self):
         """logs the current status of the store if logger defined."""

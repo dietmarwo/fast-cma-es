@@ -211,6 +211,78 @@ class solo_mgar_udp:
                   )
    
         return ([value])
+
+    def mo_fitness(self, x):
+        rvt_outs, rvt_ins, _, reso_dts, dvs = self._compute_dvs(x)
+        rvt_out = rvt_outs[-1].rotate(self._rotation_axis, self._theta)  # rotate
+        _, _, incl, _, _, _ = rvt_out.kepler()
+        corrected_inclination = abs(abs(incl) % pi - pi / 2) * RAD2DEG
+        emp_perhelion = 2 * AU
+        min_sun_distance = 2 * AU
+        max_sun_distance = 0
+
+        for i in range(len(rvt_outs)):
+            orb = rvt_outs[i]
+            tof = orb.tof(rvt_ins[i + 1])
+            transfer_a, transfer_e, _, _, _, _ = orb.kepler()
+            transfer_period = 2 * pi * sqrt(transfer_a ** 3 / orb._mu)
+            perhelion = transfer_a * (1 - transfer_e)
+            if i >= len(rvt_outs) - 3:
+                emp_perhelion = min(emp_perhelion, perhelion)
+            min_sun_distance = min(min_sun_distance, perhelion)
+            if tof > transfer_period:
+                max_sun_distance = max(max_sun_distance, transfer_a * (1 + transfer_e))
+
+        time_all = SEC2DAY * (rvt_ins[-1]._t - rvt_outs[0]._t)
+        time_val = time_all
+        time_limit = self._max_mission_time  # 11 years
+        if time_val > time_limit:
+            time_val += 10 * (time_val - time_limit) 
+        
+        distance_val = min_sun_distance / AU        
+        # wrong reso timing in seconds
+        reso_penalty = np.sum(reso_dts)           
+        # wrong minimal / maximal distance
+        distance_penalty = max(0, 0.28 - min_sun_distance / AU)  
+        distance_penalty += max(0, max_sun_distance / AU - 1.2)  
+              
+        # allow start dv    
+        dvs[0] = max(0, dvs[0] - self._max_dv0) 
+        dv_val = np.sum(dvs)
+        
+        value = (100 * dv_val + 
+                100 * corrected_inclination + 
+                5000 * (max(0, distance_val - 0.28)) + 
+                5000 * (max(0, emp_perhelion / AU - 0.28)) + 
+                0.5 * time_val + 
+                reso_penalty + 
+                50000 * distance_penalty
+                )
+
+        if value < bval.value:
+            bval.value = value
+            print(str(value) 
+                  +" " + str(incl * RAD2DEG) 
+                  +" " + str(time_all / 365.25)  
+                  +" " + str(dv_val) 
+                  +" " + str(min_sun_distance / AU) 
+                  +" " + str(max_sun_distance / AU) 
+                  +" " + str(reso_penalty) + " "
+                  +" " + str(distance_penalty)
+                  )
+
+        return np.array([dv_val, corrected_inclination, time_val, 
+                         max(0, distance_val - 0.28),
+                         max(0, emp_perhelion / AU - 0.28),
+                         max(0, reso_penalty/100000 - 1)
+                          ])       
+ 
+        # pen = 5000 * (max(0, distance_val - 0.28)) + \
+        #     5000 * (max(0, emp_perhelion / AU - 0.28)) + \
+        #     reso_penalty + \
+        #     50000 * distance_penalty
+        # return np.array([dv_val, corrected_inclination, time_val, pen ])       
+
  
     def get_nobj(self):
         return 1
