@@ -11,26 +11,14 @@ from fcmaes.astro import MessFull, Messenger, Gtoc1, Cassini1, Cassini2, Rosetta
 from fcmaes.optimizer import logger, De_python, De_ask_tell, de_cma, de2_cma, da_cma, Cma_cpp, Cma_python, De_cpp, Da_cpp, Csma_cpp, Bite_cpp, Crfmnes, Crfmnes_cpp, Dual_annealing, Differential_evolution
 from fcmaes import retry
 
-import numpy as np
-from scipy.optimize import Bounds
 
-#problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), MessFull(), Sagas(), Cassini1minlp()]
-problems = [MessFull()]
+problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), MessFull(), Sagas(), Cassini1minlp()]
 
 max_evals = 50000
 
-# algos = [ de_cma(max_evals), de2_cma(max_evals), da_cma(max_evals), Cma_cpp(max_evals), De_cpp(max_evals),
-#          Da_cpp(max_evals), Bite_cpp(max_evals), Csma_cpp(max_evals), Dual_annealing(max_evals), Differential_evolution(max_evals)]
-
-#algos = [Crfmnes_cpp(max_evals), Crfmnes(max_evals)]
-#algos = [de_cma(max_evals),  De_cpp(max_evals), Cma_cpp(max_evals), Cma_python(max_evals), Bite_cpp(max_evals), Da_cpp(max_evals)]
-#algos = [Crfmnes_cpp(max_evals)]
-algos = [Crfmnes(max_evals)]
-
-#algos = [Crfmnes(max_evals), Crfmnes_cpp(max_evals)]
-#algos = [Crfmnes_cpp(max_evals)]
-
-#def test_all(num_retries = 10000, num = 1):               
+algos = [ de_cma(max_evals), de2_cma(max_evals), da_cma(max_evals), Cma_cpp(max_evals), De_cpp(max_evals),
+          Da_cpp(max_evals), Bite_cpp(max_evals), Csma_cpp(max_evals), Dual_annealing(max_evals), Differential_evolution(max_evals)]
+              
 def test_all(num_retries = 320, num = 1):
     for problem in problems:
         for algo in algos:
