@@ -2,6 +2,114 @@
 :imagesdir: img
 :cpp: C++
 
+
+=== This tutorial
+
+- Clarifies when to apply which multi-objective optimization method to which
+kind of real world optimization problem. We leave the artificial problems for the scientists.
+
+- Discusses a new multi-objective algorithm fcmaes-MODE supporting constraints 
+which comes with two variants:
+    * NSGA-II population update
+    * Differential Evolution population update
+
+=== Motivation
+
+The development of fcmaes initially was driven by applications in the space flight mission design domain. 
+When later focussing on other real world optimization problems, new (meta-)-algorithms were added,
+covering mixed integer problems, constraints and multi-objective problems. 
+Multi-objective algorithms can help to understand the tradeoffs between competing objectives.
+
+=== When to apply which multi-objective algorithm using Python
+
+As long as the problem is not trivial, you should utilize parallelization. 
+Beside either using cloud resources or investing in a modern many-core CPU this means: 
+Use a commercial optimizer certified for your OS, or, if you plan to use an open source solution:
+
+- You should either avoid non-Unix operating systems (like windows) or use 
+the Linux subsystem for Windows https://docs.microsoft.com/en-us/windows/wsl/[WSL], because Python multi-processing has issues
+on Windows. 
+
+- If you plan to use https://github.com/anyoptimization/pymoo[pymoo] check first how well its parallelization mechanisms
+scale. Its overhead is huge for objective functions which are fast to evaluate. 
+
+- If you plan to use some other open source optimizer, check if it supports parallelism for your OS 
+at all and how well it scales for your problem.
+
+Either implement the objective function in C++ and add a Python interface, for instance using `ctypes`,
+or if using Python, use https://numba.pydata.org/[numba] for the time critical parts. 
+
+Many real world problems can be implemented surprisingly efficient this way even in Python. 
+
+Use a simplified model easy to evaluate and then transfer good optimization results back into 
+the more accurate but hard to evaluate model. For space mission design this can mean
+to use an impulse based approximation for the optimization 
+even if we finally plan to use a continuous thrust engine.  
+
+If you decide to use fcmaes, there are many options:
+
+==== moretry.minimize
+A meta algorithm which applies a single-objective algorithm using the weighted sum approach. It runs parallel optimizations using 
+random weights for the objectives to produce a pareto front. The weight distribution is configurable. Should only be used if
+
+- The objective function is fast to evaluate, since it needs many evaluations.
+- There are not more than two objectives. 
+- One of the objectives has a strong connection to one or more decision variables. For instance the ToF (time of flight) for a space mission
+when the start time is one of the variables. In this case MO-algorithms tend to overemphasize this variable. Using moretry we can 
+force (via weight distribution) the focus on the other one. 
+- When only the very best single objective algorithms have a chance to optimize for one of the objectives. For instance 
+optimizing the delta velocity (fuel consumption) for a multi planet gravity assist space mission.  
+
+==== mode.minimize
+A new fcmaes multi-objective algorithm implemented in Python equivalent to modecpp.minimize. Use only if modecpp.minimize has issues
+- missing shared library for your OS or problems with parallel fitness function evaluation in your environment.  
+
+==== modecpp.minimize
+A new fcmaes multi-objective algorithm implemented in C++. Use if
+
+- Your objective function is expensive. In this case use parallel fitness function evaluation. 
+- Your problem has constraints. With moretry you have to use either the weighted sum or the Chebycheff method, modecpp supports 
+  constraints directly
+- No objective is directly connected to a decision variable
+- There are more than two obejctives
+
+==== modecpp.retry
+Same optimization algorithm as modecpp.minimize and mode.minimize, implemented in C++. Don't uses parallel function evaluation, instead
+it performs multiple optimization runs in parallel and joins the results into a single pareto front. Use if
+
+- Your objective function is fast to evaluate or you you have plenty of time for the optimization. 
+- Any of the other criteria for modecpp.minimize apply. 
+
+Scaling - the increase of the number of function evaluations per second per CPU-core - is much better using modecpp.retry, so 
+it should be preferred if the cost of the objective function evaluation doesn't prevent its application. 
+
+==== mode.retry
+Doesn't exist. Use modecpp.retry instead. Or mode.minimize / modecpp.minimize if your objective function is expensive.
+
+==== nsga_update
+All fcmaes mode variants have the `nsga_update` parameter. It determines the population update mechanism used: Either NSGA-II or 
+DE (differential evolution). Try `nsga_update=True` first since it tends to produce reasonable results faster.  
+Try `nsga_update=False` to see if the results improve for longer runs. 
+
+==== population size
+Usually needs to be larger than for single objective algorithms. Use `popsize=64` or bigger. `modecpp.minimize` usually
+needs a larger population size than 'modecpp.retry`. Same with `nsga_update=True` compared to `nsga_update=False`. 
+Dependent on the number of decision variables and the complexity of the problem. Don't exceed `popsize=200` for the first
+experiment, increase later if necessary.
+
+==== mixed integer
+All fcmaes mode variants support the `ints` parameter, but only if `nsga_update=False` (DE population update) 
+is configured. If you have integer
+decision variables, use the `ints` parameter to mark them for the algorithm, if applicable. Same holds for the
+single objective differential evolution variants (de.minimize and decpp.minimize). 
+
+If you have discrete float input values, 
+use an int->float conversion table inside the objective function and denote the variables using the ìnts`parameter. 
+
+If you have a permutation as input, don't use `ints` but declare the variables as box constraint floats in the [0,1] interval
+and use numpy.argsort to produce an integer permutation inside the objective function.  
+
+
 == MO-DE a new multiobjective optimization algorithm supporting constraints
 
 In https://github.com/dietmarwo/fast-cma-es/blob/master/MultiObjective.adoc[Multi-Objective] and https://github.com/dietmarwo/fast-cma-es/blob/master/TopTrumps.adoc[gbea TopTrumps Benchmark] we showed that in the context of parallel optimization retry it
