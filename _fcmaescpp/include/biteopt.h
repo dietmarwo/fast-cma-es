@@ -31,7 +31,7 @@
 #ifndef BITEOPT_INCLUDED
 #define BITEOPT_INCLUDED
 
-#define BITEOPT_VERSION "2022.8"
+#define BITEOPT_VERSION "2022.11"
 
 #include "spheropt.h"
 #include "nmsopt.h"
@@ -60,6 +60,7 @@ public:
 		addHist( M1BHist, "M1BHist" );
 		addHist( M1BAHist, "M1BAHist" );
 		addHist( M1BBHist, "M1BBHist" );
+		addHist( M2Hist, "M2Hist" );
 		addHist( PopChangeIncrHist, "PopChangeIncrHist" );
 		addHist( PopChangeDecrHist, "PopChangeDecrHist" );
 		addHist( ParOpt2Hist, "ParOpt2Hist" );
@@ -73,9 +74,11 @@ public:
 		addHist( MinSolPwrHist[ 0 ], "MinSolPwrHist[ 0 ]" );
 		addHist( MinSolPwrHist[ 1 ], "MinSolPwrHist[ 1 ]" );
 		addHist( MinSolPwrHist[ 2 ], "MinSolPwrHist[ 2 ]" );
+		addHist( MinSolPwrHist[ 3 ], "MinSolPwrHist[ 3 ]" );
 		addHist( MinSolMulHist[ 0 ], "MinSolMulHist[ 0 ]" );
 		addHist( MinSolMulHist[ 1 ], "MinSolMulHist[ 1 ]" );
 		addHist( MinSolMulHist[ 2 ], "MinSolMulHist[ 2 ]" );
+		addHist( MinSolMulHist[ 3 ], "MinSolMulHist[ 3 ]" );
 		addHist( Gen1AllpHist, "Gen1AllpHist" );
 		addHist( Gen1MoveHist, "Gen1MoveHist" );
 		addHist( Gen1MoveAsyncHist, "Gen1MoveAsyncHist" );
@@ -101,7 +104,7 @@ public:
 	void updateDims( const int aParamCount, const int PopSize0 = 0 )
 	{
 		const int aPopSize = ( PopSize0 > 0 ? PopSize0 :
-			13 + aParamCount * 3 );
+			14 + aParamCount * 3 );
 
 		if( aParamCount == ParamCount && aPopSize == PopSize )
 		{
@@ -208,7 +211,7 @@ public:
 	 * "pushed", used for deep optimization algorithm.
 	 * @return The number of non-improving iterations so far. A high value
 	 * means optimizer has reached an optimization plateau. The suggested
-	 * threshold value is ParamCount * 64. When this value was reached, the
+	 * threshold value is ParamCount * 128. When this value was reached, the
 	 * probability of plateau is high. This value, however, should not be
 	 * solely relied upon when considering a stopping criteria: a hard
 	 * iteration limit should be always used as in some cases convergence time
@@ -264,11 +267,11 @@ public:
 			{
 				if( select( M1AHist, rnd ))
 				{
-					generateSol2b( rnd );
+					generateSol2c( rnd );
 				}
 				else
 				{
-					generateSol3( rnd );
+					generateSol2b( rnd );
 				}
 			}
 			else
@@ -283,7 +286,7 @@ public:
 					}
 					else
 					{
-						generateSol7( rnd );
+						generateSol5b( rnd );
 					}
 				}
 				else
@@ -295,7 +298,7 @@ public:
 					}
 					else
 					{
-						generateSol5b( rnd );
+						generateSol7( rnd );
 					}
 				}
 				else
@@ -307,7 +310,14 @@ public:
 		else
 		if( SelMethod == 2 )
 		{
-			generateSol1( rnd );
+			if( select( M2Hist, rnd ))
+			{
+				generateSol1( rnd );
+			}
+			else
+			{
+				generateSol3( rnd );
+			}
 		}
 		else
 		{
@@ -481,6 +491,8 @@ protected:
 		///<
 	CBiteOptHist< 2 > M1BBHist; ///< Method 1's sub-sub-method B2 histogram.
 		///<
+	CBiteOptHist< 2 > M2Hist; ///< Method 2's sub-method histogram.
+		///<
 	CBiteOptHist< 2 > PopChangeIncrHist; ///< Population size change increase
 		///< histogram.
 		///<
@@ -499,10 +511,10 @@ protected:
 	CBiteOptHist< 2 > AltPopHist[ 3 ]; ///< Alternative population type use
 		///< histogram.
 		///<
-	CBiteOptHist< 4 > MinSolPwrHist[ 3 ]; ///< Index of least-cost
+	CBiteOptHist< 4 > MinSolPwrHist[ 4 ]; ///< Index of least-cost
 		///< population, power factor.
 		///<
-	CBiteOptHist< 4 > MinSolMulHist[ 3 ]; ///< Index of least-cost
+	CBiteOptHist< 4 > MinSolMulHist[ 4 ]; ///< Index of least-cost
 		///< population, multiplier.
 		///<
 	CBiteOptHist< 2 > Gen1AllpHist; ///< Generator method 1's Allp
@@ -523,7 +535,7 @@ protected:
 	CBiteOptHist< 2 > Gen5BinvHist; ///< Generator method 5's random
 		///< inversion technique histogram.
 		///<
-	CBiteOptHist< 4 > Gen7PowFacHist; ///< Generator method 2c's Power
+	CBiteOptHist< 4 > Gen7PowFacHist; ///< Generator method 7's Power
 		///< histogram.
 		///<
 	int CentUpdateCtr; ///< Centroid update counter.
@@ -793,7 +805,7 @@ protected:
 
 		// rand/2/none DE-alike mutation.
 
-		const int si1 = (int) ( rnd.getRndValue() * CurPopSize );
+		const int si1 = getMinSolIndex( 2, rnd, CurPopSize );
 		const ptype* const rp1 = getParamsOrdered( si1 );
 
 		const int si2 = (int) ( rnd.getRndValue() * CurPopSize );
@@ -816,6 +828,73 @@ protected:
 	}
 
 	/**
+	 * "Differential Evolution"-based solution generator, first implemented in
+	 * the CDEOpt class.
+	 */
+
+	void generateSol2c( CBiteRnd& rnd )
+	{
+		ptype* const Params = TmpParams;
+
+		memset( Params, 0, ParamCount * sizeof( Params[ 0 ]));
+
+		const int si1 = (int) ( rnd.getRndValueSqr() * CurPopSize );
+		const ptype* const rp1 = getParamsOrdered( si1 );
+
+		const int PairCount = 3;
+		int PopIdx[ 1 + 2 * PairCount ];
+		PopIdx[ 0 ] = si1;
+
+		int pp = 1;
+		int i;
+		int j;
+
+		while( pp < 1 + 2 * PairCount )
+		{
+			const int sii = (int) ( rnd.getRndValue() * CurPopSize );
+
+			for( j = 0; j < pp; j++ )
+			{
+				if( PopIdx[ j ] == sii )
+				{
+					break;
+				}
+			}
+
+			if( j == pp )
+			{
+				PopIdx[ pp ] = sii;
+				pp++;
+			}
+		}
+
+		for( j = 0; j < PairCount; j++ )
+		{
+			const ptype* const rp2 = getParamsOrdered( PopIdx[ 1 + j * 2 ]);
+			const ptype* const rp3 = getParamsOrdered( PopIdx[ 2 + j * 2 ]);
+
+			for( i = 0; i < ParamCount; i++ )
+			{
+				Params[ i ] += rp2[ i ] - rp3[ i ];
+			}
+
+			if( rnd.getBit() )
+			{
+				const int k = (int) ( rnd.getRndValue() * ParamCount );
+				const int b = (int) ( rnd.getRndValue() * IntMantBits );
+
+				Params[ k ] &= ~( (ptype) 1 << b );
+				Params[ k ] |= (ptype) rnd.getBit() << b;
+			}
+		}
+
+		for( i = 0; i < ParamCount; i++ )
+		{
+			Params[ i ] = rp1[ i ] + ( Params[ i ] >> 2 );
+		}
+	}
+
+	/**
 	 * "Centroid mix with DE" solution generator, works well for convex
 	 * functions. For DE operation, uses a better solution and a random
 	 * previous solution.
@@ -826,7 +905,7 @@ protected:
 		ptype* const Params = TmpParams;
 
 		const ptype* const MinParams = getParamsOrdered(
-			getMinSolIndex( 2, rnd, CurPopSize ));
+			getMinSolIndex( 3, rnd, CurPopSize ));
 
 		if( NeedCentUpdate )
 		{
@@ -926,9 +1005,11 @@ protected:
 
 			const ptype crpl = (ptype) ( rnd.getUniformRaw2() & IntMantMask );
 
-			ptype v1 = CrossParams1[ i ];
-			ptype v2 = ( UseInv && rnd.getBit() ?
+			const ptype v1 = CrossParams1[ i ];
+			const ptype v2 = ( UseInv && rnd.getBit() ?
 				~CrossParams2[ i ] : CrossParams2[ i ]);
+
+			Params[ i ] = ( v1 & crpl ) | ( v2 & ~crpl );
 
 			if( rnd.getBit() )
 			{
@@ -936,16 +1017,9 @@ protected:
 
 				const int b = (int) ( rnd.getRndValue() * IntMantBits );
 
-				const ptype m = ~( (ptype) 1 << b );
-				const ptype bv = (ptype) rnd.getBit() << b;
-
-				v1 &= m;
-				v2 &= m;
-				v1 |= bv;
-				v2 |= bv;
+				Params[ i ] &= ~( (ptype) 1 << b );
+				Params[ i ] |= (ptype) rnd.getBit() << b;
 			}
-
-			Params[ i ] = ( v1 & crpl ) | ( v2 & ~crpl );
 		}
 	}
 
@@ -1020,7 +1094,7 @@ protected:
 		{
 			const double rv = pow( rnd.getRndValue(), pwr );
 
-			if( UseOldPop && rnd.getBit() )
+			if( UseOldPop && rnd.getBit() && rnd.getBit() )
 			{
 				Params[ i ] = OldPop.getParamsOrdered(
 					(int) ( rv * OldPop.getCurPopPos() ))[ i ];
@@ -1343,8 +1417,8 @@ public:
  * algorithm. Expected range is [1; 36]. Internally multiplies "iter" by
  * sqrt(M). 
  * @param attc The number of optimization attempts to perform.
- * @param stopc Stopping criteria (convergence check). 0: off, 1: 64*N,
- * 2: 128*N.
+ * @param stopc Stopping criteria (convergence check). 0: off, 1: 128*N,
+ * 2: 256*N.
  * @param rf Random number generator function; 0: use the default BiteOpt
  * PRNG. Note that the external RNG should be seeded externally.
  * @param rdata Data pointer to pass to the "rf" function.
@@ -1368,7 +1442,7 @@ inline int biteopt_minimize( const int N, biteopt_func f, void* data,
 	CBiteRnd rnd;
 	rnd.init( 1, rf, rdata );
 
-	const int sct = ( stopc <= 0 ? 0 : 64 * N * stopc );
+	const int sct = ( stopc <= 0 ? 0 : 128 * N * stopc );
 	const int useiter = (int) ( iter * sqrt( (double) M ));
 	int evals = 0;
 	int k;
@@ -1383,7 +1457,7 @@ inline int biteopt_minimize( const int N, biteopt_func f, void* data,
 		{
 			const int sc = opt.optimize( rnd );
 
-			if( sct != 0 && sc >= sct )
+			if( sct > 0 && sc >= sct )
 			{
 				evals++;
 				break;
