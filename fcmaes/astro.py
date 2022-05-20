@@ -167,7 +167,7 @@ class Cassini1multi(object):
     """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/ """
     
     def __init__(self, weights = [1,0,0,0], planets = [2,2,3,5]):    
-        Astrofun.__init__(self, 'Cassini1', "cassini1C", 
+        Astrofun.__init__(self, 'Cassini1minlp', "Cassini1minlpC", 
                            [-1000.,30.,100.,30.,400.,1000.],
                            [0.,400.,470.,400.,2000.,6000.]       
         )
@@ -228,7 +228,7 @@ def cassini1multi(x):
         print(ex)
         dv = 1E10
         launch_dv = 1E10 
-    tof = x[1] + x[2] + x[3] + x[4]
+    tof = sum(x[1:6])
     launch_time = x[0] 
     return [dv, tof, launch_time]
 

@@ -133,7 +133,8 @@ def minimize_plot(name, optimizer, fun, bounds, value_limit = math.inf,
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
     logger.info('optimize ' + name)       
-    store = Store(fun, bounds, capacity = 500, logger = logger, statistic_num = statistic_num)
+    store = Store(fun, bounds, capacity = 500, logger = logger, statistic_num = statistic_num, 
+                  num_retries=num_retries)
     ret = retry(store, optimizer.minimize, value_limit, workers, stop_fitness)
     impr = store.get_improvements()
     np.savez_compressed(name, ys=impr)
