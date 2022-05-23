@@ -29,8 +29,8 @@ support both parallel fitness function evaluation and a parallel retry mechanism
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] Managing hospital resources during a pandemic.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop] Solving the flexible job shop scheduling problem. 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling] Solving a complex scheduling problem, part of the GTOC11 competition.
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling] Solving a complex scheduling problem, part of the GTOC11 competition.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SpaceFlight.adoc[Space Flight] Space flight mission design revisited.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[MO-DE] MO-DE, a new multi objective algorithm.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc[Multi-Objective] Solving multi objective problems using variable weights. 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc[gbea TopTrumps Benchmark] TopTrumps game optimization benchmark. 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PAGMO.adoc[Pagmo results] GTOPX Benchmark results using Pagmo
