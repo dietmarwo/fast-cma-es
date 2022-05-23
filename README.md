@@ -13,6 +13,7 @@ A Python 3 gradient-free optimization library.
 - [Hospital](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc)
 - [JobShop](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc)
 - [Scheduling](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc)
+- [Space Flight](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SpaceFlight.adoc)
 - [MODE](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc)
 - [Multi-Objective](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc), 
 - [MO-DE-NSGAII](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/NSGAII.adoc), 
