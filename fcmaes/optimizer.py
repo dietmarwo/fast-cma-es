@@ -148,7 +148,7 @@ class Choice(Optimizer):
         return opt.minimize(fun, bounds, guess, sdevs, rg, store)
 
 def de_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
-           de_max_evals = None, cma_max_evals = None):
+           de_max_evals = None, cma_max_evals = None, ints = None):
     """Sequence differential evolution -> CMA-ES."""
 
     deEvals = np.random.uniform(0.1, 0.5)
@@ -156,13 +156,14 @@ def de_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
         de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
         cma_max_evals = int((1.0-deEvals)*max_evaluations)
-    opt1 = De_cpp(popsize=popsize, max_evaluations = de_max_evals, stop_fitness = stop_fitness)
+    opt1 = De_cpp(popsize=popsize, max_evaluations = de_max_evals, 
+                  stop_fitness = stop_fitness, ints=ints)
     opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
                    stop_fitness = stop_fitness)
     return Sequence([opt1, opt2])
 
 def de_cma_py(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
-           de_max_evals = None, cma_max_evals = None):
+           de_max_evals = None, cma_max_evals = None, ints = None):
     """Sequence differential evolution -> CMA-ES in python."""
 
     deEvals = np.random.uniform(0.1, 0.5)
@@ -170,13 +171,14 @@ def de_cma_py(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
         de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
         cma_max_evals = int((1.0-deEvals)*max_evaluations)
-    opt1 = De_python(popsize=popsize, max_evaluations = de_max_evals, stop_fitness = stop_fitness)
+    opt1 = De_python(popsize=popsize, max_evaluations = de_max_evals, 
+                     stop_fitness = stop_fitness, ints=ints)
     opt2 = Cma_python(popsize=popsize, max_evaluations = cma_max_evals, 
                    stop_fitness = stop_fitness)
     return Sequence([opt1, opt2])
 
 def de2_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
-           de_max_evals = None, cma_max_evals = None):
+           de_max_evals = None, cma_max_evals = None, ints = None):
     """Sequence differential evolution -> CMA-ES."""
 
     deEvals = np.random.uniform(0.1, 0.5)
@@ -184,7 +186,7 @@ def de2_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
         de_max_evals = int(deEvals*max_evaluations)
     if cma_max_evals is None:
         cma_max_evals = int((1.0-deEvals)*max_evaluations)
-    opt1 = Choice([GCLDE_cpp(de_max_evals), De_cpp(de_max_evals)])
+    opt1 = Choice([GCLDE_cpp(de_max_evals), De_cpp(de_max_evals, ints=ints)])
     opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fitness = stop_fitness)
     return Sequence([opt1, opt2])
 

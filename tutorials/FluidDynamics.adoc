@@ -101,27 +101,16 @@ these results.
 
 There is nothing magic behind the mixed integer support, it is a minor - but quite effective - modification:
 The first change is related to the bounds: Since the algorithm internally works with continuous variables
-(floats) we should assign the same value range to each discrete choice inside the bounds. This range has
-the size 1.0, so we have to adapt the lower and upper bounds, which are expected to be given as integer
-values:
+(floats) we should assign the same value range to each discrete choice inside the bounds.
+So we add 0.99999 to the upper integer bound and assume that the fitness function will truncate to an integer value.
 
-[source,python]
-----
-    if modifier is None and not ints is None:
-        # adjust bounds because ints are rounded
-        self.lower[ints] -= .499999999
-        self.upper[ints] += .499999999
-        self.modifier = self._modifier
-----
-
-The second modification is related to the generation of new argument vectors by mutation / crossover. 
-
-- Generated values are rounded to the next integer value: `x[self.ints] = np.around(x_ints,0)`. 
+We adapt the generation of new argument vectors by mutation / crossover:
+Generated values are truncated to the next integer value. 
 
 This is because candidates are produced based on differences (this is why it is called "Differential" Evolution). 
 We want this differences being discrete values. 
 
-- We add some random mutations on the integer variables, with random probability dependent on
+We add some random mutations on the integer variables, with random probability dependent on
 the number of integer variables. 
 
 This is because I observed stagnation related to the integer variables in the later stages of the optimization
@@ -138,16 +127,14 @@ Please notice me when you found an improvement.
         n_ints = len(self.ints)
         lb = self.lower[self.ints]
         ub = self.upper[self.ints]
-        min_mutate = 0.5
-        max_mutate = max(1.0, n_ints/20.0)
+        min_mutate = 0.1
+        max_mutate = 0.5 # max(1.0, n_ints/20.0)
         to_mutate = self.rg.uniform(min_mutate, max_mutate)
         # mututate some integer variables
-        x_ints = np.array([x if self.rg.random() > to_mutate/n_ints else 
-                           self.rg.uniform(lb[i], ub[i])
+        x[self.ints] = np.array([x if self.rg.random() > to_mutate/n_ints else 
+                           int(self.rg.uniform(lb[i], ub[i]))
                            for i, x in enumerate(x_ints)])
-        # round to int values
-        x[self.ints] = np.around(x_ints,0)
-        return x   
+        return x    
 ----
 
 === ESP3

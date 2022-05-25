@@ -230,14 +230,13 @@ public:
         for (int i = 0; i < dim; i++)
             if (isInt[i])
                 n_ints++;
-        double min_mutate = 0.5;
-        double max_mutate = std::max(1.0, n_ints / 20.0);
+        double min_mutate = 0.1;
+        double max_mutate = 0.5;//std::max(1.0, n_ints / 20.0);
         double to_mutate = min_mutate + rnd01() * (max_mutate - min_mutate);
         for (int i = 0; i < dim; i++) {
             if (isInt[i]) {
                 if (rnd01() < to_mutate / n_ints)
-                    x[i] = fitfun->sample_i(i, *rs); // resample
-                x[i] = std::round(x[i]);
+                    x[i] = (int)fitfun->sample_i(i, *rs); // resample
             }
         }
     }
@@ -635,11 +634,6 @@ void optimizeMODE_C(long runid, callback_type func, callback_type log, int dim,
         upper_limit[i] = upper[i];
         isInt[i] = ints[i];
         useIsInt |= ints[i];
-        if (isInt[i]) {
-            // adjust bounds because ints are rounded
-            lower_limit[i] -= .499999999;
-            upper_limit[i] += .499999999;
-        }
     }
     Fitness fitfun(func, dim, nobj + ncon, lower_limit, upper_limit);
     MoDeOptimizer opt(runid, &fitfun, log, dim, nobj, ncon, seed, popsize,

@@ -158,11 +158,8 @@ class DE(object):
         self.ints = np.array(ints)
         # use default variable modifier for int variables if modifier is None
         if modifier is None and not ints is None:
-            # adjust bounds because ints are rounded
             self.lower = self.lower.astype(float)
             self.upper = self.upper.astype(float)
-            self.lower[ints] -= .499999999
-            self.upper[ints] += .499999999
             self.modifier = self._modifier
         else:
             self.modifier = modifier
@@ -425,15 +422,13 @@ class DE(object):
         n_ints = len(self.ints)
         lb = self.lower[self.ints]
         ub = self.upper[self.ints]
-        min_mutate = 0.5
-        max_mutate = max(1.0, n_ints/20.0)
+        min_mutate = 0.1
+        max_mutate = 0.5 # max(1.0, n_ints/20.0)
         to_mutate = self.rg.uniform(min_mutate, max_mutate)
         # mututate some integer variables
-        x_ints = np.array([x if self.rg.random() > to_mutate/n_ints else 
-                           self.rg.uniform(lb[i], ub[i])
+        x[self.ints] = np.array([x if self.rg.random() > to_mutate/n_ints else 
+                           int(self.rg.uniform(lb[i], ub[i]))
                            for i, x in enumerate(x_ints)])
-        # round to int values
-        x[self.ints] = np.around(x_ints,0)
         return x   
                         
 def _check_bounds(bounds, dim):
