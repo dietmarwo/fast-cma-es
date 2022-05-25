@@ -195,9 +195,9 @@ def plot(name, ncon, xs, ys, eps = 1E-2, all=True, interp=False, plot3d=False):
                 return
         if all:
             retry.plot(ys, 'all_' + name + '.png', interp=False)
-            xs, ys = pareto(xs, ys)
-            for x, y in zip(xs, ys):
-                print(str(list(y)) + ' ' + str([int(xi) for xi in x]))
+        xs, ys = pareto(xs, ys)
+        for x, y in zip(xs, ys):
+            print(str(list(y)) + ' ' + str([int(xi) for xi in x]))
         retry.plot(ys, 'front_' + name + '.png', interp=interp, plot3d=plot3d)
     except Exception as ex:
         print(str(ex))
