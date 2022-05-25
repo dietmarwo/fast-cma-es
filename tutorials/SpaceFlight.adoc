@@ -34,11 +34,12 @@ expressed by the sum of the delta velocities caused by the thrust impulses neces
 navigate the spaceship. Our first simplified flight model assumes we only apply impulses  
 at the planet flybys before and after the gravity assist (GA) maneuvers. Between the planets we are
 coasting. This way we only need 10 decision variables, 6 for the timings of the planet flybys and
-4 for the planets we visit on our way. Here are the new boundaries for the decision variables:
+4 for the planets we visit on our way. The fitness function truncates the float value to an integer. 
+Here are the new boundaries for the decision variables:
 
 ----
-    lb = [-1000.,30.,100.,30.,400.,1000., 1.501, 1.501, 1.501, 2.501],
-    ub = [0.,400.,470.,400.,2000.,6000., 3.499, 3.499, 3.499, 5.499]       
+    lb = [-1000.,30.,100.,30.,400.,1000., 2, 2, 2, 3],
+    ub = [0.,400.,470.,400.,2000.,6000., 3.9999, 3.9999, 3.9999, 5.9999]       
 ----
 
 We are restricting the planet selection based on domain knowledge, since we know for instance,
@@ -78,8 +79,8 @@ because it could simply choose the optimal values minimizing delta velocity at t
 With the new model this decision can have long term consequences several planets later on the path. 
 
 ----
-lb = [-1000,3,0,0,100,100,30,400,800,0.01,0.01,0.01,0.01,0.01,1.05,1.05,1.15,1.7, -math.pi, -math.pi, -math.pi, -math.pi, 1.501, 1.501, 1.501, 2.501],
-up = [0,5,1,1,400,500,300,1600,2200,0.9,0.9,0.9,0.9,0.9,6,6,6.5,291,math.pi,  math.pi,  math.pi,  math.pi, 3.499, 3.499, 3.499, 5.499]     
+lb = [-1000,3,0,0,100,100,30,400,800,0.01,0.01,0.01,0.01,0.01,1.05,1.05,1.15,1.7, -math.pi, -math.pi, -math.pi, -math.pi, 2, 2, 2, 3],
+up = [0,5,1,1,400,500,300,1600,2200,0.9,0.9,0.9,0.9,0.9,6,6,6.5,291,math.pi,  math.pi,  math.pi,  math.pi, 3.9999, 3.9999, 3.9999, 5.9999]     
 ----
 
 The new model needs 26 decision variables, 22 to define the timings and flyby-parameters and 4 to decide which planet 
