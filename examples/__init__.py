@@ -3,13 +3,14 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-__version__ = '1.3.30'
+__version__ = '1.3.31'
 
 __all__ = [
     'advexamples'
     'benchmark_gtop'
     'benchmark_gtop_pygmo'
     'cassini_minlp'
+    'cassini2_minlp'
     'crypto'
     'examples'
     'f8'
@@ -26,6 +27,7 @@ __all__ = [
     'reproblem'
     'repython'
     'robot'
+    'routing'
     'rover'
     'scheduling'
     'solo_mgar'

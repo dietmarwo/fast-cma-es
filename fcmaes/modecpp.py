@@ -76,6 +76,8 @@ def minimize(mofun,
              switch_nsga = False,
              pareto_update = 0,
              ints = None,
+             min_mutate = 0.1,
+             max_mutate = 1.0,           
              log_period = 10000000,
              rg = Generator(MT19937()),
              plot_name = None,
@@ -124,7 +126,11 @@ def minimize(mofun,
         use all population members with the same probability.   
     ints = list or array of bool, optional
         indicating which parameters are discrete integer values. If defined these parameters will be
-        rounded to the next integer and some additional mutation of discrete parameters are performed.    
+        rounded to the next integer and some additional mutation of discrete parameters are performed.  
+    min_mutate = float, optional
+        Determines the minimal mutation rate for discrete integer parameters.
+    max_mutate = float, optional
+        Determines the maximal mutation rate for discrete integer parameters.   
     log_period = int, optional
         The log callback is called each log_period iterations. As default the callback is never called.
     rg = numpy.random.Generator, optional
@@ -169,7 +175,7 @@ def minimize(mofun,
                            array_type(*lower), array_type(*upper), bool_array_type(*ints), 
                            max_evaluations, popsize, workers, f, cr, 
                            pro_c, dis_c, pro_m, dis_m,
-                           nsga_update, switch_nsga, pareto_update,
+                           nsga_update, switch_nsga, pareto_update, min_mutate, max_mutate, 
                            log_period, res_p)
         x = np.empty((2*popsize,dim))
         for p in range(2*popsize):
@@ -307,6 +313,6 @@ optimizeMODE_C.argtypes = [ct.c_long, mo_call_back_type, mo_call_back_type, ct.c
             ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
             ct.c_int, ct.c_int, ct.c_int,\
             ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
-            ct.c_bool, ct.c_bool, ct.c_double, 
+            ct.c_bool, ct.c_bool, ct.c_double, ct.c_double, ct.c_double, 
             ct.c_int, ct.POINTER(ct.c_double)]
 

@@ -38,6 +38,8 @@ def minimize(fun,
              cr = 0.9,
              rg = Generator(MT19937()),
              ints = None,
+             min_mutate = 0.1,
+             max_mutate = 1.0, 
              workers = 1,
              is_terminate = None,
              runid=0):  
@@ -81,6 +83,10 @@ def minimize(fun,
     workers : int or None, optional
         If not workers is None, function evaluation is performed in parallel for the whole population. 
         Useful for costly objective functions but is deactivated for parallel retry.      
+    min_mutate = float, optional
+        Determines the minimal mutation rate for discrete integer parameters.
+    max_mutate = float, optional
+        Determines the maximal mutation rate for discrete integer parameters. 
     is_terminate : callable, optional
         Callback to be used if the caller of minimize wants to decide when to terminate.
     runid : int, optional
@@ -118,7 +124,7 @@ def minimize(fun,
         optimizeDE_C(runid, c_callback, dim, seed,
                            array_type(*lower), array_type(*upper), bool_array_type(*ints),
                            max_evaluations, keep, stop_fitness,  
-                           popsize, f, cr, workers, res_p)
+                           popsize, f, cr, min_mutate, max_mutate, workers, res_p)
         x = res[:dim]
         val = res[dim]
         evals = int(res[dim+1])
@@ -191,5 +197,6 @@ optimizeDE_C = libcmalib.optimizeDE_C
 optimizeDE_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
             ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
-            ct.c_double, ct.c_double, ct.c_int, ct.POINTER(ct.c_double)]
+            ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
+            ct.c_int, ct.POINTER(ct.c_double)]
     

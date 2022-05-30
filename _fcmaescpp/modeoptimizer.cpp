@@ -56,6 +56,7 @@ public:
             int nobj_, int ncon_, int seed_, int popsize_, int maxEvaluations_,
             double F_, double CR_, double pro_c_, double dis_c_, double pro_m_,
             double dis_m_, bool nsga_update_, bool switch_nsga_, double pareto_update_,
+            double min_mutate_, double max_mutate_,
             int log_period_, bool *isInt_) {
         // runid used to identify a specific run
         runid = runid_;
@@ -97,6 +98,10 @@ public:
         // Favor better solutions for sample generation. Default 0 -
         // use all population members with the same probability.
         pareto_update = pareto_update_;
+        // DE population update parameter used in connection with isInt. Determines
+        // the mutation rate for discrete parameters.
+        min_mutate = min_mutate_ > 0 ? min_mutate_ : 0.1;
+        max_mutate = max_mutate_ > 0 ? max_mutate_ : 0.5;
         // The log callback is called each log_period iterations
         log_period = log_period_;
         if (log_period <= 0)
@@ -230,8 +235,6 @@ public:
         for (int i = 0; i < dim; i++)
             if (isInt[i])
                 n_ints++;
-        double min_mutate = 0.1;
-        double max_mutate = 0.5;//std::max(1.0, n_ints / 20.0);
         double to_mutate = min_mutate + rnd01() * (max_mutate - min_mutate);
         for (int i = 0; i < dim; i++) {
             if (isInt[i]) {
@@ -611,6 +614,8 @@ private:
     int pos;
     bool nsga_update;
     double pareto_update;
+    double min_mutate;
+    double max_mutate;
     int log_period;
     bool *isInt;
     bool switch_nsga;
@@ -625,6 +630,7 @@ void optimizeMODE_C(long runid, callback_type func, callback_type log, int dim,
         int maxEvals, int popsize, int workers, double F, double CR,
         double pro_c, double dis_c, double pro_m, double dis_m,
         bool nsga_update, bool switch_nsga, double pareto_update,
+        double min_mutate, double max_mutate,
         int log_period, double *res) {
     vec lower_limit(dim), upper_limit(dim);
     bool isInt[dim];
@@ -638,7 +644,8 @@ void optimizeMODE_C(long runid, callback_type func, callback_type log, int dim,
     Fitness fitfun(func, dim, nobj + ncon, lower_limit, upper_limit);
     MoDeOptimizer opt(runid, &fitfun, log, dim, nobj, ncon, seed, popsize,
             maxEvals, F, CR, pro_c, dis_c, pro_m, dis_m, nsga_update, switch_nsga,
-            pareto_update, log_period, useIsInt ? isInt : NULL);
+            pareto_update, min_mutate, max_mutate,
+            log_period, useIsInt ? isInt : NULL);
     try {
         if (workers <= 1)
             opt.doOptimize();

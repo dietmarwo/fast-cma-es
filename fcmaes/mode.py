@@ -61,6 +61,8 @@ def minimize(mofun,
              cr = 0.9, 
              nsga_update = False,
              pareto_update = 0,
+             min_mutate = 0.1,
+             max_mutate = 1.0, 
              ints = None,
              modifier = None,
              rg = Generator(MT19937()),
@@ -106,6 +108,10 @@ def minimize(mofun,
     ints = list or array, optional
         indicating which parameters are discrete integer values. If defined these parameters will be
         rounded to the next integer and some additional mutation of discrete parameters are performed.
+    min_mutate = float, optional
+        Determines the minimal mutation rate for discrete integer parameters.
+    max_mutate = float, optional
+        Determines the maximal mutation rate for discrete integer parameters. 
     modifier = callable, optional
         used to overwrite the default behaviour induced by ints. If defined, the ints parameter is
         ignored. Modifies all generated x vectors.
@@ -120,7 +126,7 @@ def minimize(mofun,
     x, y: list of argument vectors and corresponding value vectors of the optimization results. """
 
     mode = MODE(nobj, ncon, bounds, popsize, workers if not workers is None else 0, 
-            f, cr, nsga_update, pareto_update, rg, ints, modifier)
+            f, cr, nsga_update, pareto_update, rg, ints, min_mutate, max_mutate, modifier)
     try:
         if workers and workers > 1:
             x, y, evals, iterations, stop = mode.do_optimize_delayed_update(mofun, max_evaluations, workers)
@@ -219,7 +225,8 @@ class MODE(object):
     
     def __init__(self, nobj, ncon, bounds, popsize = 64, workers = 0,
                  F = 0.5, Cr = 0.9, nsga_update = False, pareto_update = False, 
-                 rg = Generator(MT19937()), ints = None, modifier = None):
+                 rg = Generator(MT19937()), ints = None, 
+                 min_mutate = 0.1, max_mutate = 1.0, modifier = None):
         self.nobj = nobj
         self.ncon = ncon
         self.dim, self.lower, self.upper = _check_bounds(bounds, None)
@@ -241,6 +248,8 @@ class MODE(object):
         self.p = 0
         # nsga update doesn't support mixed integer
         self.ints = None if nsga_update else np.array(ints)
+        self.min_mutate = min_mutate
+        self.max_mutate = max_mutate        
         # use default variable modifier for int variables if modifier is None
         if modifier is None and not self.ints is None:
             self.lower = self.lower.astype(float)
@@ -446,9 +455,7 @@ class MODE(object):
         n_ints = len(self.ints)
         lb = self.lower[self.ints]
         ub = self.upper[self.ints]
-        min_mutate = 0.1
-        max_mutate = 0.5 # max(1.0, n_ints/20.0)
-        to_mutate = self.rg.uniform(min_mutate, max_mutate)
+        to_mutate = self.rg.uniform(self.min_mutate, self.max_mutate)
         # mututate some integer variables
         x_ints = np.array([x if self.rg.random() > to_mutate/n_ints else 
                            int(self.rg.uniform(lb[i], ub[i]))

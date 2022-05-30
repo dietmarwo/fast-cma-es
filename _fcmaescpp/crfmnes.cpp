@@ -123,7 +123,8 @@ public:
         g += 1;
         if (f_best_ < f_best) {
             f_best = f_best_;
-            x_best = fitfun->decode(x.col(best_eval_id));
+            x_best = fitfun->decode(xs_no_sort.col(best_eval_id));
+            //cout << f_best << endl;
         }
         // This operation assumes that if the solution is infeasible, infinity comes in as input.
         double lambF = 0;

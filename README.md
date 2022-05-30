@@ -6,6 +6,7 @@ A Python 3 gradient-free optimization library.
 - [Crypto Trading](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc)
 - [Water Resource Management](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc)  
 - [Multi-UAV Task Assignment](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc) 
+- [Capacitated Vehicle Routing](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Routing.adoc)
 - [Surrogate](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Surrogate.adoc)
 - [Robots and Rovers](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc)
 - [CFD](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc)

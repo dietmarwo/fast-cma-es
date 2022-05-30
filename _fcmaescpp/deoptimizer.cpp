@@ -46,7 +46,8 @@ public:
 
     DeOptimizer(long runid_, Fitness *fitfun_, int dim_, int seed_,
             int popsize_, int maxEvaluations_, double keep_,
-            double stopfitness_, double F_, double CR_, bool *isInt_) {
+            double stopfitness_, double F_, double CR_,
+            double min_mutate_, double max_mutate_, bool *isInt_) {
         // runid used to identify a specific run
         runid = runid_;
         // fitness function to minimize
@@ -74,6 +75,10 @@ public:
         // Indicating which parameters are discrete integer values. If defined these parameters will be
         // rounded to the next integer and some additional mutation of discrete parameters are performed.
         isInt = isInt_;
+        // DE population update parameter used in connection with isInt. Determines
+        // the mutation rate for discrete parameters.
+        min_mutate = min_mutate_ > 0 ? min_mutate_ : 0.1;
+        max_mutate = max_mutate_ > 0 ? max_mutate_ : 0.5;
         init();
     }
 
@@ -126,8 +131,6 @@ public:
         double n_ints = 0;
         for (int i = 0; i < dim; i++)
             if (isInt[i]) n_ints++;
-        double min_mutate = 0.1;
-        double max_mutate = 0.5;//std::max(1.0, n_ints / 20.0);
         double to_mutate = min_mutate + rnd01()*(max_mutate - min_mutate);
         for (int i = 0; i < dim; i++) {
             if (isInt[i]) {
@@ -348,6 +351,8 @@ private:
     queue<vec> improvesX;
     queue<int> improvesP;
     int pos;
+    double min_mutate;
+    double max_mutate;
     bool *isInt;
 };
 
@@ -359,7 +364,9 @@ extern "C" {
 void optimizeDE_C(long runid, callback_type func, int dim, int seed,
         double *lower, double *upper, bool *ints,
         int maxEvals, double keep,
-        double stopfitness, int popsize, double F, double CR, int workers, double* res) {
+        double stopfitness, int popsize, double F, double CR,
+        double min_mutate, double max_mutate,
+        int workers, double* res) {
     vec lower_limit(dim), upper_limit(dim);
     bool isInt[dim];
     bool useIsInt = false;
@@ -371,7 +378,8 @@ void optimizeDE_C(long runid, callback_type func, int dim, int seed,
     }
     Fitness fitfun(func, dim, 1, lower_limit, upper_limit);
     DeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, keep,
-            stopfitness, F, CR, useIsInt ? isInt : NULL);
+            stopfitness, F, CR, min_mutate, max_mutate,
+            useIsInt ? isInt : NULL);
     try {
         if (workers <= 1)
             opt.doOptimize();

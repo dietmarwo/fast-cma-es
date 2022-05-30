@@ -58,6 +58,8 @@ def minimize(fun,
              rg = Generator(MT19937()),
              filter = None,
              ints = None,
+             min_mutate = 0.1,
+             max_mutate = 1.0, 
              modifier = None,
              logger = None):    
     """Minimization of a scalar function of one or more variables using
@@ -105,6 +107,10 @@ def minimize(fun,
     ints = list or array of bool, optional
         indicating which parameters are discrete integer values. If defined these parameters will be
         rounded to the next integer and some additional mutation of discrete parameters are performed.    
+    min_mutate = float, optional
+        Determines the minimal mutation rate for discrete integer parameters.
+    max_mutate = float, optional
+        Determines the maximal mutation rate for discrete integer parameters. 
     modifier = callable, optional
         used to overwrite the default behaviour induced by ints. If defined, the ints parameter is
         ignored. Modifies all generated x vectors.
@@ -124,7 +130,8 @@ def minimize(fun,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
     
-    de = DE(dim, bounds, popsize, stop_fitness, keep, f, cr, rg, filter, ints, modifier, logger)
+    de = DE(dim, bounds, popsize, stop_fitness, keep, f, cr, rg, filter, ints,  
+            min_mutate, max_mutate, modifier, logger)
     try:
         if workers and workers > 1:
             x, val, evals, iterations, stop = de.do_optimize_delayed_update(fun, max_evaluations, workers)
@@ -138,8 +145,8 @@ def minimize(fun,
 class DE(object):
     
     def __init__(self, dim, bounds, popsize = 31, stop_fitness = None, keep = 200, 
-                 F = 0.5, Cr = 0.9, rg = Generator(MT19937()), filter = None, 
-                 ints = None, modifier = None, logger = None):
+                 F = 0.5, Cr = 0.9, rg = Generator(MT19937()), filter = None, ints = None, 
+                 min_mutate = 0.1, max_mutate = 1.0, modifier = None, logger = None):
         self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
         if popsize is None:
             popsize = 31
@@ -156,6 +163,8 @@ class DE(object):
         self.improves = deque()
         self.filter = filter
         self.ints = np.array(ints)
+        self.min_mutate = min_mutate
+        self.max_mutate = max_mutate 
         # use default variable modifier for int variables if modifier is None
         if modifier is None and not ints is None:
             self.lower = self.lower.astype(float)
@@ -422,9 +431,7 @@ class DE(object):
         n_ints = len(self.ints)
         lb = self.lower[self.ints]
         ub = self.upper[self.ints]
-        min_mutate = 0.1
-        max_mutate = 0.5 # max(1.0, n_ints/20.0)
-        to_mutate = self.rg.uniform(min_mutate, max_mutate)
+        to_mutate = self.rg.uniform(self.min_mutate, self.max_mutate)
         # mututate some integer variables
         x[self.ints] = np.array([x if self.rg.random() > to_mutate/n_ints else 
                            int(self.rg.uniform(lb[i], ub[i]))

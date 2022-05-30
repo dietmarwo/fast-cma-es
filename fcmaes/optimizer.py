@@ -619,7 +619,7 @@ class Bite_cpp(Optimizer):
         Optimizer.__init__(self, max_evaluations, 'bite cpp')
         self.guess = guess
         self.stop_fitness = stop_fitness
-        self.M = 6 if M is None else M 
+        self.M = 1 if M is None else M 
         self.stall_iterations = 0 if stall_iterations is None else stall_iterations 
         self.workers = workers
 
