@@ -59,7 +59,7 @@ def minimize(fun,
              filter = None,
              ints = None,
              min_mutate = 0.1,
-             max_mutate = 1.0, 
+             max_mutate = 0.5, 
              modifier = None,
              logger = None):    
     """Minimization of a scalar function of one or more variables using

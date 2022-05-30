@@ -39,7 +39,7 @@ def minimize(fun,
              rg = Generator(MT19937()),
              ints = None,
              min_mutate = 0.1,
-             max_mutate = 1.0, 
+             max_mutate = 0.5, 
              workers = 1,
              is_terminate = None,
              runid=0):  
