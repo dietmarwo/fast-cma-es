@@ -30,8 +30,8 @@ Due date, service time and ready time are ignored.
 Since minimizing the vehicle number and the total travel distance are non-competing objectives, 
 the pareto-front always contains a single element. Therefore we
 
-- Solve the single objective variant independent of the vehicle number. 
-- Define a single objective variant maximizing the vehicle number (works, but makes not much sense).
+- Solve the single-objective variant independent of the vehicle number. 
+- Define a 2-objective variant maximizing the vehicle number (works, but makes not much sense).
 - Define a useful 2-objective variant optimizing total travel distance and vehicle capacity. 
 
 === Motivation
