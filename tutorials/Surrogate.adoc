@@ -172,6 +172,24 @@ on production cost, which means the competition results are not really relevant 
 Is 10 hours execution time using a single mainstream CPU really an issue? Unfortunately we cannot 
 check if, and with which evaluation/time budged the competition methods can reach hypervolume 0.49. 
 
+=== Reference Solution
+
+The following optimizer configuration was used to produce the `Hypervolume = 0.5133` reference solution below.
+
+[source,python]
+---- 
+            x, y = modecpp.retry(fun, problem.nobj, problem.ncon, problem.bounds, popsize = 256, 
+                                max_evaluations = 5000000, ints = np.array([True]*dim),
+                                nsga_update=False, num_retries = 16, workers=16)
+            np.savez_compressed(pname, xs=x, ys=y)
+            moretry.plot(pname, problem.ncon, x, y)
+----
+
+16 parallel `mode` optimization runs were the pareto fronts were joined, 5E6 evaluations each. It was executed twice
+in parallel on the AMD 5950x 16 core CPU to maximize CPU utilization. Combined evaluation rate was 8400 evals/second. 
+
+image::front_mazda_all.png[]
+
 === Wrapping the objective function
 First download the http://ladse.eng.isas.jaxa.jp/benchmark/Mazda_CdMOBP.zip[Mazda sources]. 
 We show everything only for the three car problem, the two car problem is very similar. 
