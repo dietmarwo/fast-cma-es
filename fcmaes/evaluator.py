@@ -13,8 +13,8 @@
 from multiprocessing import Process, Pipe
 import multiprocessing as mp
 import numpy as np
-import sys 
-import math   
+import threadpoolctl
+import sys   
 
 def eval_parallel(xs, evaluator):
     popsize = len(xs)
@@ -69,7 +69,8 @@ def _evaluate(fun, pipe, read_mutex, write_mutex): # worker
             break # shutdown worker
         try:
             i, x = msg
-            y = fun(x)
+            with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+                y = fun(x)
         except Exception as ex:
             y =  sys.float_info.max
         with write_mutex:            

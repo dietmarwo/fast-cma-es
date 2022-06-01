@@ -6,7 +6,7 @@
 # parallel optimization retry of a multi-objective problem.
 
 import numpy as np
-import math, sys, time, warnings
+import math, sys, time, warnings, threadpoolctl
 import multiprocessing as mp
 from multiprocessing import Process
 from scipy.optimize import Bounds
@@ -152,7 +152,8 @@ class mo_wrapper(object):
         self.y_exp = y_exp
 
     def eval(self, x):
-        y = self.fun(np.array(x))
+        with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+            y = self.fun(np.array(x))
         weighted = _avg_exp(self.weights*y, self.y_exp)
         if self.ncon > 0: # check constraint violations
             violations = np.array([i for i in range(self.nobj, self.ny) if y[i] > 0])

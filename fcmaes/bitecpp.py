@@ -27,7 +27,7 @@ def minimize(fun,
              max_evaluations = 100000, 
              stop_fitness = None, 
              M = 1,
-             stall_iterations = 0, 
+             stall_criterion = 0, 
              rg = Generator(MT19937()),
              runid=0):   
     """Minimization of a scalar function of one or more variables using a 
@@ -53,8 +53,8 @@ def minimize(fun,
          Limit for fitness value. If reached minimize terminates.
     M : int, optional 
         Depth to use, 1 for plain CBiteOpt algorithm, >1 for CBiteOptDeep. Expected range is [1; 36].
-    stall_iterations : int, optional 
-        Terminate if stall_iterations stalled, Not used if <= 0
+    stall_criterion : int, optional 
+        Terminate if stall_criterion*128*evaluations stalled, Not used if <= 0
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     runid : int, optional
@@ -85,7 +85,7 @@ def minimize(fun,
     try:
         optimizeBite_C(runid, c_callback, dim, int(rg.uniform(0, 2**32 - 1)), 
                            array_type(*guess), array_type(*lower), array_type(*upper), 
-                           max_evaluations, stop_fitness, M, stall_iterations, res_p)
+                           max_evaluations, stop_fitness, M, stall_criterion, res_p)
         x = res[:dim]
         val = res[dim]
         evals = int(res[dim+1])

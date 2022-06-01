@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-__version__ = '1.3.31'
+__version__ = '1.3.32'
 
 __all__ = [
     'advexamples'
@@ -24,6 +24,7 @@ __all__ = [
     'lotka'
     'moexamples'
     'noisy_tsp'
+    'powerplant'
     'reproblem'
     'repython'
     'robot'

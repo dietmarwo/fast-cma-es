@@ -7,6 +7,7 @@ import time
 import math
 import os
 import sys
+import threadpoolctl
 import ctypes as ct
 from scipy import interpolate
 import numpy as np
@@ -233,7 +234,8 @@ class Store(object):
 
     # register improvement - time and value
     def wrapper(self, x):
-        y = self.fun(x)
+        with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+            y = self.fun(x)
         self.sevals.value += 1
         if y < self.bval.value:
             self.bval.value = y

@@ -21,7 +21,7 @@ class BiteOptimizer: public CBiteOptDeep {
 public:
 
     BiteOptimizer(long runid_, Fitness *fitfun_, int dim_, double *init_,
-            int seed_, int M_, int stall_iterations_, int maxEvaluations_, double stopfitness_) {
+            int seed_, int M_, int stallCriterion_, int maxEvaluations_, double stopfitness_) {
         // runid used to identify a specific run
         runid = runid_;
         // fitness function to minimize
@@ -30,8 +30,8 @@ public:
         dim = dim_;
         // Depth to use, 1 for plain CBiteOpt algorithm, >1 for CBiteOptDeep. Expected range is [1; 36].
         M = M_ > 0 ? M_ : 1;
-        // terminate if stall_iterations iterations stalled, if <= 0 not used
-        stall_iterations = stall_iterations_;
+        // terminate if stallCriterion_*128*evaluations stalled, if <= 0 not used
+        stallCriterion = stallCriterion_ > 0 ? stallCriterion_ : 0;
         // maximal number of evaluations allowed.
         maxEvaluations = maxEvaluations_ > 0 ? maxEvaluations_ : 50000;
         // Number of iterations already performed.
@@ -95,7 +95,7 @@ public:
                 stop = 1;
                 break;
             }
-            if (stall_iterations > 0 && stallCount > stall_iterations*dim) {
+            if (stallCriterion > 0 && stallCount > stallCriterion*128*dim) {
                 stop = 2;
                 break;
             }
@@ -106,7 +106,7 @@ private:
     long runid;
     Fitness *fitfun;
     int M; // deepness
-    int stall_iterations; // terminate if stall_iterations stalled, if <= 0 not used
+    int stallCriterion; // terminate if f stallCriterion*128*evaluations stalled, if <= 0 not used
     int dim;
     int maxEvaluations;
     double stopfitness;

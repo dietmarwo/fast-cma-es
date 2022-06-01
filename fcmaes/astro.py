@@ -265,22 +265,5 @@ class python_fun(object):
         except Exception as ex:
             val = 1E10
         return val 
-class python_fun(object):
-    
-    def __init__(self, cfun, bounds):
-        self.cfun = cfun
-        self.bounds = bounds
-    
-    def __call__(self, x):
-        fun_c = astro_map[self.cfun]      
-        n = len(x)
-        array_type = ct.c_double * n   
-        try: # function is only defined inside bounds
-            # x = np.array(x).clip(self.bounds.lb, self.bounds.ub)
-            val = float(fun_c(n, array_type(*x)))
-            if not math.isfinite(val):
-                val = 1E10
-        except Exception as ex:
-            val = 1E10
-        return val
+
     

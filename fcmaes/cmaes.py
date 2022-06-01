@@ -11,6 +11,7 @@
 import sys
 import os
 import math
+import threadpoolctl
 import numpy as np
 from time import time
 import ctypes as ct
@@ -641,7 +642,8 @@ class _fitness(object):
             self.typx = 0.5 * (upper + lower)
                 
     def values(self, Xs): #enables parallel evaluation
-        values = self.fun([self.decode(X) for X in Xs])
+        with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+            values = self.fun([self.decode(X) for X in Xs])
         self.evaluation_counter += len(Xs)
         return np.array(values)
 

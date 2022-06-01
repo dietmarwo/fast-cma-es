@@ -36,7 +36,7 @@
 """
 
 import numpy as np
-import math, sys
+import math, sys, threadpoolctl
 from time import time
 import ctypes as ct
 from numpy.random import Generator, MT19937
@@ -302,7 +302,8 @@ class DE(object):
         else:
             if self.filter.is_improve(x, x_old, y_old):
                 self.evals += 1
-                y = self.fun(x)
+                with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+                    y = self.fun(x)
                 self.filter.add(x, y)
                 return y
             else:    

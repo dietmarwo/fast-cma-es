@@ -40,7 +40,7 @@
 """
 
 import numpy as np
-import os, sys, time
+import os, sys, time, threadpoolctl
 import ctypes as ct
 from numpy.random import Generator, MT19937
 from fcmaes.evaluator import Evaluator
@@ -247,11 +247,11 @@ class MODE(object):
         self.mutex = mp.Lock()
         self.p = 0
         # nsga update doesn't support mixed integer
-        self.ints = None if nsga_update else np.array(ints)
+        self.ints = None if (ints is None or nsga_update) else np.array(ints)
         self.min_mutate = min_mutate
         self.max_mutate = max_mutate        
         # use default variable modifier for int variables if modifier is None
-        if modifier is None and not self.ints is None:
+        if modifier is None and not ints is None:
             self.lower = self.lower.astype(float)
             self.upper = self.upper.astype(float)
             self.modifier = self._modifier
@@ -330,7 +330,8 @@ class MODE(object):
         while self.evals < self.max_evals:
             for p in range(self.popsize):
                 x = self._next_x(p)
-                self.y[self.popsize + p] = self.fun(x)
+                with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+                    self.y[self.popsize + p] = self.fun(x)
                 self.x[self.popsize + p] = x
                 self.evals += 1
             self.pop_update()
