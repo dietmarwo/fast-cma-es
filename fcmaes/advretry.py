@@ -7,6 +7,7 @@ import time
 import os
 import sys
 import math
+import threadpoolctl
 import _pickle as cPickle
 import bz2
 import ctypes as ct
@@ -207,8 +208,7 @@ class Store(object):
 
     # register improvement - time and value
     def wrapper(self, x):
-        with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
-            y = self.fun(x)
+        y = self.fun(x)
         self.sevals.value += 1
         if y < self.bval.value:
             self.bval.value = y
@@ -430,18 +430,19 @@ def _retry_loop(pid, rgs, store, optimize, value_limit, stop_fitness = -math.inf
     #reinitialize logging config for windows -  multi threading fix
     if 'win' in sys.platform and not store.logger is None:
         store.logger = logger()
-        
-    while store.get_runs_compare_incr(store.num_retries) and store.best_y.value > stop_fitness:               
-        if _crossover(fun, store, optimize, rgs[pid]):
-            continue
-        try:
-            rg = rgs[pid]
-            dim = len(store.lower)
-            sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
-                                     [rg.uniform(0.05, 0.1)]*dim, rg, store)
-            store.add_result(y, sol, store.lower, store.upper, evals, value_limit)
-        except Exception as ex:
-            continue
+    
+    with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):    
+        while store.get_runs_compare_incr(store.num_retries) and store.best_y.value > stop_fitness:               
+            if _crossover(fun, store, optimize, rgs[pid]):
+                continue
+            try:
+                rg = rgs[pid]
+                dim = len(store.lower)
+                sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
+                                         [rg.uniform(0.05, 0.1)]*dim, rg, store)
+                store.add_result(y, sol, store.lower, store.upper, evals, value_limit)
+            except Exception as ex:
+                continue
 #         if pid == 0:
 #             store.dump()
  

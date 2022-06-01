@@ -46,6 +46,7 @@ import sys
 import os
 import math
 import time
+import threadpoolctl
 import ctypes as ct
 import multiprocessing as mp 
 from multiprocessing import Process
@@ -261,16 +262,17 @@ def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize,
                 is_terminate, store, logger, ints):
     t0 = time.perf_counter()
     num = max(1, num_retries - workers)
-    while store.num_added.value < num: 
-        if not is_terminate is None and hasattr(is_terminate, 'reinit'):
-            is_terminate.reinit()
-        minimize(mofun, nobj, ncon, bounds, popsize,
-                    max_evaluations = max_evaluations, 
-                    nsga_update=nsga_update, switch_nsga=switch_nsga, pareto_update=pareto_update,
-                    workers = 1, rg = rgs[pid], store = store, is_terminate=is_terminate, ints=ints) 
-        if not logger is None:
-            logger.info("retries = {0}: time = {1:.1f} i = {2}"
-                        .format(store.num_added.value, dtime(t0), store.num_stored.value))
+    with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+        while store.num_added.value < num: 
+            if not is_terminate is None and hasattr(is_terminate, 'reinit'):
+                is_terminate.reinit()
+            minimize(mofun, nobj, ncon, bounds, popsize,
+                        max_evaluations = max_evaluations, 
+                        nsga_update=nsga_update, switch_nsga=switch_nsga, pareto_update=pareto_update,
+                        workers = 1, rg = rgs[pid], store = store, is_terminate=is_terminate, ints=ints) 
+            if not logger is None:
+                logger.info("retries = {0}: time = {1:.1f} i = {2}"
+                            .format(store.num_added.value, dtime(t0), store.num_stored.value))
 
 class log_mo(object):
     

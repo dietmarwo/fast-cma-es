@@ -111,26 +111,27 @@ def _retry_loop(pid, rgs, fun, weight_bounds, ncon, y_exp,
     lower = store.lower
     wlb = np.array(weight_bounds.lb)
     wub = np.array(weight_bounds.ub)
-    while store.get_runs_compare_incr(num_retries):      
-        try:       
-            rg = rgs[pid]
-            w = rg.uniform(size=len(wub))          
-            w /= _avg_exp(w, y_exp) # correct scaling
-            w = wlb + w * (wub - wlb)
-            wrapper = mo_wrapper(fun, w, ncon, y_exp)  
-            x, y, evals = optimize(wrapper.eval, Bounds(store.lower, store.upper), None, 
-                                     [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
-            objs = wrapper.mo_eval(x) # retrieve the objective values
-            if value_limits is None or all([objs[i] < value_limits[i] for i in range(len(w))]):
-                store.add_result(y, x, evals, math.inf)   
-                if not store.plot_name is None:
-                    name = store.plot_name + "_moretry_" + str(store.get_count_evals())
-                    xs = np.array(store.get_xs())
-                    ys = np.array([fun(x) for x in xs])
-                    np.savez_compressed(name, xs=xs, ys=ys) 
-                    plot(name, ncon, xs, ys)
-        except Exception as ex:
-            print(str(ex))
+    with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):    
+        while store.get_runs_compare_incr(num_retries):      
+            try:       
+                rg = rgs[pid]
+                w = rg.uniform(size=len(wub))          
+                w /= _avg_exp(w, y_exp) # correct scaling
+                w = wlb + w * (wub - wlb)
+                wrapper = mo_wrapper(fun, w, ncon, y_exp)  
+                x, y, evals = optimize(wrapper.eval, Bounds(store.lower, store.upper), None, 
+                                         [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
+                objs = wrapper.mo_eval(x) # retrieve the objective values
+                if value_limits is None or all([objs[i] < value_limits[i] for i in range(len(w))]):
+                    store.add_result(y, x, evals, math.inf)   
+                    if not store.plot_name is None:
+                        name = store.plot_name + "_moretry_" + str(store.get_count_evals())
+                        xs = np.array(store.get_xs())
+                        ys = np.array([fun(x) for x in xs])
+                        np.savez_compressed(name, xs=xs, ys=ys) 
+                        plot(name, ncon, xs, ys)
+            except Exception as ex:
+                print(str(ex))
             
 def pareto(xs, ys):
     """pareto front for argument vectors and corresponding function value vectors."""
@@ -152,8 +153,7 @@ class mo_wrapper(object):
         self.y_exp = y_exp
 
     def eval(self, x):
-        with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
-            y = self.fun(np.array(x))
+        y = self.fun(np.array(x))
         weighted = _avg_exp(self.weights*y, self.y_exp)
         if self.ncon > 0: # check constraint violations
             violations = np.array([i for i in range(self.nobj, self.ny) if y[i] > 0])

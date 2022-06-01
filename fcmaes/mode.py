@@ -40,7 +40,7 @@
 """
 
 import numpy as np
-import os, sys, time, threadpoolctl
+import os, sys, time
 import ctypes as ct
 from numpy.random import Generator, MT19937
 from fcmaes.evaluator import Evaluator
@@ -330,8 +330,7 @@ class MODE(object):
         while self.evals < self.max_evals:
             for p in range(self.popsize):
                 x = self._next_x(p)
-                with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
-                    self.y[self.popsize + p] = self.fun(x)
+                self.y[self.popsize + p] = self.fun(x)
                 self.x[self.popsize + p] = x
                 self.evals += 1
             self.pop_update()

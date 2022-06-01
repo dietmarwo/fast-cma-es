@@ -19,7 +19,6 @@
 import sys
 import os
 import math
-import threadpoolctl
 import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
@@ -151,8 +150,7 @@ class callback(object):
             arrTypeY = ct.c_double*(self.nobj)
             yaddr = ct.addressof(y.contents)   
             ybuf = np.frombuffer(arrTypeY.from_address(yaddr))  
-            with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
-                fit = self.fun(xbuf)
+            fit = self.fun(xbuf)
             ybuf[0] = fit if math.isfinite(fit) else sys.float_info.max
             return False if self.is_terminate is None else self.is_terminate(xbuf, ybuf) 
         except Exception as ex:
@@ -176,8 +174,7 @@ class callback_mo(object):
             arrTypeY = ct.c_double*(self.nobj)
             yaddr = ct.addressof(y.contents)   
             ybuf = np.frombuffer(arrTypeY.from_address(yaddr))  
-            with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
-                ybuf[:] = self.fun(xbuf)[:]
+            ybuf[:] = self.fun(xbuf)[:]
             return False if self.is_terminate is None else self.is_terminate(xbuf, ybuf) 
         except Exception as ex:
             print (ex)

@@ -174,7 +174,9 @@ the "with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):" trick.
 - fcmaes used `os.environ['MKL_NUM_THREADS'] = '1'` to achieve the same, but this doesn't 
   work on all CPUs/python installations.
 - fcmaes now uses "with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):"
-  internally since version 1.3.32.   
+  internally for parallel retry since version 1.3.34. Because of its overhead
+  it is not used for parallel function evaluation, so in this case make sure 
+  you define it in your fitness function if necessary on your CPU.   
 
 === Applying fcmaes to optimize the power plant: 
 
@@ -204,8 +206,9 @@ one adding a penalty for constraint violations.
             self.local.model = PowerPlant()
         
         def efficiency(self, x):   
-            try: 
-                eff = self.get_model().calculate_efficiency(x)    
+            try:
+                with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+                    eff = self.get_model().calculate_efficiency(x)      
                 if not np.isfinite(eff): # model gets corrupted in case of an error
                     self.create_model() # we need to recreate the model
                     return 0

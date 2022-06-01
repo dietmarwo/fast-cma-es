@@ -234,7 +234,7 @@ def optimize_fcmaes():
     from fcmaes.optimizer import Bite_cpp, De_cpp, Cma_cpp, Crfmnes_cpp, de_cma, wrapper
     from fcmaes import retry, mode, modecpp, de, bitecpp, decpp, crfmnes, crfmnescpp, cmaes
     from scipy.optimize import Bounds
-    import threading, math
+    import threading, math, threadpoolctl
     
     class fcmaes_problem():
         
@@ -254,8 +254,9 @@ def optimize_fcmaes():
             self.local.model = PowerPlant()
         
         def efficiency(self, x):   
-            try: 
-                eff = self.get_model().calculate_efficiency(x)    
+            try:
+                with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+                    eff = self.get_model().calculate_efficiency(x)    
                 if not np.isfinite(eff): # model gets corrupted in case of an error
                     self.create_model() # we need to recreate the model
                     return 0

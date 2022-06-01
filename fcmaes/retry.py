@@ -234,8 +234,7 @@ class Store(object):
 
     # register improvement - time and value
     def wrapper(self, x):
-        with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
-            y = self.fun(x)
+        y = self.fun(x)
         self.sevals.value += 1
         if y < self.bval.value:
             self.bval.value = y
@@ -388,20 +387,21 @@ def _retry_loop(pid, rgs, store, optimize, num_retries, value_limit, stop_fitnes
         store.logger = logger()
         
     lower = store.lower
-    while store.get_runs_compare_incr(num_retries) and store.best_y.value > stop_fitness:      
-        try:       
-            rg = rgs[pid]
-            sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
-                                     [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
-            store.add_result(y, sol, evals, value_limit)   
-            if not store.plot_name is None: 
-                name = store.plot_name + "_retry_" + str(store.get_count_evals())
-                xs = np.array(store.get_xs())
-                ys = np.array(store.get_ys())
-                np.savez_compressed(name, xs=xs, ys=ys) 
-                plot(y, name, interp=False)    
-        except Exception as ex:
-            print(str(ex))
+    with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+        while store.get_runs_compare_incr(num_retries) and store.best_y.value > stop_fitness:      
+            try:       
+                rg = rgs[pid]
+                sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
+                                         [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
+                store.add_result(y, sol, evals, value_limit)   
+                if not store.plot_name is None: 
+                    name = store.plot_name + "_retry_" + str(store.get_count_evals())
+                    xs = np.array(store.get_xs())
+                    ys = np.array(store.get_ys())
+                    np.savez_compressed(name, xs=xs, ys=ys) 
+                    plot(y, name, interp=False)    
+            except Exception as ex:
+                print(str(ex))
 #        if pid == 0:
 #            store.dump()
 
