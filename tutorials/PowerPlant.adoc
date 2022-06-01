@@ -160,9 +160,6 @@ Now we get:
 100 evaluations per second. This is almost factor 100 compared
 to the previous experiment with only one additional line of code. 
 Now we get at least something for the heat our CPU dissipates. 
-Remark: fcmaes now uses "with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):"
-internally since version 1.3.32. The old behavior can no longer be reproduced easily. 
-You would have to comment out the `threadpoolctl.threadpool_limits` line in fcmaes/evaluator.py. 
 
 Takeways: 
 
