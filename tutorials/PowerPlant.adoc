@@ -26,7 +26,7 @@ But before we can handle more complex simulations optimizing multiple objectives
 we first should analyze and test, which algorithms work in connection with https://github.com/oemof/tespy[tespy].
 tespy is implemented using statics instead of singletons so we expect some issues regarding parallelization. 
 Try to avoid statics if your code can be called in parallel, but also be careful with
-https://skillenai.com/2020/12/05/singleton-fails-with-multiprocessing-in-python/[singletons in Python]), 
+https://skillenai.com/2020/12/05/singleton-fails-with-multiprocessing-in-python/[singletons in Python].
   
 The original optimization tutorial uses https://esa.github.io/pygmo2/[pygmo] which supports
 https://esa.github.io/pygmo2/archipelago.html[parallelization],
