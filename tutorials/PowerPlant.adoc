@@ -169,7 +169,7 @@ Takeways:
 - Check the CPU load for single threaded optimization. If it is high, try
 the "with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):" trick. 
 - Parallel optimization only works if function evaluation is single threaded
-- blas paralellization often hurts the performance even without parallelization at
+- blas parallelization often hurts the performance even without parallelization at
   the optimizer level. 
 - fcmaes used `os.environ['MKL_NUM_THREADS'] = '1'` to achieve the same, but this doesn't 
   work on all CPUs/python installations.
