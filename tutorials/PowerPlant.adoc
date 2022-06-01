@@ -237,7 +237,7 @@ The lines:
     if not np.isfinite(eff): # model gets corrupted in case of an error
         self.create_model() # we need to recreate the model
 ----
-recreate the model in case of an error. We noticed, that the model produced values
+recreates the model in case of an error. We noticed, that the model produced values
 "too good to be true" after this happened. This problem can be reproduced even with
 non-parallel optimization. We filed a bug for tespy regarding this issue, but 
 until it is solved, we need this workaround. Note that we use thread local model instances
@@ -334,7 +334,7 @@ image::CPU100.png[]
 - It supports parallel function evaluations and parallel optimization retries.
 - Modern CPUs scale well with the number of cores utilized - as long as the fitness function is single threaded
 - BLAS usage needs to be restricted to one thread, which in case of https://github.com/oemof/tespy[tespy] surprisingly
-also increases if the simulation is not called in parallel.
+also increases performance if the simulation is not called in parallel.
 - Use thread local model instances to avoid parallelization issues.
 - Errors during the simulation can corrupt the model. We mitigate this tespy bug by recreating the model if an error occurs.  
 
