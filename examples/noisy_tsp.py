@@ -75,7 +75,7 @@ class TSP:
     def optimize(self):
         self.bestY = 1E99
         self.bestX = []  
-        return retry.minimize(self, self.bounds(), optimizer=Bite_cpp(50000,stall_iterations=3), num_retries=32)   
+        return retry.minimize(self, self.bounds(), optimizer=Bite_cpp(50000,stall_criterion=3), num_retries=32)   
         #return retry.minimize(self, self.bounds(), optimizer=De_cpp(50000), num_retries=32)    
         #return retry.minimize(self, self.bounds(), optimizer=Cma_cpp(50000), num_retries=320)  
         #return retry.minimize(self, self.bounds(), optimizer=De_python(50000), num_retries=32)   
