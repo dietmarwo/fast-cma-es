@@ -7,7 +7,7 @@
 
 This tutorial
 
-- Discusses how BiteOpt can be applied to a Multi-UAV Task Assignment problem thereby
+- Discusses how continuous optimization can be applied to a Multi-UAV Task Assignment problem thereby
   beating other proposed algorithms specifically created to solve this problem. 
 - Extends the problem to multiple objectives and shows how this modification can 
   be solved using the fcmaes-MODE algorithm. 
@@ -42,10 +42,11 @@ A problem specific optimizer has obvious disadvantages:
 - Harder to adapt for other problem variants.
 - Utilizing the whole CPU (all cores) is difficult. All three implementations are single threaded. 
 
-It makes only sense if the performance is superior compared to the a standard continuous optimizer
-which is easy to parallelize. So first we will investigate if this is the case: In fact it is
-not, BiteOpt parallel retry outperforms all three algorithms by a big margin as we can see in the 
-diagrams below:
+It makes only sense if the performance is superior compared to standard continuous optimizers
+like BiteOpt, CR-FM-NES or differential evolution. 
+which are easy to parallelize. So first we will investigate if this is the case: In fact it is
+not, Parallel retry applied to any of the three continuous optimizers outperform all three 
+algorithms by a big margin as we can see in the diagrams below:
 
 image::uav_reward.png[]
 
@@ -55,7 +56,7 @@ small, medium and large problem sizes for all four algorithms:
 
 image::uav_results.png[]
 
-If we apply a generic continuous optimization algorithm like BiteOpt to this problem, 
+If we apply generic continuous optimization algorithms to this problem, 
 adaption to a different variant means that only the objective function needs
 to be adapted. 
 
@@ -68,32 +69,61 @@ and implemented the following enhancements:
 - GA objective function (also used for BiteOpt) is much faster using https://numba.pydata.org/[numba].
 - We applied numba also to the GA operations (selection, mutation, crossover), see
 https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/ga.py[ga.py]
-- BiteOpt parallel retry is added as Benchmark and as a stand-alone experiment.
+- BiteOpt, CR-FM-NES and DE parallel retry is added as Benchmark and as a stand-alone experiment.
 - Multi-objective MODE parallel retry is added as stand-alone experiment. 
 
-==== BiteOpt Single Objective 
+==== Single Objective Continous Fitness
 
-Fitness class `Bite` delegates to the fitness function "borrowed" from GA. 
+Fitness class `Optimizer` delegates to the fitness function "borrowed" from GA:
 
 [source,python]
 ----   
-        def get_fitness(vehicle_num, target_num, map_size):
-            env = Env(vehicle_num,target_num,map_size,visualized=True)
-            return Bite(vehicle_num,env.vehicles_speed,target_num,env.targets,env.time_lim, 0)
-         
-        workers = mp.cpu_count()
-        #generate environment and fitness object
-        so_problem = get_fitness(15,90,1.5e4)         
-        # add logging to monitor progress
-        so_fun = wrapper(so_problem.fitness)
-        # Bite parallel optimization retry      
-        res = retry.minimize(so_fun, bounds, optimizer=Bite_cpp(evals), 
-                                 num_retries=workers, workers=workers)
+@njit(fastmath=True)
+def fitness_(gene, vehicle_num, vehicles_speed, target_num, targets, time_lim, map):
+    ins = np.zeros(target_num+1, dtype=numba.int32)
+    seq = np.zeros(target_num, dtype=numba.int32)
+    ins[target_num] = 1
+    for i in range(vehicle_num-1):
+        ins[gene[i]] += 1
+    rest = np.zeros(target_num, dtype=numba.int32)
+    for i in range(0, target_num):
+        rest[i] = i+1   
+    for i in range(target_num-1):
+        seq[i] = rest[gene[i+vehicle_num-1]]
+        rest = np.delete(rest, gene[i+vehicle_num-1])
+    seq[target_num-1] = rest[0]
+    i = 0  # index of vehicle
+    pre = 0  # index of last target
+    post = 0  # index of ins/seq
+    t = 0
+    reward = 0
+    while i < vehicle_num:
+        if ins[post] > 0:
+            i += 1
+            ins[post] -= 1
+            pre = 0
+            t = 0
+        else:
+            t += targets[pre, 3]
+            past = map[pre, seq[post]]/vehicles_speed[i]
+            t += past
+            if t < time_lim:
+                reward += targets[seq[post], 2]
+            pre = seq[post]
+            post += 1
+    return reward
+
+class Optimizer():
+...
+    def fitness(self, gene):   
+        return -fitness_(gene.astype(int), self.vehicle_num, self.vehicles_speed, 
+                           self.target_num, self.targets, self.time_lim, self.map)
+...
 ----
 
 The complete code is in
-https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_bite.py[test_bite.py]
-and https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/bite.py[bite.py]
+https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_fcmaes.py[test_fcmaes.py]
+and https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/fcmaesopt.py[fcmaesopt.py]
 Only minor adjustments to the objective function initially created for GA are needed to 
 apply https://numba.pydata.org/[numba] for a dramatic speedup.
 
@@ -130,16 +160,16 @@ specific, so you don't have to configure the `ints` parameter.
         def get_fitness(vehicle_num, target_num, map_size):
             env = Env(vehicle_num,target_num,map_size,visualized=True)
             return Fitness(vehicle_num,env.vehicles_speed,target_num,env.targets,env.time_lim)
-        
+ 
+        mo_problem = get_fitness(15,90,1.5e4)
+        mo_fun = mode.wrapper(mo_problem, nobj)
+                
         workers = mp.cpu_count()
-        #generate environment and fitness object
-        mo_problem = get_fitness(15,90,1.5e4)         
-        # add logging to monitor progress
-        mo_fun = mode.wrapper(mo_problem, nobj, interval = 1E12)
-        # MO parallel optimization retry      
+                
+        # MO parallel optimization retry
         xs, ys = modecpp.retry(mo_fun, nobj, 0, 
                       mo_problem.bounds, num_retries=workers, popsize = 512,
-                      max_evaluations = evals, nsga_update = True, workers=workers)
+                  max_evaluations = evals, nsga_update = True, workers=workers)
 ----
 
 The complete code is in 
@@ -154,8 +184,8 @@ to apply this to UAV task assignment and compare results.
 Do a `git clone https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark.git`
 and execute one of the following files:
 
-- The benchmark (including BiteOpt): https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/evaluate.py[evaluate.py]
-- BiteOpt stand-alone: https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_bite.py[test_bite.py]
+- The updated benchmark: https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/evaluate.py[evaluate.py]
+- Continuous optimizers stand-alone: https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_fcmaes.py[test_fcmaes.py]
 - MODE stand-alone: https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_mode.py[test_mode.py]
 
 MODE can use up to `evals = 100000000` with `workers=32` and `popsize=512` for large problem instances. 
@@ -176,7 +206,7 @@ scheduling or task assignment related. Advantages are:
 
 Objective function implementation sometimes may be a bit tricky, specifically for problems using discrete
 arguments. First try BiteOpt for single objective problems and fcmaes MODE with `nsga_update=True`
-for multi objective problems with or without constraints.  
+for multi-objective problems with or without constraints.  
 Other algorithms may be better for specific problems, but these never fail completely. 
 For Multi-UAV Task Assignment both algorithms perform exceptionally good. 
 Whether reinforcment learning can further improve the results is an open question. 
