@@ -240,11 +240,16 @@ image::vaccine2dretry.png[]
 Parallel optimization produces much more detailed picture, since because of the 
 improved parallelization-scaling we can compute a much bigger solution.
 
-We see that we should not invest more than 800 for the hand-washing campaign, since
+We see that:
+
+- We should not invest more than 800 for the hand-washing campaign, since
 for a final infection rate < 0.20 only more money invested in vaccination helps. 
-As long as we invest 800 for the hand-washing campaign, each increase of the vaccination
-budged further reduces the final infection rate significantly. But if 
-our overall budged is less than 800, all the money should go to the hand-washing campaign. 
+- As long as we invest 800 for the hand-washing campaign, each increase of the vaccination
+budged further reduces the final infection rate significantly.
+- If our overall budged is between 400-800, all the money should go to the hand-washing campaign. 
+- If it is less than 400, all the money should be invested in vaccination. 
+
+Did you expect this result? I was surprised. 
 
 === Compute the 3-objective Pareto Front
 
