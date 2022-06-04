@@ -140,7 +140,7 @@ How can we design the fitness function guiding the optimization process?
 Result should be a set of non-dominating solutions - a pareto-front - which
 corresponds to "good" or "interesting" solutions we would produce using a 
 nested loop iterating first over the vaccination
-budged and then over the handwashing campaign spending. We are interested 
+budged and then over the hand-washing campaign spending. We are interested 
 into solutions with a low combined budged, so we define the sum
 'budged_doses + spending` as one of our objectives, the infection rate
 `infected` as the other one. 
@@ -186,26 +186,11 @@ distributions in relation to the resulting infection rate.
 
 fcmaes offers two different parallelization modes:
 
-==== Parallel Optimization
-
-In this mode the whole optimization is performed in parallel. Advantage: Better
-scaling, more evaluations per second. Disadvantage: Slower convergence, you need
-more evaluations - but you get more solutions in the pareto front:
-
-[source,python]
-----
-    xs, ys = modecpp.retry(mode.wrapper(problem.fitness2, 2, interval=1000), 2, 
-               0, problem.bounds, popsize = 128, max_evaluations = 12800, 
-               nsga_update=False, num_retries = 64, workers=32)
-    moretry.plot("pandemy", 0, xs, ys)
-----
-
-==== Result
-
-image::vaccine2dmode.png[]
-
-
 ==== Parallel function evaluation
+
+In this mode a single optimization performs function evaluations in parallel. 
+Advantage: Faster convergence, you need less evaluations to produce a good 
+set of non dominated solutions (pareto-front).
 
 [source,python]
 ----
@@ -215,7 +200,9 @@ image::vaccine2dmode.png[]
                workers=8)
 ----
 
-image::vaccine2dretry.png[]
+==== Result
+
+image::vaccine2dmode.png[]
 
 Only 8 workers are defined because the overhead for parallelization is high, 
 more workers would not improve the evaluation rate further. If the fitness evaluation is
@@ -232,9 +219,32 @@ You need to set `workers=32`
 for 'mode.minimize` to fully utilize the CPU, since the parallelization overhead now is 
 much smaller compared to the cost of a function evaluation. 
 
+==== Parallel optimization
+
+In this mode the whole optimization is performed in parallel. Advantage: Better
+scaling, more evaluations per second. Disadvantage: Slower convergence, you need
+more evaluations - but you get more solutions in the pareto front:
+
+[source,python]
+----
+    xs, ys = modecpp.retry(mode.wrapper(problem.fitness2, 2, interval=1000), 2, 
+               0, problem.bounds, popsize = 128, max_evaluations = 12800, 
+               nsga_update=False, num_retries = 64, workers=32)
+    moretry.plot("pandemy", 0, xs, ys)
+----
+
+image::vaccine2dretry.png[]
+
 ==== Interpretation of the result
 
+Parallel optimization produces much more detailed picture, since because of the 
+improved parallelization-scaling we can compute a much bigger solution.
 
+We see that we should not invest more than 800 for the hand-washing campaign, since
+for a final infection rate < 0.20 only more money invested in vaccination helps. 
+As long as we invest 800 for the hand-washing campaign, each increase of the vaccination
+budged further reduces the final infection rate significantly. But if 
+our overall budged is less than 800, all the money should go to the hand-washing campaign. 
 
 === Compute the 3-objective Pareto Front
 
@@ -242,11 +252,13 @@ We use the same algorithms, this time applied to the 3-objective fitness variant
 Performance is very similar to the 2d-variant, but this time we see how both campaign spending and
 vaccination budged influence the final infection rate. 
 
+==== Parallel function evaluation
+
 [source,python]
 ----
-    xs, ys = modecpp.retry(mode.wrapper(problem.fitness3, 3, interval=1000), 3, 
-                0, problem.bounds, popsize = 256, max_evaluations = 25600, 
-                nsga_update=False, workers=32)
+    xs, ys = mode.minimize(mode.wrapper(problem.fitness3, 3, interval=1000), 3, 
+                0, problem.bounds, popsize = 512, max_evaluations = 25600, 
+                nsga_update=False, workers=8)
     plot3d(xs, ys, task)
 ----
 
@@ -263,19 +275,19 @@ image::vaccine3dmode2.png[]
 When you execute the example you will notice that this time you can play with the picture in 
 the browser. This is an important feature which helps to actually understand the 3d result. 
 
-==== Parallel function evaluation
-
-Again we get a much more detailed picture using parallel optimization, since, because of the 
-improved paralellization-scaling we can compute a much bigger solution this way. Note that this
-is not the case for expensive objective functions, because then both methods scale similarly.  
+==== Parallel optimization
 
 [source,python]
 ----
-    xs, ys = mode.minimize(mode.wrapper(problem.fitness3, 3, interval=1000), 3, 
-                0, problem.bounds, popsize = 512, max_evaluations = 25600, 
-                nsga_update=False, workers=8)
+    xs, ys = modecpp.retry(mode.wrapper(problem.fitness3, 3, interval=1000), 3, 
+                0, problem.bounds, popsize = 256, max_evaluations = 25600, 
+                nsga_update=False, workers=32)
     plot3d(xs, ys, task)
 ----
+
+Again we get a much more detailed picture using parallel optimization, since, because of the 
+improved parallelization-scaling we can compute a much bigger solution this way. Note that this
+is not the case for expensive objective functions, because then both methods scale similarly.  
 
 image::vaccine3dretry.png[]
 
