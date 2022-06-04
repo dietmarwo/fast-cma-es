@@ -141,7 +141,7 @@ Result should be a set of non-dominating solutions - a pareto-front - which
 corresponds to "good" or "interesting" solutions we would produce using a 
 nested loop iterating first over the vaccination
 budged and then over the hand-washing campaign spending. We are interested 
-into solutions with a low combined budged, so we define the sum
+in solutions with a low combined budged, so we define the sum
 'budged_doses + spending` as one of our objectives, the infection rate
 `infected` as the other one. 
 

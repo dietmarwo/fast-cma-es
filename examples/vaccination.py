@@ -329,6 +329,7 @@ def execute(task):
         xs, ys = mode.minimize(mode.wrapper(problem.fitness2, 2, interval=1000), 2, 
                                     0, problem.bounds, popsize = 256, max_evaluations = 25600, 
                                       nsga_update=False, workers=8)
+        xs, ys = moretry.pareto(xs, ys)
         plot2d(xs, ys, task)
     elif task == 'vaccine2dretry':
         xs, ys = modecpp.retry(mode.wrapper(problem.fitness2, 2, interval=1000), 2, 
@@ -339,6 +340,7 @@ def execute(task):
         xs, ys = mode.minimize(mode.wrapper(problem.fitness3, 3, interval=1000), 3, 
                     0, problem.bounds, popsize = 512, max_evaluations = 25600, 
                     nsga_update=False, workers=8)
+        xs, ys = moretry.pareto(xs, ys)
         plot3d(xs, ys, task)
     elif task == 'vaccine3dretry':   
         xs, ys = modecpp.retry(mode.wrapper(problem.fitness3, 3, interval=1000), 3, 
