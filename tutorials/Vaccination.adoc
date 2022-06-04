@@ -22,7 +22,7 @@ can be used to plan counter-measures.
 - Shows different ways to visualize multi-dimensional pareto fronts in Python. 
 
 The code for this tutorial is
-here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vaccination.py[powerplant.py]
+here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vaccination.py[vaccination.py]
 
 === Motivation
 
