@@ -213,11 +213,11 @@ a 16 core / 32 thread AMD 5950 CPU. The whole optimization produces a 512 soluti
 front in about 17 seconds for parallel function evaluation (25000 evaluations) and a 7573 solution pareto front
 in about 83 seconds (561000 evaluations)
 
-For comparison; The original non-numba simulation needs 277 simulations / sec 
+For comparison; The original non-numba simulation performs 277 simulations / sec 
 using parallel function evaluation, and about 286 evaluations/sec using parallel optimization. 
 You need to set `workers=32`
 for 'mode.minimize` to fully utilize the CPU, since the parallelization overhead now is 
-much smaller compared to the cost of a function evaluation. 
+smaller compared to the cost of a function evaluation. 
 
 ==== Parallel optimization
 
@@ -237,8 +237,8 @@ image::vaccine2dretry.png[]
 
 ==== Interpretation of the result
 
-Parallel optimization produces much more detailed picture, since because of the 
-improved parallelization-scaling we can compute a much bigger solution.
+Parallel optimization produces more detailed picture, since because of the 
+improved parallelization-scaling we can compute a bigger solution.
 
 We see that:
 
@@ -290,8 +290,8 @@ the browser. This is an important feature which helps to actually understand the
     plot3d(xs, ys, task)
 ----
 
-Again we get a much more detailed picture using parallel optimization, since, because of the 
-improved parallelization-scaling we can compute a much bigger solution this way. Note that this
+Again we get a more detailed picture using parallel optimization, since, because of the 
+improved parallelization-scaling we can compute a bigger solution this way. Note that this
 is not the case for expensive objective functions, because then both methods scale similarly.  
 
 image::vaccine3dretry.png[]
