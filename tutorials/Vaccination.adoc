@@ -326,3 +326,5 @@ produced by a simulation.
 - Visualization of the multi-dimensional solution landscapes can assist the decision making process.
 - If the solution landscape is rugged, if there are many dimensions, objectives or constraints,
 a nested loop will no longer work. 
+- You don't want to miss out speed factor > 500 for larger more serious simulations / optimizations
+which could be achieved by parallelization + numba combined. 
