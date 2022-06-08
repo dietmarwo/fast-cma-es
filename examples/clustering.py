@@ -1,4 +1,4 @@
-"""Cluster 40 cities in 4 equal groups to minimize sum of crossed distances.
+"""Cluster 200 cities in 4 equal groups to minimize sum of crossed distances.
 
 Derived from https://github.com/google/or-tools/blob/stable/examples/python/clustering_sat.py
 
@@ -59,8 +59,8 @@ distance_matrix = [
     [15056, 25994, 19589, 16743, 44198, 13078, 14967, 7552, 10422, 14935, 11891, 14002, 13225, 10671, 9475, 10633, 5084, 20315, 11866, 9802, 7682, 6471, 15720, 10674, 18908, 6204, 6000, 5066, 3039, 3721, 3496, 4772, 8614, 23805, 29519, 11614, 2749, 5313, 2042, 0],
  ] # yapf: disable
 
+# increase matrix from 40 to 200 cities
 repeat = 5
-
 distance_matrix = np.array(distance_matrix)
 distance_matrix = np.repeat(distance_matrix, repeat, 0)
 distance_matrix = np.repeat(distance_matrix, repeat, 1)
