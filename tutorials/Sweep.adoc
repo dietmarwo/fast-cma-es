@@ -8,14 +8,14 @@
 This tutorial
 
 - Is related to https://github.com/StochSS/GillesPy2/blob/main/examples/StartingModels/VilarOscillator/VilarOscillator.py[VilarOscillator.py]
-  and http://uu.diva-portal.org/smash/get/diva2:1543699/FULLTEXT01.pdf[Large-scale simulation-based experiments with stochastic models using machine learning assisted approaches]
+  and http://uu.diva-portal.org/smash/get/diva2:1543699/FULLTEXT01.pdf[Large-scale simulation-based experiments with stochastic models using machine learning assisted approaches].
 
 - It is about semi-automated sweeping of parameters to explore stochastic biochemical reaction networks.
 
 - Shows how to exploit multi-objective optimization to:
 
-    * parallelize complex expensive stochastic simulations
-    * guide the parameter sweeping to search for specific properties of the network
+    * Parallelize complex expensive stochastic simulations.
+    * Guide the parameter sweeping to search for specific properties of the network.
 
 The code for this tutorial is
 here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vilar.py[vilar.py]
@@ -32,13 +32,15 @@ Our idea is similar, but uses a different
 kind of human interaction: The design of multi-objective fitness functions guiding the parameter
 sweep via optimization. So we don't use optimization to find an optimum, but to add some "bias" to the
 parameter sweep - in the direction of "interesting" model properties. Specially for high dimensional
-parameter spaces scanning it completely is not a feasible option. 
+parameter spaces scanning it completely is not a feasible option. Of course both approaches could be 
+combined, the time series generated during the optimization process could feed the 
+machine learning based interactive method.  
 
 === The Vilar Oscillator
 
 In https://www.pnas.org/doi/10.1073/pnas.092133899[Mechanisms of noise-resistance in genetic oscillators] Jose M.G.Vilar
 showed a biochemical model of a "circadian clock" which enables organisms to keep internal sense of daily time.
-This model can be simulated using the https://github.com/StochSS/GillesPy2[GillesPy2], see 
+This model can be simulated using https://github.com/StochSS/GillesPy2[GillesPy2], see 
  https://github.com/StochSS/GillesPy2/blob/main/examples/StartingModels/VilarOscillator/VilarOscillator.py[VilarOscillator.py].
  The Vilar-model has 15 parameters and the question is:
  
@@ -75,7 +77,7 @@ We simply use scipys `argrelextrema` to identify the maxima of the `R`-species. 
 standard deviation of the amplitude and of the peak time distances. Small values of these standard
 deviations indicate a steady oscillation, so we use them as objectives to minimize.
 Additionally we add "frequency" as a third objective to increase the set of non-dominated solutions,  
-the so called pareto-front. But we could additionally store and analyze all parameters/simulations during
+the so called pareto-front. We could additionally store and analyze all parameters/simulations during
 the whole optimization process. 
 
 Note that the optimizer can handle any scaling of the different parameters and objectives. We also 
@@ -86,11 +88,10 @@ Calling a multi-objective optimizer and plotting the result is easy:
 ----
    popsize = 64
     xs, ys = mode.minimize(mode.wrapper(problem.fitness, 3, interval=64), 3, 
-                                    #0, problem.bounds, popsize = popsize, max_evaluations = 1024, 
-                                    0, problem.bounds, popsize = 256, max_evaluations = 20000, 
+                                      0, problem.bounds, popsize = popsize, max_evaluations = 1024, 
                                       nsga_update=False, workers=min(popsize, mp.cpu_count()))
-    xs, ys = moretry.pareto(xs, ys)
-    moretry.plot("sweep", 0, xs, ys, all=False)
+    np.savez_compressed("sweep", xs=xs, ys=ys) 
+    plot3d(xs, ys, "sweep")
 ----
 
 The `workers` parameter enables parallel simulations using Python multiprocessing. This way we achieve
@@ -132,6 +133,8 @@ The computed pareto front shows that the maximal standard deviation of the ampli
 
 ----
 Specially the standard deviation of the peak time distances remains stable, although we see some amplitude deviations.
+
+image::sweep.png[]
 
 ==== Conclusion
 

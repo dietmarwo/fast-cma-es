@@ -16,6 +16,7 @@ from fcmaes import mode,  moretry
 from scipy.optimize import Bounds
 import matplotlib.pyplot as plt    
 import multiprocessing as mp
+import matplotlib.pyplot as plt
 
 class VilarOscillator(gillespy2.Model):
     def __init__(self, parameter_values=None):
@@ -80,6 +81,42 @@ class VilarOscillator(gillespy2.Model):
         # Timespan
         self.timespan(np.linspace(0,400,401))
 
+def plot3d(xs, ys, name):
+    x = -1*ys[:, 0]; y = -1*ys[:, 1]; z = ys[:, 2]
+    fig = plt.figure()
+    #ax = fig.add_subplot(projection='3d')
+    ax = fig.add_subplot()     
+    img = ax.scatter(x, y, s=4, c=z, cmap=plt.hot())
+    cbar = fig.colorbar(img)
+    plt.xlabel('sdev peak distance')    
+    plt.ylabel('sdev amplitude')
+    cbar.set_label('frequency')
+    fig.set_figheight(8)
+    fig.set_figwidth(8)
+    fig.savefig(name, dpi=300)
+
+    import plotly
+    import plotly.graph_objs as go
+    
+    fig1 = go.Scatter3d(x=x,
+                    y=y,
+                    z=z,
+                    marker=dict(opacity=0.9,
+                                reversescale=True,
+                                colorscale='Blues',
+                                size=5),
+                    line=dict (width=0.02),
+                    mode='markers')
+    mylayout = go.Layout(scene=dict(
+        xaxis=dict(title="sdev peak distance"),
+        yaxis=dict( title="sdev amplitude"),
+        zaxis=dict( title="frequency"),
+    ),)
+    plotly.offline.plot({"data": [fig1],
+                         "layout": mylayout},
+                         auto_open=True,
+                         filename=(name + "3DPlot.html"))
+
 def get_bounds(model, scale):
     lower = []
     upper = []
@@ -120,12 +157,11 @@ def sweep_params():
     popsize = 64
     xs, ys = mode.minimize(mode.wrapper(problem.fitness, 3, interval=64), 3, 
                                     0, problem.bounds, popsize = popsize, max_evaluations = 1024, 
-#                                    0, problem.bounds, popsize = 128, max_evaluations = 10240, 
+                                    # 0, problem.bounds, popsize = 256, max_evaluations = 20000, 
                                       nsga_update=False, workers=min(popsize, mp.cpu_count()))
-    xs, ys = moretry.pareto(xs, ys)
-    moretry.plot("sweep", 0, xs, ys, all=False)
-    plt.show()
+    #xs, ys = moretry.pareto(xs, ys) # we are interested in all results
+    np.savez_compressed("sweep", xs=xs, ys=ys) 
+    plot3d(xs, ys, "sweep")
 
 if __name__ == '__main__':
     sweep_params()
-    
