@@ -3,7 +3,7 @@
 :cpp: C++
 :call: __call__
 
-= Parameter Sweeping for Chemical Reactions 
+= Parameter Sweeping for Biochemical Reactions 
 
 This tutorial
 
