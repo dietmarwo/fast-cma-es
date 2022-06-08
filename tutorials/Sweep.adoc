@@ -1,0 +1,142 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+:call: __call__
+
+= Parameter Sweeping for Chemical Reactions 
+
+This tutorial
+
+- Is related to https://github.com/StochSS/GillesPy2/blob/main/examples/StartingModels/VilarOscillator/VilarOscillator.py[VilarOscillator.py]
+  and http://uu.diva-portal.org/smash/get/diva2:1543699/FULLTEXT01.pdf[Large-scale simulation-based experiments with stochastic models using machine learning assisted approaches]
+
+- It is about semi-automated sweeping of parameters to explore stochastic biochemical reaction networks.
+
+- Shows how to exploit multi-objective optimization to:
+
+    * parallelize complex expensive stochastic simulations
+    * guide the parameter sweeping to search for specific properties of the network
+
+The code for this tutorial is
+here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vilar.py[vilar.py]
+
+=== Motivation
+
+Stochastic simulations of biochemical reaction networks can model their intrinsic noise, which is important
+if the number of molecular species is low. But they are expensive and the noise complicates the evaluation
+of model parameters. Therefore http://uu.diva-portal.org/smash/get/diva2:1543699/FULLTEXT01.pdf[Fredrik Wrede]
+proposes a machine learning based interactive method for model exploration via parameter sweeps
+using a multi-node network of CPUs (see https://www.dropbox.com/s/o0wszm7xdsnc7ri/paper1.mp4[video]).
+
+Our idea is similar, but uses a different 
+kind of human interaction: The design of multi-objective fitness functions guiding the parameter
+sweep via optimization. So we don't use optimization to find an optimum, but to add some "bias" to the
+parameter sweep - in the direction of "interesting" model properties. Specially for high dimensional
+parameter spaces scanning it completely is not a feasible option. 
+
+=== The Vilar Oscillator
+
+In https://www.pnas.org/doi/10.1073/pnas.092133899[Mechanisms of noise-resistance in genetic oscillators] Jose M.G.Vilar
+showed a biochemical model of a "circadian clock" which enables organisms to keep internal sense of daily time.
+This model can be simulated using the https://github.com/StochSS/GillesPy2[GillesPy2], see 
+ https://github.com/StochSS/GillesPy2/blob/main/examples/StartingModels/VilarOscillator/VilarOscillator.py[VilarOscillator.py].
+ The Vilar-model has 15 parameters and the question is:
+ 
+ - Is the oscillating behavior of the model dependent on specific parameter settings?
+ - Can we find parameters which can affect the oscillating property of the model negatively?
+ - Or does the model have "self-regulating" properties preserving the steady oscillation?
+ 
+=== Multi-Objective Function
+  
+The basic idea of our approach is to use multi-objective optimization which requires a fitness function. 
+How can we analyze the result of a simulation run (a number of time series for each species) to characterize
+the "steady oscillation" property?
+
+[source,python]
+----
+        def fitness(self, x):
+            model = VilarOscillator()
+            set_params(model, x)
+            res = model.run(algorithm = "SSA")
+            R = res['R'] # time series for R
+            r_mean = np.mean(R)
+            r_over = np.array([r for r in R if r > r_mean])
+            ilocs_max = argrelextrema(r_over, np.greater_equal, order=3)[0]
+            freq = len(ilocs_max) / len(R)
+            peak_dists = np.array([ilocs_max[i] - ilocs_max[i-1] for i in range(1, len(ilocs_max))])
+            sdev_peak_dist = np.std(peak_dists)
+            peaks = (r_over - r_mean)[ilocs_max]
+            sdev_amp = np.std(peaks)
+            return [-sdev_peak_dist, -sdev_amp, freq]   
+----
+
+There may be more sophisticated approaches, for instance using FFT transformations. 
+We simply use scipys `argrelextrema` to identify the maxima of the `R`-species. Then we determine the
+standard deviation of the amplitude and of the peak time distances. Small values of these standard
+deviations indicate a steady oscillation, so we use them as objectives to minimize.
+Additionally we add "frequency" as a third objective to increase the set of non-dominated solutions,  
+the so called pareto-front. But we could additionally store and analyze all parameters/simulations during
+the whole optimization process. 
+
+Note that the optimizer can handle any scaling of the different parameters and objectives. We also 
+could mark objectives as constraints to exclude specific model properties from the parameter sweep. 
+Calling a multi-objective optimizer and plotting the result is easy:
+
+[source,python]
+----
+   popsize = 64
+    xs, ys = mode.minimize(mode.wrapper(problem.fitness, 3, interval=64), 3, 
+                                    #0, problem.bounds, popsize = popsize, max_evaluations = 1024, 
+                                    0, problem.bounds, popsize = 256, max_evaluations = 20000, 
+                                      nsga_update=False, workers=min(popsize, mp.cpu_count()))
+    xs, ys = moretry.pareto(xs, ys)
+    moretry.plot("sweep", 0, xs, ys, all=False)
+----
+
+The `workers` parameter enables parallel simulations using Python multiprocessing. This way we achieve
+about 8 simulations/sec on a 16 core AMD 5950 CPU. Although not covered by the example, we also could
+use https://www.dask.org/[dask] to distribute optimizations to different nodes (as done in 
+ https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6954658/ ) and simply join the optimization results. 
+ 
+The computed pareto front shows that the maximal standard deviation of the amplitude is around 280, and of the peak time distance only around 3.2:
+----
+[-3.1952897432329794, -76.62145682137191, 0.04738154613466334] [3526.49716, 26153.90732, 0.27432, 2635.76701, 3395.22809, 13.76835, 79.48295, 310.03073, 12.66697, 15.5729, 31.96378, 161.24309, 99.98978, 3680.20778, 9186.91694]
+[-2.951745715363383, -105.61892834474017, 0.04488778054862843] [134.63534, 9010.48306, 1.0, 2878.17197, 704.87168, 462.33847, 64.72419, 385.47531, 23.16445, 9.30172, 41.28939, 43.0621, 100.0, 2695.83275, 4305.59618]
+[-2.8925390242692344, -107.6257949025003, 0.04488778054862843] [471.47239, 50000.0, 0.71129, 458.83652, 0.5, 500.0, 6.89367, 402.12095, 50.0, 2.56379, 49.03173, 75.85653, 0.01, 3457.07905, 1.0]
+[-2.8442650632456883, -117.81787599135451, 0.04239401496259352] [572.04744, 50000.0, 0.83129, 2825.51421, 2992.95074, 500.0, 35.5733, 826.21977, 0.005, 17.86397, 59.68668, 115.37007, 58.78997, 2502.89597, 409.29442]
+[-2.7603219309764864, -123.10138349053577, 0.04488778054862843] [5000.0, 22511.47154, 0.74903, 0.5, 20.69429, 500.0, 45.45364, 1000.0, 13.53135, 14.92869, 100.0, 162.5152, 21.28333, 3481.49434, 832.48902]
+[-2.704020783030657, -130.31374881490407, 0.04738154613466334] [2595.38749, 50000.0, 1.0, 0.5, 752.75736, 273.84038, 81.80256, 394.48409, 50.0, 10.54169, 21.03723, 60.85123, 2.7231, 816.82793, 3244.70661]
+[-2.6695586170519916, -131.8614020965987, 0.04738154613466334] [1403.39704, 32740.13542, 0.0001, 2337.10977, 1764.88984, 201.21291, 69.10676, 666.16843, 50.0, 14.50241, 3.48057, 189.6362, 3.50522, 2832.22345, 8681.91579]
+[-2.5157283018817607, -103.96707336339715, 0.0399002493765586] [433.37776, 12050.71048, 0.16658, 2501.16179, 404.37431, 168.68804, 75.72162, 953.62165, 48.96191, 18.47942, 10.35526, 200.0, 80.84951, 2559.40224, 6564.88627]
+[-2.4036105653786763, -134.46585344965703, 0.04239401496259352] [2093.06147, 13249.04586, 0.15951, 0.5, 2366.8293, 140.94835, 8.91315, 829.63234, 2.67784, 13.9014, 100.0, 133.87136, 82.01959, 3582.88651, 5485.74412]
+[-2.390722810272148, -110.61403547357813, 0.0399002493765586] [3769.17407, 50000.0, 0.23135, 4287.27823, 3089.18354, 250.56776, 57.10203, 848.68412, 0.005, 6.25694, 46.2639, 60.58106, 29.10321, 2852.22319, 2868.68334]
+[-2.3851391759997758, -119.38304946683176, 0.0399002493765586] [3773.23371, 31155.33887, 0.32264, 5000.0, 3212.3647, 500.0, 81.87084, 248.79661, 3.53912, 11.43403, 30.32989, 169.28511, 0.01, 3128.71028, 9442.99411]
+[-2.3795424396766327, -137.21856140387862, 0.0399002493765586] [225.80652, 50000.0, 0.21257, 1407.52709, 5000.0, 161.53852, 40.36149, 149.55828, 0.005, 0.002, 100.0, 200.0, 98.85162, 2782.18864, 8787.70062]
+[-2.358495283014151, -152.9048373118274, 0.04239401496259352] [39.6369, 21014.54377, 0.69074, 3628.77239, 1539.47683, 179.63855, 25.65349, 320.01381, 32.9201, 9.29338, 100.0, 179.98836, 23.4153, 5000.0, 4628.72767]
+[-2.315032397181517, -205.474789873007, 0.04239401496259352] [433.37776, 12272.10106, 0.42322, 1592.93001, 5000.0, 457.53164, 92.45363, 0.1, 48.96191, 18.47942, 42.19932, 200.0, 89.33683, 4569.08835, 5270.36338]
+[-2.2698774746668597, -227.21695194812193, 0.04239401496259352] [4040.43704, 22519.23236, 0.16176, 0.5, 841.01142, 153.15776, 24.16002, 463.11473, 6.63717, 17.67225, 46.66788, 200.0, 0.01, 3297.03592, 3369.98428]
+[-2.2350739485653612, -148.06158980302757, 0.0399002493765586] [28.26559, 16415.65766, 1.0, 3457.56059, 5000.0, 212.84764, 49.60286, 1000.0, 26.17525, 9.83407, 63.98813, 0.02, 0.49658, 3962.68363, 3704.00369]
+[-1.3477115902938006, -114.68623863974845, 0.03740648379052369] [4049.78038, 15607.0806, 0.19515, 1102.30829, 4712.44764, 380.30862, 33.72762, 49.37625, 27.45503, 0.002, 45.68741, 178.94238, 100.0, 435.84708, 7514.51748]
+[-1.339983416149452, -157.82594002175307, 0.0399002493765586] [0.5, 39159.67519, 0.4331, 2794.67748, 869.83257, 98.32623, 57.23514, 737.65319, 2.70018, 1.78417, 48.43449, 152.61576, 38.54027, 2740.76117, 609.04569]
+[-1.2995725793078619, -166.6287860597622, 0.0399002493765586] [4172.37329, 26306.71093, 0.19382, 1655.03208, 4008.46624, 0.05, 28.05032, 162.39637, 32.91479, 0.002, 58.60777, 151.91891, 100.0, 511.01377, 5390.0473]
+[-1.2955969390869324, -129.95972025550412, 0.03740648379052369] [225.80652, 27569.7308, 0.21257, 5000.0, 5000.0, 110.68577, 40.36149, 149.55828, 44.84813, 16.97785, 100.0, 200.0, 100.0, 2782.18864, 8787.70062]
+[-1.2936264483053452, -135.51865800201338, 0.03740648379052369] [2792.66164, 30991.3408, 0.92345, 3984.49291, 2986.40698, 291.5677, 24.18422, 530.40683, 42.22264, 14.60236, 37.69654, 50.45909, 38.57199, 4169.06319, 6314.90235]
+[-1.203698005684519, -211.02928558614798, 0.0399002493765586] [2986.03237, 29527.86793, 0.2171, 1426.16715, 2786.26574, 367.31051, 32.29493, 245.03649, 32.04693, 16.55746, 100.0, 199.77846, 13.16386, 2745.81175, 6749.71684]
+[-1.171515676204052, -137.91913895065068, 0.03740648379052369] [0.5, 37749.76494, 0.68766, 0.5, 3549.06239, 500.0, 99.33152, 971.61408, 20.01242, 0.002, 73.64453, 196.87324, 65.1889, 2835.79777, 3328.40539]
+[-1.1605769149479943, -143.18187346479615, 0.03740648379052369] [259.63917, 42393.02826, 0.28383, 2996.03497, 1086.4485, 438.55768, 68.32342, 261.67123, 31.23229, 11.45352, 17.79373, 85.4572, 28.69994, 3755.39072, 5059.56265]
+[-1.1352924243950933, -227.6504653520392, 0.0399002493765586] [0.5, 3516.51548, 0.00914, 5000.0, 3728.11716, 81.63964, 38.92089, 191.37312, 5.62097, 8.14236, 68.25788, 173.71927, 35.56207, 3214.00196, 3832.70817]
+[-1.0986812966989, -79.28378376028063, 0.034912718204488775] [2154.6964, 50000.0, 0.83281, 5000.0, 520.91358, 500.0, 50.93273, 528.72227, 13.73056, 9.05585, 85.82776, 140.49774, 55.82988, 4162.22496, 4799.98737]
+[-1.0973065354098013, -149.50534735884497, 0.03740648379052369] [1395.94541, 40532.91103, 0.0001, 0.5, 2054.81217, 500.0, 0.01, 111.0529, 50.0, 0.002, 97.55574, 192.69831, 53.87921, 2249.53203, 5556.9579]
+[-1.0624918300339485, -280.07096617420024, 0.0399002493765586] [2942.39198, 18324.33496, 0.25861, 471.95202, 5000.0, 144.21523, 86.34879, 0.1, 21.59596, 14.5085, 0.01, 110.3041, 40.07275, 5000.0, 3016.86588]
+[-0.9583148474999099, -160.80525143442577, 0.03740648379052369] [383.01833, 17918.24924, 0.19963, 471.95202, 1589.77472, 0.05, 69.13641, 736.76034, 0.005, 1.33615, 100.0, 197.24274, 95.85541, 1549.05006, 7612.68543]
+
+----
+Specially the standard deviation of the peak time distances remains stable, although we see some amplitude deviations.
+
+==== Conclusion
+
+- Multi objective optimization can speed up the parameter sweep of a stochastic biochemical reaction network model.
+- Simulations are executed in parallel utilizing all processor cores.
+- The objective function guides the parameter sweep to "interesting" model properties - or in our
+  example case, tries to destroy these properties. 
+
