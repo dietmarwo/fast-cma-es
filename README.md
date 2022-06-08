@@ -13,6 +13,7 @@ A Python 3 gradient-free optimization library.
 - [Robots and Rovers](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc)
 - [CFD](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc)
 - [Noisy TSP](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc)
+- [Clustering](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc)
 - [Hospital](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc)
 - [JobShop](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc)
 - [Scheduling](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc)

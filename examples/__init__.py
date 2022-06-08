@@ -11,6 +11,7 @@ __all__ = [
     'benchmark_gtop_pygmo'
     'cassini_minlp'
     'cassini2_minlp'
+    'clustering'
     'crypto'
     'examples'
     'f8'
@@ -37,5 +38,7 @@ __all__ = [
     'tandem_minlp'
     'top_trumps'
     'tutorial'
+    'vaccination'
     'vessel'
+    'vilar'
 ]
