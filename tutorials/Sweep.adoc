@@ -75,7 +75,7 @@ the "steady oscillation" property?
 There may be more sophisticated approaches, for instance using FFT transformations. 
 We simply use scipys `argrelextrema` to identify the maxima of the `R`-species. Then we determine the
 standard deviation of the amplitude and of the peak time distances. Small values of these standard
-deviations indicate a steady oscillation, so we use them as objectives to minimize.
+deviations indicate a steady oscillation, so we use them as objectives to maximize.
 Additionally we add "frequency" as a third objective to increase the set of non-dominated solutions,  
 the so called pareto-front. We could additionally store and analyze all parameters/simulations during
 the whole optimization process. 
