@@ -27,7 +27,7 @@ sub-problems. But be careful in classifying problems prematurely. A problem may 
 as you think because of minor modifications related to its size or because of additional constraints. 
 
 The "dividing a set of cities into four equal sized subsets, so that the sum of the distances inside a cluster is minimized"
-problem seems to fit really well into the "sat-solver" category. Paul Rulkens showed in 
+problem seems to fit really well into the "sat-solver" category. But Paul Rulkens showed in 
 https://www.youtube.com/watch?v=VNGFep6rncY[Why the majority is always wrong] that it is sometimes
 worth to look "outside the box".  
  
@@ -140,7 +140,7 @@ def opt():
 For this kind of problems we should try https://github.com/avaneev/biteopt[biteopt] first. 
 `retry.minimize` automatically uses all available parallel threads (32 on the AMD 5950), 
 and we see now the solution after about 3.5 to 8 seconds with less than 2GB memory
-usage. Note that we used the `np.argsort` trick get a sequence of unique integers out 
+usage. Note that we used the `np.argsort` trick to get a sequence of unique integers out 
 of a list of continuous variables.  
 
 [source]
