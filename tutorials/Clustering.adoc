@@ -1,0 +1,171 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+:call: __call__
+
+= Out of the box
+
+This tutorial
+
+- Is related to Google's or-tools example https://github.com/google/or-tools/blob/stable/examples/python/clustering_sat.py[clustering_sat.py].
+
+- It is about dividing a set of cities into four equal sized subsets, so that the sum of the distances inside a cluster is minimized.
+
+- Does the sat-solver based solution proposed by Google scale well with the number of cities?
+
+- What should we do if it does not?
+
+The code for this tutorial is
+here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/clustering.py[clustering.py]
+
+=== Motivation
+
+Google's https://github.com/google/or-tools[or-tools] represent an excellent implementation of many optimization algorithms.
+As for fcmaes there is a fast {cpp}-written backend and it supports multi threaded optimization. In fact it
+complements very nicely derivative free algorithms. I can think of objective functions using or-tools to solve
+sub-problems. But be careful in classifying problems prematurely. A problem may switch its class assignment faster
+as you think because of minor modifications related to its size or because of additional constraints. 
+
+The "dividing a set of cities into four equal sized subsets, so that the sum of the distances inside a cluster is minimized"
+problem seems to fit really well into the "sat-solver" category. Paul Rulkens showed in 
+https://www.youtube.com/watch?v=VNGFep6rncY[Why the majority is always wrong] that it is sometimes
+worth to look "outside the box".  
+ 
+=== Problem with the sat solver
+
+The problem can easily been observed when we change the size of the problem from 40 to 200 cities:
+
+[source,python]
+----
+...
+repeat = 5
+distance_matrix = np.array(distance_matrix)
+distance_matrix = np.repeat(distance_matrix, repeat, 0)
+distance_matrix = np.repeat(distance_matrix, repeat, 1)
+----
+
+Executing https://github.com/google/or-tools/blob/stable/examples/python/clustering_sat.py[clustering_sat.py]
+with this modification at first failed completely on a 16 core AMD 5950 machine with 128GM RAM. 
+But the following modification helped:
+
+[source,python]
+----
+    solver.parameters.num_search_workers = 32
+----
+
+Now we can utilize all 16 cores of our CPU. Using 118 GB memory after about 90 minutes we see 
+a result:
+
+[source]
+----
+Starting CP-SAT solver v9.3.10497
+...
+CpSolverResponse summary:
+status: OPTIMAL
+objective: 82393100
+best_bound: 82393100
+booleans: 19900
+conflicts: 0
+branches: 39800
+propagations: 0
+integer_propagations: 39813
+restarts: 39800
+lp_iterations: 6783
+walltime: 4694.31
+usertime: 4694.31
+deterministic_time: 21487.6
+gap_integral: 35098.9
+
+Group 0 : 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 165 166 167 168 169 170 171 172 173 174 175 176 177 178 179
+Group 1 : 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 150 151 152 153 154 155 156 157 158 159 160 161 162 163 164 180 181 182 183 184 185 186 187 188 189 190 191 192 193 194 195 196 197 198 199
+Group 2 : 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99
+Group 3 : 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149
+----
+
+Although successful the CP-SAT solver definitely is at its limits. But we have a reference solution to test an alternative method:
+
+[source]
+----
+objective: 82393100
+----
+
+=== Out of the box solution
+
+Applying continuous optimization to this clustering problem may be not "out of the box" as a fcmaes-tutorial.
+But I bet for many people it is surprising that such a "trivial" method works.
+The "guessing with feedback"-like approach of a continuous derivative-free algorithm should get in trouble with the sheer number
+of possible clusterings for 200 cities, shouldn't it? And in fact, for many algorithms this is true
+(Exercise: check this statement). 
+
+To define the objective function is trivial:
+
+[source,python]
+----
+@njit(fastmath=True)
+def sum_distance(s):
+    dist = 0
+    g = np.empty((num_groups, group_size), dtype=numba.int32)
+    for i in range(num_groups):
+        g[i] = s[i*group_size:(i+1)*group_size]
+    for i in range(num_groups):
+        for v in range(group_size):
+            for w in range(group_size):
+                dist += distance_matrix[g[i,v],g[i,w]]
+    return dist
+
+def unique(x):    
+    return np.argsort(x)
+
+def fitness(x):
+    return sum_distance(unique(x))
+----
+
+Definitely less work than to create the CP-SAT solver configuration. 
+We only have to remember the Python-rule: 
+"No nested inner loop without https://numba.pydata.org[Numba]" to avoid
+a severe performance penalty. 
+
+Calling the optimizer is easy too:
+
+[source,python]
+----
+def opt():    
+    print('Num nodes =', num_nodes)
+    res = retry.minimize(wrapper(fitness), 
+                         Bounds([0]*num_nodes, [1]*num_nodes), 
+                         optimizer=Bite_cpp(500000, stall_criterion = 3), 
+                         num_retries=32)
+----
+
+For this kind of problems we should try https://github.com/avaneev/biteopt[biteopt] first. 
+`retry.minimize` automatically uses all available parallel threads (32 on the AMD 5950), 
+and we see now the solution after about 3.5 to 8 seconds with less than 2GB memory
+usage. Note that we used the `np.argsort` trick get a sequence of unique integers out 
+of a list of continuous variables.  
+
+[source]
+----
+3.55 2239198 630760.0 82393100.0 [0.48553103356888927, 0.4942163924201614, 0.48884715084924707, ...
+[[114 138 133 119 140 134 120 148 113 121 132 102 118 122 141 105 127 111
+  146 117 137 110 124 107 135 136 142 106 115 129 101 109 131 108 100 143
+  144 112 145 125 104 116 126 149 128 139 123 147 103 130]
+ [182 188  44 153  42 199 162 160 156 152 183  41 157 161  40 186 155 185
+  180  35  45  49 151 154  48  38 181 190 194  43 158  46 196 164 195 150
+  197 159 163 184  36  37  47 187 189 192 193 198 191  39]
+ [ 32  11   6 178   0   5   1 175  27 169  29  16 173   2 166  12  20   9
+   23 165 171 179   8 174 172  15  28  31 168  22   4 177  24   3  30  13
+   10  21  19  14 167   7  25  33  18  34 176 170  17  26]
+ [ 72  99  95  62  79  71  87  91  64  58  60  81  55  84  54  52  94  85
+   67  76  73  92  59  51  83  69  70  86  65  61  68  75  96  89  57  53
+   66  97  50  78  63  74  80  93  98  77  82  88  90  56]] 82393100
+----
+ 
+==== Conclusion
+
+- Google's or-tools provide an excellent implementation of many important algorithms complementing fcmaes. 
+- Use what fits best - or a combination of methods - but never classify a problem prematurely. 
+- Minor modifications related to the problem size or additional constraints may change the optimal method to apply. 
+- Never underestimate what a good continuous optimizer can do regarding discrete problems. 
+- Use the `np.argsort` trick if you need a sequence of unique integers.   
+- Try https://github.com/avaneev/biteopt[biteopt] first for this kind of problems. 
+
