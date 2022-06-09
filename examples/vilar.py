@@ -153,15 +153,28 @@ def sweep_params():
             # maximize sdev_peak_dist and sdev_amp
             return [-sdev_peak_dist, -sdev_amp, freq]
             
-    problem = fcmaes_problem()    
-    popsize = 64
-    xs, ys = mode.minimize(mode.wrapper(problem.fitness, 3, interval=64), 3, 
-                                    0, problem.bounds, popsize = popsize, max_evaluations = 1024, 
-                                    # 0, problem.bounds, popsize = 256, max_evaluations = 20000, 
-                                      nsga_update=False, workers=min(popsize, mp.cpu_count()))
-    #xs, ys = moretry.pareto(xs, ys) # we are interested in all results
-    np.savez_compressed("sweep", xs=xs, ys=ys) 
-    plot3d(xs, ys, "sweep")
+    problem = fcmaes_problem()   
+    popsize = 64 # population size of the evolutionary algorithm
+    max_evaluations = popsize*16 # maximum number of evaluation
+    # popsize = 256 # population size of the evolutionary algorithm
+    # max_evaluations = popsize*96 # maximum number of evaluation
+    nobj = 3 # number of objectives
+    ncon = 0 # number of constraints
+    # stores all values; if capacity is reached, content is replaced by the pareto front 
+    store = mode.store(problem.dim, nobj, capacity=max_evaluations) 
+    # perform the parameter sweep by multi objective optimization
+    xs, ys = mode.minimize(mode.wrapper(problem.fitness, 3, interval=64, store=store), 
+                                    nobj, ncon,
+                                    problem.bounds, popsize = popsize, 
+                                    max_evaluations = max_evaluations, 
+                                    nsga_update=False, workers=min(popsize, mp.cpu_count()))
+    # save last population of the evolutionary algorithm
+    np.savez_compressed("sweep", xs=xs, ys=ys)     
+    # save all evaluations
+    xs, ys = store.get_xs(), store.get_ys()
+    np.savez_compressed("sweep_all", xs=xs, ys=ys)   
+    moretry.plot("sweep_all", ncon, xs, ys) # plot 2d
+    plot3d(xs, ys, "sweep_3d") # plot 3d
 
 if __name__ == '__main__':
     sweep_params()

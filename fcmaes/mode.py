@@ -635,9 +635,7 @@ class wrapper(object):
         self.store = store
         self.interval = interval
         self.plot = plot
-        self.name = (fun.name if hasattr(fun, 'name') else 
-                     (fun.__name__ if hasattr(fun, '__name__') else fun.__class__.__name__)) \
-                        if name is None else name
+        self.name = name
         self.logger = logger
     
     def __call__(self, x):
@@ -659,9 +657,9 @@ class wrapper(object):
                     str(self.n_evals.value) + ' ' + 
                     str(round(self.n_evals.value/(1E-9 + dtime(self.time_0)),0)) + ' ' + 
                     str(self.best_y[:]) + ' ' + str(list(constr)) + ' ' + str(list(x))) 
-                if not self.store is None:
+                if (not self.store is None) and (not self.name is None):
                     try:
-                        xs, ys = self.store.get_front(True)
+                        xs, ys = self.store.get_front()
                         num = self.store.num_stored.value
                         # self.logger.info(str(num) + ' ' + 
                         #               ', '.join(['(' + ', '.join([str(round(yi,3)) for yi in y]) + ')' for y in ys]))
