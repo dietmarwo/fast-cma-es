@@ -56,10 +56,21 @@ the "steady oscillation" property?
 
 [source,python]
 ----
+    # multi processing result list
+    results = mp.Manager().list() 
+    
+    class fcmaes_problem():
+         
+        def __init__(self):
+            self.bounds = get_bounds(VilarOscillator(), 100)
+            self.dim = len(self.bounds.ub)
+             
         def fitness(self, x):
             model = VilarOscillator()
             set_params(model, x)
             res = model.run(algorithm = "SSA")
+            # store params, result tuple
+            results.append((x, res))
             R = res['R'] # time series for R
             r_mean = np.mean(R)
             r_over = np.array([r for r in R if r > r_mean])
@@ -69,7 +80,8 @@ the "steady oscillation" property?
             sdev_peak_dist = np.std(peak_dists)
             peaks = (r_over - r_mean)[ilocs_max]
             sdev_amp = np.std(peaks)
-            return [-sdev_peak_dist, -sdev_amp, freq]   
+            # maximize sdev_peak_dist and sdev_amp
+            return [-sdev_peak_dist, -sdev_amp, freq]----
 ----
 
 There may be more sophisticated approaches, for instance using FFT transformations. 
@@ -104,6 +116,9 @@ Calling a multi-objective optimizer and plotting the result is easy:
     # save all evaluations
     xs, ys = store.get_xs(), store.get_ys()
     np.savez_compressed("sweep_all", xs=xs, ys=ys)   
+    # show results
+    for x, res in results[:10]:
+        print(list(x), list(res['R']))
     moretry.plot("sweep_all", ncon, xs, ys) # plot 2d
     plot3d(xs, ys, "sweep_3d") # plot 3d
 ----
@@ -114,8 +129,8 @@ use https://www.dask.org/[dask] to distribute optimizations to different nodes (
  https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6954658/ ) and simply join the optimization results. 
 The `store` object stores all parameter settings and their objective values. We define
 `capacity=max_evaluations` to make sure all evaluations fit. `store` resolves parallel-access conflicts 
-using a `multiprocessing.Lock`. If you need the time-series of all simulations performed during the
-sweep we recommend storing them into files to avoid access conflicts. 
+using a `multiprocessing.Lock`.  The simulation time series together with the corresponding 
+parameter settings are collected in `results = mp.Manager().list()`.  
  
 The computed pareto front shows that the maximal standard deviation of the amplitude is around 260, and of the peak time distance only around 2.95:
 

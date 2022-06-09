@@ -131,6 +131,9 @@ def set_params(model, x):
     
 def sweep_params():
     
+    # multi processing result list
+    results = mp.Manager().list() 
+    
     class fcmaes_problem():
          
         def __init__(self):
@@ -141,6 +144,8 @@ def sweep_params():
             model = VilarOscillator()
             set_params(model, x)
             res = model.run(algorithm = "SSA")
+            # store params, result tuple
+            results.append((x, res))
             R = res['R'] # time series for R
             r_mean = np.mean(R)
             r_over = np.array([r for r in R if r > r_mean])
@@ -173,6 +178,9 @@ def sweep_params():
     # save all evaluations
     xs, ys = store.get_xs(), store.get_ys()
     np.savez_compressed("sweep_all", xs=xs, ys=ys)   
+    # show results
+    for x, res in results[:10]:
+        print(list(x), list(res['R']))
     moretry.plot("sweep_all", ncon, xs, ys) # plot 2d
     plot3d(xs, ys, "sweep_3d") # plot 3d
 
