@@ -16,7 +16,6 @@ This tutorial
  - Explains why you should not apply continuous optimization to the vertex cover problem.
  - Shows that the insights gained by solving the vertex cover problem by optimization
    may help to solve real world coverage related problems.
-. 
 
 The code for this tutorial is
 here: 
