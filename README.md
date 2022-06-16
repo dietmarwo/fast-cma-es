@@ -7,6 +7,7 @@ A Python 3 gradient-free optimization library.
 - [Water Resource Management](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc)  
 - [Biochemical stochastic model parameters](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc)
 - [Multi-UAV Task Assignment](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc) 
+- [Analyzing Social Media User Data](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Media.adoc)
 - [Power Plant Efficiency](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PowerPlant.adoc)
 - [Modeling Vaccination](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Vaccination.adoc)
 - [Capacitated Vehicle Routing](https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Routing.adoc)

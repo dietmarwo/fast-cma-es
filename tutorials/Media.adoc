@@ -1,0 +1,655 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+:call: __call__
+
+= Analyzing Social Media User Data
+
+This tutorial
+
+ - Shows how to analyze social media user data including friend and group relations between users
+   using an adapted multi-objective version of the vertex cover optimization problem.
+- Shows how to solve the https://en.wikipedia.org/wiki/Vertex_cover[vertex cover] problem using
+    * The Python https://github.com/d-michail/python-jgrapht[jgrapht] graph library.
+    * An improved greedy algorithm.
+    * By continuous optimization
+ - Explains why you should not apply continuous optimization to the vertex cover problem.
+ - Shows that the insights gained by solving the vertex cover problem by optimization
+   may help to solve real world coverage related problems.
+. 
+
+The code for this tutorial is
+here: 
+
+- https://github.com/dietmarwo/fast-cma-es/blob/master/examples/fb/edgecover.py[edgecover.py]
+- https://github.com/dietmarwo/fast-cma-es/blob/master/examples/fb/fbcover.py[fbcover.py]
+
+== Motivation
+
+The https://en.wikipedia.org/wiki/Vertex_cover[vertex cover] problem is one of the best analyzed
+combinatorial problems in computer science. There are countless publications and algorithms, 
+lately also involving deep learning (see https://arxiv.org/pdf/1810.10659.pdf and 
+https://www.youtube.com/watch?v=XVLd7hf6y6M ). 
+
+So there is no reason to add another implementation which performs poorly, isn't it?
+Wait, may be things are a bit more complicated. There are real world problems involving
+vertex cover, which are much less analyzed, where the typical greedy algorithms cannot
+be adapted. If viewed as an optimization problem, vertex cover can quite easily
+be adapted to cover these real world problems. 
+
+If you haven't watched https://www.netflix.com/de-en/title/80117542[The great Hack] yet,
+may be it is time to do it, because it is very closely related to the real world problem
+we want to analyze. The movie is about (mis-)using social media user data to target political influence
+campaigns. Of course there also are legitimate applications of this kind of data, for instance to target
+specific advertisements to users who potentially further spread the information to friends 
+and groups. 
+
+We will use https://snap.stanford.edu/data/ego-Facebook.html[anonymised Facebook user relation data] 
+which this is sufficient to show the idea. This data described and analyzed in 
+http://i.stanford.edu/~julian/pdfs/nips2012.pdf .
+
+=== Constraint Programming and Optimization
+
+http://kti.ms.mff.cuni.cz/~bartak/constraints/intro.html[Constraint Programming] is a very
+popular tool for solving combinatorial problems. Vertex cover is a typical combinatorial problem
+where the constraint is that all edges are covered. But what if we are not interested in solutions 
+which fulfill the constraints completely, but instead want to analyze the tradeoff between investment 
+(here: number of vertices used) and ROI - return of investment - (here: the proportion of fulfilled
+constraints)? All of a sudden our "combinatorial problem" becomes a (multi-objective) optimization
+problem where we need other tools. This is independent from the fact that the number of constraints
+easily can explode in practice. Imagine large subsets of vertices where each of them is mutually connected
+via edges. 
+
+Exercise: How many edges do we get from a fully connected subset of 1000 vertices?
+
+Recently ideas become popular applying
+https://arxiv.org/abs/2102.05875[deep reinforcement learning] to combinatorial problems. But this doesn't
+cover problems where we are more interested in a tradeoff than in a complete solution. 
+
+Using continuous optimization algorithms for combinatorial problems is the natural choice
+when we we view the problem from the perspective of the desired result: An optimal tradeoff or
+a set of non dominated solutions in the multi-objective case. 
+
+But instead of accumulating thousands of constraints we define a fitness function computing
+the proportion of fulfilled constraints. In case of the vertex coverage problem this equivalent to
+counting the number of uncovered edges. Another advantage of this method is that we
+can assign different weights to individual uncovered edges and used vertices. As we will see below,
+from a real world problems perspective this often makes sense. 
+
+How does an optimizer work? It guesses/proposes solutions and gets its fitness as feedback. 
+From this feedback it generates better guesses, and so on. For each evaluation the number of
+unfulfilled (weighted) constraints needs to be counted. We don't need to store these in memory
+- different to CP - but we still have to count them. The feasibility of the whole approach
+depends on how fast we count. We will use parallel execution and https://numba.pydata.org/[numba] 
+do speed up this counting process dramatically. 
+
+To give you a concrete number related to the
+example we use below: We count 30025 edges / constraints on average 405582 times per second
+on an 16 core AMD 5950x processor. This is 1.218E10 counts per second. This includes
+the computational overhead of the optimizer itself. Even if we need 1E7 fitness evaluations / 3E12 counts 
+to find a good solution, this is equivalent to less than 30 seconds wall time.
+
+And what about the continuous decision variables? Combinatorial problems require discrete input. 
+There are multiple ways to perform the continuous -> discrete conversion: 
+
+- You need a subset selection of a set of n elements:
+    map n decision variables x_i in the [0,2] interval by x_i >= 1 -> "is in" and x_i < 1 -> "is out".
+- You need a specific ordering of n elements:
+    map n decision variables X in the [0,1] interval to numpy.argsort(X) - 
+    use the disjoined indexes of the sorted list.
+- You need a list of size m out of n elements:
+    map m decision variables x_i in the [0,n] interval by x_i -> int(x_i). 
+     
+Vertex coverage requires the first mapping - we select a subset of n vertices. 
+
+We tend to underestimate what 
+modern processors can do regarding "counting"/optimization" and overestimate its capabilities
+regarding constraint programming - specially we underestimate its memory limitations. 
+See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc where we describe
+a combinatorial clustering problem scaling very badly with the problem size with CP.
+Optimization is much 
+easier to parallelize. Because of the current machine learning hype, we
+also tend of overlook how many parallel operations a deep learning process involves. The trend to 
+multi-core architectures which enables machine learning, also enables the application 
+of continuous optimization to areas where you won't suspect it is applicable. 
+
+== Scenario
+
+Suppose we want to run a targeted campaign to influence people were we have 
+user data showing their relationships. People have dual relationships (are "friends")
+or participate in one or more groups. Some people are easy, some are hard to influence. 
+Lets suppose we have a rough estimation of this cost, a normalized value in [0,1], for
+each person. Adding this costs for all people gives us an upper bound for what we
+can invest. Our goal is to minimize our costs and maximize our "impact" by influencing
+the "right" people and leveraging their friend- and shared group relationships. 
+
+As a starting point we could view the people as graph nodes,
+their friendship-relations as graph edges and apply the vertex cover problem to determine
+the minimal set of peoples connected to the whole set of peoples. This model has a number
+of "flaws":
+
+- We ignore the group relations. This could be "fixed" by transforming group relations into additional
+  edges. Beside scaling issues - the number of edges grows quadratically with the size of the groups - 
+  the question is if group relations have to be weighted differently - dependent on the 
+  size of the group. 
+- We ignore the varying costs to influence people - there is a related
+  https://www.cs.jhu.edu/~mdinitz/classes/ApproxAlgorithms/Spring2019/Lectures/lecture9.pdf"[weighted vertex cover]
+  problem variant.  
+- We may end up with high costs / a large number of people to influence because 
+  we ignore "less than 100%" coverage which could be a valid alternative.  
+
+What we really need in order to make an investment decision is
+a list of non-dominated solutions representing different investments
+together with the corresponding optimal set of people to influence. In other words:
+A pareto-front as solution of a multi-objective problem variant, with costs and impact/coverage
+as competing objectives. 
+
+== Solving the Vertex Cover Problem in Python
+
+Lets first start with the "easy" problem variant: No groups, no vertex-weights, only full edge coverage. 
+
+=== Using jgraptht
+
+We found and adapted a solution here https://github.com/danielslz/minimum-vertex-cover/blob/main/utils.py[utils.py].
+'jgrapht' is a java library providing a Python front end. It is very fast, but the result has some error.
+
+[source,python]
+----
+def nx_to_jgraph(g):
+    import jgrapht
+    jg = jgrapht.create_graph(directed=False, weighted=False,
+                             allowing_self_loops=False, allowing_multiple_edges=False)
+    jg.add_vertices_from(list(g.nodes))
+    jg.add_edges_from(list(g.edges))
+    return jg
+
+def solve_jg(g):
+    import jgrapht
+    jg = nx_to_jgraph(g)
+    start_time = time.time()
+    mvc = jgrapht.algorithms.vertexcover.greedy(jg)
+    #mvc = jgrapht.algorithms.vertexcover.edgebased(jg)
+    #mvc = jgrapht.algorithms.vertexcover.clarkson(jg)
+    #mvc = jgrapht.algorithms.vertexcover.baryehuda_even(jg)
+    mvc_size = int(mvc[0])
+    print ("jgraph mvc size", mvc_size , ' of nodes: ', len(list(g.nodes())), 
+           ' time = ', round(time.time()-start_time, 3), ' sec')
+----
+
+Executing 
+
+[source,python]
+----
+    g = nx_graph("1912.edges")
+    solve_jg(g)
+----
+
+results in:
+
+----
+jgraph mvc size 631  of nodes:  747  time =  0.021  sec
+----
+
+This is really fast, 0.021 sec. We find a list of 631 indiviuals which "cover" the whole population of
+747 if their "friends" are included. May be we can reduce this number further:
+
+=== Using a greedy algorithm 
+
+This code is inspired by https://github.com/sliao7/CSE6140-Final-Project-Minimum-Vertex-Cover/blob/main/code/SA.py[SA.py]
+Note that this code (neither the improved variant showed here nor the original) implements "Simulated Annealing" as stated
+in the original. Nevertheless it is a very efficient algorithm working well even with huge graphs. Not as fast as
+"jgrapht.algorithms.vertexcover.greedy", but it has a significantly lower error rate. The code performs some statistical 
+analysis "on the fly", it determines the mean number of iterations to find an improvement, and adjusts
+the algorithm accordingly. First an initial solution is determined:
+    
+[source,python]
+----
+def initial_solution(g):
+    solution = list(g.nodes())
+    # sort nodes for degree, low degree has better chance not to uncover an edge
+    for _, node in \
+            sorted(list(zip(list(dict(g.degree(solution)).values()), solution))):
+        remove = True
+        for neighbor in g.neighbors(node): # all neighbors covered?
+            if neighbor not in solution:
+                remove = False # bad luck, would uncover an edge
+        if remove:    
+            solution.remove(node)                   
+    return solution
+----
+
+We start with all nodes, there we can be sure all edges are covered. 
+We order the nodes according to their degree, the number of outgoing edges. 
+Low degree nodes have the best chance not to destroy full edge coverage. 
+Then we successively try all nodes starting with low degree ones. 
+We check if their is a neighbor node not in our solution. If yes, removal would
+uncover an edge. If no, we can remove the node. 
+
+Then the try to improve the solution applying a time boundary. 
+
+[source,python]
+----
+def remove_node(g, solution, mean, start_time, max_time):
+    solution = solution.copy()
+    uncovered = []
+    while len(uncovered) == 0:
+        to_delete = random.choice(solution)
+        for neighbor in g.neighbors(to_delete):
+            if neighbor not in solution:
+                uncovered.append(neighbor)
+                uncovered.append(to_delete)
+        solution.remove(to_delete)  
+    i = 0
+    max_i = mean * 10
+    while len(uncovered) > 0 and i < max_i and \
+            time.time() - start_time < max_time:
+        i += 1
+        # delete node from solution
+        next_solution = solution.copy()
+        next_uncovered = uncovered.copy()
+        to_delete = random.choice(solution)
+        solution.remove(to_delete) 
+        for neighbor in g.neighbors(to_delete):
+            if neighbor not in solution:
+                uncovered.append(neighbor)
+                uncovered.append(to_delete)            
+        # add node to solution
+        to_add = random.choice(uncovered)
+        solution.append(to_add)
+        for neighbor in g.neighbors(to_add):
+            if neighbor not in solution:
+                uncovered.remove(neighbor)
+                uncovered.remove(to_add)      
+        # update solution if uncovered shrink        
+        if len(next_uncovered) < len(uncovered) or \
+            (len(next_uncovered) == len(uncovered) and \
+                i > mean and random.random() < 1.0/mean):  
+            solution = next_solution.copy()
+            uncovered = next_uncovered.copy()
+    return solution, uncovered, i
+----
+
+We remove a random node and store the nodes related to uncovered edges. 
+Next we try to cover these edges again by replacing these uncovered nodes by
+others randomly chosen. If we succeed we try the next one. If 
+we tried too long dependent on the 
+average number of tries until we succeed, we put the node back and try the next one.  
+
+[source,python]
+----
+def solve_greedy(g, seed, max_time):
+    print("seed", seed)
+    random.seed(seed)
+    start_time = time.time()
+    solution = initial_solution(g)
+    iters = []
+    mean = 10000
+    while time.time() - start_time < max_time:
+        next_solution, uncovered, i = remove_node(g, solution, mean, start_time, max_time)
+        iters.append(i)
+        mean = np.mean(iters)
+        if len(uncovered) == 0:  # all covered ?
+            solution = next_solution
+            print(round(time.time()-start_time,3), len(solution), i, int(mean))   
+
+    print(round(time.time()-start_time,3), len(solution))
+    print('Solution: ({}) {}'.format(len(solution), solution))
+    return solution
+----
+
+Since the greedy improvements rely on a random selection of vertices to remove / replace, this 
+method can easily be parallelized. We execute the same code in parallel using different random
+seeds and collect the results. Since these results vary, there is a great chance we find a better
+solution this way. Note that the same graph is transferred to the sub processes, but nevertheless
+Python multiprocessing uses different instances of this graph. We cannot simply collect the results
+in a shared list variable, but rely on the functionality of 'pool.starmap' to collect the resulting
+solutions. 
+
+[source,python]
+----
+def run_solve(g, max_time):
+    return solve_greedy(g, random.randint(0, 100000000), max_time)
+        
+def solve_multiprocessing(g, num, max_time): 
+    with Pool(processes=num) as pool:
+        solutions = pool.starmap(run_solve, [[g, max_time] for _ in range(num)])
+    return solutions
+----
+
+Executing 
+
+[source,python]
+----
+    g = nx_graph("1912.edges")
+    solve_multiprocessing(g, 10, 10)
+----
+
+results in:
+
+----
+10.001 625
+Solution: (625) [415, 606, 166, 26, 148, 326, 169, 595, 503, 577, 395, 672, 668, 62, 93, 105, 635,...
+10.0 625
+Solution: (625) [171, 443, 301, 614, 228, 232, 594, 12, 267, 369, 45, 217, 324, 367, 47, 169, 353,... 
+10.0 625
+Solution: (625) [514, 497, 133, 230, 368, 370, 730, 407, 487, 86, 193, 540, 669, 681, 701, 32, 562,... 
+10.0 625
+Solution: (625) [587, 386, 130, 520, 208, 227, 196, 41, 426, 692, 485, 16, 160, 327, 557, 559, 292,... 
+10.001 624
+Solution: (624) [737, 207, 589, 509, 571, 17, 435, 465, 443, 387, 73, 307, 510, 646, 490, 409, 507,... 
+10.001 623
+Solution: (623) [464, 641, 558, 351, 478, 484, 563, 24, 668, 195, 519, 360, 217, 676, 405, 530, 4,... 
+10.0 623
+Solution: (623) [14, 130, 340, 360, 491, 591, 505, 497, 64, 352, 5, 668, 114, 141, 157, 520, 606, 187,...
+10.001 623
+Solution: (623) [676, 234, 608, 345, 686, 660, 357, 104, 512, 422, 707, 333, 732, 291, 116, 80, 226,... 
+10.0 624
+Solution: (624) [18, 19, 21, 30, 38, 55, 57, 63, 68, 82, 84, 87, 100, 108, 117, 118, 147, 155, 156,...
+10.0 624
+Solution: (624) [23, 26, 83, 182, 218, 282, 285, 312, 627, 644, 658, 325, 500, 642, 62, 303, 520, 163,... 
+----
+
+We limited the time to 10 sec, the best solutions contains a selection of 623 out of 747 individuals.  
+
+Let us try to find a reference solution by increasing the solution time to 200 sec and performing
+16 runs in parallel:
+
+[source,python]
+----
+    g = nx_graph("1912.edges")
+    solve_multiprocessing(g, 16, 200)
+----
+
+All 16 runs have the same result now: 623
+
+----
+Solution: (623) [711, 155, 313, 279, 177, 269, 74, 659, 512, 0, 717, 483, 211, 209, 159, 562, 145, 
+200.0 623
+Solution: (623) [614, 270, 324, 524, 98, 414, 603, 293, 663, 472, 554, 497, 432, 76, 486, 711, 93, 
+200.0 623
+Solution: (623) [43, 8, 509, 443, 650, 321, 693, 0, 711, 129, 616, 547, 690, 369, 239, 38, 306, 236, 
+200.0 623
+Solution: (623)
+...
+----
+
+This means we can use 623 as reference and as basis for computing the error rate. 623 is most probably 
+optimal - the size of the minimal vertex list covering all edges.   
+
+=== Using Optimization
+
+We will see that it doesn't make sense to apply optimization to this problem, as we will not
+be able to beat the greedy algorithm, but our goal
+is different: We want to create a basis for the solution of the more general problem. 
+
+The full code for this example is here:
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/fb/edgecover.py[edgecover.py]
+
+==== Fitness Function
+
+The fitness function first converts the continuous input vector (747 decision variables in the
+interval [0,2]) to a set of vertices/nodes represented as a boolean numpy array. 
+Then it counts its cardinality and the number of uncovered edges. The computation uses a
+special graph representation ( `class graph` ) using two numpy integer arrays to represent
+the edges. This way `not_covered` can delegate its work to ultra fast numba functions. 
+This way we avoid any performance penalty for using Python.
+The weighted sum approach is used (`return n + 2*ncov`) weighting missing coverage higher than
+the number of covering vertices. This way we can be sure that the final optimization result
+will achieve full coverage. 
+
+[source,python]
+----
+class graph():
+    
+    def __init__(self, g):
+        self.nodes = np.array(g.nodes(), dtype=int)
+        self.source = np.array([n for n, _ in g.edges()], dtype=int)
+        self.target = np.array([n for _, n in g.edges()], dtype=int)    
+
+class problem():
+    
+    def __init__(self, g):
+        self.dim = len(g.nodes())
+        self.bounds = Bounds([0]*self.dim, [1.99999]*self.dim)  
+        self.g = graph(g)   
+        self.best_n = mp.RawValue(ct.c_double, math.inf) 
+    
+    def fitness(self, x):
+        nds = nodes(x.astype(int))
+        ncov = not_covered(self.g, nds)
+        n = num_true(nds)        
+        return n + 2*ncov
+----
+
+==== Optimization
+
+As optimization algorithm we apply parallel retry (`retry.minimize`) to perform
+32 fcmaes differential evolution optimizations in parallel. 
+`wrapper` monitors the best result achieved so far. Note that we mark all variables
+is integer values (`ints = [True]*prob.dim`) to tweak the optimizer and configure
+500000 evaluations per run. 
+
+[source,python]
+----
+def opt(g): 
+    prob = problem(g)  
+    res = retry.minimize(wrapper(prob.fitness), 
+                     prob.bounds, 
+                     optimizer=De_cpp(500000, ints = [True]*prob.dim), 
+                     num_retries=32)
+    nds = nodes(res.x.astype(int))
+    ncov = not_covered(prob.g, nds)
+    n = num_true(nds)  
+    print ("nodes = ", n, " of population = ", len(nds),
+           " % = ", int(100*n/len(nds)), " edges not covered = ", ncov)
+----
+
+Executing 
+
+[source,python]
+----
+    g = nx_graph("1912.edges")
+    solve_opt(g)
+----
+
+results in:
+
+----
+31.88 12929962 405582.0 630.0
+nodes =  630  of population =  747  % =  84  edges not covered =  0
+----
+
+31 seconds for a 630-solution for which 'jgrapht' needed 0.021 sec? 
+Despite the fact that we computed 12929962 fitness evaluations. This is 
+about factor 1500 slower. 
+
+- The bad news is, that it will be hard to find a 
+better continuous optimization algorithm / fitness implementation which computes a 
+solution < 630 in 30 seconds, even on our 16 core CPU (AMD 5950x) utilizing
+all cores. Exercise: Try to find one. Hint: Try a "faster" programming language like 
+{cpp}. If you do you will recognize that numba code is as fast as {cpp} and 
+the fcmaes-DE optimizer is written in {cpp}, it just provides a Python front-end. 
+It is not trivial to beat the given 405582 evals/sec evaluation rate. But there
+may be algorithms which converge faster.  
+
+- Most probably applying continuous optimization to the vertex covering problem
+is a bad idea in the first place. 
+
+- The good news is, that the result has a surprisingly low error rate 
+100*(630-623)/623 = 1.12%. That means, in principle continuous optimization
+can be applied successfully to this combinatorial problem, as (hopefully) to its
+more complex variants. Lets try this out:  
+
+=== Optimizing costs and impact/coverage considering friendships and groups
+
+Our full scenario includes weighted nodes - the cost to influence specific individuals is
+different, and group relationships. Bigger groups means the "transfer-effect" is 
+smaller, so we weight these by a factor dependent on the group size. 
+In principle we also could weight the edges/friendships - may be people with only a few friends
+are more strongly connected - but we leave this as an exercise. 
+Not that it is not necessary to convert the groups into an exploding number of edges, 
+our "influence"-counting is even faster without.  We have two objectives: 
+
+- the sum of the costs to influence people by our campaign which is to be minimized.
+- the ROI, which is the relation of our coverage compared to a "full" coverage
+  when targeting all people which is to be maximized. 
+  
+Our investment decision depends on how "effective" an additional budged would 
+be regarding the ROI. As basis for our decision we need a set of non-dominated solutions - 
+a pareto-front. 
+
+Exercise: Try to create a pareto-front using "traditional" algorithms for 
+combinatorial problems, like CP or a greedy algorithm. 
+
+As for the edge covering problem, we implement the fitness function by:
+
+- Creating a numpy-array based graph representation `fb_graph`
+(see https://github.com/dietmarwo/fast-cma-es/blob/master/examples/fb/fbcover.py[fbcover.py])  
+which stores the group relations (called circles) separately.
+- A numba method `fb_covered` counting the coverage of all edges and groups considering the 
+  specific group weighting.
+- Computing the cost by using the specific node weights.  
+
+==== Multi Objective Fitness Function
+
+[source,python]
+----
+class problem_fb():
+    
+    def __init__(self, g):
+        self.dim = g.nnodes
+        self.bounds = Bounds([0]*self.dim, [1.99999]*self.dim)  
+        self.g = g   
+        self.best_y = mp.RawValue(ct.c_double, math.inf) 
+        self.max_cost, self.max_cov = self.cost(np.array([1]*self.dim)) 
+        
+    def cost(self, x):
+        nds = nodes(x.astype(int))
+        cov = fb_covered(self.g.source, self.g.target, self.g.acircles, 
+                         self.g.circle_size, nds)
+        cost = sum_weights(nds, self.g.weights)
+        return cost, cov        
+    
+    def fitness(self, x):
+        cost, cov = self.cost(x)
+        cost /= self.max_cost # to be minimized
+        cov /= -self.max_cov # to be maximized
+        return [cost, cov]
+----
+
+Now computing the pareto-front is easy: We apply the fcmaes-MODE algorithm. 
+Note that we use the {cpp} variant and parallel retry - instead of parallel
+function evaluation - because the cost of the fitness function is very low compared
+to the parallelization overhead. We apply MODEs mixed integer enhancement
+by providing the `ints` parameter which declares all decision variables as
+integers. 
+
+==== Multi Objective Optimization
+
+[source,python]
+----
+def opt_mo(g): 
+    prob = problem_fb(g)     
+    pname = "fb1912_mo500k.256.de"    
+    y = prob.fitness_mo(np.array([1]*prob.dim))
+    x, y = modecpp.retry(mode.wrapper(prob.fitness, 2), 
+                         2, 0, prob.bounds, popsize = 256, 
+                     max_evaluations = 500000, ints = [True]*prob.dim,
+                     nsga_update=False, num_retries = 32,
+                     workers=32)
+    np.savez_compressed(pname, xs=x, ys=y)
+    moretry.plot(pname, 0, x, y, all=False)
+----
+
+The nunber of fitness evaluations per second dropped to about 74000
+evals/sec, because counting the group relationships needs additional time. 
+But still we see a repectable evaluation rate if you consider we have to 
+handle over 60000 edges / friendship relations and our groups contain
+up to 300 members. After about 217 seconds we get the following pareto front:
+
+image::front_fb1912_mo500k.256.de.png[]
+
+We see that investing 20% or 30% makes sense since the ROI improvement is
+significant: It raises from 74% to 83%. For investments > 70% we see a
+very low improvement regarding the coverage rate. 
+
+==== Single Objective Fitness Function
+
+To verify our result we additionally apply single objective optimization. 
+We decided to invest 30%, so we do a `cost = max(0.3, cost)` to target
+this cost specifically and use a weighted sum 
+`y = 2*cost + cov` as single objective. 
+
+Multi-objective optimization resulted in 83.9% coverage for 30.07 % investment: 
+----
+...
+0.3007221745649993, -0.8389101868937222] [1.99999, 1.16422, 0.25989, 0.18943, 0.62899, ...
+...
+----
+
+[source,python]
+----
+   def fitness_so(self, x):
+        cost, cov = self.cost(x)
+        cost /= self.max_cost # to be minimized
+        cov /= -self.max_cov # to be maximized
+        cost = max(0.3, cost) # target 30% cost
+        y = 2*cost + cov
+        if y < self.best_y.value:
+            self.best_y.value = y
+            nds = nodes(x.astype(int))
+            print("n,cov", cost, cov, num_true(nds), len(nds))
+        return y
+----
+
+==== Single Objective Optimization
+
+By increasing `popsize` and do 3000000 evaluations in each of the 32 parallel
+retries we invest significantly more time - where at the same time focusing
+on a single objective. So we expect to find a nearly optimal result this time. 
+We choose fcmaes differential evolution, because it supports (as MODE) 
+the declaration of integer variables using the `ints` parameter.  
+
+[source,python]
+----
+def opt_so(g): 
+    prob = problem_fb(g)  
+    res = retry.minimize(wrapper(prob.fitness_so), 
+                     prob.bounds, 
+                     optimizer=De_cpp(3000000, popsize = 512, 
+                     ints = [True]*prob.dim), 
+                     num_retries=32)
+    print (nodes(res.x.astype(int)))
+----
+
+As result we see after 1315 seconds:
+
+----
+n,cov 0.3000079411544962 -0.8427741890749982 348 751
+1315.03 92410369 70272.0 -0.24275830676600585
+----
+
+This means the improvement related to multi-objective optimization
+(84.28% related to 83.9% coverage at 30% investiment) is quite moderate,
+the computed pareto front - after only 217 seconds - provided already a reliable 
+basis for our decision. We still can apply single objective optimization after
+our investment decision to "squeeze out" the last quarter percent.
+
+Exercise: Can you improve the single objective result for a 30% investment? May be you
+can utilize some cloud resources to improve the result even further. You may use
+any fitness function, but the final solution should invest <= 30% and get a better
+coverage (`fb_covered` value). 
+
+== Conclusion
+
+- Multi objective optimization can provide the basis for the decision process even for combinatorial
+problems.
+- Using anonymized data from Facebook we showed, that friendship and group relationships can easily
+  be analyzed using moderate computing resources to plan a targeted campaign with limited budged
+  by selecting the "most influencial" people in the social network.  
+- Applying https://numba.pydata.org/[numba] together with an efficient graph representation based on
+numpy arrays and a fast optimization algorithm written in {cpp}, supporting integer decision variables 
+and parallel retry are crucial for the success of this method. 
+- fcmaes provides these algorithms, both for single and multi objective problems
+- After a investment decision was made based on the pareto front generated by multi objective optimization, 
+ single objective optimization can be used to improve the result even further. 
