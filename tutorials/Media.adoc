@@ -70,7 +70,7 @@ when we we view the problem from the perspective of the desired result: An optim
 a set of non dominated solutions in the multi-objective case. 
 
 But instead of accumulating thousands of constraints we define a fitness function computing
-the proportion of fulfilled constraints. In case of the vertex coverage problem this equivalent to
+the proportion of fulfilled constraints. In case of the vertex coverage problem this is equivalent to
 counting the number of uncovered edges. Another advantage of this method is that we
 can assign different weights to individual uncovered edges and used vertices. As we will see below,
 from a real world problems perspective this often makes sense. 
