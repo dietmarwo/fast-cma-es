@@ -102,7 +102,7 @@ There are multiple ways to perform the continuous -> discrete conversion:
 Vertex coverage requires the first mapping - we select a subset of n vertices. 
 
 We tend to underestimate what 
-modern processors can do regarding "counting"/optimization" and overestimate its capabilities
+modern processors can do regarding "counting/optimization" and overestimate its capabilities
 regarding constraint programming - specially we underestimate its memory limitations. 
 See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc where we describe
 a combinatorial clustering problem scaling very badly with the problem size with CP.
@@ -195,7 +195,7 @@ This is really fast, 0.021 sec. We find a list of 631 indiviuals which "cover" t
 === Using a greedy algorithm 
 
 This code is inspired by https://github.com/sliao7/CSE6140-Final-Project-Minimum-Vertex-Cover/blob/main/code/SA.py[SA.py]
-Note that this code (neither the improved variant showed here nor the original) implements "Simulated Annealing" as stated
+Note that this code (neither the improved variant shown here nor the original) implements "Simulated Annealing" as stated
 in the original. Nevertheless it is a very efficient algorithm working well even with huge graphs. Not as fast as
 "jgrapht.algorithms.vertexcover.greedy", but it has a significantly lower error rate. The code performs some statistical 
 analysis "on the fly", it determines the mean number of iterations to find an improvement, and adjusts
@@ -217,12 +217,12 @@ def initial_solution(g):
     return solution
 ----
 
-We start with all nodes, there we can be sure all edges are covered. 
+We start with all nodes. We can be sure all edges are covered. 
 We order the nodes according to their degree, the number of outgoing edges. 
 Low degree nodes have the best chance not to destroy full edge coverage. 
 Then we successively try all nodes starting with low degree ones. 
-We check if their is a neighbor node not in our solution. If yes, removal would
-uncover an edge. If no, we can remove the node. 
+We check if there is a neighbor node not in our solution. If yes, removal would
+uncover an edge. If not, we can remove the node. 
 
 Then the try to improve the solution applying a time boundary. 
 
@@ -486,11 +486,11 @@ different, and group relationships. Bigger groups means the "transfer-effect" is
 smaller, so we weight these by a factor dependent on the group size. 
 In principle we also could weight the edges/friendships - may be people with only a few friends
 are more strongly connected - but we leave this as an exercise. 
-Not that it is not necessary to convert the groups into an exploding number of edges, 
+Note that it is not necessary to convert the groups into an exploding number of edges, 
 our "influence"-counting is even faster without.  We have two objectives: 
 
-- the sum of the costs to influence people by our campaign which is to be minimized.
-- the ROI, which is the relation of our coverage compared to a "full" coverage
+- The sum of the costs to influence people by our campaign which is to be minimized.
+- The ROI, which is the relation of our coverage compared to a "full" coverage
   when targeting all people which is to be maximized. 
   
 Our investment decision depends on how "effective" an additional budged would 
@@ -560,7 +560,7 @@ def opt_mo(g):
     moretry.plot(pname, 0, x, y, all=False)
 ----
 
-The nunber of fitness evaluations per second dropped to about 74000
+The number of fitness evaluations per second dropped to about 74000
 evals/sec, because counting the group relationships needs additional time. 
 But still we see a repectable evaluation rate if you consider we have to 
 handle over 60000 edges / friendship relations and our groups contain
