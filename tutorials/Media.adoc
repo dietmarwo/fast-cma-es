@@ -44,7 +44,7 @@ specific advertisements to users who potentially further spread the information 
 and groups. 
 
 We will use https://snap.stanford.edu/data/ego-Facebook.html[anonymised Facebook user relation data] 
-which this is sufficient to show the idea. This data described and analyzed in 
+which is sufficient to show the idea. This data is described and analyzed in 
 http://i.stanford.edu/~julian/pdfs/nips2012.pdf .
 
 === Constraint Programming and Optimization
