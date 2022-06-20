@@ -43,7 +43,7 @@ A problem specific optimizer has obvious disadvantages:
 - Utilizing the whole CPU (all cores) is difficult. All three implementations are single threaded. 
 
 It makes only sense if the performance is superior compared to standard continuous optimizers
-like BiteOpt, CR-FM-NES or differential evolution. 
+like BiteOpt, CR-FM-NES or CMA-ES. 
 which are easy to parallelize. So first we will investigate if this is the case: In fact it is
 not, Parallel retry applied to any of the three continuous optimizers outperform all three 
 algorithms by a big margin as we can see in the diagrams below:
@@ -153,10 +153,8 @@ We used about 25 minutes / 8*10^8 evaluations for this optimization. Multi-objec
 optimization needs more function evaluations than BiteOpt to find a solution
 - as part of the pareto front - with comparable reward.  But to reach a reward
 achieved by GA, PSO or ACO only a few seconds are required. Note that this
-problem doesn't work with differential evolution. Both single- and multi-objective. 
-So you have to configure MODE with parameter `nsga_update = True`, if you don't want
-to loose up to 200 reward. MODE's mixed integer support is DE-population-update 
-specific, so you don't have to configure the `ints` parameter. 
+problem doesn't work well with differential evolution population update. Both single- and multi-objective. 
+So you have to configure MODE with parameter `nsga_update = True`.
 
 [source,python]
 ----   
