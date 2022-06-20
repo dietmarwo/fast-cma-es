@@ -45,7 +45,7 @@ A problem specific optimizer has obvious disadvantages:
 It makes only sense if the performance is superior compared to standard continuous optimizers
 like BiteOpt, CR-FM-NES or CMA-ES. 
 which are easy to parallelize. So first we will investigate if this is the case: In fact it is
-not, Parallel retry applied to any of the three continuous optimizers outperform all three 
+not, Parallel retry applied to any of the three continuous optimizers outperforms all three 
 algorithms by a big margin as we can see in the diagrams below:
 
 image::uav_reward.png[]
