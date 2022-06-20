@@ -52,7 +52,7 @@ image::uav_reward.png[]
 
 Only for small problems GA can compete. Additionally PSO and ACO CPU time requirements raise 
 superlinear compared with the problem size. The following diagram shows selected solutions for
-small, medium and large problem sizes for all four algorithms:
+small, medium and large problem sizes for all six algorithms:
 
 image::uav_results.png[]
 
