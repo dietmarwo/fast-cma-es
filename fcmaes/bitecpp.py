@@ -27,6 +27,7 @@ def minimize(fun,
              max_evaluations = 100000, 
              stop_fitness = None, 
              M = 1,
+             popsize = 0,
              stall_criterion = 0, 
              rg = Generator(MT19937()),
              runid=0):   
@@ -53,6 +54,8 @@ def minimize(fun,
          Limit for fitness value. If reached minimize terminates.
     M : int, optional 
         Depth to use, 1 for plain CBiteOpt algorithm, >1 for CBiteOptDeep. Expected range is [1; 36].
+    popsize = int, optional
+        initial population size.
     stall_criterion : int, optional 
         Terminate if stall_criterion*128*evaluations stalled, Not used if <= 0
     rg = numpy.random.Generator, optional
@@ -85,7 +88,7 @@ def minimize(fun,
     try:
         optimizeBite_C(runid, c_callback, dim, int(rg.uniform(0, 2**32 - 1)), 
                            array_type(*guess), array_type(*lower), array_type(*upper), 
-                           max_evaluations, stop_fitness, M, stall_criterion, res_p)
+                           max_evaluations, stop_fitness, M, popsize, stall_criterion, res_p)
         x = res[:dim]
         val = res[dim]
         evals = int(res[dim+1])
@@ -98,7 +101,7 @@ def minimize(fun,
 optimizeBite_C = libcmalib.optimizeBite_C
 optimizeBite_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.c_int, ct.c_double, ct.c_int, ct.c_int, ct.POINTER(ct.c_double)]
+            ct.c_int, ct.c_double, ct.c_int, ct.c_int, ct.c_int, ct.POINTER(ct.c_double)]
        
 
 

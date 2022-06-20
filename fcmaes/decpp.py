@@ -79,14 +79,14 @@ def minimize(fun,
         Random generator for creating random guesses.
     ints = list or array of bool, optional
         indicating which parameters are discrete integer values. If defined these parameters will be
-        rounded to the next integer and some additional mutation of discrete parameters are performed.    
-    workers : int or None, optional
-        If not workers is None, function evaluation is performed in parallel for the whole population. 
-        Useful for costly objective functions but is deactivated for parallel retry.      
+        rounded to the next integer and some additional mutation of discrete parameters are performed.       
     min_mutate = float, optional
         Determines the minimal mutation rate for discrete integer parameters.
     max_mutate = float, optional
         Determines the maximal mutation rate for discrete integer parameters. 
+    workers : int or None, optional
+        If not workers is None, function evaluation is performed in parallel for the whole population. 
+        Useful for costly objective functions but is deactivated for parallel retry.      
     is_terminate : callable, optional
         Callback to be used if the caller of minimize wants to decide when to terminate.
     runid : int, optional

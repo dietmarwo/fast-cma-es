@@ -34,6 +34,9 @@ def minimize(fun,
              keep = 200,
              f = 0.5,
              cr = 0.9,
+             ints = None,
+             min_mutate = 0.1,
+             max_mutate = 0.5, 
              rg = Generator(MT19937()),
              runid=0):  
      
@@ -70,7 +73,14 @@ def minimize(fun,
         being denoted by F. Should be in the range [0, 2].
     cr = float, optional
         The recombination constant. Should be in the range [0, 1]. 
-        In the literature this is also known as the crossover probability.     
+        In the literature this is also known as the crossover probability.   
+    ints = list or array of bool, optional
+        indicating which parameters are discrete integer values. If defined these parameters will be
+        rounded to the next integer and some additional mutation of discrete parameters are performed.    
+    min_mutate = float, optional
+        Determines the minimal mutation rate for discrete integer parameters.
+    max_mutate = float, optional
+        Determines the maximal mutation rate for discrete integer parameters. 
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     runid : int, optional
@@ -93,6 +103,8 @@ def minimize(fun,
     if lower is None:
         lower = [0]*dim
         upper = [0]*dim
+    if ints is None:
+        ints = [False]*dim
     if callable(input_sigma):
         input_sigma=input_sigma()
     if np.ndim(input_sigma) == 0:
@@ -100,6 +112,7 @@ def minimize(fun,
     if stop_fitness is None:
         stop_fitness = math.inf   
     array_type = ct.c_double * dim   
+    bool_array_type = ct.c_bool * dim 
     c_callback = call_back_type(callback(fun))
     seed = int(rg.uniform(0, 2**32 - 1))
     res = np.empty(dim+4)
@@ -109,7 +122,7 @@ def minimize(fun,
                            array_type(*guess), array_type(*input_sigma), seed,
                            array_type(*lower), array_type(*upper), 
                            max_evaluations, keep, stop_fitness,  
-                           popsize, f, cr, res_p)
+                           popsize, f, cr, min_mutate, max_mutate, bool_array_type(*ints), res_p)
         x = res[:dim]
         val = res[dim]
         evals = int(res[dim+1])
@@ -126,7 +139,7 @@ class callback(object):
     
     def __call__(self, n, x):
         try:
-            fit = self.fun([x[i] for i in range(n)])
+            fit = self.fun(np.array([x[i] for i in range(n)]))
             return fit if math.isfinite(fit) else sys.float_info.max
         except Exception as ex:
             return sys.float_info.max
@@ -166,5 +179,6 @@ optimizeLDE_C.argtypes = [ct.c_long, call_back_type, ct.c_int,
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
-            ct.c_double, ct.c_double, ct.POINTER(ct.c_double)]
+            ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
+            ct.POINTER(ct.c_bool), ct.POINTER(ct.c_double)]
      

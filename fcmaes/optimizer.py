@@ -303,11 +303,12 @@ class Cma_cpp(Optimizer):
     """CMA_ES C++ implementation."""
    
     def __init__(self, max_evaluations=50000,
-                 popsize = 31, guess=None, stop_fitness = None, 
+                 popsize = 31, guess=None, stop_fitness = None, stop_hist = None, 
                  update_gap = None, workers = None, sdevs = None):        
         Optimizer.__init__(self, max_evaluations, 'cma cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
+        self.stop_hist = stop_hist
         self.guess = guess
         self.sdevs = sdevs
         self.update_gap = update_gap
@@ -321,6 +322,7 @@ class Cma_cpp(Optimizer):
                 max_evaluations=self.max_eval_num(store),
                 popsize=self.popsize,
                 stop_fitness=self.stop_fitness,
+                stop_hist=self.stop_hist,
                 rg=rg, runid=self.get_count_runs(store),
 		              update_gap=self.update_gap,
                 workers=self.workers if workers is None else workers)     
@@ -495,7 +497,8 @@ class LDe_cpp(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fitness = None, 
-                 keep = 200, f = 0.5, cr = 0.9, guess = None, sdevs = None):        
+                 keep = 200, f = 0.5, cr = 0.9, guess = None, 
+                 sdevs = None, ints = None):        
         Optimizer.__init__(self, max_evaluations, 'lde cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -504,7 +507,8 @@ class LDe_cpp(Optimizer):
         self.cr = cr
         self.guess = guess
         self.sdevs = sdevs
-
+        self.ints = ints
+        
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
         ret = ldecpp.minimize(fun, bounds, 
                 self.guess if not self.guess is None else guess, 
@@ -512,7 +516,7 @@ class LDe_cpp(Optimizer):
                 popsize=self.popsize, 
                 max_evaluations = self.max_eval_num(store), 
                 stop_fitness = self.stop_fitness,
-                keep = self.keep, f = self.f, cr = self.cr,
+                keep = self.keep, f = self.f, cr = self.cr, ints = self.ints,
                 rg=rg, runid = self.get_count_runs(store))
         return ret.x, ret.fun, ret.nfev
 
@@ -615,11 +619,13 @@ class Bite_cpp(Optimizer):
     """Bite C++ implementation."""
    
     def __init__(self, max_evaluations=50000, 
-                 guess=None, stop_fitness = None, M = None, stall_criterion = None, workers = None):        
+                 guess=None, stop_fitness = None, M = None, popsize = None, 
+                 stall_criterion = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'bite cpp')
         self.guess = guess
         self.stop_fitness = stop_fitness
         self.M = 1 if M is None else M 
+        self.popsize = 0 if popsize is None else popsize 
         self.stall_criterion = 0 if stall_criterion is None else stall_criterion 
         self.workers = workers
 
@@ -629,7 +635,7 @@ class Bite_cpp(Optimizer):
         ret = bitecpp.minimize(fun, bounds, 
                 self.guess if guess is None else guess,
                 max_evaluations = self.max_eval_num(store), 
-                stop_fitness = self.stop_fitness, M = self.M, 
+                stop_fitness = self.stop_fitness, M = self.M, popsize = self.popsize, 
                 stall_criterion = self.stall_criterion,
                 rg=rg, runid = self.get_count_runs(store))     
         return ret.x, ret.fun, ret.nfev

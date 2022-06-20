@@ -203,7 +203,8 @@ public:
 
     LDeOptimizer(long runid_, Fitness *fitfun_, int dim_, pcg64 *rs_,
             int popsize_, int maxEvaluations_, double keep_,
-            double stopfitness_, double F_, double CR_) {
+            double stopfitness_, double F_, double CR_,
+            double min_mutate_, double max_mutate_, bool *isInt_) {
         // runid used to identify a specific run
         runid = runid_;
         // fitness function to minimize
@@ -226,6 +227,11 @@ public:
         // stop criteria
         stop = 0;
         rs = rs_;
+        isInt = isInt_;
+        // DE population update parameter used in connection with isInt. Determines
+        // the mutation rate for discrete parameters.
+        min_mutate = min_mutate_ > 0 ? min_mutate_ : 0.1;
+        max_mutate = max_mutate_ > 0 ? max_mutate_ : 0.5;
         init();
     }
 
@@ -244,6 +250,27 @@ public:
 
     int rndInt(int max) {
         return (int) (max * distr_01(*rs));
+    }
+
+    vec next_improve(const vec &xb, const vec &x, const vec &xi) {
+        vec nextx = fitfun->getClosestFeasible(xb + ((x - xi) * 0.5));
+        modify(nextx);
+        return nextx;
+    }
+
+    void modify(vec &x) {
+        if (isInt == NULL)
+            return;
+        double n_ints = 0;
+        for (int i = 0; i < dim; i++)
+            if (isInt[i]) n_ints++;
+        double to_mutate = min_mutate + rnd01()*(max_mutate - min_mutate);
+        for (int i = 0; i < dim; i++) {
+            if (isInt[i]) {
+                if (rnd01() < to_mutate/n_ints)
+                    x[i] = (int)fitfun->normXi(i); // resample
+            }
+        }
     }
 
     void doOptimize() {
@@ -277,10 +304,11 @@ public:
                             x[j] = fitfun->normXi(j);
                     }
                 }
+                modify(x);
                 double y = fitfun->eval(x);
                 if (isfinite(y) && y < popY[p]) {
                     // temporal locality
-                    vec x2 = fitfun->getClosestFeasible(xb + ((x - xp) * 0.5));
+                    vec x2 = next_improve(xb, x, xp);
                     double y2 = fitfun->eval(x2);
                     if (isfinite(y2) && y2 < y) {
                         y = y2;
@@ -305,7 +333,7 @@ public:
                     // reinitialize individual
                     if (keep * rnd01() < iterations - popIter[p]) {
                         popX.col(p) = fitfun->normX();
-                        popY[p] = fitfun->eval(popX.col(p)); // compute fitness
+                        popY[p] = DBL_MAX;
                     }
                 }
             }
@@ -359,6 +387,9 @@ private:
     mat popX;
     vec popY;
     vec popIter;
+    double min_mutate;
+    double max_mutate;
+    bool *isInt;
 };
 
 // see https://cvstuff.wordpress.com/2014/11/27/wraping-c-code-with-python-ctypes-memory-and-pointers/
@@ -370,10 +401,13 @@ using namespace l_differential_evolution;
 extern "C" {
 void optimizeLDE_C(long runid, callback_type func, int dim, double *init,
         double *sigma, int seed, double *lower, double *upper, int maxEvals,
-        double keep, double stopfitness, int popsize, double F, double CR, double* res) {
+        double keep, double stopfitness, int popsize, double F, double CR, 
+        double min_mutate, double max_mutate, bool *ints, double* res) {
     int n = dim;
     vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
+    bool isInt[dim];
     bool useLimit = false;
+    bool useIsInt = false;
     for (int i = 0; i < n; i++) {
         guess[i] = init[i];
         inputSigma[i] = sigma[i];
@@ -381,6 +415,8 @@ void optimizeLDE_C(long runid, callback_type func, int dim, double *init,
         upper_limit[i] = upper[i];
         useLimit |= (lower[i] != 0);
         useLimit |= (upper[i] != 0);
+        isInt[i] = ints[i];
+        useIsInt |= ints[i];
     }
     if (useLimit == false) {
         lower_limit.resize(0);
@@ -389,7 +425,8 @@ void optimizeLDE_C(long runid, callback_type func, int dim, double *init,
     pcg64 *rs = new pcg64(seed);
     Fitness fitfun(func, dim, lower_limit, upper_limit, guess, inputSigma, *rs);
     LDeOptimizer opt(runid, &fitfun, dim, rs, popsize, maxEvals, keep,
-            stopfitness, F, CR);
+            stopfitness, F, CR, min_mutate, max_mutate,
+            useIsInt ? isInt : NULL);
     try {
         opt.doOptimize();
         vec bestX = opt.getBestX();

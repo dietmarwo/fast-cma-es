@@ -21,7 +21,7 @@ class BiteOptimizer: public CBiteOptDeep {
 public:
 
     BiteOptimizer(long runid_, Fitness *fitfun_, int dim_, double *init_,
-            int seed_, int M_, int stallCriterion_, int maxEvaluations_, double stopfitness_) {
+            int seed_, int M_, int popsize, int stallCriterion_, int maxEvaluations_, double stopfitness_) {
         // runid used to identify a specific run
         runid = runid_;
         // fitness function to minimize
@@ -45,7 +45,7 @@ public:
         iterations = 0;
         bestY = DBL_MAX;
         rnd.init(seed_);
-        updateDims(dim_, M);
+        updateDims(dim_, M, popsize);
         init(rnd, init_);
     }
 
@@ -125,7 +125,7 @@ using namespace biteopt;
 extern "C" {
 void optimizeBite_C(long runid, callback_type func, int dim, int seed,
         double *init, double *lower, double *upper, int maxEvals,
-        double stopfitness, int M, int stall_iterations, double* res) {
+        double stopfitness, int M, int popsize, int stall_iterations, double* res) {
     int n = dim;
     vec lower_limit(n), upper_limit(n);
     bool useLimit = false;
@@ -140,7 +140,7 @@ void optimizeBite_C(long runid, callback_type func, int dim, int seed,
         upper_limit.resize(0);
     }
     Fitness fitfun(func, n, 1, lower_limit, upper_limit);
-    BiteOptimizer opt(runid, &fitfun, dim, init, seed, M, stall_iterations, maxEvals,
+    BiteOptimizer opt(runid, &fitfun, dim, init, seed, M, popsize, stall_iterations, maxEvals,
             stopfitness);
 
     try {

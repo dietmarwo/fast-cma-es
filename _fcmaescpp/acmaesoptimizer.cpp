@@ -55,7 +55,7 @@ public:
 
     AcmaesOptimizer(long runid_, Fitness *fitfun_, int popsize_, int mu_,
             const vec &guess_, const vec &inputSigma_, int maxEvaluations_,
-			double accuracy_, double stopfitness_,
+			double accuracy_, double stopfitness_, double stopTolHistFun_,
             int update_gap_, long seed) {
         // runid used for debugging / logging
         runid = runid_;
@@ -97,7 +97,7 @@ public:
         // stop if fun-changes smaller stopTolFun.
         stopTolFun = 1e-12 * accuracy;
         // stop if back fun-changes smaller stopTolHistFun.
-        stopTolHistFun = 1e-13 * accuracy;
+        stopTolHistFun = stopTolHistFun_ < 0 ? 1e-13 * accuracy : stopTolHistFun_;
         // selection strategy parameters
         // number of parents/points for recombination.
         mu = mu_ > 0 ? mu_ : popsize / 2;
@@ -521,7 +521,7 @@ using namespace acmaes;
 extern "C" {
 void optimizeACMA_C(long runid, callback_type func, int dim,
         double *init, double *lower, double *upper, double *sigma,
-        int maxEvals, double stopfitness, int mu, int popsize, double accuracy,
+        int maxEvals, double stopfitness, double stopTolHistFun, int mu, int popsize, double accuracy,
         long seed, bool normalize, int update_gap, int workers, double* res) {
     int n = dim;
     vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
@@ -541,7 +541,7 @@ void optimizeACMA_C(long runid, callback_type func, int dim,
     Fitness fitfun(func, n, 1, lower_limit, upper_limit);
     fitfun.setNormalize(normalize);
     AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, inputSigma,
-            maxEvals, accuracy, stopfitness, update_gap, seed);
+            maxEvals, accuracy, stopfitness, stopTolHistFun, update_gap, seed);
     try {
         if (workers <= 1)
             opt.doOptimize();

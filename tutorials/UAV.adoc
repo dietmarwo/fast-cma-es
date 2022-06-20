@@ -115,8 +115,11 @@ def fitness_(gene, vehicle_num, vehicles_speed, target_num, targets, time_lim, m
 
 class Optimizer():
 ...
-    def fitness(self, gene):   
-        return -fitness_(gene.astype(int), self.vehicle_num, self.vehicles_speed, 
+    def get_gene(self, x):
+        return (x*self.upper).astype(int)
+
+    def fitness(self, x):   
+        return -fitness_(self.get_gene(x), self.vehicle_num, self.vehicles_speed, 
                            self.target_num, self.targets, self.time_lim, self.map)
 ...
 ----

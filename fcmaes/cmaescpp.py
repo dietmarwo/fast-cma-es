@@ -28,6 +28,7 @@ def minimize(fun,
              max_evaluations = 100000, 
              accuracy = 1.0, 
              stop_fitness = None, 
+             stop_hist = None,
              rg = Generator(MT19937()),
              runid=0,
              workers = 1, 
@@ -60,6 +61,9 @@ def minimize(fun,
         values > 1.0 reduce the accuracy.
     stop_fitness : float, optional 
          Limit for fitness value. If reached minimize terminates.
+    stop_hist : float, optional 
+         Set to 0 if you want to prevent premature termination because 
+         there is no progress
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     runid : int, optional
@@ -96,14 +100,16 @@ def minimize(fun,
     if np.ndim(input_sigma) == 0:
         input_sigma = [input_sigma] * dim
     if stop_fitness is None:
-        stop_fitness = math.inf    
+        stop_fitness = math.inf  
+    if stop_hist is None:
+        stop_hist = -1;
     array_type = ct.c_double * dim 
     c_callback = mo_call_back_type(callback(fun, dim))
     res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
         optimizeACMA_C(runid, c_callback, dim, array_type(*guess), array_type(*lower), array_type(*upper), 
-                array_type(*input_sigma), max_evaluations, stop_fitness, mu, 
+                array_type(*input_sigma), max_evaluations, stop_fitness, stop_hist, mu, 
                 popsize, accuracy, int(rg.uniform(0, 2**32 - 1)), normalize, -1 if update_gap is None else update_gap, 
                 workers, res_p)
         x = res[:dim]
@@ -118,7 +124,7 @@ def minimize(fun,
 optimizeACMA_C = libcmalib.optimizeACMA_C
 optimizeACMA_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_int, ct.c_int, \
+            ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_double, ct.c_int, ct.c_int, \
             ct.c_double, ct.c_long, ct.c_bool, ct.c_int, 
             ct.c_int, ct.POINTER(ct.c_double)]
 
