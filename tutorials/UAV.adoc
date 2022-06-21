@@ -66,32 +66,27 @@ We forked https://github.com/robin-shaun/Multi-UAV-Task-Assignment-Benchmark[Mul
 in https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark 
 and implemented the following enhancements:
 
-- GA objective function (also used for BiteOpt) is much faster using https://numba.pydata.org/[numba].
+- GA objective function is much faster using https://numba.pydata.org/[numba].
 - We applied numba also to the GA operations (selection, mutation, crossover), see
 https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/ga.py[ga.py]
-- BiteOpt, CR-FM-NES and DE parallel retry is added as Benchmark and as a stand-alone experiment.
+- The fitness function used for GA is adapted and improved for use with continuous optimizers.
+- BiteOpt, CR-FM-NES and CMA-ES using parallel retry are added as Benchmark and as a stand-alone experiment.
 - Multi-objective MODE parallel retry is added as stand-alone experiment. 
 
 ==== Single Objective Continous Fitness
 
-Fitness class `Optimizer` delegates to the fitness function "borrowed" from GA:
+Fitness class `Optimizer` delegates to the fitness function adapted from GA:
 
 [source,python]
 ----   
 @njit(fastmath=True)
-def fitness_(gene, vehicle_num, vehicles_speed, target_num, targets, time_lim, map):
+def fitness_(x, vehicle_num, vehicles_speed, target_num, targets, time_lim, map):
     ins = np.zeros(target_num+1, dtype=numba.int32)
-    seq = np.zeros(target_num, dtype=numba.int32)
+    seq = np.argsort(x[vehicle_num-1:]) + 1
+    gene = (x[:vehicle_num-1]*target_num).astype(numba.int32)
     ins[target_num] = 1
     for i in range(vehicle_num-1):
         ins[gene[i]] += 1
-    rest = np.zeros(target_num, dtype=numba.int32)
-    for i in range(0, target_num):
-        rest[i] = i+1   
-    for i in range(target_num-1):
-        seq[i] = rest[gene[i+vehicle_num-1]]
-        rest = np.delete(rest, gene[i+vehicle_num-1])
-    seq[target_num-1] = rest[0]
     i = 0  # index of vehicle
     pre = 0  # index of last target
     post = 0  # index of ins/seq
@@ -115,14 +110,15 @@ def fitness_(gene, vehicle_num, vehicles_speed, target_num, targets, time_lim, m
 
 class Optimizer():
 ...
-    def get_gene(self, x):
-        return (x*self.upper).astype(int)
-
     def fitness(self, x):   
-        return -fitness_(self.get_gene(x), self.vehicle_num, self.vehicles_speed, 
+        return -fitness_(x, self.vehicle_num, self.vehicles_speed, 
                            self.target_num, self.targets, self.time_lim, self.map)
 ...
 ----
+
+Note that we use the `np.argsort`-trick applied to decision variables in the `[0,1]`-interval 
+to generate a sequence of unique indices. This way we need an additional decision variable, but
+the results are much better for continuous optimizers. 
 
 The complete code is in
 https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_fcmaes.py[test_fcmaes.py]
