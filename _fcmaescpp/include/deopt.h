@@ -27,7 +27,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * @version 2022.14
+ * @version 2022.27
  */
 
 #ifndef DEOPT_INCLUDED
@@ -86,7 +86,7 @@ public:
 
 		resetCommonVars( rnd );
 
-		const double sd = 0.125 * InitRadius;
+		const double sd = 0x1p-4 * InitRadius;
 		int i;
 		int j;
 
@@ -134,9 +134,9 @@ public:
 	 * objective function evaluation.
 	 *
 	 * @param rnd Random number generator.
-	 * @param OutCost If not NULL, pointer to variable that receives cost
+	 * @param[out] OutCost If not NULL, pointer to variable that receives cost
 	 * of the newly-evaluated solution.
-	 * @param OutValues If not NULL, pointer to array that receives a
+	 * @param[out] OutValues If not NULL, pointer to array that receives a
 	 * newly-evaluated parameter vector, in real scale, in real value bounds.
 	 * @return The number of non-improving iterations so far.
 	 */
@@ -148,16 +148,14 @@ public:
 
 		if( DoInitEvals )
 		{
-			const ptype* const p = PopParams[ CurPopPos ];
+			const ptype* const Params = getCurParams();
 
 			for( i = 0; i < ParamCount; i++ )
 			{
-				NewValues[ i ] = getRealValue( p, i );
+				NewValues[ i ] = getRealValue( Params, i );
 			}
 
 			const double NewCost = optcost( NewValues );
-			sortPop( NewCost, CurPopPos );
-			updateBestCost( NewCost, NewValues );
 
 			if( OutCost != NULL )
 			{
@@ -166,11 +164,11 @@ public:
 
 			if( OutValues != NULL )
 			{
-				memcpy( OutValues, NewValues,
-					ParamCount * sizeof( OutValues[ 0 ]));
+				copyValues( OutValues, NewValues );
 			}
 
-			CurPopPos++;
+			updateBestCost( NewCost, NewValues,
+				updatePop( NewCost, Params, false ));
 
 			if( CurPopPos == PopSize )
 			{
@@ -180,10 +178,7 @@ public:
 			return( 0 );
 		}
 
-		memset( TmpParams, 0, ParamCount * sizeof( TmpParams[ 0 ]));
-
-		const double r1 = rnd.getSqr();
-		const int si1 = (int) ( r1 * r1 * CurPopSize );
+		const int si1 = rnd.getPowInt( 4.0, CurPopSize / 2 );
 		const ptype* const rp1 = getParamsOrdered( si1 );
 
 		const int PairCount = 3;
@@ -224,31 +219,59 @@ public:
 			}
 		}
 
-		for( j = 0; j < PairCount; j++ )
-		{
-			const ptype* const rp2 = getParamsOrdered( PopIdx[ 1 + j * 2 ]);
-			const ptype* const rp3 = getParamsOrdered( PopIdx[ 2 + j * 2 ]);
+		const ptype* const rp2 = getParamsOrdered( PopIdx[ 1 ]);
+		const ptype* const rp3 = getParamsOrdered( PopIdx[ 2 ]);
+		const ptype* const rp4 = getParamsOrdered( PopIdx[ 3 ]);
+		const ptype* const rp5 = getParamsOrdered( PopIdx[ 4 ]);
+		const ptype* const rp6 = getParamsOrdered( PopIdx[ 5 ]);
+		const ptype* const rp7 = getParamsOrdered( PopIdx[ 6 ]);
 
-			for( i = 0; i < ParamCount; i++ )
-			{
-				TmpParams[ i ] += rp2[ i ] - rp3[ i ];
-			}
+		for( i = 0; i < ParamCount; i++ )
+		{
+			TmpParams[ i ] = ( rp2[ i ] - rp3[ i ]) + ( rp4[ i ] - rp5[ i ]) +
+				( rp6[ i ] - rp7[ i ]);
 		}
 
 		// TPDF bit randomization.
 
-		if( rnd.getBit() )
+		if( rnd.getBit() && rnd.getBit() )
 		{
 			const int k = rnd.getInt( ParamCount );
-			const int b = rnd.getInt( IntMantBits );
 
-			TmpParams[ k ] += ( (ptype) rnd.getBit() << b ) -
-				( (ptype) rnd.getBit() << b );
+			// Produce sparsely-random bit-strings.
+
+			const ptype v1 = (ptype) ( rnd.getRaw() & rnd.getRaw() &
+				rnd.getRaw() & rnd.getRaw() & rnd.getRaw() & IntMantMask );
+
+			const ptype v2 = (ptype) ( rnd.getRaw() & rnd.getRaw() &
+				rnd.getRaw() & rnd.getRaw() & rnd.getRaw() & IntMantMask );
+
+			TmpParams[ k ] += v1 - v2; // Apply in TPDF manner.
 		}
 
-		for( i = 0; i < ParamCount; i++ )
+		if( rnd.getBit() )
 		{
-			TmpParams[ i ] = rp1[ i ] + ( TmpParams[ i ] >> 2 );
+			int si2 = si1 + rnd.getBit() * 2 - 1;
+
+			if( si2 < 0 )
+			{
+				si2 = 1;
+			}
+
+			const ptype* const rp1b = getParamsOrdered( si2 );
+
+			for( i = 0; i < ParamCount; i++ )
+			{
+				TmpParams[ i ] = (( rp1[ i ] + rp1b[ i ]) >> 1 ) +
+					( TmpParams[ i ] >> 2 );
+			}
+		}
+		else
+		{
+			for( i = 0; i < ParamCount; i++ )
+			{
+				TmpParams[ i ] = rp1[ i ] + ( TmpParams[ i ] >> 2 );
+			}
 		}
 
 		for( i = 0; i < ParamCount; i++ )
@@ -266,18 +289,14 @@ public:
 
 		if( OutValues != NULL )
 		{
-			memcpy( OutValues, NewValues,
-				ParamCount * sizeof( OutValues[ 0 ]));
+			copyValues( OutValues, NewValues );
 		}
 
-		updateBestCost( NewCost, NewValues );
+		const int p = updatePop( NewCost, TmpParams, false, false );
 
-		if( isAcceptedCost( NewCost ))
+		if( p < CurPopSize )
 		{
-			memcpy( PopParams[ CurPopSize1 ], TmpParams,
-				ParamCount * sizeof( PopParams[ 0 ][ 0 ]));
-
-			sortPop( NewCost, CurPopSize1 );
+			updateBestCost( NewCost, NewValues, p );
 			StallCount = 0;
 		}
 		else
