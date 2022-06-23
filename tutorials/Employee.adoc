@@ -23,11 +23,12 @@ here:
 == Motivation
 
 Employee scheduling is a very common scheduling optimization problem. There are hard constraints
-- like an employees skills don't fit the requirements for a specific slot or she is unavailable at a certain day - 
-and soft constraints - like an employee prefers to work at a specific shift - which have to be prioritized. 
+- like an employees skills don't fit the requirements for a specific slot,  or she is unavailable at a certain day - 
+and soft constraints - like an employee prefers to work at a specific shift. These constraints 
+have to be correctly prioritized. 
 
 Applying continuous optimization is not very common here, but recent developments have largely increased its applicability. 
-Main reasons are:
+The main reasons are:
 
 - Using https://numba.pydata.org/[numba] and parallel execution on a modern many-core CPU you can execute up to 
 1000.000 evaluations/sec of a fitness function evaluating a possible schedule. 
@@ -269,7 +270,7 @@ we return a second one `-min(employee_num_shifts)`.
 
 === Multi-Objective Optimization
 
-Since the `fcmaes` library offers only one multi-objective optimizer "MODE" the only 
+Since the `fcmaes` library offers only one multi-objective optimizer "MODE", the only 
 choice we have to make is whether to use differential evolution or NSGA-II population
 update (parameter `nsga_update=True`). The recommendation is to try both. For this problem
 NSGA-II population update works much better. Multi-objective optimization usually needs
@@ -312,7 +313,7 @@ have now a minimum number of shifts per employee of 7.
 
 Multi-objective optimization doesn't require that we "weight" objectives in advance, their scaling doesn't matter. Instead we are presented with a
 set of choices and can decide afterwards what we prefer. We can talk with 'Elsa Li' asking her what she prefers.
-In this specific problem instance the number of choices is quite limited, which will not be the case with larger employee scheduling problem instances. 
+For this specific problem instance the number of choices is quite limited, which will not be the case with larger employee scheduling problem instances. 
 
 Edit and execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/employee.py[employee.py] to reproduce our results. Expect slower timings 
 with older CPUs having less cores - we used a 16 core AMD 5950x. Remember `fcmaes` is mainly about utilizing all resources of modern
@@ -320,12 +321,12 @@ many core CPUs.
 
 == Conclusion
 
-- Multi-objective optimization can provide the basis for the decision process even for combinatorial scheduling problems.
+- Multi-objective optimization can provide the basis for the decision process even for large combinatorial scheduling problems.
 - It can help to make employees "happy" by producing an employee schedule fulfilling all their "desires" and avoid having
 no assigned shifts for some of them. 
 - Performance of continuous optimization is sufficient even for large problem instances using Python, if https://numba.pydata.org/[numba]
 is used to code the fitness function. 
-- Modern continuous optimizer written in C++ like BiteOpt and fcmaes-MODE enable the evaluation of up to 10⁶ fitness evaluations/sec and are well suited
+- Modern continuous optimizers written in {cpp} like BiteOpt and fcmaes-MODE enable the evaluation of up to 10⁶ fitness evaluations/sec and are well suited
 for decision variables used as discrete integer values. 
 - The shown approach is very flexible regarding unusual constraints and modifications. Imagine assigning different weights to the fulfillment of soft constraints
 for individual employees or other modifications. 
