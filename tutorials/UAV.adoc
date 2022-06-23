@@ -118,7 +118,7 @@ class Optimizer():
 
 Note that we use the `np.argsort`-trick applied to decision variables in the `[0,1]`-interval 
 to generate a sequence of unique indices. This way we need an additional decision variable, but
-the results are much better for continuous optimizers. 
+the results are much better for continuous optimizers.
 
 The complete code is in
 https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_fcmaes.py[test_fcmaes.py]
