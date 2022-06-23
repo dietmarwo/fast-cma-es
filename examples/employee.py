@@ -1,8 +1,15 @@
-import time, json
+# Copyright (c) Dietmar Wolz.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory.
+
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Employee.adoc for a detailed description.
+
+import json
 import numpy as np
 from numba import njit
 import numba
-from fcmaes.optimizer import Bite_cpp, De_cpp, Crfmnes_cpp, Cma_cpp, LDe_cpp, wrapper, dtime
+from fcmaes.optimizer import Bite_cpp, De_cpp, Crfmnes_cpp, wrapper
 from fcmaes import retry, moretry, modecpp, mode
 from scipy.optimize import Bounds    
 
