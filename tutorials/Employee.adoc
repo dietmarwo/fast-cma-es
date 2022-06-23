@@ -319,6 +319,51 @@ Edit and execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/e
 with older CPUs having less cores - we used a 16 core AMD 5950x. Remember `fcmaes` is mainly about utilizing all resources of modern
 many core CPUs. 
 
+=== Challenge
+
+I modified the problem generating settings in 
+https://github.com/optapy/optapy-quickstarts/blob/stable/employee-scheduling/services.py[services.py]
+to generate a tougher challenge. I added some employees and optional skills:
+
+[source,python]
+----
+FIRST_NAMES = ["Amy", "Beth", "Chad", "Dan", "Elsa", "Flo", "Gus", "Hugo", "Ivy", "Jay", "Carl", "Joy", "Marie", "Love",]
+LAST_NAMES = ["Cole", "Fox", "Green", "Jones", "King", "Li", "Poe", "Rye", "Smith", "Watt", "Sagan", "Field", "Curie", "Work"]
+REQUIRED_SKILLS = ["Doctor", "Nurse"]
+OPTIONAL_SKILLS = ["Anaesthetics", "Surgery", "Radiology"]
+LOCATIONS = ["Ambulatory care", "Critical care", "Pediatric care"]
+...
+    for i in range(16):
+        skills = pick_subset(OPTIONAL_SKILLS, random, 1, 4)
+----
+
+Now OptaPy shows a score of `Score: -1hard/-480soft`:
+
+image::employee2.png[]
+
+You can try this setting by switching to another json:
+
+[source,python]
+----
+p = problem('data/sched2.json')
+----
+
+Single objective optimization still works, but we need more evaluations and a higher population size (1024) for differential
+evolution. Still BiteOpt is the better choice, since it adapts automatically and is a bit more reliable. 
+
+image::employeeres2.png[]
+
+For multi-objective optimization we configured also population size = 1024 and 2000.000 evaluations. The whole optimization
+now needs about 90 seconds on the AMD 5950x CPU. But we still get again two valid results, 
+one with five fulfilled desired shifts and a minimal 
+number of six shifts, the other with three fulfilled desired shifts and a minimal 
+number of seven shifts per employee. Both schedules fulfill all hard and soft requirements.
+
+----
+[-5.0, -6.0] [0, 6, 10, 8, 13, 2, 11, 14, 5, 7, 12, 3, 15, 13, 14, 6, 11, 8, 13, 2, 0, 6, 9, 11, 3, 8, 15, 13, 10, 3, 8, 1, 0, 9, 6, 15, 13, 1, 9, 10, 12, 5, 7, 4, 3, 8, 10, 7, 15, 5, 12, 11, 3, 4, 13, 4, 8, 0, 10, 2, 14, 9, 11, 14, 10, 2, 0, 8, 12, 1, 5, 3, 13, 6, 5, 14, 9, 1, 10, 3, 4, 6, 15, 2, 11, 5, 8, 3, 7, 12, 11, 3, 2, 1, 6, 13, 4, 9, 12, 10, 0, 14, 3, 4, 13, 7, 5, 6, 1, 5, 3, 15, 0, 6, 10, 7, 11, 14, 13, 0, 10, 2, 5, 3, 8, 15]
+[-3.0, -7.0] [0, 6, 10, 9, 13, 1, 11, 14, 5, 7, 12, 3, 15, 13, 14, 11, 6, 8, 13, 2, 0, 6, 9, 11, 3, 8, 15, 13, 10, 2, 8, 1, 0, 9, 6, 15, 13, 1, 9, 10, 12, 5, 7, 4, 3, 4, 10, 7, 15, 8, 12, 11, 3, 2, 13, 4, 8, 0, 10, 2, 14, 9, 11, 14, 10, 2, 0, 8, 12, 1, 5, 4, 13, 6, 7, 14, 9, 1, 10, 3, 4, 6, 15, 2, 11, 5, 8, 3, 7, 12, 11, 3, 8, 1, 6, 13, 4, 9, 12, 12, 0, 14, 3, 4, 13, 7, 5, 6, 1, 5, 3, 15, 0, 6, 10, 7, 11, 14, 13, 0, 10, 2, 5, 3, 8, 15]
+----
+
 == Conclusion
 
 - Multi-objective optimization can provide the basis for the decision process even for large combinatorial scheduling problems.
@@ -330,3 +375,5 @@ is used to code the fitness function.
 for decision variables used as discrete integer values. 
 - The shown approach is very flexible regarding unusual constraints and modifications. Imagine assigning different weights to the fulfillment of soft constraints
 for individual employees or other modifications. 
+- Standard tools reach their limits soon, continuous optimization can sometimes still fulfill all hard and soft constraints, although
+it can require many million fitness evaluations.  

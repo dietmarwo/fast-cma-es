@@ -209,20 +209,6 @@ class problem():
         xs, ys = moretry.pareto(xs, ys)
         for x, y in zip(xs, ys):
             print(str(list(y)) + ' ' + str([int(xi) for xi in x]))
-
-    def optimize_mo_c(self):
-        self.fitness_mo_c(np.random.uniform(0, len(self.employees), self.dim).astype(int))
-        
-        pname = "schedule_mo_c_200k.256"    
-        x, y = modecpp.retry(mode.wrapper(self.fitness_mo_c, 2), 
-                         2, 1, self.bounds, popsize = 256, 
-                     max_evaluations = 200000, 
-                     nsga_update=True, 
-                     #ints = [True]*self.dim,
-                     num_retries = 32, workers=32)
-        np.savez_compressed(pname, xs=x, ys=y)
-        moretry.plot(pname, 0, x, y, all=True, interp=True) 
-
         
 def show_example_solution():
     # [-5.0, -6.0]
@@ -233,6 +219,7 @@ def show_example_solution():
            
 if __name__ == '__main__':
     p = problem('data/sched.json')
+    # p = problem('data/sched2.json')
     p.optimize()
     #p.optimize_mo()
     #show_example_solution()
