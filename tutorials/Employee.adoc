@@ -364,6 +364,98 @@ number of seven shifts per employee. Both schedules fulfill all hard and soft re
 [-3.0, -7.0] [0, 6, 10, 9, 13, 1, 11, 14, 5, 7, 12, 3, 15, 13, 14, 11, 6, 8, 13, 2, 0, 6, 9, 11, 3, 8, 15, 13, 10, 2, 8, 1, 0, 9, 6, 15, 13, 1, 9, 10, 12, 5, 7, 4, 3, 4, 10, 7, 15, 8, 12, 11, 3, 2, 13, 4, 8, 0, 10, 2, 14, 9, 11, 14, 10, 2, 0, 8, 12, 1, 5, 4, 13, 6, 7, 14, 9, 1, 10, 3, 4, 6, 15, 2, 11, 5, 8, 3, 7, 12, 11, 3, 8, 1, 6, 13, 4, 9, 12, 12, 0, 14, 3, 4, 13, 7, 5, 6, 1, 5, 3, 15, 0, 6, 10, 7, 11, 14, 13, 0, 10, 2, 5, 3, 8, 15]
 ----
 
+    INITIAL_ROSTER_LENGTH_IN_DAYS = 28
+    ...
+    for i in range(16):
+        skills = pick_subset(OPTIONAL_SKILLS, random, 1, 4, 4)
+
+=== 28 day roster
+
+Finally let us further complicate things: We double the roster length to 4 weeks and add another skill to each employee
+to compensate for that. This makes the task a bit easier since there are more choices, on the other hand it is much more 
+complex now. 
+
+[source,python]
+----
+    INITIAL_ROSTER_LENGTH_IN_DAYS = 28
+    ...
+        for i in range(16):
+        skills = pick_subset(OPTIONAL_SKILLS, random, 1, 4, 4)  
+----
+
+Now OptaPy solves all soft constraints, but cannot fulfill 1 hard constraints, even when we increase the time limit:
+
+----
+solver_config\
+... 
+     .withTerminationSpentLimit(Duration.ofSeconds(600)
+----
+
+After 10 minutes we get:
+
+----
+23:14:39.030 [l-1-thread-1] INFO  Solving ended: time spent (600186), best score (-1hard/0soft), score calculation speed (52/sec), phase total (2)
+----
+
+May be parameters can further https://www.optapy.org/docs/latest/optimization-algorithms/optimization-algorithms.html[be tweaked],
+but at least class optapy.config.solver.SolverConfig seems to offer no more options. 
+
+We created a corresponding json `data/sched3.json` and now need a population size of 2048 for differential evolution:
+
+[source,python]
+----
+p = problem('data/sched3.json')
+
+# res = retry.minimize_plot("schedule.de.2000k", De_cpp(2000000, popsize = 2048, ints = [True]*self.dim),  
+res = retry.minimize_plot("schedule.bite.2000k", Bite_cpp(2000000),  
+----
+
+This time BiteOpt is clearly better, eight fulfilled "desired" shifts and a minimal number of shifts per employee of 12: 
+
+image::employeeres3.png[]
+
+Multi-objective optimization also requires a population size = 2048 and we configured 5.000.000 evaluations.
+
+[source,python]
+----
+xs, ys = modecpp.retry(mode.wrapper(self.fitness_mo, 2), 
+                 2, 0, self.bounds, popsize = 2048, max_evaluations = 5000000, 
+                    nsga_update=True, num_retries = 32, workers=32)
+----
+
+This optimization needs about 6 minutes and results in the following pareto-front:
+
+----
+[-8.0, -13.0] [0, 6, 10, 9, 3, 7, 12, 11, 2, 4, 15, 10, 12, 2, 9, 8, 6, 11, 6, 8, 7, 9, 5, 13, 14, 1, 0, 11, 7, 10, 13, 8, 0, 5, 3, 6, 3, 7, 1, 6, 11, 5, 9, 13, 4, 0, 10, 13, 6, 8, 14, 7, 4, 2, 5, 15, 7, 12, 13, 8, 11, 4, 6, 14, 1, 6, 7, 13, 11, 9, 3, 8, 6, 4, 14, 12, 1, 10, 3, 0, 7, 3, 5, 8, 12, 0, 6, 1, 15, 10, 8, 15, 7, 6, 4, 2, 12, 5, 14, 13, 2, 3, 10, 4, 7, 15, 6, 1, 0, 11, 3, 5, 12, 2, 10, 13, 6, 3, 13, 0, 2, 12, 14, 10, 6, 8, 1, 7, 4, 15, 10, 12, 9, 14, 3, 2, 0, 13, 14, 3, 4, 7, 10, 8, 13, 9, 3, 4, 11, 6, 15, 12, 14, 4, 15, 2, 7, 3, 9, 12, 14, 6, 12, 15, 0, 6, 11, 13, 8, 7, 1, 11, 12, 10, 8, 1, 2, 7, 6, 9, 13, 7, 5, 6, 9, 3, 11, 14, 2, 10, 1, 6, 15, 5, 3, 7, 9, 2, 12, 9, 1, 8, 4, 5, 10, 6, 0, 2, 14, 0, 15, 6, 11, 9, 7, 5, 13, 4, 14, 6, 2, 3, 9, 1, 12, 14, 5, 11, 7, 1, 13, 6, 3, 15, 5, 11, 0, 12, 13, 9, 8, 7, 2, 9, 12, 3, 13, 7, 15, 4, 11, 2]
+[-7.0, -14.0] [0, 6, 10, 9, 1, 7, 12, 11, 2, 4, 15, 10, 12, 1, 9, 8, 6, 11, 6, 8, 7, 9, 5, 13, 14, 1, 0, 11, 7, 10, 13, 8, 0, 5, 3, 6, 3, 7, 1, 6, 11, 5, 8, 12, 4, 0, 10, 13, 6, 8, 14, 7, 4, 2, 5, 15, 7, 14, 13, 8, 11, 4, 6, 14, 1, 6, 7, 13, 11, 9, 3, 8, 6, 4, 14, 12, 1, 10, 3, 0, 7, 3, 5, 8, 12, 0, 6, 1, 15, 10, 8, 15, 7, 6, 4, 2, 12, 5, 14, 13, 2, 3, 10, 4, 7, 15, 5, 0, 0, 11, 3, 5, 12, 2, 10, 13, 6, 3, 13, 0, 2, 12, 14, 10, 6, 8, 1, 7, 4, 15, 10, 12, 9, 14, 3, 2, 0, 13, 14, 3, 4, 7, 10, 8, 13, 9, 3, 4, 11, 6, 15, 12, 14, 4, 15, 2, 7, 3, 8, 12, 14, 6, 9, 15, 0, 6, 11, 13, 8, 7, 1, 11, 12, 10, 8, 1, 2, 7, 6, 9, 13, 7, 5, 6, 9, 3, 11, 14, 2, 10, 1, 6, 15, 5, 3, 7, 9, 2, 13, 9, 1, 8, 4, 5, 10, 6, 0, 2, 14, 0, 15, 6, 11, 9, 7, 5, 13, 4, 15, 6, 2, 3, 8, 1, 12, 14, 5, 11, 7, 1, 13, 6, 3, 15, 5, 11, 0, 12, 14, 9, 8, 7, 2, 9, 12, 3, 13, 7, 15, 4, 11, 2]
+[1293.0, -15.0] [5, 13, 0, 12, 1, 3, 11, 2, 8, 2, 14, 1, 13, 10, 15, 8, 6, 12, 14, 8, 7, 4, 6, 12, 15, 9, 1, 5, 3, 15, 7, 1, 11, 0, 8, 13, 4, 2, 1, 0, 11, 5, 9, 12, 8, 0, 10, 6, 7, 12, 2, 13, 4, 8, 2, 15, 6, 9, 7, 14, 11, 4, 13, 14, 1, 13, 3, 6, 5, 9, 7, 8, 6, 4, 5, 14, 15, 9, 3, 10, 7, 8, 0, 15, 12, 5, 7, 4, 14, 1, 15, 1, 7, 14, 8, 2, 12, 0, 9, 13, 11, 7, 10, 9, 3, 12, 6, 4, 5, 0, 7, 11, 14, 4, 15, 13, 3, 3, 7, 5, 10, 14, 2, 0, 13, 4, 1, 13, 10, 8, 0, 14, 9, 6, 3, 10, 11, 3, 5, 7, 14, 13, 8, 1, 7, 14, 13, 2, 4, 5, 15, 9, 10, 8, 1, 9, 3, 6, 4, 12, 2, 13, 12, 15, 5, 0, 8, 6, 11, 3, 4, 14, 0, 11, 8, 10, 15, 7, 6, 12, 7, 15, 11, 5, 10, 13, 6, 14, 1, 4, 15, 6, 11, 0, 3, 7, 9, 14, 12, 1, 15, 10, 9, 11, 0, 6, 2, 5, 0, 6, 9, 2, 10, 12, 3, 11, 13, 2, 10, 7, 6, 4, 1, 8, 9, 11, 5, 15, 3, 2, 13, 6, 7, 9, 5, 6, 2, 4, 12, 8, 11, 7, 10, 1, 10, 3, 13, 6, 12, 2, 0, 7]
+----
+The first solution is even better than what we got from single objective optimization: eight fulfilled "desired" shifts 
+and a minimal number of shifts per employee of 13.
+
+=== Optimizing the standard deviation of shift assigments
+
+Finally lets do another experiment by changing the second objective to the standard deviation of the assigned shifts for each employee
+using the same optimizer configuration as before. 
+
+[source,python]
+----
+    def fitness_mo(self, x):
+        score, employee_num_shifts = \
+            fitness_(x.astype(int), self.day_ids, self.required_skill_ids, self.skill_set_ids, 
+                     self.avail_name_ids, self.avail_day_ids, self.avail_type_ids)
+        return [score, np.std(employee_num_shifts)]
+----
+
+The result is quite similar to before
+
+----
+[-8.0, 0.6614378277661477] [11, 13, 10, 9, 1, 7, 14, 5, 4, 8, 0, 10, 12, 1, 15, 11, 3, 4, 6, 14, 7, 1, 5, 0, 2, 12, 9, 11, 13, 9, 3, 15, 1, 5, 8, 7, 4, 1, 8, 5, 14, 0, 10, 11, 2, 2, 4, 6, 3, 12, 14, 13, 9, 8, 2, 15, 6, 9, 7, 12, 8, 4, 13, 8, 2, 13, 6, 7, 5, 0, 3, 9, 13, 4, 2, 12, 15, 0, 6, 10, 7, 3, 0, 15, 12, 5, 7, 4, 8, 10, 4, 10, 3, 5, 8, 14, 12, 0, 11, 12, 5, 3, 15, 1, 13, 8, 11, 10, 11, 6, 3, 5, 9, 4, 2, 7, 13, 6, 7, 5, 0, 14, 10, 2, 3, 9, 1, 13, 4, 8, 10, 12, 9, 0, 6, 10, 5, 6, 11, 3, 9, 13, 4, 1, 3, 10, 13, 8, 15, 2, 1, 12, 14, 1, 14, 15, 6, 13, 8, 0, 11, 3, 12, 1, 6, 0, 9, 3, 14, 7, 11, 14, 0, 15, 10, 8, 1, 7, 5, 12, 6, 7, 14, 11, 9, 13, 0, 2, 15, 15, 1, 7, 4, 10, 3, 6, 9, 2, 12, 1, 15, 8, 9, 11, 14, 13, 5, 11, 0, 5, 15, 14, 4, 9, 7, 2, 6, 3, 10, 7, 11, 4, 2, 1, 12, 5, 14, 11, 7, 4, 13, 3, 6, 10, 0, 5, 2, 8, 12, 14, 9, 7, 15, 10, 15, 13, 3, 6, 2, 4, 0, 8]
+[-7.0, 0.5590169943749475] [5, 13, 10, 8, 4, 6, 12, 14, 2, 4, 9, 1, 14, 15, 10, 11, 7, 12, 6, 8, 7, 14, 5, 12, 1, 4, 9, 0, 13, 9, 6, 10, 11, 14, 8, 3, 3, 8, 1, 0, 12, 11, 10, 4, 2, 0, 1, 6, 13, 12, 2, 3, 9, 8, 14, 1, 6, 12, 3, 13, 11, 2, 7, 14, 1, 6, 3, 7, 5, 10, 13, 9, 6, 4, 5, 8, 1, 15, 7, 2, 13, 1, 2, 4, 12, 5, 3, 8, 15, 9, 4, 1, 6, 0, 8, 2, 12, 14, 13, 11, 0, 13, 15, 2, 3, 14, 5, 10, 2, 11, 13, 5, 9, 8, 10, 7, 6, 6, 7, 2, 15, 12, 11, 10, 3, 4, 10, 7, 15, 14, 9, 12, 1, 5, 3, 8, 5, 13, 0, 3, 11, 7, 9, 1, 7, 10, 6, 4, 14, 5, 0, 12, 15, 4, 15, 1, 7, 3, 10, 12, 0, 6, 9, 15, 5, 0, 11, 7, 12, 13, 2, 5, 9, 1, 10, 15, 4, 13, 0, 14, 13, 7, 2, 14, 9, 6, 0, 11, 4, 15, 8, 3, 10, 5, 7, 6, 11, 0, 12, 10, 8, 14, 15, 0, 1, 6, 5, 14, 0, 11, 4, 2, 15, 9, 3, 5, 13, 8, 10, 3, 11, 1, 9, 4, 14, 0, 2, 15, 6, 4, 13, 3, 7, 11, 5, 0, 2, 11, 8, 12, 14, 7, 9, 15, 12, 7, 13, 3, 9, 8, 11, 2]
+[94.0, 0.4330127018922193] [6, 7, 10, 12, 2, 3, 14, 5, 4, 4, 1, 15, 14, 5, 10, 9, 3, 11, 5, 9, 7, 0, 2, 12, 8, 14, 4, 5, 6, 14, 13, 15, 10, 0, 8, 3, 4, 1, 2, 5, 12, 11, 10, 8, 9, 2, 1, 13, 7, 12, 0, 3, 4, 8, 2, 1, 13, 9, 7, 11, 14, 4, 3, 9, 8, 13, 6, 7, 11, 1, 3, 14, 13, 4, 0, 12, 1, 10, 6, 15, 3, 9, 11, 8, 12, 5, 13, 4, 10, 15, 1, 10, 7, 11, 4, 0, 9, 5, 12, 12, 5, 13, 11, 4, 7, 9, 0, 8, 2, 5, 13, 11, 10, 12, 0, 3, 7, 13, 6, 14, 10, 12, 2, 0, 7, 8, 4, 3, 1, 15, 9, 12, 5, 0, 6, 10, 5, 3, 14, 13, 12, 6, 1, 8, 6, 15, 7, 4, 1, 2, 10, 14, 8, 1, 15, 0, 13, 3, 10, 11, 5, 7, 9, 1, 5, 2, 11, 6, 12, 7, 15, 2, 10, 1, 9, 15, 8, 3, 0, 11, 13, 3, 11, 0, 10, 6, 14, 2, 8, 15, 1, 6, 9, 10, 7, 3, 8, 11, 12, 1, 4, 14, 9, 5, 15, 13, 6, 11, 14, 0, 8, 5, 15, 13, 3, 2, 6, 2, 1, 7, 14, 4, 9, 15, 12, 14, 2, 11, 6, 8, 7, 13, 3, 15, 0, 5, 2, 11, 12, 8, 14, 6, 4, 15, 0, 6, 13, 7, 9, 4, 14, 2]
+----
+
+
 == Conclusion
 
 - Multi-objective optimization can provide the basis for the decision process even for large combinatorial scheduling problems.
