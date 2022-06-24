@@ -506,7 +506,7 @@ LOCATIONS = ["Ambulatory care", "Critical care", "Pediatric care"]
 
 You can load this problem using `p = problem('data/sched4.json')`
 
-This means we the optimization problem has 630 decision variables. Even BiteOpt struggles to find a valid solution fulfilling
+This means now the optimization problem has 630 decision variables. Even BiteOpt struggles to find a valid solution fulfilling
 all constraints:
 
 image::schedule.bite.2000k_bite cpp.png[]
