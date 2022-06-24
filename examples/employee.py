@@ -177,17 +177,38 @@ class problem():
             empl = self.employees[employees_at_shift[i]]
             shift = self.shifts[i]
             shift['employee'] = empl
-            print(shift) 
+            print(i, shift) 
+        num_employees = len(self.skill_set_ids)
+        employee_last_day = np.full(num_employees, -1, dtype=int)
+        employee_num_shifts = np.zeros(num_employees, dtype=int)
         for i in range(len(employees_at_shift)):
-            empl = self.employees[employees_at_shift[i]]
+            shift = self.shifts[i]
+            day = self.day_ids[i]
+            employee = employees_at_shift[i]
+            name = self.names[employee]
+            employee_num_shifts[employee] += 1
+            if employee_last_day[employee] == day:
+                print("employee", name, "works twice a day", shift)
+                continue
+            employee_last_day[employee] = day
+            required_skill = self.required_skill_ids[i]
+            skill_set = self.skill_set_ids[employee]
+            if not required_skill in skill_set: 
+                print("employee", name, "has wrong skill set", shift)
+        for i in range(len(employees_at_shift)):
             shift = self.shifts[i]
             day = shift['start'].split('T')[0]
+            empl = self.employees[employees_at_shift[i]]
             for avail in self.avails:
                 aday = avail['date']
                 if aday == day:
                     aempl = avail['employee']
                     if aempl == empl:
                         print(empl, avail)
+        print("shifts per employee", list(employee_num_shifts))
+        print("min shifts per employee", min(employee_num_shifts))
+        print("mean shifts per employee", np.mean(employee_num_shifts))
+        print("std shifts per employee", np.std(employee_num_shifts))
         
     def optimize(self):
         self.fitness(np.random.uniform(0, len(self.employees), self.dim).astype(int))
