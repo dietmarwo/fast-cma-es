@@ -433,7 +433,7 @@ This optimization needs about 6 minutes and results in the following pareto-fron
 The first solution is even better than what we got from single objective optimization: eight fulfilled "desired" shifts 
 and a minimal number of shifts per employee of 13.
 
-=== Optimizing the standard deviation of shift assigments
+=== Optimizing the standard deviation of shift assignments
 
 Lets do another experiment by changing the second objective to the standard deviation of the assigned shifts for each employee
 using the same optimizer configuration as before. 
