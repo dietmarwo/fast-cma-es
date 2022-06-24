@@ -435,7 +435,7 @@ and a minimal number of shifts per employee of 13.
 
 === Optimizing the standard deviation of shift assigments
 
-Finally lets do another experiment by changing the second objective to the standard deviation of the assigned shifts for each employee
+Lets do another experiment by changing the second objective to the standard deviation of the assigned shifts for each employee
 using the same optimizer configuration as before. 
 
 [source,python]
@@ -455,6 +455,35 @@ The result is quite similar to before
 [94.0, 0.4330127018922193] [6, 7, 10, 12, 2, 3, 14, 5, 4, 4, 1, 15, 14, 5, 10, 9, 3, 11, 5, 9, 7, 0, 2, 12, 8, 14, 4, 5, 6, 14, 13, 15, 10, 0, 8, 3, 4, 1, 2, 5, 12, 11, 10, 8, 9, 2, 1, 13, 7, 12, 0, 3, 4, 8, 2, 1, 13, 9, 7, 11, 14, 4, 3, 9, 8, 13, 6, 7, 11, 1, 3, 14, 13, 4, 0, 12, 1, 10, 6, 15, 3, 9, 11, 8, 12, 5, 13, 4, 10, 15, 1, 10, 7, 11, 4, 0, 9, 5, 12, 12, 5, 13, 11, 4, 7, 9, 0, 8, 2, 5, 13, 11, 10, 12, 0, 3, 7, 13, 6, 14, 10, 12, 2, 0, 7, 8, 4, 3, 1, 15, 9, 12, 5, 0, 6, 10, 5, 3, 14, 13, 12, 6, 1, 8, 6, 15, 7, 4, 1, 2, 10, 14, 8, 1, 15, 0, 13, 3, 10, 11, 5, 7, 9, 1, 5, 2, 11, 6, 12, 7, 15, 2, 10, 1, 9, 15, 8, 3, 0, 11, 13, 3, 11, 0, 10, 6, 14, 2, 8, 15, 1, 6, 9, 10, 7, 3, 8, 11, 12, 1, 4, 14, 9, 5, 15, 13, 6, 11, 14, 0, 8, 5, 15, 13, 3, 2, 6, 2, 1, 7, 14, 4, 9, 15, 12, 14, 2, 11, 6, 8, 7, 13, 3, 15, 0, 5, 2, 11, 12, 8, 14, 6, 4, 15, 0, 6, 13, 7, 9, 4, 14, 2]
 ----
 
+=== Last Attempt
+
+Finally lets give OptaPy a last chance: I configured a search time limit of 6000 seconds and started eight runs in parallel
+- to somehow utilize the capabilities of the CPU:
+
+----
+Solving ended: time spent (6000012), best score (-1hard/0soft), score calculation speed (25/sec), phase total (2), environment mode (REPRODUCIBLE), move thread count (NONE).
+NOT_SOLVING
+Solving ended: time spent (6000050), best score (-1hard/0soft), score calculation speed (22/sec), phase total (2), environment mode (REPRODUCIBLE), move thread count (NONE).
+NOT_SOLVING
+Solving ended: time spent (6000169), best score (-1hard/0soft), score calculation speed (15/sec), phase total (2), environment mode (REPRODUCIBLE), move thread count (NONE).
+NOT_SOLVING
+Solving ended: time spent (6000041), best score (-1hard/0soft), score calculation speed (22/sec), phase total (2), environment mode (REPRODUCIBLE), move thread count (NONE).
+NOT_SOLVING
+Solving ended: time spent (6000193), best score (-1hard/0soft), score calculation speed (21/sec), phase total (2), environment mode (REPRODUCIBLE), move thread count (NONE).
+NOT_SOLVING
+Solving ended: time spent (6000042), best score (-1hard/0soft), score calculation speed (23/sec), phase total (2), environment mode (REPRODUCIBLE), move thread count (NONE).
+NOT_SOLVING
+Solving ended: time spent (6000041), best score (-1hard/0soft), score calculation speed (22/sec), phase total (2), environment mode (REPRODUCIBLE), move thread count (NONE).
+NOT_SOLVING
+Solving ended: time spent (6000040), best score (-1hard/0soft), score calculation speed (26/sec), phase total (2), environment mode (REPRODUCIBLE), move thread count (NONE).
+NOT_SOLVING
+----
+
+Still we see for all runs: "NOT_SOLVING". This idea to run optimizers in parallel to improve the result 
+is very natural for stochastic optimizers like BiteOpt, differential evolution, CRM-FN-ES and CMA-ES. 
+This is utilized by the fcmaes parallel retry. You could even distribute the computation on multiple cloud CPU nodes using
+kubernetes, since no synchronization is required (note that fcmaes also provides a parallelization mode involving synchronization
+applicable to space mission design). But I am not sure different OptaPy runs offer enough "diversity" to justify this approach. 
 
 == Conclusion
 
