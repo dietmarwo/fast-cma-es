@@ -7,6 +7,7 @@
 
 import json
 import numpy as np
+from dateutil.parser import parse
 from numba import njit
 import numba
 from fcmaes.optimizer import Bite_cpp, De_cpp, Crfmnes_cpp, wrapper
@@ -18,15 +19,22 @@ def shift_indices(shifts):
     days = []
     locations = []
     skills = []
+    sec_start = []
+    sec_end = []
     for i in range(len(shifts)):
         shift_to_index[str(shifts[i])] = i
         day = shifts[i]['start'].split('T')[0]
+        dt_start = parse(shifts[i]['start'])
+        dt_end = parse(shifts[i]['end'])
+        sec_start.append(dt_start.timestamp())
+        sec_end.append(dt_end.timestamp())
         location = shifts[i]['location']
         required_skill = shifts[i]['required_skill']
         days.append(day)
         locations.append(location)
         skills.append(required_skill)
-    return shift_to_index, days, locations, skills
+    return shift_to_index, days, locations, skills, \
+                np.array(sec_start), np.array(sec_end)
 
 def employee_indices(employees):
     empl_to_index = {}
@@ -88,10 +96,11 @@ avail_type_map = {'DESIRED':DESIRED, 'UNDESIRED':UNDESIRED, 'UNAVAILABLE':UNAVAI
 
 @njit(fastmath=True)
 def fitness_(employees_at_shift, day_ids, required_skill_ids, skill_set_ids, 
-             avail_names_ids, avail_days_ids, avail_type_ids):
+             avail_names_ids, avail_days_ids, avail_type_ids, sec_start, sec_end):
     score = 0
     num_employees = len(skill_set_ids)
     employee_last_day = np.full(num_employees, -1, dtype=numba.int32)
+    employee_last_end = np.full(num_employees, -1, dtype=numba.int32)
     employee_num_shifts = np.zeros(num_employees, dtype=numba.int32)
     for shift in range(len(employees_at_shift)):
         day = day_ids[shift]
@@ -101,6 +110,10 @@ def fitness_(employees_at_shift, day_ids, required_skill_ids, skill_set_ids,
             score += 1000  # employee should only work once a day
             continue
         employee_last_day[employee] = day
+        if sec_start[shift] - employee_last_end[employee] < 10*3600:
+            score += 1000  # employee should pause for 10 hours (and shifts should not overlap)
+            continue
+        employee_last_end[employee] = sec_end[shift]
         required_skill = required_skill_ids[shift]
         skill_set = skill_set_ids[employee]
         if not required_skill in skill_set: 
@@ -125,7 +138,8 @@ class problem():
             sched = json.load(json_file)    
             
         self.shifts = sched['shift_list']
-        self.shift_to_index, self.days, self.locations, self.required_skills = shift_indices(self.shifts)
+        self.shift_to_index, self.days, self.locations, self.required_skills, \
+                self.sec_start, self.sec_end = shift_indices(self.shifts)
         self.day_to_index, self.day_ids = index_map(self.days)
         self.location_to_index, self.location_ids = index_map(self.locations)
                 
@@ -160,16 +174,16 @@ class problem():
 
     def fitness(self, x):
         score, employee_num_shifts = fitness_(x.astype(int), self.day_ids, 
-                                              self.required_skill_ids, self.skill_set_ids, 
-                     self.avail_name_ids, self.avail_day_ids, self.avail_type_ids)
+                    self.required_skill_ids, self.skill_set_ids, self.avail_name_ids, 
+                    self.avail_day_ids, self.avail_type_ids, self.sec_start, self.sec_end)
         return score - 0.1*min(employee_num_shifts)
 
     def fitness_mo(self, x):
-        score, employee_num_shifts = \
-            fitness_(x.astype(int), self.day_ids, self.required_skill_ids, self.skill_set_ids, 
-                     self.avail_name_ids, self.avail_day_ids, self.avail_type_ids)
-        #return [score, np.std(employee_num_shifts)]
-        return [score, -min(employee_num_shifts)]
+        score, employee_num_shifts = fitness_(x.astype(int), self.day_ids, 
+                    self.required_skill_ids, self.skill_set_ids, self.avail_name_ids, 
+                    self.avail_day_ids, self.avail_type_ids, self.sec_start, self.sec_end)
+        return [score, np.std(employee_num_shifts)]
+        #return [score, -min(employee_num_shifts)]
     
     def show(self, x):
         employees_at_shift = x.astype(int)
@@ -180,6 +194,7 @@ class problem():
             print(i, shift) 
         num_employees = len(self.skill_set_ids)
         employee_last_day = np.full(num_employees, -1, dtype=int)
+        employee_last_end = np.full(num_employees, -1, dtype=int)
         employee_num_shifts = np.zeros(num_employees, dtype=int)
         for i in range(len(employees_at_shift)):
             shift = self.shifts[i]
@@ -191,10 +206,15 @@ class problem():
                 print("employee", name, "works twice a day", shift)
                 continue
             employee_last_day[employee] = day
+            if self.sec_start[i] - employee_last_end[employee] < 10*3600:
+                print("employee", name, "employee should pause for 10 hours ", shift)
+                continue
+            employee_last_end[employee] = self.sec_end[i]
             required_skill = self.required_skill_ids[i]
             skill_set = self.skill_set_ids[employee]
             if not required_skill in skill_set: 
                 print("employee", name, "has wrong skill set", shift)
+        desired = 0
         for i in range(len(employees_at_shift)):
             shift = self.shifts[i]
             day = shift['start'].split('T')[0]
@@ -205,6 +225,9 @@ class problem():
                     aempl = avail['employee']
                     if aempl == empl:
                         print(empl, avail)
+                        if avail['availability_type'] == 'DESIRED':
+                            desired += 1
+        print("desired shift days", desired)
         print("shifts per employee", list(employee_num_shifts))
         print("min shifts per employee", min(employee_num_shifts))
         print("mean shifts per employee", np.mean(employee_num_shifts))
@@ -212,9 +235,12 @@ class problem():
         
     def optimize(self):
         self.fitness(np.random.uniform(0, len(self.employees), self.dim).astype(int))
-        res = retry.minimize_plot("schedule.bite.200k", Bite_cpp(200000),  
-        # res = retry.minimize_plot("schedule.de.200k", De_cpp(200000, popsize = 256, ints = [True]*self.dim),  
-        # res = retry.minimize_plot("schedule.crfnes.600k", Crfmnes_cpp(600000, popsize=256),  
+        res = retry.minimize_plot("schedule.bite.400k", Bite_cpp(400000),  
+        #res = retry.minimize_plot("schedule.bite.4000k", Bite_cpp(4000000),  
+        
+        #res = retry.minimize_plot("schedule.de.800k", De_cpp(800000, popsize = 512, ints = [True]*self.dim), 
+        #res = retry.minimize_plot("schedule.de.10000k", De_cpp(10000000, popsize = 10000, ints = [True]*self.dim), 
+        
                     wrapper(self.fitness), self.bounds, num_retries=32, plot_limit=10000)
         print(self.fitness_mo(res.x)) 
         self.show(res.x)
@@ -222,24 +248,28 @@ class problem():
     def optimize_mo(self):
         self.fitness_mo(np.random.uniform(0, len(self.employees), self.dim).astype(int))
         
-        pname = "schedule_mo_200k.256"    
+        pname = "schedule_mo_600k.512"    
+        
         xs, ys = modecpp.retry(mode.wrapper(self.fitness_mo, 2), 
-                         2, 0, self.bounds, popsize = 256, max_evaluations = 200000, 
+                         2, 0, self.bounds, popsize = 512, max_evaluations = 600000, 
                      nsga_update=True, num_retries = 32, workers=32)
+        
+        # xs, ys = modecpp.retry(mode.wrapper(self.fitness_mo, 2), 
+        #          2, 0, self.bounds, popsize = 4096, max_evaluations = 40000000, 
+        #      nsga_update=True, num_retries = 32, workers=32)
+
         np.savez_compressed(pname, xs=xs, ys=ys)
         xs, ys = moretry.pareto(xs, ys)
         for x, y in zip(xs, ys):
             print(str(list(y)) + ' ' + str([int(xi) for xi in x]))
         
 def show_example_solution():
-    # [-5.0, -6.0]
-    # x = [10, 4, 14, 5, 3, 13, 15, 6, 0, 7, 1, 4, 9, 14, 8, 6, 13, 5, 8, 0, 15, 3, 14, 10, 13, 9, 4, 7, 10, 9, 4, 6, 3, 1, 15, 5, 2, 3, 14, 0, 7, 5, 8, 9, 11, 10, 1, 11, 15, 2, 12, 4, 8, 6, 4, 3, 0, 10, 6, 2, 13, 14, 12, 1, 12, 11, 5, 15, 3, 0, 8, 2, 2, 6, 15, 1, 10, 5, 8, 3, 11, 13, 8, 3, 5, 6, 4, 10, 7, 11, 7, 12, 5, 15, 8, 4, 2, 11, 9, 11, 10, 9, 4, 7, 2, 13, 12, 1, 2, 4, 5, 13, 14, 3, 10, 6, 15, 0, 10, 11, 12, 6, 5, 4, 2, 15]
-    # [95.0, -7.0] 
     x = [10, 12, 14, 15, 6, 5, 1, 3, 13, 12, 4, 7, 5, 14, 10, 8, 13, 11, 8, 1, 4, 11, 7, 2, 3, 14, 12, 11, 10, 0, 13, 6, 5, 2, 7, 3, 8, 10, 3, 0, 4, 9, 6, 11, 13, 10, 9, 1, 2, 15, 13, 5, 8, 7, 10, 9, 0, 7, 12, 15, 14, 5, 1, 11, 3, 14, 1, 4, 13, 9, 10, 2, 8, 6, 11, 9, 7, 5, 2, 12, 0, 7, 4, 0, 3, 15, 8, 6, 14, 13, 2, 13, 10, 4, 8, 5, 11, 6, 0, 1, 15, 0, 8, 6, 4, 10, 2, 12, 10, 15, 7, 14, 9, 12, 4, 8, 6, 9, 2, 5, 11, 3, 1, 15, 7, 6]
     p.show(np.array(x))
+    print(list(x))
            
 if __name__ == '__main__':
-    p = problem('data/sched.json')
+    p = problem('data/sched1.json')
     # p = problem('data/sched2.json')
     p.optimize()
     #p.optimize_mo()
