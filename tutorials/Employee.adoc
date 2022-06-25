@@ -298,7 +298,7 @@ std shifts per employee 1.5360257159305635
 ...
 ----
 
-As we can see we get different results we can choose from. This process obviously can be 
+We get different results we can choose from. This process obviously can be 
 parallelized on different cloud CPU nodes. The last one has a quite equal work distribution
 and fulfills 5 work day "desires".
 
