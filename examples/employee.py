@@ -108,11 +108,9 @@ def fitness_(employees_at_shift, day_ids, required_skill_ids, skill_set_ids,
         employee_num_shifts[employee] += 1
         if employee_last_day[employee] == day:
             score += 1000  # employee should only work once a day
-            continue
         employee_last_day[employee] = day
         if sec_start[shift] - employee_last_end[employee] < 10*3600:
             score += 1000  # employee should pause for 10 hours (and shifts should not overlap)
-            continue
         employee_last_end[employee] = sec_end[shift]
         required_skill = required_skill_ids[shift]
         skill_set = skill_set_ids[employee]
@@ -128,7 +126,7 @@ def fitness_(employees_at_shift, day_ids, required_skill_ids, skill_set_ids,
                 elif type == UNAVAILABLE:
                     score += 1000 # employee is unavailable
                 elif type == DESIRED:
-                    score -= 1 # employee works at desired day
+                    score -= 100 # employee works at desired day
     return score, employee_num_shifts
         
 class problem():
@@ -176,7 +174,7 @@ class problem():
         score, employee_num_shifts = fitness_(x.astype(int), self.day_ids, 
                     self.required_skill_ids, self.skill_set_ids, self.avail_name_ids, 
                     self.avail_day_ids, self.avail_type_ids, self.sec_start, self.sec_end)
-        return score - 0.1*min(employee_num_shifts)
+        return score + 100*np.std(employee_num_shifts)
 
     def fitness_mo(self, x):
         score, employee_num_shifts = fitness_(x.astype(int), self.day_ids, 
@@ -204,11 +202,9 @@ class problem():
             employee_num_shifts[employee] += 1
             if employee_last_day[employee] == day:
                 print("employee", name, "works twice a day", shift)
-                continue
             employee_last_day[employee] = day
             if self.sec_start[i] - employee_last_end[employee] < 10*3600:
                 print("employee", name, "employee should pause for 10 hours ", shift)
-                continue
             employee_last_end[employee] = self.sec_end[i]
             required_skill = self.required_skill_ids[i]
             skill_set = self.skill_set_ids[employee]
