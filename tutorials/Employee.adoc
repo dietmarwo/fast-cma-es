@@ -12,7 +12,7 @@ https://github.com/optapy/optapy-quickstarts/blob/stable/employee-scheduling/REA
 an https://github.com/optapy/optapy[OptaPy] tutorial for employee scheduling.
 - Will show how to improve the OptaPy result by applying parallel continuous optimization.
 - Illustrate how easy it is to specify the corresponding fitness function.
-- Will apply multi-objective optimization to produce a set of non-dominated scheduling choices which 
+- Apply multi-objective optimization to produce a set of non-dominated scheduling choices which 
 involve an additional competing objective.
 
 The code for this tutorial is
@@ -38,7 +38,7 @@ So even if millions of fitness evaluations are required to solve a scheduling/pl
 of seconds now. 
 
 But this is only half of the story: What if you want to consider an additional competing objective and want to 
-generate a number of non-dominating choices - a so called pareto-front? For continous optimization this is a
+generate a number of non-dominating choices - a so called pareto-front? For continuous optimization this is a
 "solved problem", you get it "for free", but not for traditional scheduling optimizers like https://github.com/optapy/optapy[OptaPy].
 
 Now you could argue, that it is much easier to specify the details of a scheduling problem using an API specifically created
@@ -61,6 +61,22 @@ you will notice two things:
 
 - Some employees are almost doing nothing.
 - The green slots are almost empty. This means the "desires" of the employees to work at a specific day are almost ignored. 
+
+If you interpret the "DESIRED" fields as days an employee wants to work and use the start of a shift to 
+identify the day, then no "desires" are fulfilled. 
+
+We get:
+
+----
+desired shift days 0
+shifts per employee [11, 13, 13, 13, 12, 14, 11, 12, 7, 4, 8, 5, 1, 0, 0, 2]
+min shifts per employee 0
+mean shifts per employee 7.875
+std shifts per employee 4.998437255783052
+----
+
+What happens of we repeat the experiment? We always end up with the same result, so we have no alternatives we can 
+choose from. 
 
 Imagine what would happen if you would install such a schedule in the real world. You would soon end up with less employees, since
 some would prefer to work elsewhere. Hiring people is expensive, so lets see if we can do something about that. 
@@ -228,9 +244,8 @@ this results to 32 optimizations performed in parallel.
 
     def optimize(self):
         self.fitness(np.random.uniform(0, len(self.employees), self.dim).astype(int))
-        res = retry.minimize_plot("schedule.bite.500k", Bite_cpp(200000),  
-        # res = retry.minimize_plot("schedule.de.500k", De_cpp(200000, popsize = 256, ints = [True]*self.dim),  
-        # res = retry.minimize_plot("schedule.crfnes.500k", Crfmnes_cpp(400000, popsize=128),  
+        res = retry.minimize_plot("schedule.bite.400k", Bite_cpp(400000),  
+        #res = retry.minimize_plot("schedule.de.400k", De_cpp(400000, popsize = 512, ints = [True]*self.dim), 
                     wrapper(self.fitness), self.bounds, num_retries=32, plot_limit=10000)
         print(self.fitness_mo(res.x)) 
         self.show(res.x)
@@ -238,31 +253,61 @@ this results to 32 optimizations performed in parallel.
 
 In the diagrams below you see:
 
-- BitOpt is the best choice for this problem.
-- Less than one second is required to find the solution - although the optimizer runs a bit longer. 
+- Both BitOpt and Differential Evolution can solve this problem.
+- Less than three seconds is required to find the solution - although the optimizer runs a bit longer. 
 
 image::employeeres.png[]
 
 'self.show(res.x)` shows the result as a human readable list. It converts the indices back into schedules, employees and
 fulfilled/violated constraints. As we see all 5 "desired" work day constraints are fulfilled and all employees get at least
-6 shifts applied.  
+5 shifts applied.  
 
 ----
-[-5, -6]
-{'start': '2022-06-27T06:00:00', 'end': '2022-06-27T14:00:00', 'location': 'Ambulatory care', 'required_skill': 'Anaesthetics', 'employee': {'name': 'Beth King', 'skill_set': ['Anaesthetics', 'Doctor']}}
-{'start': '2022-06-27T14:00:00', 'end': '2022-06-27T22:00:00', 'location': 'Ambulatory care', 'required_skill': 'Anaesthetics', 'employee': {'name': 'Dan Poe', 'skill_set': ['Anaesthetics', 'Doctor']}}
-...
-{'name': 'Ivy King', 'skill_set': ['Anaesthetics', 'Nurse']} {'employee': {'name': 'Ivy King', 'skill_set': ['Anaesthetics', 'Nurse']}, 'date': '2022-06-29', 'availability_type': 'DESIRED'}
-{'name': 'Gus Fox', 'skill_set': ['Anaesthetics', 'Nurse']} {'employee': {'name': 'Gus Fox', 'skill_set': ['Anaesthetics', 'Nurse']}, 'date': '2022-07-03', 'availability_type': 'DESIRED'}
-{'name': 'Dan Poe', 'skill_set': ['Anaesthetics', 'Doctor']} {'employee': {'name': 'Dan Poe', 'skill_set': ['Anaesthetics', 'Doctor']}, 'date': '2022-07-04', 'availability_type': 'DESIRED'}
-{'name': 'Beth Cole', 'skill_set': ['Anaesthetics', 'Nurse']} {'employee': {'name': 'Beth Cole', 'skill_set': ['Anaesthetics', 'Nurse']}, 'date': '2022-07-05', 'availability_type': 'DESIRED'}
-{'name': 'Elsa Watt', 'skill_set': ['Nurse']} {'employee': {'name': 'Elsa Watt', 'skill_set': ['Nurse']}, 'date': '2022-07-05', 'availability_type': 'DESIRED'}
+desired shift days 5
+shifts per employee [5, 7, 7, 9, 9, 9, 10, 9, 7, 5, 9, 9, 7, 9, 5, 10]
+min shifts per employee 5
+mean shifts per employee 7.875
+std shifts per employee 1.6909686573085854
 ----
+
+What happens if we repeat the BiteOpt optimization? We get:
+
+----
+shifts per employee [5, 10, 9, 7, 10, 10, 9, 10, 6, 5, 8, 8, 5, 9, 5, 10]
+min shifts per employee 5
+mean shifts per employee 7.875
+std shifts per employee 1.996089927833914
+
+desired shift days 5
+shifts per employee [5, 8, 8, 7, 10, 6, 10, 10, 8, 5, 7, 11, 8, 7, 5, 11]
+min shifts per employee 5
+mean shifts per employee 7.875
+std shifts per employee 1.996089927833914
+
+desired shift days 5
+shifts per employee [4, 7, 10, 8, 9, 7, 9, 12, 10, 4, 10, 9, 6, 8, 5, 8]
+min shifts per employee 4
+mean shifts per employee 7.875
+std shifts per employee 2.2043990110685496
+
+desired shift days 5
+shifts per employee [5, 7, 9, 8, 9, 9, 10, 9, 8, 7, 8, 9, 5, 7, 6, 10]
+min shifts per employee 5
+mean shifts per employee 7.875
+std shifts per employee 1.5360257159305635
+...
+----
+
+As we can see we get different results we can choose from. This process obviously can be 
+parallelized on different cloud CPU nodes. The last one has a quite equal work distribution
+and fulfills 5 work day "desires".
+
 
 === Multi-Objective Fitness
 
-For the fitness function the only change is that instead of adding `-0.1*min(employee_num_shifts)` to the first objective, 
-we return a second one `-min(employee_num_shifts)`. 
+For the fitness function the only change is that instead of adding `-0.1*np.std(employee_num_shifts)` to the first objective, 
+we return a second one `np.std(employee_num_shifts)`. Note that alternatively we could maximize
+the minimal number of assigned shifts to an employee: `-min(employee_num_shifts)`. 
 
 [source,python]
 ----
@@ -280,7 +325,7 @@ Since the `fcmaes` library offers only one multi-objective optimizer "MODE", the
 choice we have to make is whether to use differential evolution or NSGA-II population
 update (parameter `nsga_update=True`). The recommendation is to try both. For this problem
 NSGA-II population update works much better. Multi-objective optimization usually needs
-a larger population size, we choose 256 here. 
+a larger population size, we choose 512 here. 
 
 [source,python]
 ----
@@ -288,7 +333,7 @@ a larger population size, we choose 256 here.
         self.fitness_mo(np.random.uniform(0, len(self.employees), self.dim).astype(int))
         pname = "schedule_mo_600k.512"    
         xs, ys = modecpp.retry(mode.wrapper(self.fitness_mo, 2), 
-                         2, 0, self.bounds, popsize = 512, max_evaluations = 600000, 
+                     2, 0, self.bounds, popsize = 512, max_evaluations = 600000, 
                      nsga_update=True, num_retries = 32, workers=32)
         np.savez_compressed(pname, xs=xs, ys=ys)
         xs, ys = moretry.pareto(xs, ys)
@@ -296,29 +341,45 @@ a larger population size, we choose 256 here.
             print(str(list(y)) + ' ' + str([int(xi) for xi in x]))
 ----
 
-As a result we get lists of corresponding argument vectors (`xs`) and function values (`ys`) which represent
+As a result, after about 36 seconds,  we get lists of corresponding argument vectors (`xs`) and function values (`ys`) which represent
 the set of non-dominated solutions - the pareto-front: 
 
 ----
-[-5.0, -6.0] [10, 4, 14, 5, 3, 13, 15, 6, 0, 7, 1, 4, 9, 14, 8, 6, 13, 5, 8, 0, 15, 3, 14, 10, 13, 9, 4, 7, 10, 9, 4, 6, 3, 1, 15, 5, 2, 3, 14, 0, 7, 5, 8, 9, 11, 10, 1, 11, 15, 2, 12, 4, 8, 6, 4, 3, 0, 10, 6, 2, 13, 14, 12, 1, 12, 11, 5, 15, 3, 0, 8, 2, 2, 6, 15, 1, 10, 5, 8, 3, 11, 13, 8, 3, 5, 6, 4, 10, 7, 11, 7, 12, 5, 15, 8, 4, 2, 11, 9, 11, 10, 9, 4, 7, 2, 13, 12, 1, 2, 4, 5, 13, 14, 3, 10, 6, 15, 0, 10, 11, 12, 6, 5, 4, 2, 15]
-[95.0, -7.0] [10, 12, 14, 15, 6, 5, 1, 3, 13, 12, 4, 7, 5, 14, 10, 8, 13, 11, 8, 1, 4, 11, 7, 2, 3, 14, 12, 11, 10, 0, 13, 6, 5, 2, 7, 3, 8, 10, 3, 0, 4, 9, 6, 11, 13, 10, 9, 1, 2, 15, 13, 5, 8, 7, 10, 9, 0, 7, 12, 15, 14, 5, 1, 11, 3, 14, 1, 4, 13, 9, 10, 2, 8, 6, 11, 9, 7, 5, 2, 12, 0, 7, 4, 0, 3, 15, 8, 6, 14, 13, 2, 13, 10, 4, 8, 5, 11, 6, 0, 1, 15, 0, 8, 6, 4, 10, 2, 12, 10, 15, 7, 14, 9, 12, 4, 8, 6, 9, 2, 5, 11, 3, 1, 15, 7, 6]
+[-5.0, 0.6959705453537527] [12, 5, 13, 2, 10, 6, 3, 7, 0, 14, 2, 6, 1, 0, 15, 8, 3, 9, 10, 14, 8, 11, 9, 15, 13, 1, 4, 5, 15, 0, 3, 2, 10, 12, 13, 11, 6, 4, 0, 14, 7, 9, 8, 3, 13, 8, 14, 11, 15, 3, 12, 5, 4, 7, 10, 9, 0, 2, 5, 6, 1, 11, 3, 12, 6, 14, 11, 2, 7, 0, 10, 4, 8, 3, 12, 13, 5, 1, 6, 11, 7, 12, 8, 14, 11, 6, 4, 10, 9, 5, 1, 2, 13, 4, 8, 15, 11, 7, 0, 14, 2, 13, 4, 1, 6, 15, 10, 12, 3, 6, 5, 9, 1, 7, 4, 15, 11, 0, 12, 13, 2, 10, 5, 8, 7, 15]
+[-4.0, 0.4841229182759271] [10, 1, 9, 6, 11, 4, 15, 13, 0, 7, 13, 15, 14, 1, 4, 2, 6, 11, 15, 0, 8, 5, 12, 4, 9, 14, 11, 3, 15, 9, 1, 4, 7, 5, 13, 2, 8, 3, 14, 9, 2, 5, 6, 0, 1, 6, 14, 12, 15, 7, 11, 3, 8, 1, 6, 0, 9, 5, 10, 2, 11, 13, 1, 11, 12, 14, 7, 8, 3, 0, 15, 10, 6, 15, 4, 3, 7, 5, 2, 11, 13, 12, 10, 1, 15, 6, 4, 8, 9, 5, 4, 12, 13, 8, 6, 3, 10, 7, 0, 9, 8, 14, 2, 7, 10, 12, 11, 15, 3, 4, 5, 9, 14, 12, 10, 2, 1, 0, 13, 7, 3, 12, 5, 2, 10, 8]
+[96.0, 0.33071891388307384] [10, 1, 3, 6, 11, 4, 15, 13, 0, 7, 13, 15, 14, 1, 4, 2, 6, 11, 15, 0, 8, 5, 12, 4, 9, 14, 11, 3, 15, 9, 1, 4, 7, 5, 13, 2, 8, 3, 14, 9, 2, 5, 6, 0, 1, 6, 14, 12, 15, 7, 11, 3, 8, 1, 6, 0, 9, 5, 10, 2, 11, 13, 1, 11, 12, 14, 7, 8, 3, 0, 15, 10, 6, 13, 4, 9, 7, 5, 2, 11, 14, 12, 10, 0, 15, 6, 4, 8, 9, 5, 4, 12, 13, 8, 6, 3, 10, 7, 0, 9, 8, 14, 2, 7, 10, 12, 11, 15, 3, 4, 5, 9, 14, 12, 10, 2, 1, 0, 13, 7, 3, 12, 5, 2, 10, 8]
 ----
 
-If we call `show` for the second solution we see that 'Elsa Li' has to work on an undesired day, but we still have all 'DESIRED' requirements fulfilled and
-have now a minimum number of shifts per employee of 7. 
+We can use `problem.show` to check the details:
 
 ----
-{'name': 'Ivy King', 'skill_set': ['Anaesthetics', 'Nurse']} {'employee': {'name': 'Ivy King', 'skill_set': ['Anaesthetics', 'Nurse']}, 'date': '2022-06-29', 'availability_type': 'DESIRED'}
-{'name': 'Gus Fox', 'skill_set': ['Anaesthetics', 'Nurse']} {'employee': {'name': 'Gus Fox', 'skill_set': ['Anaesthetics', 'Nurse']}, 'date': '2022-07-03', 'availability_type': 'DESIRED'}
-{'name': 'Dan Poe', 'skill_set': ['Anaesthetics', 'Doctor']} {'employee': {'name': 'Dan Poe', 'skill_set': ['Anaesthetics', 'Doctor']}, 'date': '2022-07-04', 'availability_type': 'DESIRED'}
-{'name': 'Elsa Watt', 'skill_set': ['Nurse']} {'employee': {'name': 'Elsa Watt', 'skill_set': ['Nurse']}, 'date': '2022-07-05', 'availability_type': 'DESIRED'}
-{'name': 'Beth Cole', 'skill_set': ['Anaesthetics', 'Nurse']} {'employee': {'name': 'Beth Cole', 'skill_set': ['Anaesthetics', 'Nurse']}, 'date': '2022-07-05', 'availability_type': 'DESIRED'}
+desired shift days 5
+shifts per employee [8, 7, 8, 8, 8, 8, 9, 8, 8, 6, 8, 9, 8, 8, 7, 8]
+min shifts per employee 6
+mean shifts per employee 7.875
+std shifts per employee 0.6959705453537527
+
+desired shift days 4
+shifts per employee [7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 7, 7, 9]
+min shifts per employee 7
+mean shifts per employee 7.875
+std shifts per employee 0.4841229182759271
+
 {'name': 'Elsa Li', 'skill_set': ['Doctor']} {'employee': {'name': 'Elsa Li', 'skill_set': ['Doctor']}, 'date': '2022-07-05', 'availability_type': 'UNDESIRED'}
+desired shift days 4
+shifts per employee [8, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 7, 8, 8]
+min shifts per employee 7
+mean shifts per employee 7.875
+std shifts per employee 0.33071891388307384
 ----
 
-Multi-objective optimization doesn't require that we "weight" objectives in advance, their scaling doesn't matter. Instead we are presented with a
+In the last solution 'Elsa Li' has to work on an undesired day, and we have only 4 'DESIRED' requirements fulfilled,
+but now the shift per employee distribution is almost equal. 
+Multi-objective optimization helped to produce solutions which are much better at work distribution without 
+compromising much. It doesn't require that we "weight" objectives in advance, their scaling doesn't matter. Instead we are presented with a
 set of choices and can decide afterwards what we prefer. We can talk with 'Elsa Li' asking her what she prefers.
-For this specific problem instance the number of choices is quite limited, which will not be the case with larger employee scheduling problem instances. 
+For this specific problem instance the number of choices is quite limited, which will not be the case with 
+larger employee scheduling problem instances with more valid assignment choices. 
 
 Edit and execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/employee.py[employee.py] to reproduce our results. Expect slower timings 
 with older CPUs having less cores - we used a 16 core AMD 5950x. Remember `fcmaes` is mainly about utilizing all resources of modern
@@ -326,138 +387,122 @@ many core CPUs.
 
 === Challenge
 
-I modified the problem generating settings in 
+We modified the problem generating settings in 
 https://github.com/optapy/optapy-quickstarts/blob/stable/employee-scheduling/services.py[services.py]
-to generate a tougher challenge. I added some employees and optional skills:
+to generate a tougher challenge:
+
+- More optional skills `["Anaesthetics", "Surgery", "Radiology"]`
+- Roster length of 28 days:
+- 20 employees 
+- Skill distribution `skills = pick_subset(OPTIONAL_SKILLS, random, 1, 4, 4)`
 
 [source,python]
 ----
-FIRST_NAMES = ["Amy", "Beth", "Chad", "Dan", "Elsa", "Flo", "Gus", "Hugo", "Ivy", "Jay", "Carl", "Joy", "Marie", "Love",]
-LAST_NAMES = ["Cole", "Fox", "Green", "Jones", "King", "Li", "Poe", "Rye", "Smith", "Watt", "Sagan", "Field", "Curie", "Work"]
-REQUIRED_SKILLS = ["Doctor", "Nurse"]
 OPTIONAL_SKILLS = ["Anaesthetics", "Surgery", "Radiology"]
-LOCATIONS = ["Ambulatory care", "Critical care", "Pediatric care"]
 ...
-    for i in range(16):
-        skills = pick_subset(OPTIONAL_SKILLS, random, 1, 4)
+    INITIAL_ROSTER_LENGTH_IN_DAYS = 28
+...
+    for i in range(20):
+        skills = pick_subset(OPTIONAL_SKILLS, random, 1, 4, 4)
 ----
 
-Now OptaPy shows a score of `Score: -1hard/-480soft`:
+This is a setting OptaPy still can solve. We tried several time limits:
 
-image::employee2.png[]
+----
+time spent (100056), best score (-1hard/-480soft), score calculation speed (84/sec) step total (280).
+time spent (200053), best score (-1hard/-480soft), score calculation speed (61/sec) step total (609).
+time spent (300029), best score (-1hard/-480soft), score calculation speed (46/sec) step total (755).
+time spent (400011), best score (-1hard/-480soft), score calculation speed (52/sec) step total (1436).
+time spent (600030), best score (-1hard/0soft), score calculation speed (55/sec) step total (2631).
+time spent (800051), best score (-1hard/0soft), score calculation speed (35/sec) step total (2111).
+time spent (1200084), best score (-1hard/0soft), score calculation speed (31/sec) step total (3068).
+time spent (1600059), best score (-1hard/0soft), score calculation speed (47/sec) step total (6529).
+time spent (2400029), best score (0hard/-2880soft), score calculation speed (38/sec) step total (8148).
+time spent (3200127), best score (0hard/-1440soft), score calculation speed (37/sec) step total (10865).
+time spent (4800145), best score (0hard/-480soft), score calculation speed (45/sec) step total (19716).
+time spent (20000064), best score (0hard/0soft), score calculation speed (21/sec) step total (72491).
+----
 
-You can try this setting by switching to another json:
+20000 seconds is sufficient. We executed OptaPy 12 times using this limit and always got:
+
+----
+desired shift days 0
+shifts per employee [11, 17, 16, 17, 13, 6, 12, 14, 18, 18, 9, 14, 9, 15, 5, 7, 12, 13, 15, 11]
+min shifts per employee 5
+mean shifts per employee 12.6
+std shifts per employee 3.8000000000000003
+----
+
+No desired work day fulfilled, and a quite large standard deviation of the shift assignemnts to the employees. 
+
+We need to reconfigure the single objective optimization to adapt for the increased complexity:
 
 [source,python]
 ----
-p = problem('data/sched2.json')
+    def optimize(self):
+        self.fitness(np.random.uniform(0, len(self.employees), self.dim).astype(int))
+        res = retry.minimize_plot("schedule.bite.4000k", Bite_cpp(4000000),  
+        #res = retry.minimize_plot("schedule.de.10000k", De_cpp(10000000, popsize = 10000, ints = [True]*self.dim), 
+        print(self.fitness_mo(res.x)) 
+        self.show(res.x)
 ----
 
-Single objective optimization still works, but we need more evaluations and a higher population size (1024) for differential
-evolution. Still BiteOpt is the better choice, since it adapts automatically and is a bit more reliable. 
+Note, that Differential Evolution now requires a huge population size. BiteOpt can still can solve the problem in a 
+reasonable time of about 70 seconds: 
 
 image::employeeres2.png[]
 
-For multi-objective optimization we configured also population size = 1024 and 2000.000 evaluations. The whole optimization
-now needs about 90 seconds on the AMD 5950x CPU. But we still get again two valid results, 
-one with five fulfilled desired shifts and a minimal 
-number of six shifts, the other with three fulfilled desired shifts and a minimal 
-number of seven shifts per employee. Both schedules fulfill all hard and soft requirements.
+Different BiteOpt runs produce the following solutions:
 
 ----
-[-5.0, -6.0] [0, 6, 10, 8, 13, 2, 11, 14, 5, 7, 12, 3, 15, 13, 14, 6, 11, 8, 13, 2, 0, 6, 9, 11, 3, 8, 15, 13, 10, 3, 8, 1, 0, 9, 6, 15, 13, 1, 9, 10, 12, 5, 7, 4, 3, 8, 10, 7, 15, 5, 12, 11, 3, 4, 13, 4, 8, 0, 10, 2, 14, 9, 11, 14, 10, 2, 0, 8, 12, 1, 5, 3, 13, 6, 5, 14, 9, 1, 10, 3, 4, 6, 15, 2, 11, 5, 8, 3, 7, 12, 11, 3, 2, 1, 6, 13, 4, 9, 12, 10, 0, 14, 3, 4, 13, 7, 5, 6, 1, 5, 3, 15, 0, 6, 10, 7, 11, 14, 13, 0, 10, 2, 5, 3, 8, 15]
-[-3.0, -7.0] [0, 6, 10, 9, 13, 1, 11, 14, 5, 7, 12, 3, 15, 13, 14, 11, 6, 8, 13, 2, 0, 6, 9, 11, 3, 8, 15, 13, 10, 2, 8, 1, 0, 9, 6, 15, 13, 1, 9, 10, 12, 5, 7, 4, 3, 4, 10, 7, 15, 8, 12, 11, 3, 2, 13, 4, 8, 0, 10, 2, 14, 9, 11, 14, 10, 2, 0, 8, 12, 1, 5, 4, 13, 6, 7, 14, 9, 1, 10, 3, 4, 6, 15, 2, 11, 5, 8, 3, 7, 12, 11, 3, 8, 1, 6, 13, 4, 9, 12, 12, 0, 14, 3, 4, 13, 7, 5, 6, 1, 5, 3, 15, 0, 6, 10, 7, 11, 14, 13, 0, 10, 2, 5, 3, 8, 15]
+desired shift days 6
+shifts per employee [7, 19, 16, 15, 14, 7, 11, 18, 17, 20, 12, 12, 8, 17, 7, 7, 8, 8, 15, 14]
+min shifts per employee 7
+mean shifts per employee 12.6
+std shifts per employee 4.374928570845471
+
+{'name': 'Dan Poe', 'skill_set': ['Anaesthetics', 'Radiology', 'Doctor']} {'employee': {'name': 'Dan Poe', 'skill_set': ['Anaesthetics', 'Radiology', 'Doctor']}, 'date': '2022-07-23', 'availability_type': 'UNDESIRED'}
+desired shift days 6
+shifts per employee [8, 18, 14, 13, 13, 7, 14, 17, 15, 21, 8, 16, 7, 22, 7, 8, 9, 8, 17, 10]
+min shifts per employee 7
+mean shifts per employee 12.6
+std shifts per employee 4.72652091923859
+
+desired shift days 6
+shifts per employee [9, 13, 16, 16, 15, 9, 12, 18, 21, 17, 9, 12, 9, 15, 9, 9, 10, 9, 14, 10]
+min shifts per employee 9
+mean shifts per employee 12.6
+std shifts per employee 3.6110940170535577
 ----
 
-    INITIAL_ROSTER_LENGTH_IN_DAYS = 28
-    ...
-    for i in range(16):
-        skills = pick_subset(OPTIONAL_SKILLS, random, 1, 4, 4)
+The last solution has a quite equal shift distribution and fulfills six work day desires. 
+But from the second solution we see that not always all soft requirements are fulfilled, Dan Poe 
+has to work at an undesired day.
 
-=== 28 day roster
-
-Finally let us further complicate things: We double the roster length to 4 weeks and add another skill to each employee
-to compensate for that. This makes the task a bit easier since there are more choices, on the other hand it is much more 
-complex now. 
+For multi-objective optimization we also have to adapt the parameters:
 
 [source,python]
 ----
-    INITIAL_ROSTER_LENGTH_IN_DAYS = 28
-    ...
-        for i in range(16):
-        skills = pick_subset(OPTIONAL_SKILLS, random, 1, 4, 4)  
-----
+        xs, ys = modecpp.retry(mode.wrapper(self.fitness_mo, 2), 
+                 2, 0, self.bounds, popsize = 4096, max_evaluations = 20000000, 
+             nsga_update=True, num_retries = 32, workers=32)
+---- 
 
-Now OptaPy solves all soft constraints, but cannot fulfill 1 hard constraints, even when we increase the time limit:
-
-----
-solver_config\
-... 
-     .withTerminationSpentLimit(Duration.ofSeconds(600)
-----
-
-After 10 minutes we get:
+We find a pareto front:
 
 ----
-23:14:39.030 [l-1-thread-1] INFO  Solving ended: time spent (600186), best score (-1hard/0soft), score calculation speed (52/sec), phase total (2)
+[-6.0, 2.2671568097509267] [10, 17, 0, 13, 1, 15, 19, 6, 8, 10, 2, 9, 4, 1, 5, 11, 16, 6, 12, 18, 8, 11, 1, 15, 7, 9, 6, 2, 13, 3, 16, 15, 14, 11, 12, 10, 4, 2, 1, 17, 10, 8, 12, 13, 11, 9, 19, 3, 8, 17, 7, 12, 1, 14, 3, 7, 18, 5, 0, 12, 2, 13, 14, 2, 16, 15, 3, 7, 11, 19, 4, 9, 14, 19, 18, 1, 6, 8, 2, 3, 9, 8, 18, 17, 1, 3, 7, 16, 5, 4, 2, 6, 13, 9, 18, 17, 5, 10, 1, 3, 4, 16, 7, 6, 13, 9, 17, 18, 3, 2, 10, 0, 6, 8, 9, 4, 19, 17, 18, 13, 1, 15, 11, 9, 0, 3, 7, 8, 12, 19, 10, 9, 11, 17, 3, 4, 19, 5, 9, 7, 6, 16, 2, 15, 3, 2, 14, 1, 15, 0, 12, 13, 18, 16, 7, 8, 1, 9, 14, 11, 4, 17, 6, 14, 2, 12, 13, 15, 8, 3, 10, 2, 4, 15, 1, 3, 11, 14, 8, 7, 2, 19, 13, 10, 17, 9, 16, 11, 4, 6, 12, 13, 14, 1, 0, 15, 5, 3, 6, 19, 4, 2, 7, 8, 11, 16, 5, 18, 9, 4, 19, 2, 1, 15, 8, 6, 16, 18, 4, 12, 14, 5, 17, 11, 15, 19, 6, 7, 13, 8, 0, 16, 5, 11, 7, 1, 18, 14, 13, 19, 2, 9, 3, 4, 0, 18, 16, 10, 7, 9, 1, 6]
+[993.0, 2.1999999999999997] [10, 17, 0, 13, 1, 15, 19, 6, 8, 12, 2, 9, 4, 1, 5, 11, 16, 6, 12, 18, 8, 11, 1, 15, 7, 9, 6, 2, 13, 3, 16, 15, 14, 11, 12, 10, 4, 2, 1, 17, 10, 8, 12, 13, 11, 9, 19, 3, 8, 17, 7, 12, 1, 14, 3, 7, 18, 5, 0, 12, 2, 13, 14, 2, 16, 15, 3, 7, 11, 19, 4, 9, 14, 19, 18, 1, 6, 8, 2, 3, 9, 8, 18, 17, 1, 3, 7, 16, 5, 4, 2, 6, 13, 9, 18, 17, 5, 10, 1, 3, 4, 16, 7, 6, 13, 9, 17, 18, 3, 2, 10, 0, 6, 8, 9, 4, 19, 17, 18, 13, 1, 15, 11, 9, 0, 3, 7, 8, 12, 19, 10, 9, 11, 17, 3, 4, 19, 5, 9, 7, 6, 16, 2, 15, 3, 2, 14, 1, 17, 0, 12, 13, 18, 16, 7, 8, 1, 9, 14, 11, 4, 17, 6, 14, 2, 12, 13, 15, 8, 3, 10, 2, 4, 15, 1, 3, 11, 14, 8, 7, 2, 19, 13, 10, 17, 9, 16, 11, 4, 6, 12, 13, 14, 1, 0, 15, 5, 3, 6, 19, 4, 2, 7, 8, 11, 16, 5, 18, 14, 4, 19, 2, 1, 15, 8, 6, 16, 18, 4, 12, 14, 5, 17, 11, 15, 19, 6, 7, 13, 8, 0, 16, 5, 11, 7, 1, 18, 14, 13, 19, 2, 9, 3, 4, 0, 18, 16, 10, 7, 9, 1, 6]
+...
 ----
-
-May be parameters can further https://www.optapy.org/docs/latest/optimization-algorithms/optimization-algorithms.html[be tweaked],
-but at least class optapy.config.solver.SolverConfig seems to offer no more options. 
-
-We created a corresponding json `data/sched3.json` and now need a population size of 2048 for differential evolution:
-
-[source,python]
-----
-p = problem('data/sched3.json')
-
-# res = retry.minimize_plot("schedule.de.2000k", De_cpp(2000000, popsize = 2048, ints = [True]*self.dim),  
-res = retry.minimize_plot("schedule.bite.2000k", Bite_cpp(2000000),  
-----
-image::employee2.png[]
-This time BiteOpt is clearly better, eight fulfilled "desired" shifts and a minimal number of shifts per employee of 12: 
-
-image::employeeres3.png[]
-
-Multi-objective optimization also requires a population size = 2048 and we configured 5.000.000 evaluations.
-
-[source,python]
-----
-xs, ys = modecpp.retry(mode.wrapper(self.fitness_mo, 2), 
-                 2, 0, self.bounds, popsize = 2048, max_evaluations = 5000000, 
-                    nsga_update=True, num_retries = 32, workers=32)
-----
-
-This optimization needs about 6 minutes and results in the following pareto-front:
+There is a valid solution which fulfills 6 day 'desires' and provides a better distribution of work between the employees. 
 
 ----
-[-8.0, -13.0] [0, 6, 10, 9, 3, 7, 12, 11, 2, 4, 15, 10, 12, 2, 9, 8, 6, 11, 6, 8, 7, 9, 5, 13, 14, 1, 0, 11, 7, 10, 13, 8, 0, 5, 3, 6, 3, 7, 1, 6, 11, 5, 9, 13, 4, 0, 10, 13, 6, 8, 14, 7, 4, 2, 5, 15, 7, 12, 13, 8, 11, 4, 6, 14, 1, 6, 7, 13, 11, 9, 3, 8, 6, 4, 14, 12, 1, 10, 3, 0, 7, 3, 5, 8, 12, 0, 6, 1, 15, 10, 8, 15, 7, 6, 4, 2, 12, 5, 14, 13, 2, 3, 10, 4, 7, 15, 6, 1, 0, 11, 3, 5, 12, 2, 10, 13, 6, 3, 13, 0, 2, 12, 14, 10, 6, 8, 1, 7, 4, 15, 10, 12, 9, 14, 3, 2, 0, 13, 14, 3, 4, 7, 10, 8, 13, 9, 3, 4, 11, 6, 15, 12, 14, 4, 15, 2, 7, 3, 9, 12, 14, 6, 12, 15, 0, 6, 11, 13, 8, 7, 1, 11, 12, 10, 8, 1, 2, 7, 6, 9, 13, 7, 5, 6, 9, 3, 11, 14, 2, 10, 1, 6, 15, 5, 3, 7, 9, 2, 12, 9, 1, 8, 4, 5, 10, 6, 0, 2, 14, 0, 15, 6, 11, 9, 7, 5, 13, 4, 14, 6, 2, 3, 9, 1, 12, 14, 5, 11, 7, 1, 13, 6, 3, 15, 5, 11, 0, 12, 13, 9, 8, 7, 2, 9, 12, 3, 13, 7, 15, 4, 11, 2]
-[-7.0, -14.0] [0, 6, 10, 9, 1, 7, 12, 11, 2, 4, 15, 10, 12, 1, 9, 8, 6, 11, 6, 8, 7, 9, 5, 13, 14, 1, 0, 11, 7, 10, 13, 8, 0, 5, 3, 6, 3, 7, 1, 6, 11, 5, 8, 12, 4, 0, 10, 13, 6, 8, 14, 7, 4, 2, 5, 15, 7, 14, 13, 8, 11, 4, 6, 14, 1, 6, 7, 13, 11, 9, 3, 8, 6, 4, 14, 12, 1, 10, 3, 0, 7, 3, 5, 8, 12, 0, 6, 1, 15, 10, 8, 15, 7, 6, 4, 2, 12, 5, 14, 13, 2, 3, 10, 4, 7, 15, 5, 0, 0, 11, 3, 5, 12, 2, 10, 13, 6, 3, 13, 0, 2, 12, 14, 10, 6, 8, 1, 7, 4, 15, 10, 12, 9, 14, 3, 2, 0, 13, 14, 3, 4, 7, 10, 8, 13, 9, 3, 4, 11, 6, 15, 12, 14, 4, 15, 2, 7, 3, 8, 12, 14, 6, 9, 15, 0, 6, 11, 13, 8, 7, 1, 11, 12, 10, 8, 1, 2, 7, 6, 9, 13, 7, 5, 6, 9, 3, 11, 14, 2, 10, 1, 6, 15, 5, 3, 7, 9, 2, 13, 9, 1, 8, 4, 5, 10, 6, 0, 2, 14, 0, 15, 6, 11, 9, 7, 5, 13, 4, 15, 6, 2, 3, 8, 1, 12, 14, 5, 11, 7, 1, 13, 6, 3, 15, 5, 11, 0, 12, 14, 9, 8, 7, 2, 9, 12, 3, 13, 7, 15, 4, 11, 2]
-[1293.0, -15.0] [5, 13, 0, 12, 1, 3, 11, 2, 8, 2, 14, 1, 13, 10, 15, 8, 6, 12, 14, 8, 7, 4, 6, 12, 15, 9, 1, 5, 3, 15, 7, 1, 11, 0, 8, 13, 4, 2, 1, 0, 11, 5, 9, 12, 8, 0, 10, 6, 7, 12, 2, 13, 4, 8, 2, 15, 6, 9, 7, 14, 11, 4, 13, 14, 1, 13, 3, 6, 5, 9, 7, 8, 6, 4, 5, 14, 15, 9, 3, 10, 7, 8, 0, 15, 12, 5, 7, 4, 14, 1, 15, 1, 7, 14, 8, 2, 12, 0, 9, 13, 11, 7, 10, 9, 3, 12, 6, 4, 5, 0, 7, 11, 14, 4, 15, 13, 3, 3, 7, 5, 10, 14, 2, 0, 13, 4, 1, 13, 10, 8, 0, 14, 9, 6, 3, 10, 11, 3, 5, 7, 14, 13, 8, 1, 7, 14, 13, 2, 4, 5, 15, 9, 10, 8, 1, 9, 3, 6, 4, 12, 2, 13, 12, 15, 5, 0, 8, 6, 11, 3, 4, 14, 0, 11, 8, 10, 15, 7, 6, 12, 7, 15, 11, 5, 10, 13, 6, 14, 1, 4, 15, 6, 11, 0, 3, 7, 9, 14, 12, 1, 15, 10, 9, 11, 0, 6, 2, 5, 0, 6, 9, 2, 10, 12, 3, 11, 13, 2, 10, 7, 6, 4, 1, 8, 9, 11, 5, 15, 3, 2, 13, 6, 7, 9, 5, 6, 2, 4, 12, 8, 11, 7, 10, 1, 10, 3, 13, 6, 12, 2, 0, 7]
-----
-The first solution is even better than what we got from single objective optimization: eight fulfilled "desired" shifts 
-and a minimal number of shifts per employee of 13.
-
-=== Optimizing the standard deviation of shift assignments
-
-Lets do another experiment by changing the second objective to the standard deviation of the assigned shifts for each employee
-using the same optimizer configuration as before. 
-
-[source,python]
-----
-    def fitness_mo(self, x):
-        score, employee_num_shifts = \
-            fitness_(x.astype(int), self.day_ids, self.required_skill_ids, self.skill_set_ids, 
-                     self.avail_name_ids, self.avail_day_ids, self.avail_type_ids)
-        return [score, np.std(employee_num_shifts)]
-----
-
-The result is quite similar to before
-
-----
-[-8.0, 0.6614378277661477] [11, 13, 10, 9, 1, 7, 14, 5, 4, 8, 0, 10, 12, 1, 15, 11, 3, 4, 6, 14, 7, 1, 5, 0, 2, 12, 9, 11, 13, 9, 3, 15, 1, 5, 8, 7, 4, 1, 8, 5, 14, 0, 10, 11, 2, 2, 4, 6, 3, 12, 14, 13, 9, 8, 2, 15, 6, 9, 7, 12, 8, 4, 13, 8, 2, 13, 6, 7, 5, 0, 3, 9, 13, 4, 2, 12, 15, 0, 6, 10, 7, 3, 0, 15, 12, 5, 7, 4, 8, 10, 4, 10, 3, 5, 8, 14, 12, 0, 11, 12, 5, 3, 15, 1, 13, 8, 11, 10, 11, 6, 3, 5, 9, 4, 2, 7, 13, 6, 7, 5, 0, 14, 10, 2, 3, 9, 1, 13, 4, 8, 10, 12, 9, 0, 6, 10, 5, 6, 11, 3, 9, 13, 4, 1, 3, 10, 13, 8, 15, 2, 1, 12, 14, 1, 14, 15, 6, 13, 8, 0, 11, 3, 12, 1, 6, 0, 9, 3, 14, 7, 11, 14, 0, 15, 10, 8, 1, 7, 5, 12, 6, 7, 14, 11, 9, 13, 0, 2, 15, 15, 1, 7, 4, 10, 3, 6, 9, 2, 12, 1, 15, 8, 9, 11, 14, 13, 5, 11, 0, 5, 15, 14, 4, 9, 7, 2, 6, 3, 10, 7, 11, 4, 2, 1, 12, 5, 14, 11, 7, 4, 13, 3, 6, 10, 0, 5, 2, 8, 12, 14, 9, 7, 15, 10, 15, 13, 3, 6, 2, 4, 0, 8]
-[-7.0, 0.5590169943749475] [5, 13, 10, 8, 4, 6, 12, 14, 2, 4, 9, 1, 14, 15, 10, 11, 7, 12, 6, 8, 7, 14, 5, 12, 1, 4, 9, 0, 13, 9, 6, 10, 11, 14, 8, 3, 3, 8, 1, 0, 12, 11, 10, 4, 2, 0, 1, 6, 13, 12, 2, 3, 9, 8, 14, 1, 6, 12, 3, 13, 11, 2, 7, 14, 1, 6, 3, 7, 5, 10, 13, 9, 6, 4, 5, 8, 1, 15, 7, 2, 13, 1, 2, 4, 12, 5, 3, 8, 15, 9, 4, 1, 6, 0, 8, 2, 12, 14, 13, 11, 0, 13, 15, 2, 3, 14, 5, 10, 2, 11, 13, 5, 9, 8, 10, 7, 6, 6, 7, 2, 15, 12, 11, 10, 3, 4, 10, 7, 15, 14, 9, 12, 1, 5, 3, 8, 5, 13, 0, 3, 11, 7, 9, 1, 7, 10, 6, 4, 14, 5, 0, 12, 15, 4, 15, 1, 7, 3, 10, 12, 0, 6, 9, 15, 5, 0, 11, 7, 12, 13, 2, 5, 9, 1, 10, 15, 4, 13, 0, 14, 13, 7, 2, 14, 9, 6, 0, 11, 4, 15, 8, 3, 10, 5, 7, 6, 11, 0, 12, 10, 8, 14, 15, 0, 1, 6, 5, 14, 0, 11, 4, 2, 15, 9, 3, 5, 13, 8, 10, 3, 11, 1, 9, 4, 14, 0, 2, 15, 6, 4, 13, 3, 7, 11, 5, 0, 2, 11, 8, 12, 14, 7, 9, 15, 12, 7, 13, 3, 9, 8, 11, 2]
-[94.0, 0.4330127018922193] [6, 7, 10, 12, 2, 3, 14, 5, 4, 4, 1, 15, 14, 5, 10, 9, 3, 11, 5, 9, 7, 0, 2, 12, 8, 14, 4, 5, 6, 14, 13, 15, 10, 0, 8, 3, 4, 1, 2, 5, 12, 11, 10, 8, 9, 2, 1, 13, 7, 12, 0, 3, 4, 8, 2, 1, 13, 9, 7, 11, 14, 4, 3, 9, 8, 13, 6, 7, 11, 1, 3, 14, 13, 4, 0, 12, 1, 10, 6, 15, 3, 9, 11, 8, 12, 5, 13, 4, 10, 15, 1, 10, 7, 11, 4, 0, 9, 5, 12, 12, 5, 13, 11, 4, 7, 9, 0, 8, 2, 5, 13, 11, 10, 12, 0, 3, 7, 13, 6, 14, 10, 12, 2, 0, 7, 8, 4, 3, 1, 15, 9, 12, 5, 0, 6, 10, 5, 3, 14, 13, 12, 6, 1, 8, 6, 15, 7, 4, 1, 2, 10, 14, 8, 1, 15, 0, 13, 3, 10, 11, 5, 7, 9, 1, 5, 2, 11, 6, 12, 7, 15, 2, 10, 1, 9, 15, 8, 3, 0, 11, 13, 3, 11, 0, 10, 6, 14, 2, 8, 15, 1, 6, 9, 10, 7, 3, 8, 11, 12, 1, 4, 14, 9, 5, 15, 13, 6, 11, 14, 0, 8, 5, 15, 13, 3, 2, 6, 2, 1, 7, 14, 4, 9, 15, 12, 14, 2, 11, 6, 8, 7, 13, 3, 15, 0, 5, 2, 11, 12, 8, 14, 6, 4, 15, 0, 6, 13, 7, 9, 4, 14, 2]
+desired shift days 6
+shifts per employee [8, 16, 16, 15, 14, 9, 14, 14, 14, 16, 10, 13, 10, 13, 11, 12, 12, 11, 12, 12]
+min shifts per employee 8
+mean shifts per employee 12.6
+std shifts per employee 2.2671568097509267
 ----
 
 == Conclusion
