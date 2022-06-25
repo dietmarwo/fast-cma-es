@@ -41,7 +41,7 @@ But this is only half of the story: What if you want to consider an additional c
 generate a number of non-dominating choices - a so called pareto-front? For continuous optimization this is a
 "solved problem", you get it "for free", but not for traditional scheduling optimizers like https://github.com/optapy/optapy[OptaPy].
 
-Now you could argue, that it is much easier to specify the details of a scheduling problem using an API specifically created
+Now you could argue, that it is easier to specify the details of a scheduling problem using an API specifically created
 for these kind of problems. An answer to this argument involves the presentation of an alternative: The creation
 of a fitness function solving the problem and let the reader decide what is easier. 
 
@@ -324,7 +324,7 @@ the minimal number of assigned shifts to an employee: `-min(employee_num_shifts)
 Since the `fcmaes` library offers only one multi-objective optimizer "MODE", the only 
 choice we have to make is whether to use differential evolution or NSGA-II population
 update (parameter `nsga_update=True`). The recommendation is to try both. For this problem
-NSGA-II population update works much better. Multi-objective optimization usually needs
+NSGA-II population update works better. Multi-objective optimization usually needs
 a larger population size, we choose 512 here. 
 
 [source,python]
@@ -375,7 +375,7 @@ std shifts per employee 0.33071891388307384
 
 In the last solution 'Elsa Li' has to work on an undesired day, and we have only 4 'DESIRED' requirements fulfilled,
 but now the shift per employee distribution is almost equal. 
-Multi-objective optimization helped to produce solutions which are much better at work distribution without 
+Multi-objective optimization helped to produce solutions which are better at work distribution without 
 compromising much. It doesn't require that we "weight" objectives in advance, their scaling doesn't matter. Instead we are presented with a
 set of choices and can decide afterwards what we prefer. We can talk with 'Elsa Li' asking her what she prefers.
 For this specific problem instance the number of choices is quite limited, which will not be the case with 
