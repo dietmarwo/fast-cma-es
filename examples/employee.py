@@ -174,7 +174,7 @@ class problem():
         score, employee_num_shifts = fitness_(x.astype(int), self.day_ids, 
                     self.required_skill_ids, self.skill_set_ids, self.avail_name_ids, 
                     self.avail_day_ids, self.avail_type_ids, self.sec_start, self.sec_end)
-        return score + 100*np.std(employee_num_shifts)
+        return score + 10*np.std(employee_num_shifts)
 
     def fitness_mo(self, x):
         score, employee_num_shifts = fitness_(x.astype(int), self.day_ids, 
