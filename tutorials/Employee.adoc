@@ -81,6 +81,13 @@ choose from.
 Imagine what would happen if you would install such a schedule in the real world. You would soon end up with less employees, since
 some would prefer to work elsewhere. Hiring people is expensive, so lets see if we can do something about that. 
 
+==== Update
+
+It turned out that there is a bug in the optapy example, its optimizer is able to fulfill the "DESIRED" shifts
+if configured correctly. Defining a constraint optimizing the distribution of shifts should also be possible in
+principle, but this currently doesn't work because of another optapy bug. 
+Will update the tutorial when this is finally fixed. 
+
 === Generating a Test Problem
 
 We used the following code to generate the JSON-representation of an employee 
@@ -153,7 +160,7 @@ class problem():
         score, employee_num_shifts = fitness_(x.astype(int), self.day_ids, 
                     self.required_skill_ids, self.skill_set_ids, self.avail_name_ids, 
                     self.avail_day_ids, self.avail_type_ids, self.sec_start, self.sec_end)
-        return score - 0.1*min(employee_num_shifts)
+        return score + 10*np.std(employee_num_shifts)
 ----
 
 Note that we convert all the information into numpy-index-arrays, together
@@ -238,7 +245,7 @@ this results to 32 optimizations performed in parallel.
         score, employee_num_shifts = fitness_(x.astype(int), self.day_ids, 
                     self.required_skill_ids, self.skill_set_ids, self.avail_name_ids, 
                     self.avail_day_ids, self.avail_type_ids, self.sec_start, self.sec_end)
-        return score + 100*np.std(employee_num_shifts)
+        return score + 10*np.std(employee_num_shifts)
 
     def optimize(self):
         self.fitness(np.random.uniform(0, len(self.employees), self.dim).astype(int))
@@ -262,44 +269,33 @@ fulfilled/violated constraints. As we see all 5 "desired" work day constraints a
 
 ----
 desired shift days 5
-shifts per employee [5, 7, 7, 9, 9, 9, 10, 9, 7, 5, 9, 9, 7, 9, 5, 10]
-min shifts per employee 5
+shifts per employee [7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
+min shifts per employee 7
 mean shifts per employee 7.875
-std shifts per employee 1.6909686573085854
+std shifts per employee 0.33071891388307384
 ----
 
 What happens if we repeat the BiteOpt optimization? We get:
 
 ----
-shifts per employee [5, 10, 9, 7, 10, 10, 9, 10, 6, 5, 8, 8, 5, 9, 5, 10]
-min shifts per employee 5
+desired shift days 5
+shifts per employee [8, 8, 8, 8, 8, 8, 8, 8, 8, 7, 8, 8, 8, 8, 7, 8]
+min shifts per employee 7
 mean shifts per employee 7.875
-std shifts per employee 1.996089927833914
+std shifts per employee 0.33071891388307384
 
 desired shift days 5
-shifts per employee [5, 8, 8, 7, 10, 6, 10, 10, 8, 5, 7, 11, 8, 7, 5, 11]
-min shifts per employee 5
+shifts per employee [7, 8, 8, 8, 8, 8, 8, 8, 8, 7, 8, 8, 8, 8, 8, 8]
+min shifts per employee 7
 mean shifts per employee 7.875
-std shifts per employee 1.996089927833914
-
-desired shift days 5
-shifts per employee [4, 7, 10, 8, 9, 7, 9, 12, 10, 4, 10, 9, 6, 8, 5, 8]
-min shifts per employee 4
-mean shifts per employee 7.875
-std shifts per employee 2.2043990110685496
-
-desired shift days 5
-shifts per employee [5, 7, 9, 8, 9, 9, 10, 9, 8, 7, 8, 9, 5, 7, 6, 10]
-min shifts per employee 5
-mean shifts per employee 7.875
-std shifts per employee 1.5360257159305635
+std shifts per employee 0.33071891388307384
 ...
 ----
 
 We get different results we can choose from. This process obviously can be 
 parallelized on different cloud CPU nodes. The last one has a quite equal work distribution
-and fulfills 5 work day "desires".
-
+and fulfills 5 work day "desires". optapy always produces the same result, even if we configure
+`<environmentMode>NON_REPRODUCIBLE</environmentMode>` in its configuration.
 
 === Multi-Objective Fitness
 
@@ -343,44 +339,25 @@ As a result, after about 36 seconds,  we get lists of corresponding argument vec
 the set of non-dominated solutions - the pareto-front: 
 
 ----
-[-5.0, 0.6959705453537527] [12, 5, 13, 2, 10, 6, 3, 7, 0, 14, 2, 6, 1, 0, 15, 8, 3, 9, 10, 14, 8, 11, 9, 15, 13, 1, 4, 5, 15, 0, 3, 2, 10, 12, 13, 11, 6, 4, 0, 14, 7, 9, 8, 3, 13, 8, 14, 11, 15, 3, 12, 5, 4, 7, 10, 9, 0, 2, 5, 6, 1, 11, 3, 12, 6, 14, 11, 2, 7, 0, 10, 4, 8, 3, 12, 13, 5, 1, 6, 11, 7, 12, 8, 14, 11, 6, 4, 10, 9, 5, 1, 2, 13, 4, 8, 15, 11, 7, 0, 14, 2, 13, 4, 1, 6, 15, 10, 12, 3, 6, 5, 9, 1, 7, 4, 15, 11, 0, 12, 13, 2, 10, 5, 8, 7, 15]
-[-4.0, 0.4841229182759271] [10, 1, 9, 6, 11, 4, 15, 13, 0, 7, 13, 15, 14, 1, 4, 2, 6, 11, 15, 0, 8, 5, 12, 4, 9, 14, 11, 3, 15, 9, 1, 4, 7, 5, 13, 2, 8, 3, 14, 9, 2, 5, 6, 0, 1, 6, 14, 12, 15, 7, 11, 3, 8, 1, 6, 0, 9, 5, 10, 2, 11, 13, 1, 11, 12, 14, 7, 8, 3, 0, 15, 10, 6, 15, 4, 3, 7, 5, 2, 11, 13, 12, 10, 1, 15, 6, 4, 8, 9, 5, 4, 12, 13, 8, 6, 3, 10, 7, 0, 9, 8, 14, 2, 7, 10, 12, 11, 15, 3, 4, 5, 9, 14, 12, 10, 2, 1, 0, 13, 7, 3, 12, 5, 2, 10, 8]
-[96.0, 0.33071891388307384] [10, 1, 3, 6, 11, 4, 15, 13, 0, 7, 13, 15, 14, 1, 4, 2, 6, 11, 15, 0, 8, 5, 12, 4, 9, 14, 11, 3, 15, 9, 1, 4, 7, 5, 13, 2, 8, 3, 14, 9, 2, 5, 6, 0, 1, 6, 14, 12, 15, 7, 11, 3, 8, 1, 6, 0, 9, 5, 10, 2, 11, 13, 1, 11, 12, 14, 7, 8, 3, 0, 15, 10, 6, 13, 4, 9, 7, 5, 2, 11, 14, 12, 10, 0, 15, 6, 4, 8, 9, 5, 4, 12, 13, 8, 6, 3, 10, 7, 0, 9, 8, 14, 2, 7, 10, 12, 11, 15, 3, 4, 5, 9, 14, 12, 10, 2, 1, 0, 13, 7, 3, 12, 5, 2, 10, 8]
+[-400.0, 0.7806247497997998] [3, 10, 14, 12, 2, 5, 1, 11, 9, 0, 7, 15, 14, 11, 6, 10, 13, 9, 8, 3, 10, 13, 12, 4, 7, 0, 15, 4, 2, 1, 5, 6, 11, 13, 7, 15, 10, 4, 3, 14, 11, 13, 2, 1, 0, 2, 9, 7, 4, 1, 13, 10, 8, 12, 15, 9, 3, 11, 4, 10, 5, 13, 0, 5, 13, 14, 11, 6, 12, 3, 10, 4, 8, 5, 1, 14, 4, 12, 2, 7, 0, 3, 8, 9, 7, 4, 15, 6, 14, 10, 6, 5, 15, 8, 10, 11, 3, 12, 1, 0, 8, 9, 2, 13, 6, 5, 7, 12, 6, 4, 11, 9, 14, 1, 2, 8, 15, 12, 1, 3, 11, 15, 5, 2, 6, 8]
+[-300.0, 0.6959705453537527] [11, 2, 14, 5, 7, 13, 1, 10, 0, 14, 5, 1, 3, 13, 15, 2, 12, 9, 6, 7, 8, 4, 14, 2, 12, 11, 13, 3, 10, 0, 2, 15, 12, 6, 1, 4, 8, 3, 0, 9, 13, 11, 10, 1, 14, 10, 0, 2, 8, 4, 15, 5, 6, 3, 10, 9, 13, 5, 6, 15, 12, 7, 0, 12, 5, 14, 7, 6, 11, 9, 10, 8, 4, 10, 3, 0, 5, 11, 2, 7, 14, 3, 15, 9, 4, 10, 8, 6, 1, 12, 11, 5, 3, 15, 10, 7, 1, 6, 13, 11, 6, 9, 4, 13, 8, 12, 1, 10, 15, 2, 11, 14, 0, 7, 4, 8, 5, 9, 3, 1, 13, 4, 7, 8, 2, 15]
+[500.0, 0.4841229182759271] [1, 5, 14, 4, 3, 7, 15, 10, 0, 9, 7, 12, 14, 0, 15, 4, 2, 11, 4, 13, 8, 10, 12, 1, 14, 9, 3, 1, 10, 0, 11, 6, 5, 13, 2, 7, 15, 2, 14, 0, 6, 9, 8, 11, 3, 4, 14, 1, 2, 7, 12, 13, 8, 5, 15, 12, 9, 2, 4, 10, 11, 14, 0, 11, 5, 3, 1, 6, 7, 9, 15, 10, 4, 3, 13, 14, 6, 7, 8, 5, 0, 7, 4, 9, 12, 15, 10, 8, 13, 1, 11, 12, 6, 10, 8, 5, 3, 13, 1, 5, 6, 0, 2, 12, 15, 10, 3, 11, 13, 8, 1, 3, 5, 7, 2, 6, 15, 9, 10, 4, 11, 12, 13, 8, 6, 2]
+[1500.0, 0.33071891388307384] [1, 5, 14, 4, 3, 7, 15, 10, 0, 9, 7, 12, 14, 0, 15, 4, 2, 11, 4, 13, 8, 10, 12, 1, 14, 9, 3, 1, 10, 0, 11, 6, 5, 13, 2, 7, 15, 2, 14, 0, 6, 9, 8, 11, 3, 4, 14, 1, 2, 7, 12, 13, 8, 5, 15, 12, 9, 2, 4, 10, 11, 14, 0, 11, 5, 3, 1, 6, 7, 9, 15, 10, 4, 3, 13, 14, 6, 7, 8, 5, 0, 7, 4, 9, 12, 15, 10, 8, 13, 1, 11, 12, 6, 10, 8, 5, 3, 13, 1, 5, 6, 0, 2, 12, 15, 10, 3, 11, 13, 8, 1, 3, 5, 7, 2, 6, 15, 14, 9, 4, 11, 12, 13, 8, 6, 2]
 ----
 
-We can use `problem.show` to check the details:
+We can use `problem.show` applied to the solutions to check the details.
 
-----
-desired shift days 5
-shifts per employee [8, 7, 8, 8, 8, 8, 9, 8, 8, 6, 8, 9, 8, 8, 7, 8]
-min shifts per employee 6
-mean shifts per employee 7.875
-std shifts per employee 0.6959705453537527
-
-desired shift days 4
-shifts per employee [7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 7, 7, 9]
-min shifts per employee 7
-mean shifts per employee 7.875
-std shifts per employee 0.4841229182759271
-
-{'name': 'Elsa Li', 'skill_set': ['Doctor']} {'employee': {'name': 'Elsa Li', 'skill_set': ['Doctor']}, 'date': '2022-07-05', 'availability_type': 'UNDESIRED'}
-desired shift days 4
-shifts per employee [8, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 7, 8, 8]
-min shifts per employee 7
-mean shifts per employee 7.875
-std shifts per employee 0.33071891388307384
-----
-
-In the last solution 'Elsa Li' has to work on an undesired day, and we have only 4 'DESIRED' requirements fulfilled,
-but now the shift per employee distribution is almost equal. 
-Multi-objective optimization helped to produce solutions which are better at work distribution without 
-compromising much. It doesn't require that we "weight" objectives in advance, their scaling doesn't matter. Instead we are presented with a
-set of choices and can decide afterwards what we prefer. We can talk with 'Elsa Li' asking her what she prefers.
+Multi-objective optimization help to further diversify possible solutions representing different 
+"compromises" between the objectives. 
+It doesn't require that we "weight" objectives in advance, 
+their scaling doesn't matter. Instead we are presented with a
+set of choices and can decide afterwards what we prefer.
 For this specific problem instance the number of choices is quite limited, which will not be the case with 
 larger employee scheduling problem instances with more valid assignment choices. 
 
-Edit and execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/employee.py[employee.py] to reproduce our results. Expect slower timings 
-with older CPUs having less cores - we used a 16 core AMD 5950x. Remember `fcmaes` is mainly about utilizing all resources of modern
+Edit and execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/employee.py[employee.py] 
+to reproduce our results. Expect slower timings with older CPUs having less cores -
+we used a 16 core AMD 5950x. `fcmaes` is mainly about utilizing all resources of modern
 many core CPUs. 
 
 === Challenge
@@ -439,42 +416,43 @@ We need to reconfigure the single objective optimization to adapt for the increa
 ----
     def optimize(self):
         self.fitness(np.random.uniform(0, len(self.employees), self.dim).astype(int))
-        res = retry.minimize_plot("schedule.bite.4000k", Bite_cpp(4000000),  
+        res = retry.minimize_plot("schedule.bite.400k", Bite_cpp(400000),  
         #res = retry.minimize_plot("schedule.de.10000k", De_cpp(10000000, popsize = 10000, ints = [True]*self.dim), 
         print(self.fitness_mo(res.x)) 
         self.show(res.x)
 ----
 
 Note, that Differential Evolution now requires a huge population size. BiteOpt can still can solve the problem in a 
-reasonable time of about 70 seconds: 
+reasonable time of about 30 seconds: 
 
 image::employeeres2.png[]
 
 Different BiteOpt runs produce the following solutions:
 
 ----
+{'name': 'Elsa Li', ... 'date': '2022-07-18', 'availability_type': 'UNDESIRED'}
 desired shift days 6
-shifts per employee [7, 19, 16, 15, 14, 7, 11, 18, 17, 20, 12, 12, 8, 17, 7, 7, 8, 8, 15, 14]
-min shifts per employee 7
+shifts per employee [11, 13, 13, 14, 13, 11, 13, 13, 13, 14, 11, 13, 11, 13, 12, 11, 13, 13, 14, 13]
+min shifts per employee 11
 mean shifts per employee 12.6
-std shifts per employee 4.374928570845471
-
-{'name': 'Dan Poe', 'skill_set': ['Anaesthetics', 'Radiology', 'Doctor']} {'employee': {'name': 'Dan Poe', 'skill_set': ['Anaesthetics', 'Radiology', 'Doctor']}, 'date': '2022-07-23', 'availability_type': 'UNDESIRED'}
-desired shift days 6
-shifts per employee [8, 18, 14, 13, 13, 7, 14, 17, 15, 21, 8, 16, 7, 22, 7, 8, 9, 8, 17, 10]
-min shifts per employee 7
-mean shifts per employee 12.6
-std shifts per employee 4.72652091923859
+std shifts per employee 1.0198039027185568
 
 desired shift days 6
-shifts per employee [9, 13, 16, 16, 15, 9, 12, 18, 21, 17, 9, 12, 9, 15, 9, 9, 10, 9, 14, 10]
-min shifts per employee 9
+shifts per employee [11, 13, 13, 13, 13, 11, 13, 14, 13, 14, 11, 14, 11, 13, 11, 11, 13, 13, 13, 14]
+min shifts per employee 11
 mean shifts per employee 12.6
-std shifts per employee 3.6110940170535577
+std shifts per employee 1.1135528725660042
+
+desired shift days 6
+shifts per employee [11, 13, 14, 13, 14, 12, 13, 13, 13, 13, 12, 13, 11, 13, 11, 11, 13, 13, 13, 13]
+min shifts per employee 11
+mean shifts per employee 12.6
+std shifts per employee 0.9165151389911679
+...
 ----
 
 The last solution has a quite equal shift distribution and fulfills six work day desires. 
-But from the second solution we see that not always all soft requirements are fulfilled, Dan Poe 
+But from the first solution we see that not always all soft requirements are fulfilled, 'Elsa Li'
 has to work at an undesired day.
 
 For multi-objective optimization we also have to adapt the parameters:
@@ -486,22 +464,52 @@ For multi-objective optimization we also have to adapt the parameters:
              nsga_update=True, num_retries = 32, workers=32)
 ---- 
 
-We find a pareto front:
+We find a pareto front representing more scheduling choices:
 
 ----
-[-6.0, 2.2671568097509267] [10, 17, 0, 13, 1, 15, 19, 6, 8, 10, 2, 9, 4, 1, 5, 11, 16, 6, 12, 18, 8, 11, 1, 15, 7, 9, 6, 2, 13, 3, 16, 15, 14, 11, 12, 10, 4, 2, 1, 17, 10, 8, 12, 13, 11, 9, 19, 3, 8, 17, 7, 12, 1, 14, 3, 7, 18, 5, 0, 12, 2, 13, 14, 2, 16, 15, 3, 7, 11, 19, 4, 9, 14, 19, 18, 1, 6, 8, 2, 3, 9, 8, 18, 17, 1, 3, 7, 16, 5, 4, 2, 6, 13, 9, 18, 17, 5, 10, 1, 3, 4, 16, 7, 6, 13, 9, 17, 18, 3, 2, 10, 0, 6, 8, 9, 4, 19, 17, 18, 13, 1, 15, 11, 9, 0, 3, 7, 8, 12, 19, 10, 9, 11, 17, 3, 4, 19, 5, 9, 7, 6, 16, 2, 15, 3, 2, 14, 1, 15, 0, 12, 13, 18, 16, 7, 8, 1, 9, 14, 11, 4, 17, 6, 14, 2, 12, 13, 15, 8, 3, 10, 2, 4, 15, 1, 3, 11, 14, 8, 7, 2, 19, 13, 10, 17, 9, 16, 11, 4, 6, 12, 13, 14, 1, 0, 15, 5, 3, 6, 19, 4, 2, 7, 8, 11, 16, 5, 18, 9, 4, 19, 2, 1, 15, 8, 6, 16, 18, 4, 12, 14, 5, 17, 11, 15, 19, 6, 7, 13, 8, 0, 16, 5, 11, 7, 1, 18, 14, 13, 19, 2, 9, 3, 4, 0, 18, 16, 10, 7, 9, 1, 6]
-[993.0, 2.1999999999999997] [10, 17, 0, 13, 1, 15, 19, 6, 8, 12, 2, 9, 4, 1, 5, 11, 16, 6, 12, 18, 8, 11, 1, 15, 7, 9, 6, 2, 13, 3, 16, 15, 14, 11, 12, 10, 4, 2, 1, 17, 10, 8, 12, 13, 11, 9, 19, 3, 8, 17, 7, 12, 1, 14, 3, 7, 18, 5, 0, 12, 2, 13, 14, 2, 16, 15, 3, 7, 11, 19, 4, 9, 14, 19, 18, 1, 6, 8, 2, 3, 9, 8, 18, 17, 1, 3, 7, 16, 5, 4, 2, 6, 13, 9, 18, 17, 5, 10, 1, 3, 4, 16, 7, 6, 13, 9, 17, 18, 3, 2, 10, 0, 6, 8, 9, 4, 19, 17, 18, 13, 1, 15, 11, 9, 0, 3, 7, 8, 12, 19, 10, 9, 11, 17, 3, 4, 19, 5, 9, 7, 6, 16, 2, 15, 3, 2, 14, 1, 17, 0, 12, 13, 18, 16, 7, 8, 1, 9, 14, 11, 4, 17, 6, 14, 2, 12, 13, 15, 8, 3, 10, 2, 4, 15, 1, 3, 11, 14, 8, 7, 2, 19, 13, 10, 17, 9, 16, 11, 4, 6, 12, 13, 14, 1, 0, 15, 5, 3, 6, 19, 4, 2, 7, 8, 11, 16, 5, 18, 14, 4, 19, 2, 1, 15, 8, 6, 16, 18, 4, 12, 14, 5, 17, 11, 15, 19, 6, 7, 13, 8, 0, 16, 5, 11, 7, 1, 18, 14, 13, 19, 2, 9, 3, 4, 0, 18, 16, 10, 7, 9, 1, 6]
+[-600.0, 2.437211521390788] [0, 10, 14, 16, 8, 15, 12, 1, 6, 14, 19, 2, 4, 17, 12, 1, 18, 7, 14, 2, 1, 19, 13, 10, 3, 18, 4, 3, 11, 9, 16, 5, 10, 19, 12, 0, 6, 19, 4, 17, 14, 3, 10, 8, 11, 18, 13, 9, 4, 3, 7, 16, 6, 0, 9, 1, 15, 10, 14, 12, 2, 11, 18, 9, 1, 15, 8, 7, 17, 11, 4, 3, 15, 16, 9, 8, 11, 6, 17, 1, 2, 13, 1, 17, 8, 6, 4, 18, 12, 7, 2, 8, 4, 9, 11, 3, 15, 10, 1, 2, 6, 16, 8, 1, 18, 9, 7, 11, 13, 9, 17, 15, 1, 4, 18, 6, 8, 17, 3, 7, 4, 19, 11, 2, 14, 9, 6, 13, 5, 11, 14, 18, 16, 0, 3, 2, 12, 15, 9, 1, 6, 19, 4, 10, 3, 9, 15, 13, 12, 17, 14, 2, 10, 18, 13, 3, 6, 9, 14, 16, 1, 17, 7, 5, 3, 15, 6, 0, 8, 2, 16, 7, 11, 12, 2, 3, 8, 5, 13, 1, 7, 19, 4, 5, 17, 9, 16, 13, 3, 4, 19, 8, 12, 18, 14, 10, 5, 3, 8, 16, 4, 2, 6, 7, 13, 19, 17, 18, 2, 7, 19, 9, 8, 15, 1, 6, 11, 7, 4, 15, 10, 12, 0, 16, 17, 8, 1, 11, 18, 16, 5, 13, 14, 19, 17, 6, 9, 12, 7, 13, 3, 2, 18, 4, 5, 11, 19, 15, 1, 2, 13, 7]
+[-500.0, 2.4166091947189146] [0, 10, 14, 16, 8, 15, 12, 1, 6, 14, 19, 2, 4, 17, 12, 1, 18, 7, 14, 2, 1, 19, 13, 10, 3, 18, 4, 3, 11, 9, 16, 5, 10, 19, 12, 0, 6, 19, 4, 17, 14, 3, 10, 8, 11, 18, 13, 9, 4, 3, 7, 16, 6, 0, 9, 1, 15, 10, 14, 12, 2, 11, 16, 9, 1, 15, 8, 7, 17, 11, 4, 3, 15, 16, 9, 8, 11, 6, 17, 1, 2, 13, 1, 17, 8, 6, 4, 18, 12, 7, 2, 8, 4, 9, 11, 3, 15, 10, 1, 3, 6, 16, 8, 1, 18, 9, 7, 11, 13, 9, 17, 15, 1, 4, 18, 6, 8, 17, 3, 7, 4, 19, 11, 2, 14, 9, 6, 13, 5, 11, 14, 18, 16, 0, 3, 2, 12, 15, 9, 1, 6, 19, 4, 10, 3, 9, 15, 13, 12, 17, 14, 2, 10, 18, 13, 3, 6, 9, 14, 16, 1, 17, 7, 5, 3, 15, 6, 0, 8, 2, 14, 7, 11, 12, 2, 3, 8, 5, 13, 1, 7, 19, 4, 5, 17, 9, 16, 13, 2, 4, 19, 8, 12, 18, 14, 10, 5, 3, 8, 16, 4, 2, 6, 7, 13, 19, 17, 18, 2, 7, 19, 9, 8, 15, 1, 6, 11, 7, 4, 15, 10, 12, 0, 16, 17, 8, 1, 11, 18, 16, 5, 13, 14, 19, 17, 6, 9, 12, 7, 13, 3, 2, 18, 4, 5, 11, 19, 15, 1, 2, 13, 7]
+[400.0, 2.2449944320643644] [0, 10, 14, 16, 8, 15, 12, 1, 6, 14, 19, 2, 4, 17, 12, 1, 18, 7, 14, 2, 1, 19, 13, 10, 3, 18, 4, 3, 11, 9, 16, 5, 10, 19, 12, 0, 6, 19, 4, 17, 14, 3, 10, 8, 11, 18, 13, 9, 4, 3, 7, 16, 6, 0, 9, 1, 15, 10, 14, 12, 2, 11, 18, 9, 0, 15, 8, 7, 17, 11, 4, 3, 15, 16, 9, 8, 11, 6, 17, 1, 2, 13, 1, 17, 8, 6, 4, 18, 12, 7, 2, 8, 4, 9, 11, 3, 15, 10, 1, 2, 6, 16, 8, 1, 18, 9, 7, 11, 13, 9, 17, 15, 1, 4, 18, 6, 8, 17, 3, 7, 4, 19, 11, 2, 14, 9, 6, 13, 5, 11, 14, 18, 16, 0, 3, 2, 12, 15, 9, 1, 6, 19, 4, 10, 3, 9, 15, 13, 12, 17, 14, 2, 10, 18, 13, 3, 6, 9, 14, 16, 1, 17, 7, 5, 3, 15, 6, 0, 8, 2, 16, 7, 11, 12, 2, 3, 8, 5, 13, 1, 7, 19, 4, 5, 17, 9, 16, 13, 3, 4, 19, 8, 12, 18, 14, 10, 5, 3, 8, 16, 4, 2, 6, 7, 13, 19, 17, 18, 2, 7, 19, 9, 8, 15, 1, 6, 11, 7, 4, 15, 10, 12, 0, 16, 17, 8, 1, 11, 18, 16, 5, 13, 14, 19, 17, 6, 9, 12, 7, 13, 3, 2, 18, 4, 5, 11, 19, 15, 1, 2, 13, 7]
+[500.0, 2.2226110770892866] [0, 10, 14, 16, 8, 15, 12, 1, 6, 14, 19, 2, 4, 17, 12, 1, 18, 7, 14, 2, 1, 19, 13, 10, 3, 18, 4, 3, 11, 9, 16, 5, 10, 19, 12, 0, 6, 19, 4, 17, 14, 3, 10, 8, 11, 18, 13, 9, 4, 3, 7, 16, 6, 0, 9, 1, 15, 10, 14, 12, 2, 11, 16, 9, 0, 15, 8, 7, 17, 11, 4, 3, 15, 16, 9, 8, 11, 6, 17, 1, 2, 13, 1, 17, 8, 6, 4, 18, 12, 7, 2, 8, 4, 9, 11, 3, 15, 10, 1, 2, 6, 16, 8, 1, 18, 9, 7, 11, 13, 9, 17, 15, 1, 4, 18, 6, 8, 17, 3, 7, 4, 19, 11, 2, 14, 9, 6, 13, 5, 11, 14, 18, 16, 0, 3, 2, 12, 15, 9, 1, 6, 19, 4, 10, 3, 9, 15, 13, 12, 17, 14, 2, 10, 18, 13, 3, 6, 9, 14, 16, 1, 17, 7, 5, 3, 15, 6, 0, 8, 2, 14, 7, 11, 12, 2, 3, 8, 5, 13, 1, 7, 19, 4, 5, 17, 9, 16, 13, 3, 4, 19, 8, 12, 18, 14, 10, 5, 3, 8, 16, 4, 2, 6, 7, 13, 19, 17, 18, 2, 7, 19, 9, 8, 15, 1, 6, 11, 7, 4, 15, 10, 12, 0, 16, 17, 8, 1, 11, 18, 16, 5, 13, 14, 19, 17, 6, 9, 12, 7, 13, 3, 2, 18, 4, 5, 11, 19, 15, 1, 2, 13, 7]
+[1400.0, 2.0346989949375804] [5, 10, 14, 16, 8, 15, 12, 1, 6, 14, 19, 2, 4, 17, 12, 1, 18, 7, 14, 2, 1, 19, 13, 10, 3, 18, 4, 3, 11, 9, 16, 5, 10, 19, 12, 0, 6, 19, 4, 17, 14, 3, 10, 8, 11, 18, 13, 9, 4, 3, 7, 12, 6, 0, 9, 1, 15, 10, 14, 12, 2, 11, 18, 9, 1, 15, 8, 7, 17, 11, 4, 3, 15, 16, 9, 8, 11, 6, 17, 0, 2, 13, 1, 17, 8, 6, 3, 16, 12, 7, 2, 8, 4, 9, 11, 3, 15, 10, 1, 2, 6, 16, 8, 1, 18, 9, 7, 11, 13, 9, 14, 15, 1, 4, 18, 6, 8, 17, 3, 7, 4, 19, 11, 2, 14, 9, 6, 13, 5, 11, 14, 18, 16, 0, 3, 2, 12, 15, 9, 1, 6, 19, 4, 10, 3, 9, 15, 13, 12, 17, 14, 2, 10, 18, 13, 3, 6, 9, 14, 16, 1, 17, 7, 5, 3, 15, 6, 0, 8, 2, 16, 7, 11, 12, 2, 3, 8, 5, 13, 1, 7, 19, 4, 5, 17, 9, 16, 13, 2, 4, 19, 8, 12, 18, 14, 10, 5, 3, 8, 16, 4, 0, 6, 7, 13, 19, 17, 18, 2, 7, 19, 9, 8, 15, 1, 6, 11, 7, 4, 15, 10, 12, 0, 16, 17, 8, 1, 11, 18, 16, 5, 13, 14, 19, 17, 6, 9, 10, 7, 13, 3, 2, 18, 4, 5, 11, 19, 15, 1, 2, 13, 7]
 ...
 ----
-There is a valid solution which fulfills 6 day 'desires' and provides a better distribution of work between the employees. 
 
+==== Exercise
+
+Is the result dependent on the optimization library used? To answer this question
+try https://facebookresearch.github.io/nevergrad[nevergrad], 
+a very popular optimization library (> 40000 downloads last month, see https://pypistats.org/packages/nevergrad ).
+You may start testing NGOpt, CMA, DE, TwoPointsDE, something like:
+
+[source,python]
 ----
-desired shift days 6
-shifts per employee [8, 16, 16, 15, 14, 9, 14, 14, 14, 16, 10, 13, 10, 13, 11, 12, 12, 11, 12, 12]
-min shifts per employee 8
-mean shifts per employee 12.6
-std shifts per employee 2.2671568097509267
+    def optimize_ng(self):    
+        import nevergrad as ng   
+        fit = wrapper(self.fitness)
+        instrum = ng.p.Instrumentation(
+            ng.p.Array(shape=(self.dim,)).set_bounds(self.bounds.lb, self.bounds.ub)
+            )
+        optimizer = ng.optimizers.TwoPointsDE(parametrization=instrum, budget=100000)
+        recommendation = optimizer.minimize(fit)
+        print(recommendation.value)
+        self.show(recommendation.value[0][0])
 ----
+
+This exercise is to show that when using https://numba.pydata.org/[numba] to speed up the fitness function,
+the optimization algorithm overhead becomes relevant. 
+https://facebookresearch.github.io/nevergrad[nevergrad] is not designed for fast fitness functions. 
+
+    def optimize_ng(self):    
+        import nevergrad as ng   
+        fit = wrapper(self.fitness)
+        instrum = ng.p.Instrumentation(
+            ng.p.Array(shape=(self.dim,)).set_bounds(self.bounds.lb, self.bounds.ub)
+            )
+        optimizer = ng.optimizers.TwoPointsDE(parametrization=instrum, budget=100000)
+        recommendation = optimizer.minimize(fit)
+        print(recommendation.value)
+        self.show(recommendation.value[0][0])
 
 == Conclusion
 

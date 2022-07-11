@@ -316,6 +316,33 @@ image::vaccine3dretry.png[]
 
 image::vaccine3dretry2.png[]
 
+==== Exercise
+
+Is the result dependent on the optimization library used? To answer this question
+try https://facebookresearch.github.io/nevergrad/optimization.html#multiobjective-minimization-with-nevergrad[nevergrad], 
+a very popular optimization library (> 40000 downloads last month, see https://pypistats.org/packages/nevergrad ).
+You may start testing NGOpt, CMA, DE, TwoPointsDE, but be warned: Finding a `nevergrad` multi-objective algorithm
+which is able to reproduce the result above is challenging. You may try something like:
+
+[source,python]
+----
+    import nevergrad as ng   
+    fit = mode.wrapper(problem.fitness2, 2, interval=1000)    
+    instrum = ng.p.Instrumentation(
+            ng.p.Array(shape=(problem.dim,)).set_bounds(problem.bounds.lb, problem.bounds.ub))
+    optimizer = ng.optimizers.TwoPointsDE(parametrization=instrum, budget=5000, num_workers=8)
+    optimizer.minimize(fit, verbosity=0)
+    front = optimizer.pareto_front()
+    xs = np.array([p.value[0][0] for p in front])
+    ys = np.array([p.losses for p in front])
+    plot2d(xs, ys, "TwoPointsDE")
+----
+
+If you don't succeed try https://pymoo.org/algorithms/moo/nsga2.html[pymoo]. 
+This exercise is to show that when using https://numba.pydata.org/[numba] to speed up the fitness function,
+the optimization algorithm overhead becomes relevant. 
+https://facebookresearch.github.io/nevergrad[nevergrad] is not designed for fast fitness functions. 
+
 ==== Conclusion
 
 - fcmaes multi objective optimization can be used to replace a nested loop enumerating all solutions

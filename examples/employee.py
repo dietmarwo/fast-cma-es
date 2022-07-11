@@ -232,8 +232,6 @@ class problem():
     def optimize(self):
         self.fitness(np.random.uniform(0, len(self.employees), self.dim).astype(int))
         res = retry.minimize_plot("schedule.bite.400k", Bite_cpp(400000),  
-        #res = retry.minimize_plot("schedule.bite.4000k", Bite_cpp(4000000),  
-        
         #res = retry.minimize_plot("schedule.de.400k", De_cpp(400000, popsize = 512, ints = [True]*self.dim), 
         #res = retry.minimize_plot("schedule.de.10000k", De_cpp(10000000, popsize = 10000, ints = [True]*self.dim), 
         
@@ -251,7 +249,7 @@ class problem():
                      nsga_update=True, num_retries = 32, workers=32)
         
         # xs, ys = modecpp.retry(mode.wrapper(self.fitness_mo, 2), 
-        #          2, 0, self.bounds, popsize = 4096, max_evaluations = 40000000, 
+        #          2, 0, self.bounds, popsize = 4096, max_evaluations = 20000000, 
         #      nsga_update=True, num_retries = 32, workers=32)
 
         np.savez_compressed(pname, xs=xs, ys=ys)
@@ -260,18 +258,15 @@ class problem():
             print(str(list(y)) + ' ' + str([int(xi) for xi in x]))
         
 def show_example_solution():
-    x = [12, 5, 13, 2, 10, 6, 3, 7, 0, 14, 2, 6, 1, 0, 15, 8, 3, 9, 10, 14, 8, 11, 9, 15, 13, 1, 4, 5, 15, 0, 3, 2, 10, 12, 13, 11, 6, 4, 0, 14, 7, 9, 8, 3, 13, 8, 14, 11, 15, 3, 12, 5, 4, 7, 10, 9, 0, 2, 5, 6, 1, 11, 3, 12, 6, 14, 11, 2, 7, 0, 10, 4, 8, 3, 12, 13, 5, 1, 6, 11, 7, 12, 8, 14, 11, 6, 4, 10, 9, 5, 1, 2, 13, 4, 8, 15, 11, 7, 0, 14, 2, 13, 4, 1, 6, 15, 10, 12, 3, 6, 5, 9, 1, 7, 4, 15, 11, 0, 12, 13, 2, 10, 5, 8, 7, 15]
-    # x = [10, 1, 9, 6, 11, 4, 15, 13, 0, 7, 13, 15, 14, 1, 4, 2, 6, 11, 15, 0, 8, 5, 12, 4, 9, 14, 11, 3, 15, 9, 1, 4, 7, 5, 13, 2, 8, 3, 14, 9, 2, 5, 6, 0, 1, 6, 14, 12, 15, 7, 11, 3, 8, 1, 6, 0, 9, 5, 10, 2, 11, 13, 1, 11, 12, 14, 7, 8, 3, 0, 15, 10, 6, 15, 4, 3, 7, 5, 2, 11, 13, 12, 10, 1, 15, 6, 4, 8, 9, 5, 4, 12, 13, 8, 6, 3, 10, 7, 0, 9, 8, 14, 2, 7, 10, 12, 11, 15, 3, 4, 5, 9, 14, 12, 10, 2, 1, 0, 13, 7, 3, 12, 5, 2, 10, 8]
-    # x = [10, 1, 3, 6, 11, 4, 15, 13, 0, 7, 13, 15, 14, 1, 4, 2, 6, 11, 15, 0, 8, 5, 12, 4, 9, 14, 11, 3, 15, 9, 1, 4, 7, 5, 13, 2, 8, 3, 14, 9, 2, 5, 6, 0, 1, 6, 14, 12, 15, 7, 11, 3, 8, 1, 6, 0, 9, 5, 10, 2, 11, 13, 1, 11, 12, 14, 7, 8, 3, 0, 15, 10, 6, 13, 4, 9, 7, 5, 2, 11, 14, 12, 10, 0, 15, 6, 4, 8, 9, 5, 4, 12, 13, 8, 6, 3, 10, 7, 0, 9, 8, 14, 2, 7, 10, 12, 11, 15, 3, 4, 5, 9, 14, 12, 10, 2, 1, 0, 13, 7, 3, 12, 5, 2, 10, 8]
- 
+    x = [3, 10, 14, 12, 2, 5, 1, 11, 9, 0, 7, 15, 14, 11, 6, 10, 13, 9, 8, 3, 10, 13, 12, 4, 7, 0, 15, 4, 2, 1, 5, 6, 11, 13, 7, 15, 10, 4, 3, 14, 11, 13, 2, 1, 0, 2, 9, 7, 4, 1, 13, 10, 8, 12, 15, 9, 3, 11, 4, 10, 5, 13, 0, 5, 13, 14, 11, 6, 12, 3, 10, 4, 8, 5, 1, 14, 4, 12, 2, 7, 0, 3, 8, 9, 7, 4, 15, 6, 14, 10, 6, 5, 15, 8, 10, 11, 3, 12, 1, 0, 8, 9, 2, 13, 6, 5, 7, 12, 6, 4, 11, 9, 14, 1, 2, 8, 15, 12, 1, 3, 11, 15, 5, 2, 6, 8] 
     p.show(np.array(x))
     print(list(x))
            
 if __name__ == '__main__':
     p = problem('data/sched1.json')
-    # p = problem('data/sched2.json')
+    #p = problem('data/sched2.json')
     p.optimize()
-    # p.optimize_mo()
-    # show_example_solution()
+    #p.optimize_mo()
+    #show_example_solution()
 
     
