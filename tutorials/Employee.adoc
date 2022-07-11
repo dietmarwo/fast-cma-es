@@ -500,17 +500,6 @@ This exercise is to show that when using https://numba.pydata.org/[numba] to spe
 the optimization algorithm overhead becomes relevant. 
 https://facebookresearch.github.io/nevergrad[nevergrad] is not designed for fast fitness functions. 
 
-    def optimize_ng(self):    
-        import nevergrad as ng   
-        fit = wrapper(self.fitness)
-        instrum = ng.p.Instrumentation(
-            ng.p.Array(shape=(self.dim,)).set_bounds(self.bounds.lb, self.bounds.ub)
-            )
-        optimizer = ng.optimizers.TwoPointsDE(parametrization=instrum, budget=100000)
-        recommendation = optimizer.minimize(fit)
-        print(recommendation.value)
-        self.show(recommendation.value[0][0])
-
 == Conclusion
 
 - Multi-objective optimization can provide the basis for the decision process even for large combinatorial scheduling problems.
