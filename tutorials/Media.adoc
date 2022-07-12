@@ -634,7 +634,9 @@ the computed pareto front - after only 217 seconds - provided already a reliable
 basis for our decision. We still can apply single objective optimization after
 our investment decision to "squeeze out" the last quarter percent.
 
-Exercise: Can you improve the single objective result for a 30% investment? May be you
+=== Exercise
+ 
+Can you improve the single objective result for a 30% investment? May be you
 can utilize some cloud resources to improve the result even further. You may use
 any fitness function, but the final solution should invest <= 30% and get a better
 coverage (`fb_covered` value). 
