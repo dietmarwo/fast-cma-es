@@ -562,7 +562,7 @@ def opt_mo(g):
 
 The number of fitness evaluations per second dropped to about 74000
 evals/sec, because counting the group relationships needs additional time. 
-But still we see a repectable evaluation rate if you consider we have to 
+But still we see a respectable evaluation rate if you consider we have to 
 handle over 60000 edges / friendship relations and our groups contain
 up to 300 members. After about 217 seconds we get the following pareto front:
 
