@@ -2,6 +2,12 @@
 :imagesdir: img
 :cpp: C++
 
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
 == Optimization with Constraints
 
 Not all optimization problems are boxed constrained, there may be additional equality and/or inequality constraints.

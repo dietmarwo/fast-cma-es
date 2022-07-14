@@ -3,7 +3,14 @@
 :cpp: C++
 :call: __call__
 
-= Parameter Sweeping for Biochemical Reactions 
+
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Parameter Sweeping for Biochemical Reactions 
 
 This tutorial
 

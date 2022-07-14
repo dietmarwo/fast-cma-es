@@ -3,7 +3,14 @@
 :cpp: C++
 :call: __call__
 
-= Power Plant Efficiency
+
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Power Plant Efficiency
 
 This tutorial
 

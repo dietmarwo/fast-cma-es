@@ -2,7 +2,13 @@
 :imagesdir: img
 :cpp: C++
 
-= Reactive Programming and Real World Optimization
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Reactive Programming and Real World Optimization
 
 === Reactive Programming
 

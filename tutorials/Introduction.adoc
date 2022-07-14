@@ -2,6 +2,12 @@
 :imagesdir: img
 :cpp: C++
 
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
 == How to use fcmaes
 
 Here we use a real world example from the space mission design domain, but there are https://github.com/dietmarwo/fast-cma-es/tree/master/examples[examples] from the mechanical component design domain and how to optimize when solving ODEs in the objective function https://github.com/dietmarwo/fast-cma-es/blob/master/ODE.adoc[ODE].  

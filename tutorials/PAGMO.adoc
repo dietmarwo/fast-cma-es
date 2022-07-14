@@ -2,6 +2,12 @@
 :imagesdir: img
 :cpp: C++
 
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
 == Solving the GTOPX Benchmark Problems using PYGMO2/PAGMO2
 
 fcmaes performs really well for the very hard http://www.midaco-solver.com/data/pub/GTOPX_Benchmarks.pdf[GTOPX benchmarks]

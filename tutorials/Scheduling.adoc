@@ -2,6 +2,12 @@
 :imagesdir: img
 :cpp: C++
 
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
 == Solving a complex scheduling problem using continuous optimization
 
 Can a complex scheduling problem be solved efficiently using Python and 

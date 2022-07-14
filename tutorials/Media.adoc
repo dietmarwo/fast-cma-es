@@ -3,7 +3,13 @@
 :cpp: C++
 :call: __call__
 
-= Analyzing Social Media User Data
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Analyzing Social Media User Data
 
 This tutorial
 
@@ -23,7 +29,7 @@ here:
 - https://github.com/dietmarwo/fast-cma-es/blob/master/examples/fb/edgecover.py[edgecover.py]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/examples/fb/fbcover.py[fbcover.py]
 
-== Motivation
+=== Motivation
 
 The https://en.wikipedia.org/wiki/Vertex_cover[vertex cover] problem is one of the best analyzed
 combinatorial problems in computer science. There are countless publications and algorithms, 
@@ -112,7 +118,7 @@ also tend of overlook how many parallel operations a deep learning process invol
 multi-core architectures which enables machine learning, also enables the application 
 of continuous optimization to areas where you won't suspect it is applicable. 
 
-== Scenario
+=== Scenario
 
 Suppose we want to run a targeted campaign to influence people were we have 
 user data showing their relationships. People have dual relationships (are "friends")
@@ -143,11 +149,11 @@ together with the corresponding optimal set of people to influence. In other wor
 A pareto-front as solution of a multi-objective problem variant, with costs and impact/coverage
 as competing objectives. 
 
-== Solving the Vertex Cover Problem in Python
+=== Solving the Vertex Cover Problem in Python
 
 Lets first start with the "easy" problem variant: No groups, no vertex-weights, only full edge coverage. 
 
-=== Using jgraptht
+==== Using jgraptht
 
 We found and adapted a solution here https://github.com/danielslz/minimum-vertex-cover/blob/main/utils.py[utils.py].
 'jgrapht' is a java library providing a Python front end. It is very fast, but the result has some error.
@@ -192,7 +198,7 @@ jgraph mvc size 631  of nodes:  747  time =  0.021  sec
 This is really fast, 0.021 sec. We find a list of 631 indiviuals which "cover" the whole population of
 747 if their "friends" are included. May be we can reduce this number further:
 
-=== Using a greedy algorithm 
+==== Using a greedy algorithm 
 
 This code is inspired by https://github.com/sliao7/CSE6140-Final-Project-Minimum-Vertex-Cover/blob/main/code/SA.py[SA.py]
 Note that this code (neither the improved variant shown here nor the original) implements "Simulated Annealing" as stated
@@ -375,7 +381,7 @@ Solution: (623)
 This means we can use 623 as reference and as basis for computing the error rate. 623 is most probably 
 optimal - the size of the minimal vertex list covering all edges.   
 
-=== Using Optimization
+==== Using Optimization
 
 We will see that it doesn't make sense to apply optimization to this problem, as we will not
 be able to beat the greedy algorithm, but our goal

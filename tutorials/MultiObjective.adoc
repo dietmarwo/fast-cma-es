@@ -2,7 +2,14 @@
 :imagesdir: img
 :cpp: C++
 
-== Optimization of multi-objective problems
+
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Optimization of multi-objective problems using weighted sums
 
 The code for this tutorial is at 
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/moexamples.py[moexamples.py] and uses 

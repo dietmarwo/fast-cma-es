@@ -2,6 +2,13 @@
 :imagesdir: img
 :cpp: C++
 
+
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
 == Solving the PYKEP trajopt/gym Reference Problems
 
 PYKEP provides a number of https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[reference problems] for 

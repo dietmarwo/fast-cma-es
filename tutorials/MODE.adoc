@@ -3,7 +3,13 @@
 :cpp: C++
 
 
-=== This tutorial
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Multi-objective optimization with MODE 
 
 - Clarifies when to apply which multi-objective optimization method to which
 kind of real world optimization problem. We leave the artificial problems for the scientists.

@@ -2,7 +2,13 @@
 :imagesdir: img
 :cpp: C++
 
-= Optimizing Crypto Trading Strategies
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Optimizing Crypto Trading Strategies
 
 This tutorial shows:
 
