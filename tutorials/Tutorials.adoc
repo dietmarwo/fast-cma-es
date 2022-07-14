@@ -1,5 +1,5 @@
 :encoding: utf-8
-:imagesdir: tutorials/img
+:imagesdir: img
 :cpp: C++
 
 = fcmaes - a Python 3 gradient-free optimization library
