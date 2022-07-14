@@ -1,0 +1,73 @@
+:encoding: utf-8
+:imagesdir: tutorials/img
+:cpp: C++
+
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+=== Real World Tutorials
+
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Introduction.adoc[Introduction] Solving simple example problems from space flight dynamics.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[Crypto Trading] Optimize your crypto trading strategy.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc[Water Management] Optimize water resource management.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc[Parameter Sweep] Biochemical stochastic model parameters.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[Multi-UAV] Multi-UAV Task Assignment.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Media.adoc[Social Media] Analyzing Social Media User Data.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Employee.adoc[Employee Scheduling] Optimize an employee schedule.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PowerPlant.adoc[Power Plant] Power Plant Efficiency.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Vaccination.adoc[Vaccination] Modeling Vaccination.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Routing.adoc[Routing] Capacitated Vehicle Routing.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Surrogate.adoc[Surrogate] Optimize the Mazda car design problem.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc[Robot Pushing and Navigating Rovers]
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] Optimize CFD simulation based problems.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[Noisy TSP] Solve the noisy Traveling Salesman Problem.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc[Clustering] Out of the box.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] Managing hospital resources during a pandemic.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop] Solving the flexible job shop scheduling problem. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling] Solving a complex scheduling problem, part of the GTOC11 competition.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SpaceFlight.adoc[Space Flight] Space flight mission design revisited.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[MO-DE] MO-DE, a new multi objective algorithm.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc[Multi-Objective] Solving multi objective problems using variable weights. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc[gbea TopTrumps Benchmark] TopTrumps game optimization benchmark. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PAGMO.adoc[Pagmo results] GTOPX Benchmark results using Pagmo
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PYKEP.adoc[Pykep gym results] Benchmark results for the Pykep gym problems
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Constraints.adoc[Constraints] Optimizing with constraints. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Expressions.adoc[Expressions] Sequences and random choices of optimizers. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ODE.adoc[ODE] Use of differential equation solvers. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/HyperparameterOptimization.adoc[Hyper Parameters] Hyper parameter optimization.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/DelayedUpdate.adoc[Delayed Update] Asynchronous parallel function evaluation.
+
+=== Log output of the parallel retry
+
+The log output of the parallel retry contains the following rows:
+
+===== Parallel retry
+
+- time (in sec)
+- evaluations / sec
+- number of retries - optimization runs
+- total number of evaluations in all retries
+- best value found so far
+- mean of the values found by the retries below the defined threshold
+- standard deviation of the values found by the retries below the defined threshold
+- list of the best 20 function values in the retry store
+- best solution (x-vector) found so far
+
+Mean and standard deviation would be misleading when using coordinated retry, because
+of the retries initiated by crossover. Therefore the rows of the
+log output differ slightly:
+ 
+===== Smart retry
+
+- time (in sec)
+- evaluations / sec
+- number of retries - optimization runs
+- total number of evaluations in all retries
+- best value found so far
+- worst value in the retry store
+- number of entries in the retry store
+- list of the best 20 function values in the retry store
+- best solution (x-vector) found so far

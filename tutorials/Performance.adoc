@@ -1,0 +1,107 @@
+:encoding: utf-8
+:imagesdir: tutorials/img
+:cpp: C++
+
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Performance
+
+=== Engineering Design Optimization
+
+In this domain we often have multiple competing objectives and a lot of constraints. We present results for the
+http://ladse.eng.isas.jaxa.jp/benchmark/[Mazda real-world car structure design benchmark], the simultaneous
+optimization of three car models minimizing their weight, increasing the number of shared thicknesses of structural  
+parts thereby fulfilling 54 constraints. 2017 there was a competition related to this problem https://www.jstage.jst.go.jp/article/tjpnsec/9/2/9_86/_article/-char/en[Report of Evolutionary Computation Competition 2017],
+but until now not many of the ideas produced there have found their way into open source optimization libraries. 
+
+We applied https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/modecpp.py[modecpp.py] for 
+about 1 hour runtime using one AMD 5950x CPU on Linux, de/rand/1 strategy (nsga_update=False, pareto_update=False, ints=[True]*dim), 
+population size = 256. We choose the best run out of two executed in parallel, each utilizing 16 threads (workers=16). 
+This way about 8200 function evaluations are performed per second for both runs combined.  
+
+The resulting pareto front with hypervolume 0.4074 is:
+
+image::mazda.png[] 
+
+The "reference" NSGA-II solution given as part of the benchmark has hypervolume 0.1456:
+
+image::mazda0.png[]
+
+Note, that the reference solution was computed using a limited budget. But NSGA-II scales much worse than fcmaes-MoDe
+using https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/[enhanced multiple constraint ranking]. 
+
+=== Space Flight Trajectory Planning
+
+fcmaes provides fast parallel
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[example solvers] for the 
+real world space flight design problems https://www.esa.int/gsp/ACT/projects/gtop[GTOP] and for 
+the https://mintoc.de/index.php/F-8_aircraft[F-8_aircraft] problem based on differential equations. 
+On http://www.midaco-solver.com/index.php/about/benchmarks/gtopx[GTOPX] you can find implementations 
+of the corresponding objective functions using different programming languages. The
+solution times given in the tables below are for Linux / AMD 5950x CPU.
+
+.GTOP coordinated retry results for stopVal = 1.005*absolute_best
+[width="80%",cols="3,^2,^2,^2,^2,^2,^2",options="header"]
+|=========================================================
+|problem |runs | absolute best |stopVal |success rate |mean time|sdev time
+|Cassini1 |100 |4.9307 |4.95535 |98% |7.43s |10.7s
+|Cassini2 |100 |8.383 |8.42491 |97% |55.18s |39.79s
+|Gtoc1 |100 |-1581950 |-1574080 |100% |25.88s |22.15s
+|Messenger |100 |8.6299 |8.67305 |100% |18.12s |15.48s
+|Rosetta |100 |1.3433 |1.35002 |100% |25.05s |10.5s
+|Tandem EVEES Constrained |100 |-1500.46 |-1493 |68% |519.21s |479.46s
+|Sagas |100 |18.188 |18.279 |99% |7.59s |6.91s
+|Messenger Full |100 |1.9579 |1.96769 |41% |3497.25s |2508.88s
+|Messenger Full |100 |1.9579 |2.0 |59% |1960.68s |2024.24s
+|=========================================================
+
+Note that 'stopVal' is the threshold value determining success and
+'mean time' includes the time for failed runs.
+Execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/benchmark_gtop.py[benchmark_gtop.py]
+to reproduce these results. The same optimization algorithm
+was applied for all problems, using the same parameters both for the optimization algorithm and the coordinated retry.
+
+.GTOP coordinated retry results for reaching the absolute best value
+[width="80%",cols="2,^2,^2,^2,^2,^2,^2",options="header"]
+|=========================================================
+|problem |runs |absolute best |stopVal |success rate |mean time|sdev time
+|Cassini1 |100 |4.9307 |4.93075 |98% |8.73s |10.85s
+|Cassini2 |100 |8.383 |8.38305 |44% |310.18s |283.52s
+|Gtoc1 |100 |-1581950 |-1581949 |100% |46.41s |35.57s
+|Messenger |100 |8.6299 |8.62995 |98% |57.91s |39.97s
+|Rosetta |100 |1.3433 |1.34335 |27% |268.18s |207.59s
+|Tandem |100 |-1500.46 |-1500 |65% |564.26s |517.94s
+|Sagas |100 |18.188 |18.189 |99% |8.76s |7.01s
+|=========================================================
+
+=== ESAs Messenger-Full Space Trajectory Design Problem
+
+Because of its famous complexity ESAs 26-dimensional https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/[Messenger full] 
+problem is often referenced in the literature, see for instance http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper].
+
+fcmaes is the only library capable of solving it using a single CPU: 
+In about 1950 seconds on average using an AMD 5950x (1250 seconds for the 
+https://github.com/dietmarwo/fcmaes-java[java] variant) .
+
+The Problem models a multi-gravity assist interplanetary space mission from Earth to Mercury. In 2009 the first good solution (6.9 km/s) was submitted. It took more than five years to reach 1.959 km/s and three more years until 2017 to find the optimum 1.958 km/s. The picture below shows the progress of the whole science community since 2009:
+
+image::Fsc.png[]  
+
+The following picture shows 101 coordinated retry runs: 
+
+image::mf3.6000.png[]  
+
+60 out of these 101 runs produced a result better than 2 km/s:
+
+image::mf3.2000.png[] 
+
+About 1.2*10^6 function evaluations per second were performed which shows excellent scaling of the algorithm utilizing all 16 cores / 32 threads.  
+https://github.com/dietmarwo/fcmaes-java/blob/master/README.adoc shows that the fcmaes java implementation sharing 
+the same C++ code is significantly faster. 
+https://github.com/dietmarwo/fcmaes-ray/blob/master/README.adoc[fcmaesray] shows how a 5 node cluster using 
+96 CPU-cores executing fcmaes coordinated retry performs in comparison.
+

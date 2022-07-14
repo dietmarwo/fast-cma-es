@@ -53,4 +53,6 @@ class resonance:
     
     # time of flight of the resonance transfer
     def tof(self):
+        if self._resonance is None:
+            raise Exception('_resonance is None')
         return self._resonance[1] * self._period
