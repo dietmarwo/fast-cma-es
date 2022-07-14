@@ -231,9 +231,9 @@ class problem():
         
     def optimize(self):
         self.fitness(np.random.uniform(0, len(self.employees), self.dim).astype(int))
-        res = retry.minimize_plot("schedule.bite.400k", Bite_cpp(400000),  
+        #res = retry.minimize_plot("schedule.bite.400k", Bite_cpp(400000),  
         #res = retry.minimize_plot("schedule.de.400k", De_cpp(400000, popsize = 512, ints = [True]*self.dim), 
-        #res = retry.minimize_plot("schedule.de.10000k", De_cpp(10000000, popsize = 10000, ints = [True]*self.dim), 
+        res = retry.minimize_plot("schedule.de.10000k", De_cpp(10000000, popsize = 10000, ints = [True]*self.dim), 
         
                     wrapper(self.fitness), self.bounds, num_retries=32, plot_limit=10000)
         print(self.fitness_mo(res.x)) 
@@ -263,8 +263,8 @@ def show_example_solution():
     print(list(x))
            
 if __name__ == '__main__':
-    p = problem('data/sched1.json')
-    #p = problem('data/sched2.json')
+    #p = problem('data/sched1.json')
+    p = problem('data/sched2.json')
     p.optimize()
     #p.optimize_mo()
     #show_example_solution()

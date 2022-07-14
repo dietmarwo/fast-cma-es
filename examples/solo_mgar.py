@@ -104,29 +104,39 @@ def optimize():
     solo_mgar = solo_mgar_udp([7000, 8000])  
     
     def fun(x):
-        return solo_mgar.fitness(x)[0]
-        
-    # logger().info('solar orbiter' + ' de -> cmaes c++ smart retry')
-    # ret = advretry.minimize(fprob.fun, bounds=fprob.bounds, num_retries = 60000, 
-        # logger = logger(), optimizer=de_cma(1500))
-    
-    logger().info('solar orbiter' + ' BiteOpt parallel retry')
+        try:
+            return solo_mgar.fitness(x)[0]
+        except Exception as ex:
+            return 1E99
+
+    def mofun(x):
+        try:
+            return solo_mgar.mo_fitness(x)
+        except Exception as ex:
+            return np.array([1E99]*6)
+
     bounds = solo_mgar.get_bounds()
+        
+    logger().info('solar orbiter' + ' de -> cmaes c++ smart retry')
+    ret = advretry.minimize(fun, bounds=Bounds(bounds[0], bounds[1]), num_retries = 60000, 
+        logger = logger(), optimizer=de_cma(2000))
+        #logger = logger(), optimizer=bite_cma(2000))
     
+    # logger().info('solar orbiter' + ' BiteOpt parallel retry')    
     # ret = retry.minimize(fun, bounds=Bounds(bounds[0], bounds[1]), num_retries = 32000, 
-    #                      logger = logger(), optimizer=Bite_cpp(120000, M=6))
+    #                      logger = logger(), optimizer=Bite_cpp(200000, M=6))
     
-    # x, y = modecpp.retry(mode.wrapper(solo_mgar.mo_fitness, 3, interval = 1000000000), 3, 1,
+    # x, y = modecpp.retry(mode.wrapper(mofun, 3, interval = 1000000000), 3, 1,
     #           Bounds(bounds[0], bounds[1]), popsize = 128, 
     #           max_evaluations = 200000, 
     #           nsga_update=False, num_retries = 32000,
     #           workers=32)
     
-    x, y = modecpp.retry(mode.wrapper(solo_mgar.mo_fitness, 3, interval = 1000000000), 3, 3,
-             Bounds(bounds[0], bounds[1]), popsize = 64, 
-             max_evaluations = 100000, 
-             nsga_update=False, num_retries = 320,
-             workers=32)
+    # x, y = modecpp.retry(mode.wrapper(mofun, 3, interval = 1000000000), 3, 3,
+    #          Bounds(bounds[0], bounds[1]), popsize = 128, 
+    #          max_evaluations = 300000, 
+    #          nsga_update=False, num_retries = 32000,
+    #          workers=32)
     #return ret
 
 def archipelago():   

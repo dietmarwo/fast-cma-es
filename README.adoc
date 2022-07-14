@@ -6,6 +6,8 @@
 
 https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
 
+image::logo.gif[]
+
 fcmaes complements https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy optimize] by providing 
 additional optimization methods, faster {cpp}/Eigen based implementations and a coordinated parallel retry mechanism. 
 It supports the multi threaded application of different gradient free optimization algorithms. 

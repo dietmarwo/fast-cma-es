@@ -39,10 +39,10 @@ setup(
       "Topic :: Scientific/Engineering :: Artificial Intelligence",
       "Operating System :: OS Independent",
       "Programming Language :: Python :: 3",
-      "Development Status :: 4 - Beta",
+      "Development Status :: 5 - Production/Stable",
       "Environment :: Console",
       "License :: OSI Approved :: MIT License",
       ],
-    keywords=["optimization", "multi-objective", "constraints", "CMA-ES", "BiteOpt", "MO-DE", "differential evolution", "annealing", "stochastic", "gradient free", "parallel execution", "boundary management"],
+    keywords=["optimization", "multi-objective", "parallel"],
     include_package_data=True,
    )
