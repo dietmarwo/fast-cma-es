@@ -141,10 +141,8 @@ ret = retry.minimize(fun, bounds, logger=logger(), optimizer=Cma_cpp(100000))
 ret = retry.minimize(fun, bounds, logger=logger(), optimizer=Sequence([De_cpp(50000), Cma_cpp(50000)]))
 ----
 
-Here https://github.com/dietmarwo/fast-cma-es/blob/master/examples/examples.py[examples.py] you find examples.
-Check the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc[Tutorial] for more details. 
-
-In https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[tutorial.py] and https://github.com/dietmarwo/fast-cma-es/blob/master/examples/advexamples.py[advexamples.py] you find examples for the smart retry. 
+Here https://github.com/dietmarwo/fast-cma-es/blob/master/examples you find more examples.
+Check the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials] for more details. 
 
 === Dependencies
 
