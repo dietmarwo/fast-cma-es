@@ -231,6 +231,36 @@ def da_cma(max_evaluations = 50000, da_max_evals = None, cma_max_evals = None,
                    stop_fitness = stop_fitness)
     return Sequence([opt1, opt2])
 
+def de_crfmnes(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
+           de_max_evals = None, crfm_max_evals = None, ints = None):
+    """Sequence differential evolution -> CMA-ES."""
+
+    deEvals = np.random.uniform(0.1, 0.5)
+    if de_max_evals is None:
+        de_max_evals = int(deEvals*max_evaluations)
+    if crfm_max_evals is None:
+        crfm_max_evals = int((1.0-deEvals)*max_evaluations)
+    opt1 = De_cpp(popsize=popsize, max_evaluations = de_max_evals, 
+                  stop_fitness = stop_fitness, ints=ints)
+    opt2 = Crfmnes_cpp(popsize=popsize, max_evaluations = crfm_max_evals, 
+                   stop_fitness = stop_fitness)
+    return Sequence([opt1, opt2])
+
+def crfmnes_bite(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
+           crfm_max_evals = None, bite_max_evals = None, M=1):
+    """Sequence differential evolution -> CMA-ES."""
+
+    deEvals = np.random.uniform(0.1, 0.5)
+    if crfm_max_evals is None:
+        crfm_max_evals = int(deEvals*max_evaluations)
+    if bite_max_evals is None:
+        bite_max_evals = int((1.0-deEvals)*max_evaluations)
+    opt1 = Crfmnes_cpp(popsize=popsize, max_evaluations = crfm_max_evals, 
+                  stop_fitness = stop_fitness)
+    opt2 = Bite_cpp(popsize=popsize, max_evaluations = bite_max_evals, 
+                   stop_fitness = stop_fitness, M=M)
+    return Sequence([opt1, opt2])
+
 class Crfmnes(Optimizer):
     """CRFMNES Python implementation."""
     
