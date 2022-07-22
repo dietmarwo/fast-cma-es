@@ -219,7 +219,7 @@ def gclde_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
 
 def da_cma(max_evaluations = 50000, da_max_evals = None, cma_max_evals = None,
            popsize=31, stop_fitness = -math.inf):
-    """Sequence differential evolution -> CMA-ES."""
+    """Sequence dual annealing -> CMA-ES."""
 
     daEvals = np.random.uniform(0.1, 0.5)
     if da_max_evals is None:
@@ -233,7 +233,7 @@ def da_cma(max_evaluations = 50000, da_max_evals = None, cma_max_evals = None,
 
 def de_crfmnes(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
            de_max_evals = None, crfm_max_evals = None, ints = None):
-    """Sequence differential evolution -> CMA-ES."""
+    """Sequence differential evolution -> CRFMNES."""
 
     deEvals = np.random.uniform(0.1, 0.5)
     if de_max_evals is None:
@@ -248,7 +248,7 @@ def de_crfmnes(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
 
 def crfmnes_bite(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
            crfm_max_evals = None, bite_max_evals = None, M=1):
-    """Sequence differential evolution -> CMA-ES."""
+    """Sequence CRFMNES -> Bite."""
 
     deEvals = np.random.uniform(0.1, 0.5)
     if crfm_max_evals is None:
@@ -257,6 +257,21 @@ def crfmnes_bite(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
         bite_max_evals = int((1.0-deEvals)*max_evaluations)
     opt1 = Crfmnes_cpp(popsize=popsize, max_evaluations = crfm_max_evals, 
                   stop_fitness = stop_fitness)
+    opt2 = Bite_cpp(popsize=popsize, max_evaluations = bite_max_evals, 
+                   stop_fitness = stop_fitness, M=M)
+    return Sequence([opt1, opt2])
+
+def cma_bite(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
+           cma_max_evals = None, bite_max_evals = None, M=1):
+    """Sequence CMA-ES -> Bite."""
+
+    deEvals = np.random.uniform(0.1, 0.5)
+    if cma_max_evals is None:
+        cma_max_evals = int(deEvals*max_evaluations)
+    if bite_max_evals is None:
+        bite_max_evals = int((1.0-deEvals)*max_evaluations)
+    opt1 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
+                  stop_fitness = stop_fitness, stop_hist = 0)
     opt2 = Bite_cpp(popsize=popsize, max_evaluations = bite_max_evals, 
                    stop_fitness = stop_fitness, M=M)
     return Sequence([opt1, opt2])
