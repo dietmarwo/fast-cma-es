@@ -31,7 +31,7 @@
 #ifndef BITEOPT_INCLUDED
 #define BITEOPT_INCLUDED
 
-#define BITEOPT_VERSION "2022.28"
+#define BITEOPT_VERSION "2022.31"
 
 #include "spheropt.h"
 #include "nmsopt.h"
@@ -366,7 +366,7 @@ public:
 				{
 					// Increase population size on fail.
 
-				    incrCurPopSize();
+					incrCurPopSize();
 				}
 			}
 		}
@@ -1080,16 +1080,19 @@ protected:
 			Params[ i ] = ( CrossParams1[ i ] & crpl ) |
 				( CrossParams2[ i ] & ~crpl );
 
-			if( rnd.getBit() )
-			{
-				// Randomize a single bit, with 50% probability.
+			// Randomize a single bit, with 50% probability.
 
-				const int b = rnd.getInt( IntMantBits );
+			const int b = rnd.getInt( IntMantBits );
 
-				Params[ i ] += ( (ptype) rnd.getBit() << b ) -
-					( (ptype) rnd.getBit() << b );
-			}
+			Params[ i ] += ( (ptype) rnd.getBit() << b ) -
+				( (ptype) rnd.getBit() << b );
 		}
+
+		// Apply "bitmask inversion" to a single parameter, similar to
+		// generator 1.
+
+		const int k = rnd.getInt( ParamCount );
+		Params[ k ] = ~Params[ k ];
 	}
 
 	/**

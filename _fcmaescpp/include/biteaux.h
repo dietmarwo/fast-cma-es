@@ -28,7 +28,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * @version 2022.28
+ * @version 2022.31
  */
 
 #ifndef BITEAUX_INCLUDED
@@ -368,8 +368,7 @@ protected:
  * acceptable solution. In practice, this class provides 10-15% more "good"
  * solutions compared to uniformly-random choice selection. This, in turn,
  * improves convergence smoothness and produces more diversity in outcomes in
- * multiple solution attempts (retries) of complex multi-modal objective
- * functions.
+ * multiple solution attempts of complex multi-modal objective functions.
  */
 
 class CBiteSelBase
@@ -520,8 +519,6 @@ public:
 	{
 		const double r = rnd.get();
 		Selp = (int) ( r * sqrt( r ) * CountSp );
-        //Selp = (int) ( r * sqrt(sqrt(r)) * CountSp );
-        //Selp = (int) ( r * sqrt( r ) * sqrt(sqrt(r)) * CountSp );
 
 		Sel = Sels[ Slot ][ Selp ];
 
@@ -699,7 +696,12 @@ public:
 		NeedCentUpdate = s.NeedCentUpdate;
 		CentLPC = s.CentLPC;
 
-		memcpy( PopParamsBuf, s.PopParamsBuf, PopItemSize * PopSize);
+		int i;
+
+		for( i = 0; i < PopSize; i++ )
+		{
+			memcpy( PopParams[ i ], s.PopParams[ i ], PopItemSize );
+		}
 
 		if( !NeedCentUpdate )
 		{
@@ -1011,6 +1013,8 @@ public:
 //			if( CanRejectCost )
 //			{
 //				// Reject same-cost solution using equality precision level.
+//				// This approach reduces search locality due to allowing older
+//				// solutions to remain in population.
 //
 //				static const double etol = 0x1p-52;
 //				const double c = *getObjPtr( PopParams[ p ]);
@@ -1020,12 +1024,14 @@ public:
 //				{
 //					return( PopSize );
 //				}
-//
-//				const double cs = fabs( UpdCost ) + fabs( c );
-//
-//				if( cs == 0.0 || cd / cs < etol )
+//				else
 //				{
-//					return( PopSize );
+//					const double cs = fabs( UpdCost ) + fabs( c );
+//
+//					if( cd < cs * etol )
+//					{
+//						return( PopSize );
+//					}
 //				}
 //			}
 //		}
