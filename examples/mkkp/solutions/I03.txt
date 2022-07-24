@@ -1,0 +1,5 @@
+Instance Name : I03
+Date : 2022-07-24
+Score = 1602.0 Deviation = 0.0 %
+Solution
+8 5 8 9 5 8 7 3 9 4 8 8 8 9 4

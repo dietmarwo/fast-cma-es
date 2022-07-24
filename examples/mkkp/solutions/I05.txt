@@ -1,0 +1,5 @@
+Instance Name : I05
+Date : 2022-07-24
+Score = 3905.7 Deviation = 0.0 %
+Solution
+9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 8
