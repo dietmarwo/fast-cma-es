@@ -151,11 +151,11 @@ def de_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
            de_max_evals = None, cma_max_evals = None, ints = None):
     """Sequence differential evolution -> CMA-ES."""
 
-    deEvals = np.random.uniform(0.1, 0.5)
+    de_evals = np.random.uniform(0.1, 0.5)
     if de_max_evals is None:
-        de_max_evals = int(deEvals*max_evaluations)
+        de_max_evals = int(de_evals*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int((1.0-deEvals)*max_evaluations)
+        cma_max_evals = int((1.0-de_evals)*max_evaluations)
     opt1 = De_cpp(popsize=popsize, max_evaluations = de_max_evals, 
                   stop_fitness = stop_fitness, ints=ints)
     opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
@@ -166,11 +166,11 @@ def de_cma_py(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
            de_max_evals = None, cma_max_evals = None, ints = None):
     """Sequence differential evolution -> CMA-ES in python."""
 
-    deEvals = np.random.uniform(0.1, 0.5)
+    de_evals = np.random.uniform(0.1, 0.5)
     if de_max_evals is None:
-        de_max_evals = int(deEvals*max_evaluations)
+        de_max_evals = int(de_evals*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int((1.0-deEvals)*max_evaluations)
+        cma_max_evals = int((1.0-de_evals)*max_evaluations)
     opt1 = De_python(popsize=popsize, max_evaluations = de_max_evals, 
                      stop_fitness = stop_fitness, ints=ints)
     opt2 = Cma_python(popsize=popsize, max_evaluations = cma_max_evals, 
@@ -181,11 +181,11 @@ def de2_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
            de_max_evals = None, cma_max_evals = None, ints = None):
     """Sequence differential evolution -> CMA-ES."""
 
-    deEvals = np.random.uniform(0.1, 0.5)
+    de_evals = np.random.uniform(0.1, 0.5)
     if de_max_evals is None:
-        de_max_evals = int(deEvals*max_evaluations)
+        de_max_evals = int(de_evals*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int((1.0-deEvals)*max_evaluations)
+        cma_max_evals = int((1.0-de_evals)*max_evaluations)
     opt1 = Choice([GCLDE_cpp(de_max_evals), De_cpp(de_max_evals, ints=ints)])
     opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fitness = stop_fitness)
     return Sequence([opt1, opt2])
@@ -194,11 +194,11 @@ def de3_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
            de_max_evals = None, cma_max_evals = None):
     """Sequence differential evolution -> CMA-ES."""
 
-    deEvals = np.random.uniform(0.1, 0.5)
+    de_evals = np.random.uniform(0.1, 0.5)
     if de_max_evals is None:
-        de_max_evals = int(deEvals*max_evaluations)
+        de_max_evals = int(de_evals*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int((1.0-deEvals)*max_evaluations)
+        cma_max_evals = int((1.0-de_evals)*max_evaluations)
     opt1 =  Choice([GCLDE_cpp(de_max_evals), Cma_cpp(de_max_evals), De_cpp(de_max_evals)])
     opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fitness = stop_fitness)
     return Sequence([opt1, opt2])
@@ -207,11 +207,11 @@ def gclde_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
            de_max_evals = None, cma_max_evals = None, workers = None):
     """Sequence G-CL-differential evolution -> CMA-ES."""
 
-    deEvals = np.random.uniform(0.1, 0.5)
+    de_evals = np.random.uniform(0.1, 0.5)
     if de_max_evals is None:
-        de_max_evals = int(deEvals*max_evaluations)
+        de_max_evals = int(de_evals*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int((1.0-deEvals)*max_evaluations)
+        cma_max_evals = int((1.0-de_evals)*max_evaluations)
     opt1 = GCLDE_cpp(max_evaluations = de_max_evals, stop_fitness = stop_fitness, workers = workers)
     opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
                    stop_fitness = stop_fitness, workers = workers)
@@ -235,11 +235,11 @@ def de_crfmnes(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
            de_max_evals = None, crfm_max_evals = None, ints = None):
     """Sequence differential evolution -> CRFMNES."""
 
-    deEvals = np.random.uniform(0.1, 0.5)
+    de_evals = np.random.uniform(0.1, 0.5)
     if de_max_evals is None:
-        de_max_evals = int(deEvals*max_evaluations)
+        de_max_evals = int(de_evals*max_evaluations)
     if crfm_max_evals is None:
-        crfm_max_evals = int((1.0-deEvals)*max_evaluations)
+        crfm_max_evals = int((1.0-de_evals)*max_evaluations)
     opt1 = De_cpp(popsize=popsize, max_evaluations = de_max_evals, 
                   stop_fitness = stop_fitness, ints=ints)
     opt2 = Crfmnes_cpp(popsize=popsize, max_evaluations = crfm_max_evals, 
@@ -250,11 +250,11 @@ def crfmnes_bite(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
            crfm_max_evals = None, bite_max_evals = None, M=1):
     """Sequence CRFMNES -> Bite."""
 
-    deEvals = np.random.uniform(0.1, 0.5)
+    crfmnes_evals = np.random.uniform(0.1, 0.5)
     if crfm_max_evals is None:
-        crfm_max_evals = int(deEvals*max_evaluations)
+        crfm_max_evals = int(crfmnes_evals*max_evaluations)
     if bite_max_evals is None:
-        bite_max_evals = int((1.0-deEvals)*max_evaluations)
+        bite_max_evals = int((1.0-crfmnes_evals)*max_evaluations)
     opt1 = Crfmnes_cpp(popsize=popsize, max_evaluations = crfm_max_evals, 
                   stop_fitness = stop_fitness)
     opt2 = Bite_cpp(popsize=popsize, max_evaluations = bite_max_evals, 
@@ -265,11 +265,11 @@ def cma_bite(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
            cma_max_evals = None, bite_max_evals = None, M=1):
     """Sequence CMA-ES -> Bite."""
 
-    deEvals = np.random.uniform(0.1, 0.5)
+    cma_evals = np.random.uniform(0.1, 0.5)
     if cma_max_evals is None:
-        cma_max_evals = int(deEvals*max_evaluations)
+        cma_max_evals = int(cma_evals*max_evaluations)
     if bite_max_evals is None:
-        bite_max_evals = int((1.0-deEvals)*max_evaluations)
+        bite_max_evals = int((1.0-cma_evals)*max_evaluations)
     opt1 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
                   stop_fitness = stop_fitness, stop_hist = 0)
     opt2 = Bite_cpp(popsize=popsize, max_evaluations = bite_max_evals, 
