@@ -221,11 +221,11 @@ def da_cma(max_evaluations = 50000, da_max_evals = None, cma_max_evals = None,
            popsize=31, stop_fitness = -math.inf):
     """Sequence dual annealing -> CMA-ES."""
 
-    daEvals = np.random.uniform(0.1, 0.5)
+    da_evals = np.random.uniform(0.1, 0.5)
     if da_max_evals is None:
-        da_max_evals = int(daEvals*max_evaluations)
+        da_max_evals = int(da_evals*max_evaluations)
     if cma_max_evals is None:
-        cma_max_evals = int((1.0-daEvals)*max_evaluations)
+        cma_max_evals = int((1.0-da_evals)*max_evaluations)
     opt1 = Da_cpp(max_evaluations = da_max_evals, stop_fitness = stop_fitness)
     opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
                    stop_fitness = stop_fitness)
