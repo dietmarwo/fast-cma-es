@@ -49,15 +49,17 @@ A problem specific optimizer has obvious disadvantages:
 - Utilizing the whole CPU (all cores) is difficult. All three implementations are single threaded. 
 
 It makes only sense if the performance is superior compared to standard continuous optimizers
-like BiteOpt, CR-FM-NES or CMA-ES. 
-which are easy to parallelize. So first we will investigate if this is the case: In fact it is
-not, Parallel retry applied to any of the three continuous optimizers outperforms all three 
+like BiteOpt, CR-FM-NES or CMA-ES. which are easy to parallelize. 
+CR-FM-NES and CMA-ES converge fast, but can get stuck at local minima. BiteOpt, on the other hand,
+converges slower but is better at avoiding getting stuck. Therefore we choose the sequences 
+CR-FM-NES->BiteOpt and CMA-ES->BiteOpt as algorithms to test with the UAV problem. 
+
+Parallel retry applied to any of the two continuous optimizers outperforms all three 
 algorithms by a big margin as we can see in the diagrams below:
 
 image::uav_reward.png[]
 
-Only for small problems GA can compete. Additionally PSO and ACO CPU time requirements raise 
-superlinear compared with the problem size. The following diagram shows selected solutions for
+Only for small problems GA can compete. The following diagram shows selected solutions for
 small, medium and large problem sizes for all six algorithms:
 
 image::uav_results.png[]
@@ -76,10 +78,10 @@ and implemented the following enhancements:
 - We applied numba also to the GA operations (selection, mutation, crossover), see
 https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/ga.py[ga.py]
 - The fitness function used for GA is adapted and improved for use with continuous optimizers.
-- BiteOpt, CR-FM-NES and CMA-ES using parallel retry are added as Benchmark and as a stand-alone experiment.
+- CR-FM-NES->BiteOpt and CMA-ES->BiteOpt using parallel retry are added as Benchmark and as a stand-alone experiment.
 - Multi-objective MODE parallel retry is added as stand-alone experiment. 
 
-==== Single Objective Continous Fitness
+==== Single Objective Continuous Fitness
 
 Fitness class `Optimizer` delegates to the fitness function adapted from GA:
 
@@ -206,12 +208,8 @@ scheduling or task assignment related. Advantages are:
 - Only the objective function has to be implemented. 
 - Often the standard algorithms perform better.
 - Algorithm overhead is reduced, since many algorithms are implemented in C++. 
+- The CR-FM-NES->BiteOpt sequence has low algorithm overhead and is applicable to other 
+  problems like vehicle routing (VRTPW) or MKKP. 
 
 Objective function implementation sometimes may be a bit tricky, specifically for problems using discrete
-arguments. First try BiteOpt for single objective problems and fcmaes MODE with `nsga_update=True`
-for multi-objective problems with or without constraints.  
-Other algorithms may be better for specific problems, but these never fail completely. 
-For Multi-UAV Task Assignment both algorithms perform exceptionally good. 
-Whether reinforcment learning can further improve the results is an open question. 
-BiteOpt's performance slowly deteriorates with a number of decision variables > 60, may
-be machine learning can be helpful for very large problem instances. 
+arguments. For Multi-UAV Task Assignment both algorithm sequences perform exceptionally good. 
