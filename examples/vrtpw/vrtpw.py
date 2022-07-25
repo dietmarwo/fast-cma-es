@@ -11,6 +11,7 @@
 import numpy as np
 import os
 from numba import njit
+from datetime import datetime
 from fcmaes.optimizer import crfmnes_bite, wrapper
 from fcmaes import retry
 from scipy.optimize import Bounds
@@ -94,7 +95,6 @@ class VRTPW():
     
     def dump(self, seq, y, problem, opt_name=''):
         lines = []
-        from datetime import datetime
         lines.append('Instance Name : ' + self.problem + '\n')
         lines.append('Date : ' + str(datetime.today().date()) + '\n')
         lines.append('Solution\n')
