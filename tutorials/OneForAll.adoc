@@ -86,7 +86,6 @@ mapped to it. Examples are:
 - https://www.sciencedirect.com/science/article/abs/pii/S0377221715000284[Redundancy allocation for series-parallel systems].
 - https://apps.dtic.mil/sti/citations/ADA360808[Quality of service management] for timeliness, reliability, security, etc.
 - https://onlinelibrary.wiley.com/doi/10.1111/j.1475-3995.2005.00523.x[Optimal number of warehouses needed to store a set of items] preventing incompatible items to be stored together.
- Moreover, distributed cloud computing technologies hold promise of offering affordable large-scale parallelism in the near term.
 - https://www.sciencedirect.com/science/article/abs/pii/S0377221799004518[Budgeting with bounded multiple-choice constraints].
 
 ==== Problem description
