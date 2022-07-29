@@ -10,7 +10,7 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 image::logo.gif[]
 
 == One To Rule Them All
-
+For-tools
 This tutorial
 
 - Applies a new combination of optimization algorithms, https://arxiv.org/abs/2201.11422[CR-FM-NES] and https://github.com/avaneev/biteopt[BiteOpt] applied in
@@ -55,7 +55,7 @@ all possible variants. Such a "one for all" approach would be helpful in many si
 
 - We are faced with a very specific problem variant where there is no good algorithm yet available to us.
 - Our programming skills are sufficient to code an objective function in Python, but not to create a problem specific solver. 
-- We want to avoid learning the complex API of a problem specific solver like or-tools or OptaPlanner. 
+- We want to avoid learning the complex API of a problem specific solver like https://github.com/google/or-tools[or-tools]  or https://www.optaplanner.org/[OptaPlanner]. 
 - There exists no good open source solution for our specific problem supporting the programming language we want to use.
 - We have multiple competing objectives and search for the pareto front representing non-dominated
 choices. 
@@ -306,8 +306,7 @@ computer science. There exists a huge amount of literature, sophisticated proble
 See https://developers.google.com/optimization/routing/vrp for a nice introduction into
 the topic. 
 
-Open source libraries like or-tools support a vehicle routing specific API and produce
-nearly perfect results (see https://github.com/dietmarwo/VRPTW/blob/master/Results.adoc[VRPTW results]). 
+Open source libraries like https://github.com/google/or-tools[or-tools] support a vehicle routing specific API and produce nearly perfect results (see https://github.com/dietmarwo/VRPTW/blob/master/Results.adoc[VRPTW results]). 
 
 Although the "optimization without a problem specific optimizer" approach should not be
 applied here, it is nevertheless interesting to analyze how much we loose if we try it nevertheless. The code can easily adapted to other problem variants adding more constraints and different objectives - this is where this approach really shines. 
@@ -336,7 +335,7 @@ There exist two different objectives for the Solomon's VRPTW benchmark:
 - A hierarchical objective minimizing the number of vehicles with the distance as secondary objective: 
 https://www.sintef.no/projectweb/top/vrptw/100-customers/[sintef].
 
-The single objective variant can be solved almost perfectly using or-tools so we choose this. 
+The single objective variant can be solved almost perfectly using https://github.com/google/or-tools[or-tools] so we choose this. 
 See https://github.com/dietmarwo/VRPTW/blob/master/optimize_or.py[optimize_or.py] for the or-tools implementation to generate the reference results used for comparison here. 
 We found other reference solutions at http://vrp.galgos.inf.puc-rio.br/index.php/en/[galgos], 
 but some of them didn't pass our validation. These solution assume rounding of the distances, which makes them incompatible to the interpretation of the problem used here. 
@@ -454,7 +453,7 @@ Modify the fitness function to handle a problem variant supporting noisy demands
 for instance when using `demands[customer]` multiply with a random factor 
 in the `[0.8,1.2]` interval. You have to call `fitness_` multiple times to 
 compute a "worst case" value used as fitness. See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc where this was done for TSP. 
-Can you do this using or-tools instead by modifying 
+Can you do this using https://github.com/google/or-tools[or-tools] instead by modifying 
 https://github.com/dietmarwo/VRPTW/blob/master/optimize_or.py[optimize_or.py]?
 
 ==== Results
@@ -464,7 +463,7 @@ of CR-MF-NES and BiteOpt, executing 64 runs,
 32 runs performed in parallel. On an AMD 5950x 16 core
 CPU which takes about 7 minutes. 
 
-Compared to the or-tools result which serves as a reference 
+Compared to the https://github.com/google/or-tools[or-tools] result which serves as a reference 
 we loose about 0.2% for the clustered problem instances and about 
 3% for the random problem instances.
 
