@@ -12,7 +12,8 @@ image::logo.gif[]
 == One to rule them all
 
 This tutorial
-- Applies a new combination of optimization algorithms, CR-FM-NES and BiteOpt applied in
+
+- Applies a new combination of optimization algorithms, https://arxiv.org/abs/2201.11422[CR-FM-NES] and https://github.com/avaneev/biteopt[BiteOpt] applied in
 a sequence, to different scheduling and packing problems of practical relevance: MKKP and VRTPW.
 - Compares the results for typical benchmark problems to reference solutions.
 - Shows how to define efficient fitness functions to these problems in Python.
