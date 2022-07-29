@@ -10,7 +10,6 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 image::logo.gif[]
 
 == One To Rule Them All
-For-tools
 This tutorial
 
 - Applies a new combination of optimization algorithms, https://arxiv.org/abs/2201.11422[CR-FM-NES] and https://github.com/avaneev/biteopt[BiteOpt] applied in
