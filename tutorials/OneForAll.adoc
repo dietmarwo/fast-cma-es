@@ -14,7 +14,7 @@ image::logo.gif[]
 This tutorial
 
 - Applies a new combination of optimization algorithms, https://arxiv.org/abs/2201.11422[CR-FM-NES] and https://github.com/avaneev/biteopt[BiteOpt] applied in
-a sequence, to different scheduling and packing problems of practical relevance: MKKP and VRTPW.
+a sequence, to different scheduling and packing problems of practical relevance: MMKP and VRPTW.
 - Compares the results for typical benchmark problems to reference solutions.
 - Shows how to define efficient fitness functions to these problems in Python.
 - Discusses when to apply the new method
@@ -37,7 +37,7 @@ is an obvious idea. We tried the  CR-FM-NES -> BiteOpt sequence for
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[Multi-UAV Task Assignment]
 where it outperformed several problem specific algorithm implementations like GA, PSO and ACO.    
 
-In this tutorial we will extend its application to MKKP and VRTPW, two very different problems
+In this tutorial we will extend its application to MMKP and VRPTW, two very different problems
 of high practical relevance. 
 
 ==== Do we need a problem specific optimization algorithm
@@ -62,7 +62,7 @@ choices.
 
 To analyze the tradeoff "how much do we loose using the generic approach", we can apply it to well
 known problem variants where researchers had decades to improve the specific algorithms. 
-They tried hardest for problems of practical relevance like MKKP and VRTPW, so we expect meaningful
+They tried hardest for problems of practical relevance like MMKP and VRPTW, so we expect meaningful
 results here. But we don't see these as the main application area of the approach.   
 
 ==== Optimization needs to be "tweaked" to support parallelism
@@ -351,11 +351,11 @@ May be because most continuous optimization algorithms don't work well here.
 
 ==== Implementation
 
-The complete code for the VRTPW problem is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vrtpw/vrtpw.py[mmkp.py]. To apply continuous optimization we represent a problem instance as Python class VRTPW:
+The complete code for the VRPTW problem is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vrptw/vrptw.py[mmkp.py]. To apply continuous optimization we represent a problem instance as Python class VRPTW:
 
 [source,python]
 ----   
-class VRTPW():
+class VRPTW():
     def __init__(self, problem):
         self.problem = problem
         filename = 'problems/' + problem + '.txt'
@@ -439,9 +439,9 @@ Even the `popsize` parameter is equal.
 popsize = 500
 opt = crfmnes_bite(max_evaluations, popsize=popsize, M=4)
 
-def optimize(vrtpw, opt, num_retries = 64):
-    ret = retry.minimize(wrapper(vrtpw.fitness), 
-                        vrtpw.bounds, num_retries = num_retries, optimizer=opt)
+def optimize(vrptw, opt, num_retries = 64):
+    ret = retry.minimize(wrapper(vrptw.fitness), 
+                        vrptw.bounds, num_retries = num_retries, optimizer=opt)
 ----
 
 - `crfmnes_bite` represents a sequence of CR-FM-NES and BiteOpt, 
