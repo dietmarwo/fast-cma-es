@@ -12,7 +12,7 @@ import numpy as np
 import os
 from numba import njit
 from datetime import datetime
-from fcmaes.optimizer import crfmnes_bite, wrapper
+from fcmaes.optimizer import crfmnes_bite, wrapper, logger
 from fcmaes import retry
 from scipy.optimize import Bounds
 
@@ -79,7 +79,7 @@ def fitness_(seq, capacity, dtime, demands, readys, dues, services):
         last = customer
     return np.array([float(vehicles), sum_dtime])
     
-class VRTPW():
+class VRPTW():
     def __init__(self, problem):
         self.problem = problem
         filename = 'problems/' + problem + '.txt'
@@ -136,23 +136,23 @@ class VRTPW():
         filename = 'solutions/' + problem + '.txt'
         with open(filename, 'w') as f:
             f.writelines(lines)
-        print(''.join(lines))
+        logger().info(''.join(lines))
     
-def optimize(vrtpw, opt, num_retries = 64):
-    ret = retry.minimize(wrapper(vrtpw.fitness), 
-                        vrtpw.bounds, num_retries = num_retries, optimizer=opt)
-    vrtpw.dump(np.argsort(ret.x), ret.fun, vrtpw.problem, opt.name.replace(' ','_') + '_')
+def optimize(vrptw, opt, num_retries = 64):
+    ret = retry.minimize(wrapper(vrptw.fitness), 
+                        vrptw.bounds, num_retries = num_retries, optimizer=opt)
+    vrptw.dump(np.argsort(ret.x), ret.fun, vrptw.problem, opt.name.replace(' ','_') + '_')
 
 def opt_dir(dir):
     files = os.listdir(dir)
     files.sort()
     for file in files:
         problem = file.split('.')[0]
-        vrtpw = VRTPW(problem) 
+        vrptw = VRPTW(problem) 
         popsize = 500
         max_evaluations = popsize*20000
         opt = crfmnes_bite(max_evaluations, popsize=popsize, M=6)
-        optimize(vrtpw, opt, num_retries = 64)
+        optimize(vrptw, opt, num_retries = 64)
     
 if __name__ == '__main__':
     opt_dir('problems')

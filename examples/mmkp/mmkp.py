@@ -94,7 +94,7 @@ class MMKP():
         filename = 'solutions/' + self.problem + '.txt'
         with open(filename, 'w') as f:
             f.writelines(lines)
-        print(''.join(lines))
+        logger().info(''.join(lines))
        
 def optimize(mmkp, opt, num_retries = 32):
     ret = retry.minimize(wrapper(mmkp.fitness), 
@@ -110,10 +110,11 @@ def opt_dir(dir):
         problem = file.split('.')[0]
         mmkp = MMKP(problem)
         dim = mmkp.dim
-        popsize = 100 + dim
-        max_evaluations = popsize*20000
-        opt = crfmnes_bite(max_evaluations, popsize=popsize, M=6, stop_fitness = 1E-12)
-        optimize(mmkp, opt, num_retries = 64)
+        popsize = 500#100 + dim
+        max_evaluations = 10000000#popsize*20000
+        stop_fitness = 2.0 # stop at 2% deviance to optimum
+        opt = crfmnes_bite(max_evaluations, popsize=popsize, M=4, stop_fitness = 1E-12)
+        optimize(mmkp, opt, num_retries = 1024)
 
 if __name__ == '__main__':
     opt_dir('problems')

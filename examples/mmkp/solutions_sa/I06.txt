@@ -1,5 +1,5 @@
 Instance Name : I06
-Date : 2022-07-24
+Date : 2022-07-28
 Score = 4799.299999999999 Deviation = 0.0 %
 Solution
 9 9 9 9 8 8 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 8 9 9 9 9 9
