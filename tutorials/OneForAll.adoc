@@ -182,7 +182,7 @@ https://www.researchgate.net/publication/277326960_A_Reactive_Local_Search-Based
 The complete code for the MMKP problem is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/mmkp/mmkp.py[mmkp.py].
 To apply continuous optimization we represent a problem instance as Python class MMKP:
 
-source,python]
+[source,python]
 ----   
 class MMKP():
     def __init__(self, problem):
