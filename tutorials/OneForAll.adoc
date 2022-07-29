@@ -9,7 +9,7 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 
 image::logo.gif[]
 
-== One to rule them all
+== One To Rule Them All
 
 This tutorial
 
