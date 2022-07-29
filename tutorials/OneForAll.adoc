@@ -162,7 +162,7 @@ This are the benchmark results for continuous optimization computed on a 16 core
 
 As you can see, we loose about 0.5% accuracy compared to the reference solutions above. And we reach 2% accuracy in less than a minute even for larger instances. The following diagram shows the relation between the number of groups / decision variables and the time to reach 2% accuracy:
 
-image::MMKP_time_to_reach_2%_deviation_from_optimum.png[]
+image::MMKP_time.png[]
 
 It is almost linear. So we can expect to handle even bigger instances with reasonable effort. 
 
