@@ -380,7 +380,7 @@ We extract the problem parameters by parsing the instance file:
 The number of decision variables `self.dim` is equal to the number of customer locations.
 Note that all tables include a 0-entry for the start/end location.  
 We use as boundary the  `[0, 1]` interval. The fitness function converts the continuus 
-argument vector into a list of unique integers using `p.argsort(x)`.
+argument vector into a list of unique integers using `np.argsort(x)`.
 `fitness` delegates to a fast https://numba.pydata.org/[numba] function `fitness_` 
 executing all tours thereby evaluating the objectives and the constraints. 
 
