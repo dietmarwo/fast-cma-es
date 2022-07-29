@@ -14,6 +14,7 @@ image::logo.gif[]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[Crypto Trading] Optimize your crypto trading strategy.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc[Water Management] Optimize water resource management.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc[Parameter Sweep] Biochemical stochastic model parameters.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/OneForAll.adoc[One For All] MMKP and VRPTW.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[Multi-UAV] Multi-UAV Task Assignment.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Media.adoc[Social Media] Analyzing Social Media User Data.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Employee.adoc[Employee Scheduling] Optimize an employee schedule.
