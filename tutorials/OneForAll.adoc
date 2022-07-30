@@ -291,8 +291,7 @@ def optimize(mmkp, opt, num_retries = 32):
 - `stop_fitness` tells the algorithm to stop when a specific value / deviation is reached. 
 - `popsize` and `M` are configuration parameters of the used optmizers.
 
-These settings are sufficient if you aim for a 2% deviation from the optimum (`stop_fitness = 2.0`). 1.5% deviation is much harder to achieve, you may consider the number of retries  `num_retries`. The number of parallel retries is CPU dependent, for the AMD 5950x this is
-32 and may be overwritten using the `workers` argument. We experimented with lower 
+These settings are sufficient if you aim for a 2% deviation from the optimum (`stop_fitness = 2.0`). 1.5% deviation is much harder to achieve, you may consider to increase the number of retries  `num_retries`. The number of parallel retries is CPU dependent, for the AMD 5950x this is 32 and may be overwritten using the `workers` argument. We experimented with lower 
 population size for smaller instances, but there is not much to gain. Both 
 CR-FM-NES and BiteOpt are largely self-adapting.  
 
