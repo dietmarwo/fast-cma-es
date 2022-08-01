@@ -17,7 +17,7 @@
 import json, sys
 import numpy as np
 from numba import njit
-from fcmaes.optimizer import Bite_cpp, Cma_cpp, wrapper
+from fcmaes.optimizer import Bite_cpp, Cma_cpp, wrapper, logger
 from fcmaes import retry
 from scipy.optimize import Bounds  
 
@@ -92,7 +92,8 @@ class ANPCPC():
     
 def optimize(anpcpc, opt, num_retries = 32):
     ret = retry.minimize(wrapper(anpcpc.fitness), 
-                               anpcpc.bounds, num_retries = num_retries, optimizer=opt)
+                               anpcpc.bounds, num_retries = num_retries, 
+                               optimizer=opt, logger=logger())
     print("facility locations = ", anpcpc.get_facilities(ret.x))
     print("value = ", np.sqrt(ret.fun))
     

@@ -13,7 +13,7 @@ import json, sys
 import numpy as np
 from numba import njit
 import numba
-from fcmaes.optimizer import Bite_cpp, wrapper
+from fcmaes.optimizer import Bite_cpp, wrapper, logger
 from fcmaes import retry
 from scipy.optimize import Bounds  
 
@@ -101,7 +101,8 @@ class ANPCP():
     
 def optimize(anpcp, opt, num_retries = 32):
     ret = retry.minimize(wrapper(anpcp.fitness), 
-                               anpcp.bounds, num_retries = num_retries, optimizer=opt)
+                               anpcp.bounds, num_retries = num_retries, 
+                               optimizer=opt, logger=logger())
     print("selection = ", anpcp.get_selection(ret.x))
     print("value = ", ret.fun)
 
@@ -113,8 +114,8 @@ if __name__ == '__main__':
     # anpcp.init_tsp('data/rat783_588_195_4.anpcp.tsp')   
     anpcp = ANPCP(12, 2) # p = 12, alpha = 2
     anpcp.init_tsp('data/rl1323_993_330_4.anpcp.tsp')
-    popsize = 500#7 + 6*anpcp.dim
-    max_evaluations = 1000000
+    popsize = 7 + 12*anpcp.dim
+    max_evaluations = 300000
     opt = Bite_cpp(max_evaluations, popsize=popsize, M=8)
     optimize(anpcp, opt, num_retries = 32)
     
