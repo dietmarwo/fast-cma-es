@@ -77,7 +77,7 @@ class ANPCPC():
             
     def random_x(self, seed = 123):
         rng = np.random.default_rng(seed)
-        return rng.integers(0, self.fnum, self.dim)
+        return rng.random(self.dim) * np.max(self.facilities)
 
     def get_facilities(self, x):
         facilities_x = x[:self.p]
