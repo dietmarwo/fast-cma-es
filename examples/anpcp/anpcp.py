@@ -2,6 +2,12 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
+# See https://github.com/netotz/alpha-neighbor-p-center-problem/blob/main/README.md
+# See https://www.researchgate.net/publication/257196448_Optimal_algorithms_for_the_a-neighbor_p-center_problem
+#
+# This implements the original variant of the problem using continuous optimization and
+# a variant (commented out) where instead of the alpha-best we use the sum of the best alpha distances.
+# Users and facilities are taken from TSP/JSON files.  
 
 import json, sys
 import numpy as np
@@ -41,7 +47,9 @@ def fitness_(selection, distance, alpha):
     selected = distance[:,selection] 
     partitioned = np.partition(selected, alpha)    
     return max([max(d[:alpha]) for d in partitioned])
-        
+    # variant where instead of the alpha-best we use the sum of the best alpha distances
+    # return max([np.sum(d[:alpha]) for d in partitioned])        
+
 class ANPCP():
     
     def __init__(self, p, alpha):
@@ -73,12 +81,12 @@ class ANPCP():
                     facilities.append(coords)
                 else:
                     users.append(coords)
-        self.users = np.array(users)
-        self.facilities = np.array(facilities)        
-        self.unum = len(self.users)
-        self.fnum = len(self.facilities)        
-        self.distance = calc_distance_(self.users, self.facilities)
-        self.bounds = Bounds([0]*self.dim, [self.fnum-1E-9]*self.dim)  
+            self.users = np.array(users)
+            self.facilities = np.array(facilities)        
+            self.unum = len(self.users)
+            self.fnum = len(self.facilities)        
+            self.distance = calc_distance_(self.users, self.facilities)
+            self.bounds = Bounds([0]*self.dim, [self.fnum-1E-9]*self.dim)  
             
     def random_x(self, seed = 123):
         rng = np.random.default_rng(seed)
@@ -105,7 +113,7 @@ if __name__ == '__main__':
     # anpcp.init_tsp('data/rat783_588_195_4.anpcp.tsp')   
     anpcp = ANPCP(12, 2) # p = 12, alpha = 2
     anpcp.init_tsp('data/rl1323_993_330_4.anpcp.tsp')
-    popsize = 7 + 6*anpcp.dim
+    popsize = 500#7 + 6*anpcp.dim
     max_evaluations = 1000000
     opt = Bite_cpp(max_evaluations, popsize=popsize, M=8)
     optimize(anpcp, opt, num_retries = 32)
