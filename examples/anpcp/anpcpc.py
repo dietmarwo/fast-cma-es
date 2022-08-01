@@ -9,7 +9,7 @@
 # This implements a continuous variation of the problem: 
 # We don't offer a set of facilities to choose from. Only p, the number of chosen facilities is given and we
 # search for optimal coordinates. Users are taken from the TSP/JSON files as before and the boundaries
-# of the coordinated are determined from the facilities defined there. 
+# of the coordinates are determined using the facilities defined there. 
 # Additionally a variant is implemented (commented out) where instead of the alpha-best we 
 # use the sum of the best alpha distances.
 # Note that we internally use the square of the distance to speed up the computation of the distance matrix.  
