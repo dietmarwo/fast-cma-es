@@ -73,7 +73,7 @@ def minimize(mofun,
              dis_c = 20.0,
              pro_m = 1.0,
              dis_m = 20.0,
-             nsga_update = False,
+             nsga_update = True,
              switch_nsga = False,
              pareto_update = 0,
              ints = None,
@@ -121,7 +121,7 @@ def minimize(mofun,
     pro_c, dis_c, pro_m, dis_m = float, optional
         NSGA population update parameters, usually leave at default. 
     nsga_update = boolean, optional
-        Use of NSGA-II or DE population update. Default is False    
+        Use of NSGA-II or DE population update. Default is True    
     pareto_update = float, optional
         Only applied if nsga_update = False. Favor better solutions for sample generation. Default 0 - 
         use all population members with the same probability.   

@@ -1,20 +1,20 @@
-"""Find the optimal subset fulfilling any property.
-
-Single objective variant of https://github.com/dietmarwo/fast-cma-es/blob/master/examples/subset_mo.py 
+"""Find the optimal subset fulfilling any property. 
+Multi-objective variant of https://github.com/dietmarwo/fast-cma-es/blob/master/examples/subset.py 
 
 As example we use transactions where a subset is to be matched to a list of payments. 
 For transactions: [2,4,5,1,3] and payments: [4, 4] the sum of payments is 8. 
 Subsets of transactions that minimize the difference between payments and 
-transactions are for instance [5,3], or [4,3,1]. 
+transactions are for instance [5,3], or [4,3,1]. As second objective we maximize
+the minimal transaction in the chosen subset. 
 
 In general we have to define a mapping 'selection_value' which maps a 
-specific selection/subset represented as boolean array to a value to be minimized. 
+specific selection/subset represented as boolean array to a list of values to be minimized. 
 """
 
 import numpy as np
 from scipy.optimize import Bounds 
-from fcmaes import retry
-from fcmaes.optimizer import wrapper, Bite_cpp
+from fcmaes import mode, modecpp
+from fcmaes.optimizer import logger
 
 # replace with your mapping selection -> value
 class transaction_value():
@@ -24,7 +24,8 @@ class transaction_value():
         self.sum_payments = sum(payments)
         
     def __call__(self, selection):
-        return abs(sum(self.transactions[selection]) - self.sum_payments)
+        trs = self.transactions[selection]
+        return abs(sum(trs) - self.sum_payments), -min(trs)
     
 class fitness():
     
@@ -39,18 +40,19 @@ class fitness():
     def __call__(self, x):
         return self.selection_value(x.astype(int).astype(bool))
 
-# Multiple optimizations are executed in parallel and all results are collected 
-def optimize(fitness, opt, num_retries = 32):
-    store = retry.Store(wrapper(fitness), fitness.bounds)
-    retry.retry(store, opt.minimize, num_retries)
-    xs = store.get_xs()
-    ys = store.get_ys()
+def optimize(fitness, num_retries = 32):
+    nobj = 2
+    ncon = 0
+    xs, ys = modecpp.retry(mode.wrapper(fitness, nobj), nobj, ncon, 
+                           fit.bounds, num_retries=num_retries, popsize = 500, 
+                           max_evaluations = 100000, nsga_update = True, 
+                           logger = logger(), workers=32)    
     # show the best results
     for i in range(len(xs)):
-        if ys[i] > 0.001: break
-        print(i+1, ") Optimal Objective value: ", ys[i])
+        if ys[i][0] > 10: break
+        print(i+1, ") Optimal Objective values: ", ys[i])
         print(fitness.selected(xs[i]))
- 
+
 if __name__ == '__main__':
     seed = 13
     rng = np.random.default_rng(seed)   
@@ -58,6 +60,4 @@ if __name__ == '__main__':
     payments = rng.integers(10, 50, 100)    
     selection_value = transaction_value(transactions, payments)    
     fit = fitness(selection_value, len(transactions))
-    # use Bite_cpp(10000) for smaller dimension
-    opt = Bite_cpp(50000, popsize=500)
-    optimize(fit, opt, num_retries=32)
+    optimize(fit, num_retries=32)

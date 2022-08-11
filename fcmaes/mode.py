@@ -59,7 +59,7 @@ def minimize(mofun,
              workers = None,
              f = 0.5, 
              cr = 0.9, 
-             nsga_update = False,
+             nsga_update = True,
              pareto_update = 0,
              min_mutate = 0.1,
              max_mutate = 0.5, 
@@ -101,7 +101,7 @@ def minimize(mofun,
         The recombination constant. Should be in the range [0, 1]. 
         In the literature this is also known as the crossover probability.     
     nsga_update = boolean, optional
-        Use of NSGA-II or DE population update. Default is False    
+        Use of NSGA-II or DE population update. Default is True    
     pareto_update = float, optional
         Only applied if nsga_update = False. Favor better solutions for sample generation. Default 0 - 
         use all population members with the same probability.   
