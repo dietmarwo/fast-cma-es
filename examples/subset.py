@@ -44,7 +44,8 @@ def optimize(fitness, opt, num_retries = 32):
     xs = store.get_xs()
     ys = store.get_ys()
     # show the best 5 results
-    for i in range(5):
+    for i in range(len(xs)):
+        if ys[i] > 0.001: break
         print(i+1, ") Optimal Objective value: ", ys[i])
         print(fitness.selected(xs[i]))
  
@@ -52,7 +53,7 @@ if __name__ == '__main__':
     seed = 13
     rng = np.random.default_rng(seed)   
     transactions= rng.integers(100, 2500, 1000) / 100  
-    payments = rng.integers(10, 50, 300)    
+    payments = rng.integers(10, 50, 100)    
     selection_value = transaction_value(transactions, payments)    
     fit = fitness(selection_value, len(transactions))
     # use Bite_cpp(10000) for smaller dimension
