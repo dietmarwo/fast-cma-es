@@ -40,10 +40,7 @@ for for similar solutions, for instance by adding / removing / changing a single
 can be applied to improve a given solution. Disadvantages are:
 
 - Optimization can more easily get stuck in a local minimum if the solutions can change only==== Excercise
-
-Compare the performance of different optimization algorithms from `fcmaes.optimize` like `de_cma, Cma_cpp, De_cpp, Da_cpp, Csma_cpp, Bite_cpp` and `Crfmnes_cpp`. for one service facility.
-- It becomes more difficult to handle problem variations like adding noise, additional constraints or objectives. Or if we change
-  the objective also considering the nearest facilities. 
+- It becomes more difficult to handle problem variations like adding noise, additional constraints or objectives. Or if we change the objective also considering the nearest facilities. 
 - The continuous problem variant searching the optimal coordinates for the facilities cannot be handled efficiently by
   the "incremental change" approach. 
   
