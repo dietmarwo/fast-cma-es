@@ -7,7 +7,8 @@
 #
 # This implements the original variant of the problem using continuous optimization and
 # a variant (commented out) where instead of the alpha-best we use the sum of the best alpha distances.
-# Users and facilities are taken from TSP/JSON files.  
+# Users and facilities are taken from TSP/JSON files. 
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Service.adoc for a detailed description. 
 
 import json, sys
 import numpy as np

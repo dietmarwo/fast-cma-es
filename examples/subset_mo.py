@@ -9,6 +9,8 @@ the minimal transaction in the chosen subset.
 
 In general we have to define a mapping 'selection_value' which maps a 
 specific selection/subset represented as boolean array to a list of values to be minimized. 
+
+See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc for a detailed description.
 """
 
 import numpy as np

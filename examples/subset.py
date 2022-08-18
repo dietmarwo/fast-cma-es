@@ -9,6 +9,8 @@ transactions are for instance [5,3], or [4,3,1].
 
 In general we have to define a mapping 'selection_value' which maps a 
 specific selection/subset represented as boolean array to a value to be minimized. 
+
+See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc for a detailed description.
 """
 
 import numpy as np

@@ -11,7 +11,7 @@ image::logo.gif[]
 fcmaes complements https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy optimize] by providing 
 additional optimization methods, faster {cpp}/Eigen based implementations and a coordinated parallel retry mechanism. 
 It supports the multi threaded application of different gradient free optimization algorithms. 
-There are 30 real world https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials]
+There are 32 real world https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials]
 showing in detail how to use fcmaes. 
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Performance.adoc[performance]
 for detailed fcmaes performance figures. 

@@ -5,7 +5,7 @@
 
 # See http://www.midaco-solver.com/data/pub/CEC2019_Schlueter_Munetomo.pdf for a description of the
 # MINLP problem solved here. 
-# Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/MINLP.adoc
+# Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MINLP.adoc
 
 from fcmaes.astro import Cassini1minlp, Cassini1multi, cassini1minlp
 from fcmaes.optimizer import logger, de_cma

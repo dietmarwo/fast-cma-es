@@ -4,6 +4,7 @@
 # LICENSE file in the root directory.
 
 # multi objective optimization experiments
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc for a detailed description.
 
 import numpy as np
 import random

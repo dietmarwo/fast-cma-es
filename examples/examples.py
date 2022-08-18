@@ -4,7 +4,7 @@
 # LICENSE file in the root directory.
 
 # Examples for fcmaes parallel retry from https://www.esa.int/gsp/ACT/projects/gtop/
-# Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/Results.adoc
+# Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Results.adoc
 
 import math
 from fcmaes.astro import MessFull, Messenger, Gtoc1, Cassini1, Cassini2, Rosetta, Tandem, Sagas, Cassini1minlp

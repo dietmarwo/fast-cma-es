@@ -1,0 +1,280 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+:call: __call__
+
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Assign service facilities to demand points
+
+This tutorial
+
+- Shows how to assign service facilities to demand points considering possible failure of a specific number of service points. 
+- Compares results of our approach to https://github.com/netotz/alpha-neighbor-p-center-problem
+- Shows how to adapt the code to a continuous variant of the problem. 
+
+=== α-neighbor p-center optimization problem
+
+This tutorial is inspired by https://github.com/netotz/alpha-neighbor-p-center-problem, a new implementation of the 
+discrete variant of the 
+https://www.researchgate.net/publication/257196448_Optimal_algorithms_for_the_a-neighbor_p-center_problem[α-neighbor p-center optimization problem]. Multiple service facilities need to be assigned to demand points (users) so that this assignment can withstand facility failures. This means, we are interested in minimizing the maximal distance of a service facility for each demand point. But we use not the nearest, but the α-nearest facility. This means we are assuming a "worst case"  scenario, where the α-1 nearest facilities all fail. There are two variants of this problem:
+
+- We choose from a given set of facility locations. This problem has discrete decision variables. 
+- We compute the optimal coordinates for the facilities. This problem requires continuous decision variables.
+
+ Our approach covers both variants. 
+
+We will use the https://github.com/avaneev/biteopt[BiteOpt] optimization algorithm with parallel retry to utilize modern
+many-core CPUs.        
+
+=== Motivation
+
+The α-neighbor p-center optimization problem is one of many problems discussed in our See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials[tutorials] where usually 
+https://github.com/netotz/alpha-neighbor-p-center-problem[specific algorithms] were developed to enhance performance. 
+These kind of algorithms typically exploit inherent properties of the problem domain to determine the fitness difference
+for for similar solutions, for instance by adding / removing / changing a single service facility. Only an "incremental change"
+can be applied to improve a given solution. Disadvantages are:
+
+- Optimization can more easily get stuck in a local minimum if the solutions can change only==== Excercise
+
+Compare the performance of different optimization algorithms from `fcmaes.optimize` like `de_cma, Cma_cpp, De_cpp, Da_cpp, Csma_cpp, Bite_cpp` and `Crfmnes_cpp`. for one service facility.
+- It becomes more difficult to handle problem variations like adding noise, additional constraints or objectives. Or if we change
+  the objective also considering the nearest facilities. 
+- The continuous problem variant searching the optimal coordinates for the facilities cannot be handled efficiently by
+  the "incremental change" approach. 
+  
+For small and easy problem instances of course the incremental approach will be faster. But the performance penalty of
+a more generic approach can be partly compensated by utilizing the parallelism supported by modern many core CPUs. 
+And as long as the computation time is still feasible (a few seconds or minutes), flexibility, ease if implementation and
+the quality of the solution should be prioritized.  
+
+=== Implementation
+
+The complete code for the α-neighbor p-center problem is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/anpcp/anpcp.py[anpcp.py]. First we discuss the discrete problem variant. 
+
+We use https://numba.pydata.org/[numba] to speed up the evaluation of a given facility selection given as an index-array 'selection'.
+The distance matrix between demand points (`users`) and facilities `distance` is a two dimensional array, and `alpha`
+indicates the alpha-nearest facility. To avoid a complete sorting of the distances we use `np.partition` to separate the
+alpha-nearest distances in linear time. An efficient implementation of the fitness function is crucial, since we are not
+relying on 'partial' fitness computations as https://github.com/netotz/alpha-neighbor-p-center-problem does.  
+
+[source,python]
+----   
+    @njit(fastmath=True) 
+    def fitness_(selection, distance, alpha):
+        selected = distance[:,selection] 
+        partitioned = np.partition(selected, alpha)    
+        return max([max(d[:alpha]) for d in partitioned])
+        
+    ...
+    class ANPCP():
+        ...
+        def init_json(self, json_file):   
+            with open(json_file) as json_file:
+            ...
+                self.fnum = len(self.facilities)
+                self.bounds = Bounds([0]*self.dim, [self.fnum-1E-9]*self.dim)  
+            
+            
+        def fitness(self, x):
+            selection = selection_(x.astype(int), self.fnum)
+            return fitness_(selection, self.distance, self.alpha)
+----
+
+A problem instance is represented as Python class fitness `ANPCP`. 
+
+To apply a continuous optimizer like https://github.com/avaneev/biteopt[BiteOpt] we have to 
+
+- Define the boundaries for the continuous decision variables. We choose the interval `[0, fnum[`, the number
+of all facilities fnum represents the number of choices. 
+- Map them efficiently into an index array representing the facility selection: `x.astype(int)` converts
+  the decision variables `x` into an integer array which may contain double entries. This is "fixed" bay the
+  numba-function selection_(s, n) below which returns an array of unique indices in the same range. 
+
+[source,python]
+---- 
+    @njit(fastmath=True) 
+    def next_free_(used, p):
+        while used[p]:
+            p = (p + 1) % used.size
+        used[p] = True
+        return p
+    
+    @njit(fastmath=True) 
+    def selection_(s, n):
+        disjoined_s = np.zeros(s.size, dtype=numba.int32)
+        used = np.zeros(n, dtype=numba.boolean)
+        for i in range(s.size):
+            disjoined_s[i] = next_free_(used, s[i])
+        return disjoined_s  
+----
+
+These kind of loops should never be used without https://numba.pydata.org/[numba] in Python. 
+We apply the optimization as parallel retry. `retry.minimize` uses all available CPU cores: `mp.cpu_count()` but the
+number of parallel workers is configurable. 
+
+[source,python]
+----   
+    def optimize(anpcp, opt, num_retries = 32):
+        ret = retry.minimize(wrapper(anpcp.fitness), 
+                                   anpcp.bounds, num_retries = num_retries, 
+                                   optimizer=opt, logger=logger())
+----
+
+Finally we have to choose a concrete problem instance and a specific optimizer. The https://github.com/avaneev/biteopt[BiteOpt] algorithm in connection with parallel retry  performs best for this task. To enable a comparison we use an adapted TSP-problem instance from 
+https://github.com/netotz/alpha-neighbor-p-center-problem.
+
+[source,python]
+----
+    anpcp = ANPCP(12, 2) # p = 12, alpha = 2
+    anpcp.init_tsp('data/rl1323_993_330_4.anpcp.tsp')
+    popsize = 7 + 12*anpcp.dim
+    max_evaluations = 300000
+    opt = Bite_cpp(max_evaluations, popsize=popsize, M=8)
+    optimize(anpcp, opt, num_retries = 32)
+----
+
+Note that BiteOpt is a self adapting algorithm, it works quite well also without the `popsize` setting.  
+
+=== Results
+
+Executing https://github.com/dietmarwo/fast-cma-es/blob/master/examples/anpcp/anpcp.py[anpcp.py] we see a result after less than one minute on an AMD 5950x 16 core CPU for the `rl1323_993_330_4.anpcp.tsp` problem instance with 330 facilities and 993 demand points, selecting 12 facilities, alpha = 2. 
+
+[source,python]
+----  
+36.28 5597295 154280.0 4190.0 [251.26756648242048, 220.01575093780303, ..]
+54.94 5460 32 300000 4480.000000 0.00 0.00 [] [101.89788111176522, 329.8952205906099, ...
+57.92 165745 32 9600000 4190.000000 4319.69 94.81 [4190.0, 4190.0, 4196.0, 4201.0, ...] [296.44872332608435, 7.36882765692593, ...]
+selection =  [296   7  88 162 272  81 133 252 221  53 251 115]
+value =  4190.0 
+----
+
+The resulting selection `[296, 7, 88, 162, 272, 81, 133, 252, 221, 53, 251, 115]` has value `4190.0`. Multiple executions generate similar results. 
+
+=== Excercise
+
+Compare the performance of different optimization algorithms from `fcmaes.optimize` like `de_cma, Cma_cpp, De_cpp, Da_cpp, Csma_cpp, Bite_cpp` and `Crfmnes_cpp`.
+
+=== Comparison
+
+What happens if we try the same problem using https://github.com/dietmarwo/fast-cma-es/blob/master/examples/anpcp/ ? 
+
+[source,python]
+----  
+from models.instance import Instance
+from models.solver import Solver
+
+filepath = os.path.abspath("../data/rl1323_993_330_4.anpcp.tsp")
+instance = Instance.read_tsp(filepath)
+solver = Solver(instance, 12, 2, True)
+solver.grasp(30000)
+----
+
+We configure a run time of 30000 seconds, and start 16 runs in parallel - as we use a 16-core CPU and no "out of the box" parallelization is provided. 
+Even with this huge amount of CPU resources the best result obtained was 
+`value = 4388`. 
+
+Note that we also observed problem instances were https://github.com/dietmarwo/fast-cma-es/blob/master/examples/anpcp/ was superior, for instance for 
+huge random problem instances with >= 2000 facilities and users. Question is
+how relevant random instances are for real world applications. 
+
+== Locate Service Facilities
+
+There is a continuous variation of the problem: 
+We don't offer a set of facilities to choose from. Only p, the number of chosen facilities is given and we search for optimal coordinates. Only after we know in which areas to look for we start identifying concrete service location options - after which we again are faced with the first problem variant. 
+
+The code is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/anpcp/anpcpc.py[anpcp.py].
+
+Since we are using continuous optimization it is not surprising that only minor modifications to our code is required to handle this variant. https://www.researchgate.net/publication/257196448_Optimal_algorithms_for_the_a-neighbor_p-center_problem[optimal_algorithms_for_anpcp] shows a problem specific algorithm which for very large problem instances generates slightly (< 1%) better solutions. This is the price we pay for the "lazy route" applying a generic method. As soon as we add constraints, objectives or noise: Good luck adapting the specific algorithm. 
+
+=== Implementation
+
+The complete code for the continuous problem variant is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/anpcp/anpcpc.py[anpcpc.py].
+
+Only minor modifications are required for the objective function. 
+Instead of a facility-selection we now forward the x- and y-coordinates of the 
+facilities to the fitness function. 
+
+[source,python]
+----   
+    @njit(fastmath=True) 
+    def fitness_(facilities_x, facilities_y, users, alpha):
+        distance = calc_distance_(users, facilities_x, facilities_y) 
+        partitioned = np.partition(distance, alpha)    
+        return max([max(d[:alpha]) for d in partitioned])
+    ...    
+    class ANPCPC():
+    ...
+        def fitness(self, x):
+            facilities_x = x[:self.p]
+            facilities_y = x[self.p:]
+            return fitness_(facilities_x, facilities_y, self.users, self.alpha) 
+----
+
+The input vector is split into two halves, one representing the x- and the other representing the y-coordinates. 
+
+=== Results
+
+Executing https://github.com/dietmarwo/fast-cma-es/blob/master/examples/anpcp/anpcpc.py[anpcpc.py] we see a result after less than 30 seconds on an AMD 5950x 16 core CPU for the `rl1323_993_330_4.anpcp.tsp` problem instance with 330 facilities and 993 demand points, selecting 12 facilities, alpha = 2. 
+
+[source,python]
+---- 
+27.6 115942 32 3200000 14403864.206926 14766331.71 476172.12 [14403864.21, 14545573.38, 14545573.39, 14545573.39, ...]
+facility locations =  [[ 4637.70618771  3245.83435739]
+ [ 4547.12658139  3329.12972472]
+ [ 9724.74192183  8792.00329984]
+ [15344.31817208  2923.37437901]
+ [ 9963.97479073  2390.59362575]
+ [ 9724.7415082   8792.00297781]
+ [15775.90549813  8970.55944954]
+ [15237.52041848  2808.93959076]
+ [ 3208.16211282  9342.33672938]
+ [ 9942.10780989  2659.6540616 ]
+ [15918.37951594  8786.078065  ]
+ [ 3257.31367395  9307.58761972]]
+value =  3795.242312017297
+----
+
+The resulting coordinates have a value of 3795.2. As expected this is better
+than 4190.0, the value obtained by choosing from a given set of facilities. 
+
+=== Excercise
+
+Again compare the performance of different optimization algorithms from `fcmaes.optimize` like `de_cma, Cma_cpp, De_cpp, Da_cpp, Csma_cpp, Bite_cpp` and `Crfmnes_cpp`. Note that the results differ significantly 
+from the discrete problem variant. 
+
+=== Comparison
+
+Compared with the results from 
+https://www.researchgate.net/publication/257196448_Optimal_algorithms_for_the_a-neighbor_p-center_problem[α-neighbor p-center optimization problem] we see
+
+- Almost equal results for small and moderate problem instances.
+- Almost equal results for small facility numbers
+- Slightly inferior results for large problem instances and facility numbers. 
+
+For instance for the `pr439_220_219_0.anpcp.tsp` problem instance with 439
+facilities selecting 70 facilities, alpha = 2 we get: 
+
+[source,python]
+---- 
+...
+600.5 58174583 96877.0 406786.43171511905 [10817.444908968146, 10733.530275534793, ....]
+...
+----
+
+Which means we see after 600 seconds a value² = 406786 -> value = 637.8. The algorithm optimizes the squares of the distances to save time, therefore we have to compute the square root. After 600 seconds no further improvement happens. 
+
+https://www.researchgate.net/publication/257196448_Optimal_algorithms_for_the_a-neighbor_p-center_problem[α-neighbor p-center optimization problem] reports value = 621.74 after 1888 seconds, 2.5% better than our result. 
+
+So we have to pay a price applying a generic algorithm for this problem variant, 
+the specialized algorithm is superior. But for most problem instances the difference is negligible. 
+
+=== Conclusion
+
+Concluding our results we can derive: 
+
+- Standard tools like or-tools are hard to beat for problems they are designed for.

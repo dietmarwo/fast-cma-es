@@ -7,6 +7,8 @@ Optimization driven parameter sweeping
 do 'python3 -m pip install gillespy2 --user --upgrade' 
 before running this example
 
+See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc for a detailed description.
+
 '''
 
 import gillespy2

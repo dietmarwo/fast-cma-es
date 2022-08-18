@@ -9,6 +9,8 @@
 # License: [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International]
 #          (https://creativecommons.org/licenses/by-nc-sa/4.0/)
 # Only non-commercial use permitted!
+#
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Vaccination.adoc for a detailed description.
 # 
 # fcmaes adaption:
 #

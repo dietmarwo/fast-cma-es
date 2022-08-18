@@ -4,6 +4,8 @@ Derived from https://github.com/google/or-tools/blob/stable/examples/python/clus
 
 Please also try the original with 200 cities. 
 
+See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc for a detailed description.
+
 # do
 # pip install numba
 

@@ -1,5 +1,6 @@
 # Adapted from https://github.com/zi-w/Ensemble-Bayesian-Optimization/tree/master/test_functions
 # See https://arxiv.org/pdf/1706.01445.pdf
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc for a detailed description.
 
 # On anaconda execute:
 # pip install more-itertools

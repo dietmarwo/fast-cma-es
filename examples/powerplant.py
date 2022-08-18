@@ -8,6 +8,9 @@ https://tespy.readthedocs.io/en/main/tutorials_examples.html#thermal-power-plant
 Added the application of fcmaes optimizers, both using parallel function evaluation and parallel retry. 
 
 Note: tespy doesn't support Python 3.9, tested on anaconda with python 3.8 on linux. 
+
+See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PowerPlant.adoc for a detailed description.
+
 '''
 
 from tespy.networks import Network

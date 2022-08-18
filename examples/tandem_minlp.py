@@ -4,7 +4,7 @@
 # LICENSE file in the root directory.
 
 # Tandem MINLP problem. 
-# Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/MINLP.adoc
+# Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MINLP.adoc
 
 from fcmaes.astro import Tandem_minlp, Tandem
 from fcmaes.optimizer import logger, de_cma

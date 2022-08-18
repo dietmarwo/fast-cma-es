@@ -1,4 +1,5 @@
 # see https://github.com/krishna-praveen/Capacitated-Vehicle-Routing-Problem
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Routing.adoc for a detailed description.
 
 import numpy as np
 from numba import njit

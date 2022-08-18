@@ -25,6 +25,8 @@ image::logo.gif[]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc[Robot Pushing and Navigating Rovers]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] Optimize CFD simulation based problems.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[Noisy TSP] Solve the noisy Traveling Salesman Problem.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Service.adoc[Service Locations] Solve the α-neighbor p-center optimization problem.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc[Subset selection] Select an optimal subset.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc[Clustering] Out of the box.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] Managing hospital resources during a pandemic.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop] Solving the flexible job shop scheduling problem. 

@@ -1,0 +1,217 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+:call: __call__
+
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Find the Optimal Subset(s)
+This tutorial
+
+- Shows how to find a subset of a given set optimizing some property of this subset. 
+- Shows how to map continuous decision variables to subset selection based on numpy arrays. 
+- Provides examples both for single- and multi-objective optimization
+
+=== Motivation
+
+This tutorial was inspired by the following https://www.reddit.com/r/optimization/comments/wh37xa/transaction_and_payment_optimization_problem/[reddit post]. The author came up himself with a nice 
+open source solution using https://www.cvxpy.org/[CVXPY] in connection with GLPK_MI, a mixed integer
+convex optimizer. We will discuss the following questions:
+
+- Can this problem be solved using continuous optimization?
+- Are there any advantages over using CVXPY?
+
+The obvious advantage is that we are not limited to a convex solution landscape, the continuous 
+approach is much more general. But even if it is convex, as in the example we show below, there are
+more reasons:
+
+- GLPK_MI delivers only one solution to a given problem instance, even if there are valid alternatives. 
+- Executing GLPK_MI again always results in the same solution.
+- GLPK_MI struggles with large problem instances
+- GLPK_MI cannot compute the pareto-front if multiple competing objectives are defined. 
+- GLPK_MI doesn't utilize modern many-core CPU architectures. 
+
+Continuous optimization instead:
+
+- Computes multiple alternative solutions utilizing parallel threads.
+- Can handle huge problem instances.
+- Supports multiple objectives and computes a set of non-dominated solutions. 
+- Size and complexity of the code and performance are similar to GLPK_MI.
+
+=== Implementation
+
+The example code is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/subset.py[subset.py].
+First we need to define the value assigned to a specific subset selection. 
+Our goals is to identify the subset of transactions corresponding to a number of payments, so we compare their sums. 
+
+[source,python]
+----   
+class transaction_value():
+    
+    def __init__(self, transactions, payments):
+        self.transactions = transactions
+        self.sum_payments = sum(payments)
+        
+    def __call__(self, selection):
+        return abs(sum(self.transactions[selection]) - self.sum_payments)
+----
+
+We return the difference of the sum of selected transactions from the sum of the payments. 
+To apply continuous optimization we represent a problem instance as Python class fitness, which can be reused
+for other selection->value assignment functions. 
+
+[source,python]
+----   
+class fitness():
+    
+    def __init__(self, selection_value, dim):
+        self.selection_value = selection_value
+        self.bounds = Bounds([0]*dim, [1.99999999]*dim)  
+    
+    # all decision variables are in the [0,2[ interval and mapped to a boolean array. 
+    def __call__(self, x):
+        return self.selection_value(x.astype(int).astype(bool))
+----
+
+The "trick" is to use a vector of continuous decision variables in the [0,2[ interval converted by `x.astype(int).astype(bool)`
+into a vector of boolean values which can be used to perform the selection via `transactions[selection]`. 
+We apply the optimization as parallel retry. We don't use `retry.minimize` here because we are interested not only
+in the best solution, but in a list of good alternatives. `retry.retry` uses all available CPU cores: `mp.cpu_count()` but the
+number of parallel workers is configurable. 
+
+[source,python]
+----  
+    def optimize(fitness, opt, num_retries = 32):
+        store = retry.Store(wrapper(fitness), fitness.bounds)
+        retry.retry(store, opt.minimize, num_retries)
+        xs = store.get_xs()
+        ys = store.get_ys() 
+        ...
+----
+
+Finally we have to choose a concrete problem instance and a specific optimizer. The https://github.com/avaneev/biteopt[BiteOpt] algorithm in connection with parallel retry  performs best for this task. 
+
+[source,python]
+----  
+    transactions= rng.integers(100, 2500, 1000) / 100  
+    payments = rng.integers(10, 50, 100)    
+    selection_value = transaction_value(transactions, payments)    
+    fit = fitness(selection_value, len(transactions))
+    opt = Bite_cpp(50000, popsize=500)
+    optimize(fit, opt, num_retries=32) 
+----
+
+Note, that different to `De_cpp`, `Bite_cpp` doesn't need a configuration parameter indicating the variables which have discrete
+values. 
+
+=== Results
+
+Executing https://github.com/dietmarwo/fast-cma-es/blob/master/examples/subset.py[subset.py] 
+we see a result after less than one second on an AMD 5950x 16 core CPU for 
+a superset of 1000 transactions to select from: 
+
+[source,python]
+----  
+...
+0.86 353695 411273.0 0.0 [0.404784861806257, 0.3056760325932503, ...]
+1 ) Optimal Objective value:  0.0
+[0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0 1 0 0 0
+ 0 0 0 1 1 0 0 0 0 0 0 0 0 1 0 0 0 1 1 0 0 1 0 1 0 0 0 0 0 0 0 0 1 0 0 0 0
+ 0 0 0 0 0 0 0 0 1 0 0 0 0 1 0 1 1 0 0 0 0 0 1 0 0 0 0 0 0 1 1 0 0 0 0 1 0
+ 0 0 0 0 0 0 0 0 0 0 1 1 0 0 1 0 1 0 0 0 0 0 0 1 0 0 0 1 0 0 0 1 0 0 1 0 0
+ 0 0 0 0 0 0 0 0 1 0 0 1 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0 1 0 1 0
+ 1 0 0 0 1 1 0 0 0 0 1 0 0 0 1 0 0 0 1 0 0 0 0 0 0 0 0 1 0 0 0 1 1 0 0 0 0
+ 0 0 0 0 0 0 0 0 1 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 1
+ 1 0 0 0 0 0 1 1 0 0 0 1 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 0 0 0 0 0 1 0 0 1 0 1 1 0 0 0 0 0 1 0 1 0 0 0 0 0 0 0 1 0 0 0 0
+ 0 1 0 0 1 1 0 0 0 0 0 0 0 1 0 1 0 0 0 1 0 0 0 1 0 0 0 1 1 0 0 0 0 0 0 0 0
+ 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0
+ 0 0 0 0 1 0 1 1 0 0 0 0 0 1 0 0 0 1 0 0 1 0 1 1 0 0 0 0 0 0 1 1 0 0 0 0 0
+ 1 0 0 0 0 0 0 0 0 1 0 1 1 0 1 0 0 0 1 1 0 0 0 1 0 1 0 0 0 0 0 0 0 0 0 1 0
+ 0 0 1 0 0 0 0 0 1 0 0 1 0 1 1 1 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0 0 0
+ 0 1 0 1 0 0 0 0 0 0 1 0 0 0 1 0 0 1 0 1 0 0 0 0 1 0 1 0 1 0 0 0 0 0 1 1 0
+ 0 0 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 1
+ 0 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 1 0 1 0 0 0 1 0 0 1 0 1 0 0 1 1 0 0 0 0
+ 1 0 1 1 0 0 1 0 0 0 0 0 0 1 1 0 0 0 1 0 0 0 0 0 0 1 0 0 0 1 0 0 1 0 0 1 0
+ 0 1 1 0 1 0 1 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 1 0 0 0 1 0 1 1 0 0 1 0 0 1 0 0 0 0 1 0 0 1 0 0 0 0 0 0 1 0 0 0 0 0 0
+ 1 0 1 0 1 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 1 1 1 0 0 0 0 0 1
+ 0 1 0 0 0 0 1 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 1 1 0 1 0 1 1 1 0 0 0 0 0 1
+ 0 0 1 0 1 1 0 0 0 0 0 0 1 1 1 0 1 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0 0 0 0
+ 0 0 0 1 0 1 0 0 0 0 0 1 0 1 1 1 1 0 0 0 0 0 0 0 1 0 0 0 0 1 0 0 1 0 0 0 0
+ 0 0 0 1 1 1 0 1 0 0 0 0 0 1 0 0 0 1 0 0 0 1 1 0 0 1 0 0 0 0 0 0 1 0 0 0 0
+ 1 0 0 0 1 0 0 1 0 0 1 0 0 1 0 0 0 1 0 0 0 0 0 0 0 0 1 0 1 0 0 0 0 0 0 1 0
+ 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 1 0 1 0 1 0 0 1 0 0 0 0 0 1 0 0 0 1 0 0 0 0
+ 0]
+2 ) Optimal Objective value:  0.0
+[0 0 1 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 1 0 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0
+----
+
+
+=== Excercise
+
+Compare the performance of different optimization algorithms from `fcmaes.optimize` like `de_cma, Cma_cpp, De_cpp, Da_cpp, Csma_cpp, Bite_cpp` and `Crfmnes_cpp`. 
+
+== Multi-Objective Optimization
+
+The example code is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/subset_mo.py[subset_mo.py].
+What if we are interested in a second objective: We want to maximize the minimal selected transaction - and want to compute a set
+of non-domonated solutions, a pareto front. `transaction_value` only needs a minimal modification returning the second objective: 
+
+[source,python]
+----   
+class transaction_value():
+    
+    def __init__(self, transactions, payments):
+        self.transactions = transactions
+        self.sum_payments = sum(payments)
+        
+    def __call__(self, selection):
+        trs = self.transactions[selection]
+        return abs(sum(trs) - self.sum_payments), -min(trs)
+----
+
+As optimizer we choose `modecpp` with NSGA-II population update: `nsga_update = True`. 
+
+[source,python]
+----   
+    def optimize(fitness, num_retries = 32):
+        nobj = 2
+        ncon = 0
+        xs, ys = modecpp.retry(mode.wrapper(fitness, nobj), nobj, ncon, 
+                               fit.bounds, num_retries=num_retries, popsize = 500, 
+                               max_evaluations = 100000, nsga_update = True, 
+                               logger = logger(), workers=32)    
+    ...
+----
+
+=== Results
+
+Executing https://github.com/dietmarwo/fast-cma-es/blob/master/examples/subset_mo.py[subset_mo.py] needs more time than for the single objective case, almost 30 seconds on an AMD 5950x 16 core CPU: 
+
+[source,python]
+----  
+...
+retries = 32: time = 27.0 i = 32000
+[(0.0, -2.46), (4.547473508864641e-13, -2.65), (1.3642420526593924e-12, -2.97), (2.720000000001164, -2.99), (5.199999999998909, -3.15), (136.39999999999736, -3.17)]
+1 ) Optimal Objective values:  [ 0.   -2.46]
+[0 0 0 0 1 1 0 0 1 0 0 1 1 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 1 1 1 0 0 0 0 1 1
+ 0 0 0 0 0 1 1 0 0 0 0 1 0 0 0 0 0 0 1 0 0 1 0 1 1 0 0 0 0 0 1 1 0 1 0 1 0
+...
+----
+
+== Conclusion
+
+Concluding our results we can derive: 
+
+- Continuous optimization, specially using the https://github.com/avaneev/biteopt[BiteOpt] algorithm 
+in connection with parallel retry is well suited for optimization 
+problems involving the selection of a subset. 
+- Many alternative solutions can be computed in a single run.
+- Performance on a modern many-core CPU is comparable to https://www.cvxpy.org/[CVXPY]/GLPK_MI . 
+- Adding another objective and computing the pareto-front is easy. 
+- Noisy fitness or a rugged solution landscape are handled well by this approach.  

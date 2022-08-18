@@ -13,6 +13,7 @@
 # Additionally a variant is implemented (commented out) where instead of the alpha-best we 
 # use the sum of the best alpha distances.
 # Note that we internally use the square of the distance to speed up the computation of the distance matrix.  
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Service.adoc for a detailed description. 
 
 import json, sys
 import numpy as np
