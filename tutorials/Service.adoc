@@ -26,7 +26,7 @@ https://www.researchgate.net/publication/257196448_Optimal_algorithms_for_the_a-
 - We choose from a given set of facility locations. This problem has discrete decision variables. 
 - We compute the optimal coordinates for the facilities. This problem requires continuous decision variables.
 
- Our approach covers both variants. 
+Our approach covers both variants. 
 
 We will use the https://github.com/avaneev/biteopt[BiteOpt] optimization algorithm with parallel retry to utilize modern
 many-core CPUs.        
