@@ -130,7 +130,7 @@ We use  `tolerance = 0.5` to limit the number of demand points in the grid to ab
 The boundaries of the decision variables - representing the station coordinates - are derived using
 the outer vertices (`corners`). The `fitness`-function first checks if there are constraint 
 violations by counting the number of stations outside the outer polygon or inside the holes. 
-These get a huge penalty - 1E10 * violation_number. Only of there is no violation, the numba-function `fitness_` 
+These get a huge penalty - 1E10 * violation_number. Only if there is no violation, the numba-function `fitness_` 
 above is called to determine the maximal demand-station distance. 
 
 [source,python]
