@@ -1,0 +1,246 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+:call: __call__
+
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Planning a 5G network
+
+This tutorial
+
+- Shows how to plan a 5G network by optimizing the placement of the sender stations thereby minimizing their coverage radius / energy required.
+- This is achieved by solving the p-center-problem where the region to cover is specified as irregular polygon containing irregular shaped "holes".
+- Compares results of our approach to https://github.com/profyliu/p-center-problem .
+- See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Service.adoc[Service.adoc] which handles a similar problem. 
+
+=== p-center-problem for irregular shapes with irregular holes
+
+This tutorial is inspired by https://github.com/profyliu/p-center-problem[p-center-problem] implementing four different algorithms solving this problem, see
+https://yliu.eng.wayne.edu/research/findrp.pdf[findrp.pdf] for a description of the newest algorithm. The p-center problem places p 
+facilities / sender stations to cover the whole region. It is assumed that all senders have the same power / range and we try to minimize 
+this range radius by relocating the p sender stations inside the area. This task is challenging when the coverage region has "holes", since
+the placement of a sender inside a hole is forbidden. Even more challenging is the fact, that the "holes" don't need to be covered and this
+fact can be used reduce their required range.    
+We will apply the https://github.com/avaneev/biteopt[BiteOpt] optimization algorithm with parallel retry to utilize modern many-core CPUs.        
+
+=== Motivation
+
+https://yliu.eng.wayne.edu/research/findrp.pdf[findrp.pdf] states: "this is the most
+generic form (hence most difficult) among all known p-center problem variants". The term "difficult" refers to finding dedicated algorithms 
+and proving mathematical properties of them. Note, that this property of a problem is often negatively correlated with the "hardness" to
+apply a generic method producing equal or even better results as the best dedicated algorithms. As example, lets have a look at deep neural nets: 
+They easily can solve problems where dedicated algorithms struggle. Neural nets exploit the power of parallel computation enabled by modern GPUs. 
+CPU development recently also focuses on parallelization were traditional algorithms often struggle to adapt. 
+Some more, like convex optimization, some less, like evolutionary algorithms which use populations of candidate solutions which can be evaluated in parallel. 
+In general this trend favors generic algorithms compared to dedicated ones. 
+What about the p-center-problem for irregular shapes? We will find out below. 
+
+General disadvantages of dedicated algorithms like the one described in https://yliu.eng.wayne.edu/research/findrp.pdf[findrp.pdf] are:
+
+- Optimization can more easily get stuck in a local minimum if the solutions can change only locally but not globally. 
+- It becomes more difficult to handle problem variations like adding noise, additional constraints or objectives. 
+- It is harder to utilize parallelism.
+- It is more difficult to produce significantly different results performing multiple optimizations. 
+
+Their advantage often is their single threaded performance. But as long as the computation time is still feasible (a few seconds or minutes), 
+flexibility, ease if implementation and the quality of the solution should be prioritized. For instance: Significantly less range radius means a 
+lot less sending power, see https://www.electronicdesign.com/technologies/communications/article/21796484/understanding-wireless-range-calculations[wireless-range-calculations]. Note that the sending power scales logarithmically / grows exponentially. Alternatively, if your range radius is limited you 
+need less sending stations. Compare the saved sending power to the additional energy used by the optimizing CPU.  
+
+=== Results
+
+For p=20 using 200000 fitness evaluations the computation needs about 205 seconds and produces a maximal radius = 7.146 (see https://github.com/dietmarwo/p-center-problem/blob/master/fcmaes_nd.p20.pdf[fcmaes_nd.p20.pdf])
+compared to radius = 8.667 for vorheur.py (see https://github.com/dietmarwo/p-center-problem/blob/master/vorheur_sol.p20.pdf[vorheur_sol.p20.pdf]), this is more than 21% improvement for the generic approach over the dedicated algorithm. 
+
+Using only 50000 fitness evaluations the optimization finishes after 52 seconds resulting in radius = 7.57.
+
+For p=40 the difference grows: vorheur.py achieves radius = 6.312 compared to radius = 5.117 for fcmaes, more than 23% improvement. fcmaes took 942 seconds here. If we look at the results we see that vorheur.py covers all holes, where fcmaes uses the fact that these don't need to be covered.
+
+- vorheur.py result for p=40
+
+image::volheur.p40.png[]
+
+- optimize.py result for p=40 showing the demand point grid
+
+image::fcmaes.p40.png[]
+
+Note that the comparison is not completely fair: Since a demand point grid is used there can be minor "coverage holes" when there is no demand point in this area. But since the used grid has a configured distance of 0.5, increasing the radius by at most 0.25 fills all "coverage holes". 
+
+
+=== Implementation
+
+The complete code can be found at https://github.com/dietmarwo/p-center-problem/blob/master/optimize.py[optimize.py]. 
+
+Idea is:
+
+ - Use all vertices of the outer polygon and from all holes as demand points.
+ - Add a grid of about 10000 demand points filtered according to feasibility: Inside the outer polygon, outside the holes. 
+ - Uses matplotlib.path.contains_points to determine if a point is valid.
+ - Uses https://numba.pydata.org/[numba] to speed up the fitness calculation. 
+ - Utilizes modern many-core CPUs, tested on the AMD 5950x 16 core CPU. 
+
+So we simply convert the irregular shaped coverage area with holes into a huge grid of demand points thereby converting the problem
+into a much simpler p-center variant - almost, as we still have to avoid the "holes" when placing the stations. To preserve accuracy, a
+lot of demand points are required - we use about 10000. Intuitively this is a bad idea, since we have compute the distance of each
+sending station to each of the demand points, which is about 400.000 distance computations for a single fitness evaluation if we want to place 
+40 sending stations.
+This will not work, or does it? Well, our intuition fails us here: As long as we keep the whole computation mostly inside the CPU cache, avoid
+to take the square root - we simply can compare the square of the distances - and use https://numba.pydata.org/[numba] to convert
+the code with LLVM into an highly efficient executable, we are fine. A modern 16 core CPU like the AMD 5950x can execute about
+15.000 fitness evaluations each involving 400.000 distance computations per second if 32 optimizations are performed in parallel. This
+number already considers the overhead of the optimizer itself. 
+
+The inner loop used for the fitness computation then looks like this: 
+
+[source,python]
+----   
+    @njit(fastmath=True) # maximum of the minimal distances for all demand points
+    def fitness_(facilities_x, facilities_y, demands):
+        max_r = 0
+        for i in range(len(demands)):
+            min_r = 1E99
+            for j in range(len(facilities_x)):
+                dx = demands[i,0] - facilities_x[j]
+                dy = demands[i,1] - facilities_y[j]
+                # we use the square of the distance because it is faster to compute
+                r = dx*dx + dy*dy 
+                if r < min_r: min_r = r 
+            if min_r > max_r: max_r = min_r 
+        return np.sqrt(max_r)    
+----
+
+Never try this coding style using nested loops without numba in Python. numba loves numpy arrays, so this method
+gets the x- and y-coordinates of the sending stations / facilities as 1-dimensional arrays and the demand points
+as a 2-dimensional array and returns the maximum of the minimal distances for each station. Note, that the square root
+is computed only once for the maximum. 
+
+The objective function is then represented by a class `Fitness` initialized with 
+
+- p, the number of stations/facilities, 
+- corners, the coordinates of the vertices of the outer polygon, 
+- holes_corners, the coordinates of the vertices of the holes, and
+- tolerance determining the grid spacing. 
+
+We use  `tolerance = 0.5` to limit the number of demand points in the grid to about 10000. 
+The boundaries of the decision variables - representing the station coordinates - are derived using
+the outer vertices (`corners`). The `fitness`-function first checks if there are constraint 
+violations by counting the number of stations outside the outer polygon or inside the holes. 
+These get a huge penalty - 1E10 * violation_number. Only of there is no violation, the numba-function `fitness_` 
+above is called to determine the maximal demand-station distance. 
+
+[source,python]
+----   
+    class Fitness():
+        
+        def __init__(self, p, corners, holes_corners, tolerance):
+            self.p = p
+            self.dim = self.p * 2
+            cmax = np.amax(corners, axis=0)
+            cmin = np.amin(corners, axis=0)
+            lower = [cmin[0]]*p + [cmin[1]]*p
+            upper = [cmax[0]]*p + [cmax[1]]*p
+            self.generate_demands(tolerance, cmin, cmax, corners, holes_corners)
+            self.bounds = Bounds(lower, upper) 
+ ...    
+        def fitness(self, x):
+            facilities_x = x[:self.p]
+            facilities_y = x[self.p:]
+            facilities = [ [facilities_x[i], facilities_y[i]] for i in range(self.p)]
+            penalty = 0
+            for path in self.pathes: # penalty for facility in hole
+                penalty += sum(path.contains_points(facilities))
+            # penalty for facility outside outer
+            penalty += sum(np.logical_not(self.path.contains_points(facilities)))
+            if penalty > 0:
+                return 1E10*penalty
+            return fitness_(facilities_x, facilities_y, self.demands)
+----
+
+As demand points we use all polygon vertices (outer polygon and all holes) together with a 
+demand grid spaced according to the `tolerance` parameter.
+
+[source,python]
+----   
+        def generate_demands(self, tolerance, cmin, cmax, corners, holes_corners):
+            x = np.arange(cmin[0], cmax[0], tolerance)
+            y = np.arange(cmin[1], cmax[1], tolerance)
+            xs, ys = np.meshgrid(x, y)
+            demands = np.vstack(list(zip(xs.ravel(), ys.ravel()))) # use grid demands    
+            path = mpltPath.Path(corners,closed=True)
+            self.path = path
+            self.pathes = []
+            demands = demands[path.contains_points(demands)] # filter demands not in outer
+            demands = np.concatenate((demands, corners))
+            for hole_corners in holes_corners: # filter demands in holes
+                path = mpltPath.Path(hole_corners, closed=True)
+                demands = demands[np.logical_not(path.contains_points(demands))]
+                demands = np.concatenate((demands, hole_corners))
+                self.pathes.append(path)
+            self.demands = demands
+----
+
+The grid points are filtered to exclude all points outside the outer polygon and inside the holes. 
+
+Designing the `Fitness` class is almost all all we have to do when applying the fcmaes library. 
+There is no problem specific algorithm design at all. Parallel optimization is performed using
+`retry.minimize`, `wrapper` monitors the progress for all parallel executions.  
+
+fitness_
+[source,python]
+----  
+    def optimize(fit, opt, num_retries = 32):
+        ret = retry.minimize(wrapper(fit.fitness), 
+                                   fit.bounds, num_retries = num_retries, 
+                                   optimizer=opt, logger=logger())    
+        print("facility locations = ", fit.get_facilities(ret.x))
+        print("value = ", ret.fun)
+        return fit.get_facilities(ret.x), ret.fun 
+----
+
+Next we have to choose a specific continuous optimizer. Always try https://github.com/avaneev/biteopt[BiteOpt] (`Bite_cpp`)
+first, since it never is a bad choice. In many cases, as in this one, it is the best. BiteOpt
+is a meta-algorithm "learning" on the fly to adapt its parameters and even its optimization method.  
+If you can afford more optimization time, sometimes it helps to fine tune its parameters like `popsize`,
+the population size of the intermediate solutions it maintains. 
+
+[source,python]
+----   
+   def run_optimize(corners, holes_corners, tolerance = 0.5, ndepots=20):   
+        fit = Fitness(ndepots, corners, holes_corners, tolerance)
+        max_evaluations = 50000 # takes < 52 seconds on AMD 5950x
+        opt = Bite_cpp(max_evaluations)
+        # max_evaluations = 200000 # takes < 205 seconds on AMD 5950x
+        # opt = Bite_cpp(max_evaluations, popsize=512)      
+        facilities, distance = optimize(fit, opt, num_retries = 32)
+        plot("optimize", facilities, distance, ndepots, fit.demands)
+        plot("optimize_nd", facilities, distance, ndepots, None)
+----
+
+Finally we create a specific problem instance by parsing the `kml`-files corresponding to the outer polygon and the holes:
+
+[source,python]
+----   
+    outer_file = 'belle_outer.kml'
+    hole_files =  ['belle_botany2', 'belle_dock', 'belle_pavillion1', 'belle_pond1', 'belle_pond3', 'belle_pond5',
+                    'belle_botany', 'belle_playground', 'belle_pond2', 'belle_pond4', 'belle_tennis_court']
+    corners, holes_corners = parse_kml(outer_file, hole_files)
+    run_optimize(corners, holes_corners)
+----
+
+Both the parsing and the plotting of the resulting solutions was taken almost without changes from the original repository
+https://github.com/profyliu/p-center-problem .
+
+=== Conclusion
+
+- The p-center-problem for irregular shapes with irregular holes can be efficiently solved by dedicated algorithms, but the results
+  don't seem to consider that the holes don't need to be covered. 
+- For problem instances involving many stations/facilities the generic approach using continuous optimization produces significantly better results.
+- The generic approach often requires more computing resources, which can be partly mitigated by parallelization and an efficient 
+  fitness implementation. 
+- The https://github.com/avaneev/biteopt[BiteOpt] algorithm in connection with parallel retry is a good choice for this problem.
+- The generic approach is well suited for 5G network design when the area to be covered is irregular and contains holes.  

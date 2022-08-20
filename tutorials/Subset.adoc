@@ -206,8 +206,6 @@ retries = 32: time = 27.0 i = 32000
 
 == Conclusion
 
-Concluding our results we can derive: 
-
 - Continuous optimization, specially using the https://github.com/avaneev/biteopt[BiteOpt] algorithm 
 in connection with parallel retry is well suited for optimization 
 problems involving the selection of a subset. 

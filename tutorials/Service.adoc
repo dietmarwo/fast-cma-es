@@ -16,6 +16,7 @@ This tutorial
 - Shows how to assign service facilities to demand points considering possible failure of a specific number of service points. 
 - Compares results of our approach to https://github.com/netotz/alpha-neighbor-p-center-problem
 - Shows how to adapt the code to a continuous variant of the problem. 
+- See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/5G.adoc[5G.adoc] which handles a similar problem. 
 
 === α-neighbor p-center optimization problem
 
@@ -39,7 +40,7 @@ These kind of algorithms typically exploit inherent properties of the problem do
 for for similar solutions, for instance by adding / removing / changing a single service facility. Only an "incremental change"
 can be applied to improve a given solution. Disadvantages are:
 
-- Optimization can more easily get stuck in a local minimum if the solutions can change only==== Excercise
+- Optimization can more easily get stuck in a local minimum if the solutions can change only locally but not globally. 
 - It becomes more difficult to handle problem variations like adding noise, additional constraints or objectives. Or if we change the objective also considering the nearest facilities. 
 - The continuous problem variant searching the optimal coordinates for the facilities cannot be handled efficiently by
   the "incremental change" approach. 
@@ -272,6 +273,9 @@ the specialized algorithm is superior. But for most problem instances the differ
 
 === Conclusion
 
-Concluding our results we can derive: 
-
-- Standard tools like or-tools are hard to beat for problems they are designed for.
+- The α-neighbor p-center optimization problem can be efficiently solved by dedicated algorithms.
+- For most problem instances the generic approach involving continuous optimization produces equal or better results.
+- The generic approach often requires more computing resources, which can be partly mitigated by parallelization and an efficient 
+  fitness implementation.   
+- The https://github.com/avaneev/biteopt[BiteOpt] algorithm in connection with parallel retry is a good choice for this problem.
+  
