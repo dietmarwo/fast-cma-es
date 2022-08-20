@@ -48,7 +48,7 @@ General disadvantages of dedicated algorithms like the one described in https://
 - It is more difficult to produce significantly different results performing multiple optimizations. 
 
 Their advantage often is their single threaded performance. But as long as the computation time is still feasible (a few seconds or minutes), 
-flexibility, ease if implementation and the quality of the solution should be prioritized. For instance: Significantly less range radius means a 
+flexibility, ease of implementation and the quality of the solution should be prioritized. For instance: Significantly less range radius means a 
 lot less sending power, see https://www.electronicdesign.com/technologies/communications/article/21796484/understanding-wireless-range-calculations[wireless-range-calculations]. Note that the sending power scales logarithmically / grows exponentially. Alternatively, if your range radius is limited you 
 need less sending stations. Compare the saved sending power to the additional energy used by the optimizing CPU.  
 

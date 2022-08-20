@@ -47,7 +47,7 @@ can be applied to improve a given solution. Disadvantages are:
   
 For small and easy problem instances of course the incremental approach will be faster. But the performance penalty of
 a more generic approach can be partly compensated by utilizing the parallelism supported by modern many core CPUs. 
-And as long as the computation time is still feasible (a few seconds or minutes), flexibility, ease if implementation and
+And as long as the computation time is still feasible (a few seconds or minutes), flexibility, ease of implementation and
 the quality of the solution should be prioritized.  
 
 === Implementation
