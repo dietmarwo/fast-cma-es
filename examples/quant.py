@@ -15,7 +15,7 @@ import numpy as np
 from time import perf_counter
 from fcmaes.optimizer import Bite_cpp, dtime, wrapper
 from scipy.optimize import Bounds
-from fcmaes import retry, de, cmaes, bitecpp
+from fcmaes import retry, de, cmaes, bitecpp, cmaescpp, decpp
 
 backend = Aer.get_backend("qasm_simulator", max_parallel_threads=1)
 #backend.set_options(device='GPU') # if you switch GPU on, parallel simulation will crash
@@ -121,12 +121,14 @@ def find_COBYLA_weakness():
         params = x[:3] # use first three decision variables as guess for COBYLA
         target_distr =  x[3:] # use two decision variables as target
         if sum(target_distr) == 0:
-            return 1E99 # avoid division by 0
+            return 0.06 # avoid division by 0
         target_distr /= sum(target_distr)        
         fit = Fitness(target_distr)
 
         ret = COBYLA(maxiter=50000, tol=0.00001).minimize(fun=fit, x0=params)
         #ret = bitecpp.minimize(fit, fit.bounds, x0=params, max_evaluations=300, stop_fitness=0.05)
+        #ret = cmaescpp.minimize(fit, fit.bounds, x0=params, max_evaluations=300, stop_fitness=0.05)
+        #ret = decpp.minimize(fit, 3, fit.bounds, max_evaluations=300, stop_fitness=0.05)
         
         return -ret.fun # we maximize the distance
         
