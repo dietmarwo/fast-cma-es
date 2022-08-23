@@ -129,6 +129,7 @@ def find_COBYLA_weakness():
         fit = Fitness(target_distr)
 
         ret = COBYLA(maxiter=50000, tol=0.00001).minimize(fun=fit, x0=params)
+        #ret = bitecpp.minimize(fit, fit.bounds, x0=params, max_evaluations=1000, M=6)
         #ret = bitecpp.minimize(fit, fit.bounds, x0=params, max_evaluations=300, stop_fitness=0.05)
         #ret = cmaescpp.minimize(fit, fit.bounds, x0=params, max_evaluations=300, stop_fitness=0.05)
         #ret = decpp.minimize(fit, 3, fit.bounds, max_evaluations=300, stop_fitness=0.05)
