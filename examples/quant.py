@@ -64,7 +64,7 @@ class Fitness(object):
     def __call__(self, x):
         try:     
             y = objective_function(x, self.target_distr)
-            if not np.isfinite(y) or y > 1E99: 
+            if not np.isfinite(y) or y > 1E9: 
                 return 1E9
             else:
                 return y
