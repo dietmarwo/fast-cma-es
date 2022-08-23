@@ -63,10 +63,14 @@ class Fitness(object):
         
     def __call__(self, x):
         try:     
-            return objective_function(x, self.target_distr)
+            y = objective_function(x, self.target_distr)
+            if not np.isfinite(y) or y > 1E99: 
+                return 1E9
+            else:
+                return y
         except Exception as ex:
             print(str(ex))     
-        return 1E9
+            return 1E9
     
 def opt_differential_evolution_loop(fits):
     t0 = perf_counter()
@@ -120,8 +124,7 @@ def find_COBYLA_weakness():
     def fitness(x):
         params = x[:3] # use first three decision variables as guess for COBYLA
         target_distr =  x[3:] # use two decision variables as target
-        if sum(target_distr) == 0:
-            return 0.06 # avoid division by 0
+        if min(target_distr) < 0.01: return 0.06 # avoid division by 0
         target_distr /= sum(target_distr)        
         fit = Fitness(target_distr)
 
