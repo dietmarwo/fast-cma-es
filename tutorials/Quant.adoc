@@ -65,7 +65,7 @@ But there exist other backends for development and testing, which simulate quant
 In this tutorial we will check using a concrete example both timing and quality of the optimization results when
 we apply parallelization to optimize the qubit-parameters using a simulation-backend. But since this example
 is quite small - involving a single qubit - we want to check quiskit's performance for a bigger benchmark: 
-10 runs of a 10 qubit inverse fourier transform. 
+10 runs of a 12 qubit inverse fourier transform (see https://gist.github.com/dietmarwo/23d30a89018d62c02294525092093671[gist] )
 We use a 16 core AMD 5950x CPU, a kind of "mainstream" modern many core CPU currently at around 500$. 
 On this CPU we can expect about:
 
@@ -78,40 +78,45 @@ For both optimization parallelization options we have to switch off any simulati
 (no device='GPU', max_parallel_threads=1) so it makes only sense to use them if the simulation
 scales worse:
 
-.Simulation benchmark - 10 runs of 10 qubit inverse fourier transform
+.Simulation benchmark - 10 runs of 12 qubit inverse fourier transform
 [width="50%",options="header"]
 |===
 |simulator |options |time for 10 runs in sec
-|aer_simulator|none|1.17
-|aer_simulator|max_parallel_threads=1|3.47
-|aer_simulator|device='GPU'|1.21
-|aer_simulator_density_matrix|none|10.35
-|aer_simulator_density_matrix|max_parallel_threads=1|2.8
-|aer_simulator_density_matrix|device='GPU'|1.33
-|aer_simulator_statevector|none|1.39
-|aer_simulator_statevector|max_parallel_threads=1|1.26
-|aer_simulator_statevector|device='GPU'|3.45
-|qasm_simulator|none|1.26
-|qasm_simulator|max_parallel_threads=1|1.17
-|qasm_simulator|device='GPU'|1.16
+|aer_simulator|none|2.11
+|aer_simulator|max_parallel_threads=1|1.82
+|aer_simulator|device='GPU'|1.56
+|aer_simulator_density_matrix|none|10.06
+|aer_simulator_density_matrix|max_parallel_threads=1|34.15
+|aer_simulator_density_matrix|device='GPU'|4.01
+|aer_simulator_statevector|none|1.58
+|aer_simulator_statevector|max_parallel_threads=1|1.6
+|aer_simulator_statevector|device='GPU'|1.56
+|qasm_simulator|none|1.60
+|qasm_simulator|max_parallel_threads=1|1.60
+|qasm_simulator|device='GPU'|1.56
 |===
 
-- aer_simulator scales factor 3 using multiple threads or GPU.
-- qasm_simulator doesn't scale at all both using multiple threads or GPU.
-- aer_simulator_statevector doesn't scale using multiple threads and is much slower using GPU
-- aer_simulator_density_matrix scales < factor 3 using GPU but is much slower using multiple threads
+- aer_simulator, qasm_simulator and aer_simulator_statevector all don't scale with multi-threading
+- For aer_simulator_density_matrix a GPU should be used if there are > 10 qubits. 
+- For aer_simulator_density_matrix the picture changes if we reduce the number of qubits to 8:
+  Now single threaded execution is faster than multi threaded and GPU usage looses its advantage
+- For aer_simulator_density_matrix even with max_parallel_threads=1 you see many threads active 
+  using the system monitor.
 
-You may easily be fooled into thinking aer_simulator_density_matrix scales factor 10 using GPU 
-because the default setting (multiple threads) slows the 
-computation down significantly. Even with max_parallel_threads=1 you see many threads active 
-using the system monitor.
+.Simulation benchmark - 10 runs of 8 qubit inverse fourier transform
+[width="50%",options="header"]
+|===
+|simulator |options |time for 10 runs in sec
+|aer_simulator_density_matrix|none|4.61
+|aer_simulator_density_matrix|max_parallel_threads=1|0.94
+|aer_simulator_density_matrix|device='GPU'|0.88
+|===
 
-These results mean, that for all quiskit simulators, 
-specially for "qasm_simulator" and "aer_simulator_statevector", 
+These results mean, that for all quiskit simulators beside aer_simulator_density_matrix,
 it makes sense to switch off parallelism (no device='GPU', max_parallel_threads=1) and use
-fcmaes parallelism instead for optimizations. Only for 
-'aer_simulator_density_matrix', which seems to utilize multiple threads even with 
-'max_parallel_threads=1' configured, we should be careful. 
+fcmaes parallelism instead for optimizations. aer_simulator_density_matrix requires a lot
+of memory which can prevent parallel execution even if no GPU is available. But if there are
+less than 10 qubits even for aer_simulator_density_matrix it makes sense to switch off parallelism.
 
 === Single Qubit Variational Form
 
