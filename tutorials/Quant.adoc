@@ -61,7 +61,7 @@ Since evaluation of the objective function involves quantum operations paralleli
 currently no sense if the "backend" used to execute these operations is a real quantum computer. Computing resources
 on such a backend is still expensive, although this may change in the future. 
 
-But there exist other backends for development and testing, which simulate quantum gates using conventional CPUs. 
+But there exist other backends for development and testing, which simulate quantum gates using conventional CPUs and GPUs. 
 In this tutorial we will check using a concrete example both timing and quality of the optimization results when
 we apply parallelization to optimize the qubit-parameters using a simulation-backend. But since this example
 is quite small - involving a single qubit - we want to check quiskit's performance for a bigger benchmark: 
