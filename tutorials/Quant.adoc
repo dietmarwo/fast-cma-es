@@ -26,8 +26,8 @@ The code for this tutorial is here:
 
 A quantum computer combines the precision of a digital with the expressive power of an analog computer. 
 
- https://qiskit.org/textbook[textbook] and http://mmrc.amss.cas.cn/tlb/201702/W020170224608150507023.pdf[introduction] provide 
- good tutorials you may use to understand the details. Essentially it works as follows:
+https://qiskit.org/textbook[textbook] and http://mmrc.amss.cas.cn/tlb/201702/W020170224608150507023.pdf[introduction] provide 
+good tutorials you may use to understand the details. Essentially it works as follows:
  
  - Conventional bits are transformed into qubits.
  - A quantum algorithm is a network of connected qubit gates.
