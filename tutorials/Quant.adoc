@@ -30,7 +30,7 @@ https://qiskit.org/textbook[textbook] and http://mmrc.amss.cas.cn/tlb/201702/W02
 good tutorials you may use to understand the details. Essentially it works as follows:
  
  - Conventional bits are transformed into qubits.
- - A quantum algorithm is a network of connected qubit gates.
+ - A quantum algorithm is a network of connected qubit gates executed using a simulator or a real quantum computer. 
  - The resulting qubits are transformed back into conventional bits. 
  
 
