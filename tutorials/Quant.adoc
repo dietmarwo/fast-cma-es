@@ -101,7 +101,7 @@ scales worse:
 - aer_simulator_statevector doesn't scale using multiple threads and is much slower using GPU
 - aer_simulator_density_matrix scales < factor 3 using GPU but is much slower using multiple threads
 
-You may easily be fooled by thinking aer_simulator_density_matrix scales factor 10 using GPU 
+You may easily be fooled into thinking aer_simulator_density_matrix scales factor 10 using GPU 
 because the default setting (multiple threads) slows the 
 computation down significantly. Even with max_parallel_threads=1 you see many threads active 
 using the system monitor.
