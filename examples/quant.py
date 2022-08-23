@@ -124,7 +124,7 @@ def find_COBYLA_weakness():
     def fitness(x):
         params = x[:3] # use first three decision variables as guess for COBYLA
         target_distr =  x[3:] # use two decision variables as target
-        if min(target_distr) < 0.01: return 0.06 # avoid division by 0
+        if min(target_distr) < 0.01: return 0 # avoid division by 0
         target_distr /= sum(target_distr)        
         fit = Fitness(target_distr)
 
