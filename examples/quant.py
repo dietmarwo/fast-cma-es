@@ -114,15 +114,33 @@ def opt_COBYLA_evolution_loop(fits):
         distances.append(ret.fun)
     print("COBYLA mean distance = " +  str(np.mean(distances)))
     print("COBYLA std distance = " +  str(np.std(distances)))
+    
+def find_COBYLA_weakness():
+    
+    def fitness(x):
+        params = x[:3] # use first three decision variables as guess for COBYLA
+        target_distr =  x[3:] # use two decision variables as target
+        if sum(target_distr) == 0:
+            return 1E99 # avoid division by 0
+        target_distr /= sum(target_distr)        
+        fit = Fitness(target_distr)
+
+        ret = COBYLA(maxiter=50000, tol=0.00001).minimize(fun=fit, x0=params)
+        #ret = bitecpp.minimize(fit, fit.bounds, x0=params, max_evaluations=300, stop_fitness=0.05)
+        
+        return -ret.fun # we maximize the distance
+        
+    bounds = Bounds([0]*5, [2]*3 + [1]*2)
+    ret = de.minimize(wrapper(fitness), 5, bounds, max_evaluations = 300, workers=16)
+    print("worst COBYLA distance = " +  str(ret.fun))
  
 if __name__ == '__main__':
     
-    print(backend.available_devices())
-    print(backend.available_methods())
     # generate Fitness objects associated to random target distributions
     fits = [Fitness(random_target_distr()) for i in range(10)]
     opt_differential_evolution_loop(fits)
-    # opt_cmaes_loop(fits)
-    # opt_biteopt_loop(fits)
+    opt_cmaes_loop(fits)
+    opt_biteopt_loop(fits)
     opt_COBYLA_evolution_loop(fits)
+    # find_COBYLA_weakness() # check for weaknesses of COBYLA
     pass

@@ -336,6 +336,48 @@ to obtain a reliable result.
     bite std distance = 0.000456672806132943
 ----
 
+==== Search for Weaknesses of Optimization Algorithms
+
+Finally we apply parallel optimization to search for weaknesses of COBYLA.
+This means the fitness function performs a COBYLA optimization and searches
+for a target distribution and an initial guess maximizing the final distance 
+COBYLA returns:  
+
+[source,python]
+----  
+    def find_COBYLA_weakness():
+        
+        def fitness(x):
+            params = x[:3] # use first three decision variables as guess for COBYLA
+            target_distr =  x[3:] # use two decision variables as target
+            ...     
+            fit = Fitness(target_distr)
+            ret = COBYLA(maxiter=50000, tol=0.00001).minimize(fun=fit, x0=params)
+            return -ret.fun # we maximize the distance
+            
+        bounds = Bounds([0]*5, [2]*3 + [1]*2)
+        ret = de.minimize(wrapper(fitness), 5, bounds, max_evaluations = 300, workers=16)
+        print("worst COBYLA distance = " +  str(ret.fun))
+----
+
+We get
+
+[source,python]
+----
+0.61 16 26.0 -0.16048111250104818 [1.5150607763293302, 0.855535102710067, 0.9443911196710082, 0.44315944374947586, 0.5568405562505241]
+0.71 19 27.0 -0.3451956010096087 [1.2667012355920217, 0.6074735090610092, 0.0, 0.5760978005048043, 0.4239021994951956]
+0.72 20 28.0 -0.39053196482825997 [1.819039398258975, 0.5500857586958143, 0.473575221093664, 0.39823401758587, 0.6017659824141299]
+0.74 21 28.0 -0.4871209992729757 [1.817252059960992, 0.0, 0.43090691832695105, 0.6197604996364878, 0.3802395003635122]
+1.38 33 24.0 -1.5241888666705452 [2.0, 0.9968046393254453, 0.6468567010495877, 0.7675944333352724, 0.2324055666647275]
+2.94 70 24.0 -1.7722 [2.0, 1.164716055769154, 0.8828197082450224, 1.0, 0.0]
+5.14 117 23.0 -1.7860626205507981 [2.0, 1.260050169662025, 1.1363082378155278, 0.996531310275399, 0.003468689724600905]
+7.27 163 22.0 -1.8356 [2.0, 1.5650815562087286, 0.6690050055417369, 1.0, 0.0]
+8.69 197 23.0 -1.9714 [1.9104317884199735, 1.7238262098841646, 0.6395695514606753, 1.0, 0.0]
+worst COBYLA distance = 1.9714
+----
+
+confirming that we can get bad optimization results using COBYLA.
+
 === Conclusion
 
 - The COBYLA algorithm proposed in https://qiskit.org/textbook/ch-applications/vqe-molecules.html#Example-with-a-Single-Qubit-Variational-Form[Example-with-a-Single-Qubit-Variational-Form] is quite unreliable even for a 3-dimensional single qubit related optimization problem. 
