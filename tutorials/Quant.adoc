@@ -390,6 +390,6 @@ confirming that we can get bad optimization results using COBYLA.
 - To mitigate this parallel optimization or parallel fitness evaluation can be used. 
 - All three fcmaes-algorithms tested work reliably for the single qubit variational form optimization problem.
 - Differential Evolution with parallel fitness evaluation offers the best time / reliability compromise.
-- For bigger quantum algorithms "qasm_simulator", "aer_simulator_statevector", and - to a lesser degree - "aer_simulator"
+- For bigger quantum algorithms "qasm_simulator", "aer_simulator_statevector" and "aer_simulator"
   work well with multithreading/GPU switched off, so we can profit from the scaling parallel optimization provides. 
 - BiteOpt with parallel optimization retry is a very reliable option for more complex quantum related optimizations. 
