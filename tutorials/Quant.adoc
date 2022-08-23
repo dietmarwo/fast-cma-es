@@ -393,3 +393,4 @@ confirming that we can get bad optimization results using COBYLA.
 - For bigger quantum algorithms "qasm_simulator", "aer_simulator_statevector" and "aer_simulator"
   work well with multithreading/GPU switched off, so we can profit from the scaling parallel optimization provides. 
 - BiteOpt with parallel optimization retry is a very reliable option for more complex quantum related optimizations. 
+- Differential Evolution with parallel function evaluation can be utilized as a meta-optimizer searching for weaknesses of optimization algorithms.
