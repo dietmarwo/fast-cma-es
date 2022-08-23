@@ -180,7 +180,7 @@ your Python environment. You need to do:
     pip install qiskit
 ----
 
-'pip install qiskit-aer-gpu' for GPU support is not required executing ' quant.py' - and doesn't work on AMD GPUs. 
+'pip install qiskit-aer-gpu' (GPU support) is not required for executing ' quant.py' - and doesn't work on AMD GPUs. 
 
 ==== COBYLA using no Parallelism
 
