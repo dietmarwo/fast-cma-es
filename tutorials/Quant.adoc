@@ -170,7 +170,7 @@ in advance, so that the results are comparable.
 All fcmaes optimizers are configured to use 16 parallel threads, COBYLA is single threaded. 
 If you have a modern many-core CPU available you may reproduce the results by executing 
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/quant.py[quant.py]. 
-We used a 16 core AMD 5950x CPU for our tests. 
+We used a 16 core AMD 5950x CPU / NVIDIA GTX 1660 Ti GPU for our tests. 
 
 ==== COBYLA using no Parallelism
 
