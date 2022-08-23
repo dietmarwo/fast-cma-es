@@ -2,6 +2,11 @@
 Adapted from "Example with a Single Qubit Variational Form"
 
 https://qiskit.org/textbook/ch-applications/vqe-molecules.html#Example-with-a-Single-Qubit-Variational-Form
+
+Read https://qiskit.org/documentation/getting_started.html about setting up your environment
+
+pip install qiskit
+pip install qiskit-aer-gpu (doesn't work on AMD GPUs and is not required executing this file)
 '''
 
 from qiskit import QuantumCircuit, assemble, Aer, transpile, ClassicalRegister, QuantumRegister
@@ -13,7 +18,7 @@ from scipy.optimize import Bounds
 from fcmaes import retry, de, cmaes
 
 backend = Aer.get_backend("qasm_simulator", max_parallel_threads=1)
-#backend.set_options(device='GPU')
+#backend.set_options(device='GPU') # if you switch GPU on, parallel simulation will crash
 
 NUM_SHOTS = 10000
 

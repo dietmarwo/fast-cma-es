@@ -172,6 +172,16 @@ If you have a modern many-core CPU available you may reproduce the results by ex
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/quant.py[quant.py]. 
 We used a 16 core AMD 5950x CPU / NVIDIA GTX 1660 Ti GPU for our tests. 
 
+Read https://qiskit.org/documentation/getting_started.html[getting_started] about setting up 
+your Python environment. You need to do:
+
+[source,python]
+---- 
+    pip install qiskit
+----
+
+'pip install qiskit-aer-gpu' for GPU support is not required executing ' quant.py' - and doesn't work on AMD GPUs. 
+
 ==== COBYLA using no Parallelism
 
 The COBYLA optimization was taken from
