@@ -15,7 +15,7 @@ import numpy as np
 from time import perf_counter
 from fcmaes.optimizer import Bite_cpp, dtime, wrapper
 from scipy.optimize import Bounds
-from fcmaes import retry, de, cmaes
+from fcmaes import retry, de, cmaes, bitecpp
 
 backend = Aer.get_backend("qasm_simulator", max_parallel_threads=1)
 #backend.set_options(device='GPU') # if you switch GPU on, parallel simulation will crash
