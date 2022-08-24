@@ -22,6 +22,9 @@ The code for this tutorial is here:
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/examples/quant.py[quant.py].
 
+Note that the optimization methods shown can easily be transferred to a vendor-independent 
+quantum infrastructure like https://github.com/qcc4cp/qcc[qcc] . 
+
 === How does a Quantum Computer work ? 
 
 A quantum computer combines the precision of a digital with the expressive power of an analog computer. 
