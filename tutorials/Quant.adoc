@@ -40,7 +40,7 @@ A qubit can be represented by a 3-dimensional unit-vector. Qubit
 gates rotate this vector in different directions. You may play with the colored buttons on the 
 https://javafxpert.github.io/grok-bloch/[bloch sphere] to see how these operations work. 
 Control gates correlate multiple qubits, this correlation is called "entanglement". This means
-a "target" qubit rotates (changes probability and phase) dependent on a "control" qubit - which means
+a "target" qubit rotates (changes probability and phase) dependent on a "control" qubit -
 both qubits are no longer independent.    
 
 image::bloch.png[]
