@@ -111,45 +111,37 @@ For both optimization parallelization options we have to switch off any simulati
 (no device='GPU', max_parallel_threads=1) so it makes only sense to use them if the simulation
 scales worse:
 
-.Simulation benchmark - 10 runs of 12 qubit inverse fourier transform
+- aer_simulator_density_matrix cannot handle 18 or more qubits on our machine, 
+- aer_simulator_statevector fails at 30 qbits (insufficient memory). 
+
+.Simulation benchmark - 10 runs of inverse fourier transform, time in sec
 [width="50%",options="header"]
 |===
-|simulator |options |time for 10 runs in sec
-|aer_simulator|none|2.11
-|aer_simulator|max_parallel_threads=1|1.82
-|aer_simulator|device='GPU'|1.56
-|aer_simulator_density_matrix|none|10.06
-|aer_simulator_density_matrix|max_parallel_threads=1|34.15
-|aer_simulator_density_matrix|device='GPU'|4.01
-|aer_simulator_statevector|none|1.58
-|aer_simulator_statevector|max_parallel_threads=1|1.6
-|aer_simulator_statevector|device='GPU'|1.56
-|qasm_simulator|none|1.60
-|qasm_simulator|max_parallel_threads=1|1.60
-|qasm_simulator|device='GPU'|1.56
+|simulator |options |time 8 qbits|time 12 qbits|time 18 qbits|time 24 qbits|time 30 qbits|time 36 qbits
+|aer_simulator|none|0.90|2.11|3.43|28.25|1427.3|14.14
+|aer_simulator|max_parallel_threads=1|0.91|1.82|4.28|111.28|?|12.46
+|aer_simulator|device='GPU'|0.87|1.56|3.45|19.7|?|13.89
+|qasm_simulator|none|0.89|1.60|2.93|29.12|?|14.38
+|qasm_simulator|max_parallel_threads=1|0.90|1.60|4.09|110.66|?|13.02
+|qasm_simulator|device='GPU'|0.87|1.56|3.14|19.83|?|14.49
+|aer_simulator_statevector|none|0.91|1.58|3.61|28.85|-|-
+|aer_simulator_statevector|max_parallel_threads=1|0.89|1.6|3.88|110.4|-|-
+|aer_simulator_statevector|device='GPU'|0.87|1.56|2.96|19.31|-|-
+|aer_simulator_density_matrix|none|0.91|10.06|-|-|-|-
+|aer_simulator_density_matrix|max_parallel_threads=1|0.89|34.15|-|-|-|-
+|aer_simulator_density_matrix|device='GPU'|0.87|4.01|-|-|-|-
 |===
 
-- aer_simulator, qasm_simulator and aer_simulator_statevector all don't scale at all, neither with multi-threading nor by using a GPU. 
-- For aer_simulator_density_matrix a GPU should be used if there are > 10 qubits. 
-- For aer_simulator_density_matrix the picture changes if we reduce the number of qubits to 8:
-  Now single threaded execution is faster than multi threading and GPU usage looses its advantage.
-- For aer_simulator_density_matrix even with max_parallel_threads=1 you see many threads active 
-  using the system monitor.
+Summarizing the results:
 
-.Simulation benchmark - 10 runs of 8 qubit inverse fourier transform
-[width="50%",options="header"]
-|===
-|simulator |options |time for 10 runs in sec
-|aer_simulator_density_matrix|none|4.61
-|aer_simulator_density_matrix|max_parallel_threads=1|0.94
-|aer_simulator_density_matrix|device='GPU'|0.88
-|===
+- For a small number of qbits (<= 18) aer_simulator, qasm_simulator and aer_simulator_statevector don't scale significantly, neither with multi-threading nor by using a GPU. 
+- For 8 qubits this also is true for aer_simulator_density_matrix, for 12 qubits factor 3.5 can be achieved using multi threading and factor 8.5 by using a GPU. 
+- For 24 and 30 qubits we see for aer_simulator, qasm_simulator and aer_simulator_statevector factor 3.5 using multi threading and factor 5.5 using a GPU. 
+- For 36 qubits stranglely we again don't see significant scaling, maybe internally another simulation method is used. 
 
-These results mean, that for all quiskit simulators beside aer_simulator_density_matrix,
-it makes sense to switch off parallelism (no device='GPU', max_parallel_threads=1) and use
-fcmaes parallelism instead for optimizations. aer_simulator_density_matrix requires a lot
-of memory which can prevent parallel execution even if no GPU is available. But if there are
-less than 10 qubits even for aer_simulator_density_matrix it makes sense to switch off parallelism.
+These results mean, that if we don't use aer_simulator_density_matrix and our quantum circuit is relatively small
+(<= 18 qbits) we can switch off parallelism and utilize optimization parallelism. For more than 18 qubits
+we should benchmark our circuit to check how it scales. 
 
 === Single Qubit Variational Form
 
