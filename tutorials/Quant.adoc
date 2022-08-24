@@ -61,14 +61,19 @@ From the perspective of classical continuous optimization this means that we imp
 using a parameterizable quantum algorithm. This makes most sense in the realm of physics, because
 nature itself "is quantum". See 
 https://physicsworld.com/a/conquering-the-challenge-of-quantum-optimization/[challenge of quantum optimization]. 
-
 Simulating real quantum effects is time consuming, so things can be speed up using the "real thing" inside
-the fitness function. There is a myriad of papers on the topic “quantum approximate optimization algorithm” (QAOA)
+the fitness function. 
+
+There is a myriad of papers on the topic “quantum approximate optimization algorithm” (QAOA)
 because it can be applied partly already with the flawed quantum computers we have today.  
 But https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.127.120502 and https://www.nature.com/articles/s41467-018-07090-4
 report "barren plateaus" and theoretical limits of QAOA applied to other domains. Theoretical limits also apply 
 when we train a deep neural network - which is a similar idea to place "something parameterizable" in between 
 our decision variables and the final output. Nevertheless these manage to do amazing stuff. 
+But we have to be careful when "transferring" our experience optimizing DNN parameters/weights to quantum circuits. 
+Where in the DNN domain we can get away with relatively simple optimization methods derived from gradient decent,
+this may not be the case in the quantum domain. As we will see below, even optimizing a trivial 1-qbit circuit
+is not as easy as expected. 
 
 Why is it interesting to optimize using a quantum simulation based on classical computation? Current quantum computers
 often restrict the "wiring" of their qubits incompatible with the requirements of our quantum algorithm design. 
