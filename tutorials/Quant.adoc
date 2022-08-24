@@ -118,14 +118,14 @@ scales worse:
 |===
 |simulator |options |time 8 qbits|time 12 qbits|time 18 qbits|time 24 qbits|time 30 qbits|time 36 qbits
 |aer_simulator|none|0.90|2.11|3.43|28.25|1427.3|14.14
-|aer_simulator|max_parallel_threads=1|0.91|1.82|4.28|111.28|?|12.46
-|aer_simulator|device='GPU'|0.87|1.56|3.45|19.7|?|13.89
-|qasm_simulator|none|0.89|1.60|2.93|29.12|?|14.38
-|qasm_simulator|max_parallel_threads=1|0.90|1.60|4.09|110.66|?|13.02
-|qasm_simulator|device='GPU'|0.87|1.56|3.14|19.83|?|14.49
-|aer_simulator_statevector|none|0.91|1.58|3.61|28.85|-|-
-|aer_simulator_statevector|max_parallel_threads=1|0.89|1.6|3.88|110.4|-|-
-|aer_simulator_statevector|device='GPU'|0.87|1.56|2.96|19.31|-|-
+|aer_simulator|max_parallel_threads=1|0.91|1.82|4.28|111.28|9035.0|12.46
+|aer_simulator|device='GPU'|0.87|1.56|3.45|19.7|cuda error|13.89
+|qasm_simulator|none|0.89|1.60|2.93|29.12|1434.6|14.38
+|qasm_simulator|max_parallel_threads=1|0.90|1.60|4.09|110.66|9028.2|13.02
+|qasm_simulator|device='GPU'|0.87|1.56|3.14|19.83|cuda error|14.49
+|aer_simulator_statevector|none|0.91|1.58|3.61|28.85|1430.8|-
+|aer_simulator_statevector|max_parallel_threads=1|0.89|1.6|3.88|110.4|9022.1|-
+|aer_simulator_statevector|device='GPU'|0.87|1.56|2.96|19.31|cuda error|-
 |aer_simulator_density_matrix|none|0.91|10.06|-|-|-|-
 |aer_simulator_density_matrix|max_parallel_threads=1|0.89|34.15|-|-|-|-
 |aer_simulator_density_matrix|device='GPU'|0.87|4.01|-|-|-|-
