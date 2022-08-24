@@ -29,17 +29,19 @@ quantum infrastructure like https://github.com/qcc4cp/qcc[qcc] .
 
 A quantum computer combines the precision of a digital with the expressive power of an analog computer. 
 
-https://qiskit.org/textbook[textbook] and http://mmrc.amss.cas.cn/tlb/201702/W020170224608150507023.pdf[introduction] provide 
+https://www.youtube.com/watch?v=2Eswqed8agg[Quantum programming], https://qiskit.org/textbook[textbook] and http://mmrc.amss.cas.cn/tlb/201702/W020170224608150507023.pdf[introduction] provide 
 good tutorials you may use to understand the details. Essentially it works as follows:
  
  - Conventional bits are transformed into qubits.
  - A quantum algorithm is a network of connected qubit gates executed using a simulator or a real quantum computer. 
- - The resulting qubits are transformed back into conventional bits. 
- 
+ - The resulting qubits are transformed back into conventional bits.
 
 A qubit can be represented by a 3-dimensional unit-vector. Qubit
 gates rotate this vector in different directions. You may play with the colored buttons on the 
 https://javafxpert.github.io/grok-bloch/[bloch sphere] to see how these operations work. 
+Control gates correlate multiple qubits, this correlation is called "entanglement". This means
+a "target" qubit rotates (changes probability and phase) dependent on a "control" qubit - which means
+both qubits are no longer independent.    
 
 image::bloch.png[]
 
