@@ -56,7 +56,7 @@ The expressive power of a sequence of qubits is based on the following facts:
 
 How do we make sure that the final state of the qubits, after converting them back into conventional
 bits, represents something meaningful? There are techniques like quantum fourier transform and 
-amplitude amplification based on phase resonances which single out the desired bit combination 
+amplitude amplification based on phase resonance which single out the desired bit combination 
 in the final probability distribution.  
 
 === Quantum Optimization
