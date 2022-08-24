@@ -28,7 +28,6 @@ quantum infrastructure like https://github.com/qcc4cp/qcc[qcc] .
 === How does a Quantum Computer work ? 
 
 A quantum computer combines the precision of a digital with the expressive power of an analog computer. 
-
 https://youtu.be/2Eswqed8agg[Quantum programming], https://qiskit.org/textbook[textbook] and http://mmrc.amss.cas.cn/tlb/201702/W020170224608150507023.pdf[introduction] provide 
 good tutorials you may use to understand the details. Essentially it works as follows:
  
@@ -98,7 +97,7 @@ But there exist other backends for development and testing, which simulate quant
 In this tutorial we will check using a concrete example both timing and quality of the optimization results when
 we apply parallelization to optimize the qubit-parameters using a simulation-backend. But since this example
 is quite small - involving a single qubit - we want to check quiskit's performance for a bigger benchmark: 
-10 runs of a 12 qubit inverse fourier transform (see https://gist.github.com/dietmarwo/23d30a89018d62c02294525092093671[gist] )
+10 runs of a 8-36 qubit inverse fourier transform (see https://gist.github.com/dietmarwo/23d30a89018d62c02294525092093671[gist] )
 We use a 16 core AMD 5950x CPU, a kind of "mainstream" modern many core CPU currently at around 500$. 
 On this CPU we can expect about:
 
