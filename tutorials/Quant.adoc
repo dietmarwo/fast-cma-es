@@ -29,7 +29,7 @@ quantum infrastructure like https://github.com/qcc4cp/qcc[qcc] .
 
 A quantum computer combines the precision of a digital with the expressive power of an analog computer. 
 
-https://www.youtube.com/watch?v=2Eswqed8agg[Quantum programming], https://qiskit.org/textbook[textbook] and http://mmrc.amss.cas.cn/tlb/201702/W020170224608150507023.pdf[introduction] provide 
+https://youtu.be/2Eswqed8agg[Quantum programming], https://qiskit.org/textbook[textbook] and http://mmrc.amss.cas.cn/tlb/201702/W020170224608150507023.pdf[introduction] provide 
 good tutorials you may use to understand the details. Essentially it works as follows:
  
  - Conventional bits are transformed into qubits.
