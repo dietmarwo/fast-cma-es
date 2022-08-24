@@ -22,7 +22,7 @@ The code for this tutorial is here:
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/examples/quant.py[quant.py].
 
-== How does a Quantum Computer work ? 
+=== How does a Quantum Computer work ? 
 
 A quantum computer combines the precision of a digital with the expressive power of an analog computer. 
 
@@ -52,6 +52,28 @@ The expressive power of a sequence of qubits is based on the following facts:
 How do we make sure that the final state of the qubits, after converting them back into conventional
 bits, represents something meaningful? There are techniques like quantum fourier transformation and 
 amplitude amplification which single out the desired bit combination in the final probability distribution.  
+
+=== Quantum Optimization
+
+The basis of quantum optimization is a "variational algorithm" which vary a quantum circuit 
+to obtain approximate solutions to an optimization problem.
+From the perspective of classical continuous optimization this means that we implement our fitness function
+using a parameterizable quantum algorithm. This makes most sense in the realm of physics, because
+nature itself "is quantum". See 
+https://physicsworld.com/a/conquering-the-challenge-of-quantum-optimization/[challenge of quantum optimization]. 
+
+Simulating real quantum effects is time consuming, so things can be speed up using the "real thing" inside
+the fitness function. There is a myriad of papers on the topic “quantum approximate optimization algorithm” (QAOA)
+because it can be applied partly already with the flawed quantum computers we have today.  
+But https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.127.120502 and https://www.nature.com/articles/s41467-018-07090-4
+report "barren plateaus" and theoretical limits of QAOA applied to other domains. Theoretical limits also apply 
+when we train a deep neural network - which is a similar idea to place "something parameterizable" in between 
+our decision variables and the final output. Nevertheless these manage to do amazing stuff. 
+
+Why is it interesting to optimize using a quantum simulation based on classical computation? Current quantum computers
+often restrict the "wiring" of their qubits incompatible with the requirements of our quantum algorithm design. 
+Instead of waiting for future quantum computers supporting more qubits and a more flexible wiring 
+we can use a simulation today to measure how efficient our method will be in the future.  
 
 === Can optimization related to quantum algorithms be parallelized ?
 
@@ -99,7 +121,7 @@ scales worse:
 - aer_simulator, qasm_simulator and aer_simulator_statevector all don't scale at all, neither with multi-threading nor by using a GPU. 
 - For aer_simulator_density_matrix a GPU should be used if there are > 10 qubits. 
 - For aer_simulator_density_matrix the picture changes if we reduce the number of qubits to 8:
-  Now single threaded execution is faster than multi threading and GPU usage looses its advantage
+  Now single threaded execution is faster than multi threading and GPU usage looses its advantage.
 - For aer_simulator_density_matrix even with max_parallel_threads=1 you see many threads active 
   using the system monitor.
 
