@@ -19,7 +19,7 @@ image::logo.gif[]
 
 ==== Quantum Computing
 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc[Variational Qubit] Optimize a Variational Qubit.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc[Variational Qubit] Optimize a Variational Qubit and a Variational Quantum Eigensolver.  
 
 ==== Service - Demand Network Planning (p-center problem)
 
