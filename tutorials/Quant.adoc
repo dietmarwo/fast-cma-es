@@ -502,7 +502,7 @@ Execution of our experiments can be reproduced by adapting/executing https://git
 
 As a reference lets first try "aer_simulator" without noise using SPSA, similar to what is done in the original qiskit tutorial
 https://qiskit.org/documentation/optimization/tutorials/06_examples_max_cut_and_tsp.html[06_examples_max_cut_and_tsp.html].
-But instead of a tiny graph we the number of graph nodes as `n=13`.
+But instead of a tiny graph we increase the number of graph nodes to `n=13`.
 
 [source,python]
 ----
