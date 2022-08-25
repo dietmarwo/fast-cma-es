@@ -18,12 +18,26 @@ This tutorial
 - Compares results of three fcmaes algorithms (DE, CMA-ES and BiteOpt) to the one proposed by IBM (COBYLA). 
 - Applies different parallelization methods for optimizations using the the "qasm_simulator" from  https://qiskit.org/[Quiskit]. 
 
-The code for this tutorial is here: 
+The code for this part of the tutorial is here: 
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/examples/quant.py[quant.py].
 
 Note that the optimization methods shown can easily be transferred to a vendor-independent 
 quantum infrastructure like https://github.com/qcc4cp/qcc[qcc] . 
+
+== Optimization of a VQE (Variational Quantum Eigensolver)
+
+In a second part we analyze whether what we learned from the first part is applicable to a 
+bigger experiment: The optimization of a VQE to solve the maxcut graph problem. 
+
+- Adapts https://qiskit.org/documentation/optimization/tutorials/06_examples_max_cut_and_tsp.html[06_examples_max_cut_and_tsp.html] to check
+  parallel optimization both using fcmaes and qiskit optimizers. 
+- Compares results for different simulation backends.
+- What happens if we add noise ?
+
+The code for this part of the tutorial is here: 
+
+- https://github.com/dietmarwo/fast-cma-es/blob/master/examples/maxcut.py[maxcut.py]. 
 
 === How does a Quantum Computer work ? 
 
@@ -407,7 +421,7 @@ worst COBYLA distance = 1.9714
 
 confirming that we can get bad optimization results using COBYLA.
 
-=== Conclusion
+=== Summary
 
 - The COBYLA algorithm proposed in https://qiskit.org/textbook/ch-applications/vqe-molecules.html#Example-with-a-Single-Qubit-Variational-Form[Example-with-a-Single-Qubit-Variational-Form] is quite unreliable even for a 3-dimensional single qubit related optimization problem. 
 - Alternatives adding reliability may converge slower.
@@ -418,3 +432,296 @@ confirming that we can get bad optimization results using COBYLA.
   work well with multithreading/GPU switched off, so we can profit from the scaling parallel optimization provides. 
 - BiteOpt with parallel optimization retry is a very reliable option for more complex quantum related optimizations. 
 - Differential Evolution with parallel function evaluation can be utilized as a meta-optimizer searching for weaknesses of optimization algorithms.
+
+== VQE (Variational Quantum Eigensolver)
+
+Lets see if what we learned so far is applicable to a bigger example, the parameterization of a VQE to solve
+the maxcut graph problem. Whether to solve maxcut this way is a good idea is questionable for
+two reasons:
+
+- Classical solvers can compete quite well because of recent improvement in that area. 
+- Noise produced by quantum gates are currently a real issue.  
+
+But nevertheless this problem can serve as a benchmark for the optimization of VQEs which is useful in many other areas.
+When using https://qiskit.org/documentation/optimization/tutorials/06_examples_max_cut_and_tsp.html[06_examples_max_cut_and_tsp.html] as a basis we noticed that there are several 
+major qiskit refactorings ongoing and not all tutorials are adapted yet, so we had to change several imports.
+
+=== Compare Different Optimizers
+
+Suppose our task it to compare different optimizers for the maxcut VQE. Preliminary tests revealed that the 
+fcmaes optimizers used in the first section don't work well here. So we are finally faced with two options:
+
+- SPSA from qiskit.
+- CR-FM-NES from fcmaes.
+
+How do we proceed? First we need to wrap CR-FM-NES as a qiskit optimizer so that qiskits VQE implementation can use it:
+
+This is done in `class fcmaes_Optimizer(optimizers.Optimizer)` in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/maxcut.py[maxcut.py]. Our wrapper is generic in two ways:
+
+- It can consume any fcmaes optimizer
+- It has a parameter `max_retries`. If `max_retries > 1` the fcmaes parallel optimization retry mechanism is applied.    
+  Additionally we can restrict the number of parallel workers using parameter `workers`.
+
+Lets also take the opposite route, wrapping SPSA as fcmaes algorithm as follows:
+
+[source,python]
+----
+    class fcmaes_SPSA(Optimizer):
+    
+        def __init__(self, maxiter=1000):        
+            Optimizer.__init__(self, maxiter, 'SPSA')
+            self.opt = SPSA(maxiter=maxiter) # guessing
+    
+        def minimize(self, fun, bounds, guess=None, sdevs=None, rg=None, store=None):
+            if guess is None: # necessary for parallel retry
+                guess = np.random.uniform(bounds.lb, bounds.ub) if rg is None else \
+                        rg.uniform(bounds.lb, bounds.ub)    
+            ret = self.opt.minimize(fun, guess, bounds=[t for t in zip(bounds.lb, bounds.ub)])
+            return ret.x, ret.fun, ret.nfev
+----  
+
+Now we can also execute SPSA in parallel by using a "double-wrapping":
+
+[source,python]
+----
+    optimizer = fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries = 16)
+----
+
+Note that fcmaes parallel retry doesn't forward an initial guess `x0` to improve the diversity of the runs. 
+We take care of that by generating a random guess in this case. Other parameters of `minimize` are:
+
+- `sdevs` the initial step size used to narrow / widen the search performed by the optimizer. CMA-ES and CR-FM_NES use this parameter. Lowering this value helps to enhance diversity of parallel retries. 
+- `rg` a random generator, helps to preserve diversity if multiple processes are involved. 
+- `store` used to maintain optimization results for statistical evaluation. 
+
+=== Experiments
+
+Execution of our experiments can be reproduced by adapting/executing https://github.com/dietmarwo/fast-cma-es/blob/master/examples/maxcut.py[maxcut.py]. 
+
+==== maxcut(SPSA(maxiter=1000), n, "aer_simulator")
+
+As a reference lets first try "aer_simulator" without noise using SPSA, similar to what is done in the original qiskit tutorial
+https://qiskit.org/documentation/optimization/tutorials/06_examples_max_cut_and_tsp.html[06_examples_max_cut_and_tsp.html].
+But instead of a tiny graph we the number of graph nodes as `n=13`.
+
+[source,python]
+----
+    G = nx.dense_gnm_random_graph(n, 2*n, seed=123)
+    for (u, v) in G.edges():
+        G.edges[u,v]['weight'] = 1
+----
+
+is used to generate an random 13 node graph using a fixed seed. Using a bigger graph will result in different timings, as the processor cache size becomes
+the dominating resource limitation. All our experiments were executed on a 16 core AMD 5950x CPU with 128 GB RAM on Linux Mint 20.3.  
+
+We get 
+
+[source,python]
+----
+energy: -6.9658203125
+time: 90.57734179496765
+max-cut objective: -19.9658203125
+----
+
+which means our optimization nearly found the optimum in 90.5 seconds. 
+
+==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), use_wrapper=True), n, "aer_simulator")
+
+Next the same experiment using CR-FM-NES (Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see 
+https://arxiv.org/abs/2201.11422 ). `Crfmnes_cpp` uses the evaluation- not the iteration-number as parameter, so we have to 
+use `2000` instead of `1000` to configure the same number of function evaluations. 
+
+[source,python]
+----
+energy: -6.968749999999999
+time: 106.77298545837402
+max-cut objective: -19.96875
+----
+
+The resulting `max-cut objective` is almost the same, but there is a slight speed advantage for SPSA.
+ 
+Population size needs to be configured very low for CR-FM-NES, which means the solution landscape
+is quite smooth. This also explains why a gradient decent based approach like SPSA is successful. If you check out
+one of the many other fcmaes https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials] you will notice
+that this is not the "usual" environment fcmaes is designed for. But still it contains a competitive algorithm. And more important:
+We can use fcmaes to speed up qiskits SPSA when multiple restarts are required. 
+
+May be we should execute multiple optimizations to decide which optimizer is better. This is one of the possible applications of parallel
+optimization retry. Another is to improve the final result, because we can choose the best run. 
+
+==== maxcut(fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
+
+We use the "double wrapping" from above to execute 16 optimization runs in parallel, at least on our 16 core CPU. A smaller CPU will use 
+less parallelization. Using `use_wrapper=True` we configured monitoring of the optimization resulting in output like:
+
+[source,python]
+----
+104.34 26362 253.0 -6.988281249999998 [-2.8288650478093085, -2.3794439915346755, ...] 
+----
+
+Where we have:
+
+- 104.34 : execution time in seconds.
+- 26362 : number of function evaluations so far.
+- 253.0 : number of function evaluations per second (eval/sec).
+- -6.988281249999998 : best function value so far.
+- [-2.8288650478093085, -2.3794439915346755, ...] : best solution vector so far.
+
+Parameter `logger=logger()` is used to monitor the results we get from the different parallel runs:
+
+[source,python]
+----
+135.47 236 16 32000 -6.988281 -6.84 0.34 [-6.99, -6.99, -6.98, -6.98, -6.98, -6.97, -6.97, -6.97, -6.96, -6.96, -6.95, -6.94, -6.93, -6.92, -5.96, -5.93] ...
+----
+
+- 135.47 : execution time in seconds.
+- 236 : number of function evaluations per second (eval/sec).
+- 16 : number of finished optimization runs.
+- 32000 : number of function calls.
+- -6.988281 : best function value so far.
+- -6.84 : mean value of all optimization results.
+- -0.34 : standard deviation of all optimization results.
+- - [-6.99, -6.99, -6.98, -6.98, -6.98, ...] list of best optimization results.
+
+Finally we get:
+
+[source,python]
+----
+energy: -6.988281249999998
+time: 135.46813488006592
+max-cut objective: -19.98828125
+----
+
+==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
+
+16 CR-FM-NES optimization runs result in:
+
+[source,python]
+----
+energy: -6.989257812499999
+time: 146.4702537059784
+max-cut objective: -19.9892578125
+----
+
+and we get:
+
+- Mean value: -6.73
+- Standard deviation 0.38
+- All 16 runs: [-6.99, -6.98, -6.98, -6.97, -6.97, -6.96, -6.96, -6.96, -6.95, -6.93, -6.9, -6.71, -6.47, -6.02, -5.97, -5.94]
+
+Which one is better now? CR-FM-NES is "tuned" to produce diverse results, therefore optimum and standard deviation are higher, but the
+mean value is lower. If you plan to perform only one run, SPSA is the clear winner. But there is another winner here: Parallel retry. 
+Only about 30% more time for 16 instead of a single run! 
+
+What about noise?
+
+==== maxcut(SPSA(maxiter=1000), n, "aer_simulator", add_noise=True)
+
+[source,python]
+----
+energy: -6.50390625
+time: 170.7763273715973
+max-cut objective: -19.50390625
+----
+
+As expected, we get a worse `max-cut objective = -19.50' but we also need a lot more time. 
+
+==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), use_wrapper=True), n, "aer_simulator", add_noise=True)
+
+[source,python]
+----
+energy: -6.501953125000001
+time: 185.95762133598328
+max-cut objective: -19.501953125
+----
+
+A bit surprising since SPSA is advertised for noisy objective functions. But the real surprise reveals when we try to 
+parallelize:
+
+==== maxcut(fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries = 8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+ 
+[source,python]
+----
+energy: -6.565429687500001
+time: 422.138060092926
+max-cut objective: -19.5654296875
+---- 
+
+- Mean value: -6.52
+- Standard deviation 0.03
+- All 8 runs: [-6.57, -6.56, -6.55, -6.54, -6.51, -6.5, -6.48, -6.47] 
+ 
+Already with 8 parallel runs execution time more than doubles. There are some multi-threading shenanigans going on for noise computations I found no way to switch off. This reduces significantly the performance of parallel optimization. 
+
+==== maxcut(fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries = 8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+ 
+[source,python]
+----
+energy: -6.5703125
+time: 413.346088886261
+max-cut objective: -19.5703125
+---- 
+
+- Mean value: -6.01
+- Standard deviation 0.50
+- All 8 runs: [-6.57, -6.52, -6.47, -6.27, -5.85, -5.73, -5.55, -5.1] 
+ 
+Now we see that without multiple restarts CR-FM-NES is "lost". If you plan to perform only one run, definitely use SPSA, specially if noise is involved. 
+Again we see that we need more than double the time to execute 8 parallel runs, much less scaling as without noise.
+
+Finally lets try another simulator: "aer_simulator_statevector":
+
+==== maxcut(SPSA(maxiter=1000), n, "aer_simulator_statevector")
+
+[source,python]
+----
+solution objective: 20.0
+energy: -6.993037078357363
+time: 306.25169563293457
+---- 
+
+Execution is very slow. To get this result we needed to use:
+
+[source,python]
+----
+    with threadpoolctl.threadpool_limits(limits=1, user_api="blas"): 
+        # blas threading restriction, speeds up "aer_simulator_statevector" 
+        result = vqe.compute_minimum_eigenvalue(qubitOp)
+---- 
+  
+We found no other way to restrict usage of multiple threads by configuration:
+
+[source,python]
+----
+    backend.set_options(max_parallel_threads=1)
+----
+
+just did't work. But why is this a good idea in case we only want to execute a single optimization?
+
+==== maxcut(SPSA(maxiter=1000), n, "aer_simulator_statevector") without threadpool_limits(limits=1)
+
+[source,python]
+----
+solution objective: 20.0
+energy: -6.989098658672954
+time: 338.2265610694885
+----
+
+It is because all these threads slow down the computation. It is not clear why, may be this is cache size related.
+Nevertheless there is a "positive" side effect: CPU temperature is 20 degree higher - so we may call
+this configuration "room heater mode". During summer this may not be what you want to do, as long 
+as there is no speed-up. 
+
+"aer_simulator_statevector" is not well suited for parallelization, scaling is even worse than with "aer_simulator" + noise. 
+
+=== Summary
+
+- SPSA is an excellent algorithm for VQE optimization, specially if noise is involved. 
+- CR-FM-NES (Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see 
+https://arxiv.org/abs/2201.11422) is a good alternative which may have advantages for more complex VQEs. 
+- Both can be parallelized using fcmaes. 
+- Maxcut parallelization scaling is best for "qasm_simulator" and "aer_simulator" without noise with less or equal 13 graph nodes.
+- For bigger graphs cache size becomes the dominating performance limit.   
+- Avoid the "room heater", don't allow "aer_simulator_statevector" to use > 1 thread, even without parallel optimization. At least if it is not winter time.
+
+  
