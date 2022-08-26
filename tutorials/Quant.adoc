@@ -714,6 +714,28 @@ as there is no speed-up.
 
 "aer_simulator_statevector" is not well suited for parallelization, scaling is even worse than with "aer_simulator" + noise. 
 
+==== Excercises
+
+- Test "qasm_simulator" with and without noise.
+- For "qasm_simulator" without noise implement a sequential restart using SPSA executing the optimization 16 times and compare the wall time
+required with parallel retry using `fcmaes_SPSA(1000), max_retries = 16,...`
+- Can you further enhance the accuracy of the result? Can you reach perfect accuracy? 
+You may try something like `Crfmnes_cpp(4000, popsize=17), max_retries = 16` or
+`fcmaes_SPSA(2000), max_retries = 16`. How much wall time does it take to reach this result without parallel retry? 
+For such a solution (here `Crfmnes_cpp(4000, popsize=17)` was used) you will notice that the exact solution
+and the computed solution are equal:
+
+[source,python]
+----
+solution: [1 0 1 0 1 0 0 0 1 0 1 0 0]
+energy: -6.999999999999998
+time: 225.83396410942078
+max-cut objective: -20.0
+solution: [1 0 1 0 1 0 0 0 1 0 1 0 0]
+----
+
+Even a slight inaccuracy may cause a wrong solution, which means that noisy gates are a severe problem for non-trivial graphs. 
+
 === Summary
 
 - SPSA is an excellent algorithm for VQE optimization, specially if noise is involved. 
