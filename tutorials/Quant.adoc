@@ -714,7 +714,7 @@ as there is no speed-up.
 
 "aer_simulator_statevector" is not well suited for parallelization, scaling is even worse than with "aer_simulator" + noise. 
 
-==== Excercises
+==== Exercises
 
 - Test "qasm_simulator" with and without noise.
 - For "qasm_simulator" without noise implement a sequential restart using SPSA executing the optimization 16 times and compare the wall time
