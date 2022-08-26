@@ -736,17 +736,17 @@ solution: [1 0 1 0 1 0 0 0 1 0 1 0 0]
 
 Even a slight inaccuracy may cause a wrong solution, which means that noisy gates are a severe problem for non-trivial graphs. 
 
-- The following solution was generated using `fcmaes_SPSA(6000), max_retries = 16`. Can you explain, why it is wrong, even
+- The following solution was generated using `fcmaes_SPSA(3000), max_retries = 16`. Can you explain, why it is wrong, even
 with perfectly correct energy? Is there an issue with the maxcut algorithm or with the generated graph? I myself don't know 
 the answer yet.
 
 [source,python]
 ----
 solution: [1 0 1 0 1 0 0 0 1 0 1 0 0]
-energy: -7.000000000000001
-time: 473.6434750556946
+energy: -7.0
+time: 267.5921332836151
 max-cut objective: -20.0
-solution: [0 1 0 1 0 1 0 1 0 1 0 1 1]
+solution: [0 1 0 1 0 0 1 1 0 0 0 1 1]
 solution objective: 20.0
 ----
 
