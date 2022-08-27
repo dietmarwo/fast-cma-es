@@ -750,10 +750,15 @@ solution: [0 1 0 1 0 0 1 1 0 0 0 1 1]
 solution objective: 20.0
 ----
 
-=== Update: cmaes version 1.4.3 now supports CR-FM-NES parallel function evaluation 
+=== Update: fcmaes version 1.4.3 now supports CR-FM-NES parallel function evaluation 
 
-cmaes version 1.4.2 doesn't support parallel function evaluation for CR-FM-NES. For 1.4.3 this is now implemented (do `pip install fcmaes --upgrade`). Works both for the Python and the C++ version. This changes the picture completely: With 8000 evaluations and population
-size 16 (which makes CR-FM-NES more reliable, 15 out of 16 runs resulted in perfect energy=7.0), we get:
+The major limitation of fcmaes for maxcut is that for the best algorithm CR-FM-NES no parallel function evaluation was implemented.
+This parallelization mode was successfully applied in the first section about the variational qubit. 
+For fcmaes version 1.4.3 this is now implemented (do `pip install fcmaes --upgrade`). 
+Works both for the Python and the C++ version. 
+This changes the picture significantly: 
+With 8000 evaluations and population size 16 (which makes CR-FM-NES more reliable, 
+15 out of 16 runs resulted in perfect energy=7.0), we get:
 
 ==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
 
@@ -790,6 +795,43 @@ time: 22.300697326660156
 max-cut objective: -19.5556640625
 solution: [1 0 1 0 1 0 1 0 1 0 1 0 0]
 ----
+
+- Note that CMA-ES and DE use a more advanced version of parallel function evaluation
+(see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/DelayedUpdate.adoc) than CR-FM-NES.
+Please choose `popsize=ps, workers = n*ps` for an integer n >= 1 for CR-FM-NES, CMA-ES and DE are less restrictive. 
+- Note that the `workers` parameter for the optimizer means: parallel function evaluation and 
+the `workers` parameter for the optimizer-wrapper `fcmaes_Optimizer` means parallel optimization runs. One of these
+should be set to `1`. 
+
+What about adding noise? As with parallel optimization runs we have to limit the number of workers to 8. 
+
+==== maxcut(fcmaes_Optimizer(Crfmnes(8000, popsize=16, workers = 8), use_wrapper=True), n, "aer_simulator", add_noise=True)
+
+[source,python]
+----
+energy: -6.627929687499999
+time: 207.9624924659729
+max-cut objective: -19.6279296875
+solution: [0 1 0 1 0 0 0 1 0 1 0 1 1]
+----
+
+207 seconds for `energy =  -6.6279`. We executed 8 more runs and got energy = [-6.6445, -6.6201, -6.5986, -6.5957, -6.5947, -6.5938, -6.5527, -5.7783]
+
+We also check SPSA with 8000 evaluations - but cannot use parallel function evaluation as this needs to be supported by the 
+algorithm itself:
+
+==== maxcut(fcmaes_Optimizer(SPSA(maxiter=4000), n, "aer_simulator", add_noise=True)
+
+[source,python]
+----
+energy: -6.539062499999999
+time: 490.370365858078
+max-cut objective: -19.5390625
+solution: [1 0 1 0 1 1 1 0 1 0 1 0 0]
+----
+
+490 seconds for `energy =  -6.539`. We executed 8 more runs and got energy = [-6.5674, -6.5361, -6.5352, -6.5283, -6.5205, -6.5166, -6.5107, -5.7187]. This means with 8000 evaluations - possible because parallel evaluation speeds thing up - SPSA is no longer
+competitive if noise is added.  
 
 === Summary
 

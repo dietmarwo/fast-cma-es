@@ -1,23 +1,27 @@
-# Tests performance of CR-FM-NES and SPSA using parallel optimization retry for the quantum
-# implementation of maxcut by optimizing the parameters of a 
-# VQE (variational quantum eigensolver)
-#
-# This code is adapted from
-# https://qiskit.org/documentation/optimization/tutorials/06_examples_max_cut_and_tsp.html
-# https://qiskit.org/documentation/tutorials/algorithms/03_vqe_simulation_with_noise.html
-# 
-# Changes:
-#
-# qiskit was largely refactored lately, a lot of imports needed to be changed
-#
-#  Added two optimizer wrappers:
-#- wrapped SPSA as fcmaes optimizer (fcmaes_SPSA)
-# -wrapped fcmaes optimizers + parallel retry as qiskit optimizer
-# 
-# These packages need to be installed before executing the code:
-# pip install quiskit
-# pip install quiskit-optimization
-# pip install fcmaes
+''' 
+Tests performance of CR-FM-NES and SPSA using parallel optimization retry for the quantum
+implementation of maxcut by optimizing the parameters of a 
+VQE (variational quantum eigensolver)
+
+This code is adapted from
+https://qiskit.org/documentation/optimization/tutorials/06_examples_max_cut_and_tsp.html
+https://qiskit.org/documentation/tutorials/algorithms/03_vqe_simulation_with_noise.html
+
+Changes:
+
+qiskit was largely refactored lately, a lot of imports needed to be changed
+
+Added two optimizer wrappers:
+- wrapped SPSA as fcmaes optimizer (fcmaes_SPSA)
+- wrapped fcmaes optimizers + parallel retry as qiskit optimizer
+ 
+These packages need to be installed before executing the code:
+pip install quiskit
+pip install quiskit-optimization
+pip install fcmaes
+
+See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc for a detailed description.
+'''
 
 import numpy as np
 import networkx as nx

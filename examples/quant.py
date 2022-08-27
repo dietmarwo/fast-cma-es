@@ -7,6 +7,8 @@ Read https://qiskit.org/documentation/getting_started.html about setting up your
 
 pip install qiskit
 pip install qiskit-aer-gpu (doesn't work on AMD GPUs and is not required for executing this file)
+
+See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc for a detailed description.
 '''
 
 from qiskit import QuantumCircuit, assemble, Aer, transpile, ClassicalRegister, QuantumRegister
