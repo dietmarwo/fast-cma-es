@@ -13,13 +13,11 @@ import os
 import math
 import ctypes as ct
 import numpy as np
-import multiprocessing as mp
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.ldecpp import callback_par, call_back_par
+from fcmaes.crfmnescpp import callback_par, call_back_par, parallel
 from fcmaes.decpp import libcmalib
 from fcmaes import de
-from fcmaes.evaluator import Evaluator, eval_parallel
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -92,7 +90,7 @@ def minimize(fun,
         upper = [0]*dim
     if stop_fitness is None:
         stop_fitness = math.inf   
-    parfun = None if workers is None else parallel(fun, workers)
+    parfun = None if (workers is None or workers <= 1) else parallel(fun, workers)
     array_type = ct.c_double * dim   
     c_callback_par = call_back_par(callback_par(fun, parfun))
     seed = int(rg.uniform(0, 2**32 - 1))
@@ -108,34 +106,12 @@ def minimize(fun,
         evals = int(res[dim+1])
         iterations = int(res[dim+2])
         stop = int(res[dim+3])
-        if not parfun is None:
-            parfun.stop() # stop all parallel evaluation processes
-        return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
+        res = OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
-        if not workers is None:
-            fun.stop() # stop all parallel evaluation processes
-        return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
-
-class parallel(object):
-    """Convert an objective function for parallel execution for cmaes.minimize.
-    
-    Parameters
-    ----------
-    fun : objective function mapping a list of float arguments to a float value.
-   
-    represents a function mapping a list of lists of float arguments to a list of float values
-    by applying the input function using parallel processes. stop needs to be called to avoid
-    a resource leak"""
-        
-    def __init__(self, fun, workers = mp.cpu_count()):
-        self.evaluator = Evaluator(fun)
-        self.evaluator.start(workers)
-    
-    def __call__(self, xs):
-        return eval_parallel(xs, self.evaluator)
-
-    def stop(self):
-        self.evaluator.stop()
+        res = OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
+    if not parfun is None:
+        parfun.stop()
+    return res
       
 optimizeGCLDE_C = libcmalib.optimizeGCLDE_C
 optimizeGCLDE_C.argtypes = [ct.c_long, call_back_par, ct.c_int, ct.c_int, \

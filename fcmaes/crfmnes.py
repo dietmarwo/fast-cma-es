@@ -5,7 +5,8 @@ import copy
 from fcmaes.cmaes import _check_bounds, _fitness, serial
 from scipy.optimize import OptimizeResult
 from numpy.random import MT19937, Generator
-import os, sys, time
+from fcmaes.crfmnescpp import parallel
+import os
 
 """ Numpy based implementation of Fast Moving Natural Evolution Strategy 
     for High-Dimensional Problems (CR-FM-NES), see https://arxiv.org/abs/2201.11422 .
@@ -23,6 +24,7 @@ def minimize(fun,
              input_sigma = 0.3, 
              popsize = 32, 
              max_evaluations = 100000, 
+             workers = None,
              stop_fitness = -math.inf, 
              is_terminate = None, 
              rg = Generator(MT19937()),
@@ -52,6 +54,9 @@ def minimize(fun,
         CMA-ES population size.
     max_evaluations : int, optional
         Forced termination after ``max_evaluations`` function evaluations.
+    workers : int or None, optional
+        If not workers is None, function evaluation is performed in parallel for the whole population. 
+        Useful for costly objective functions but is deactivated for parallel retry.     
     stop_fitness : float, optional 
          Limit for fitness value. If reached minimize terminates.
     is_terminate : callable, optional
@@ -76,8 +81,9 @@ def minimize(fun,
     if popsize % 2 == 1: # requires even popsize
         popsize += 1
 
-    lower, upper, guess = _check_bounds(bounds, x0, rg)   
-    f = _fitness(serial(fun), lower, upper, normalize)      
+    lower, upper, guess = _check_bounds(bounds, x0, rg) 
+    fun = serial(fun) if (workers is None or workers <= 1) else parallel(fun, workers)  
+    f = _fitness(fun, lower, upper, normalize)      
     dim = guess.size  
      
     sigma = input_sigma

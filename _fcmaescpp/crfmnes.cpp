@@ -40,7 +40,7 @@ class CrfmnesOptimizer {
 
 public:
 
-    CrfmnesOptimizer(long runid_, Fitness* fitfun_, int dim_, vec m_, double sigma_, int lamb_,
+    CrfmnesOptimizer(long runid_, FitnessParallel* fitfun_, int dim_, vec m_, double sigma_, int lamb_,
             int maxEvaluations_, double stopfitness_,
             double penalty_coef_, bool use_constraint_violation_, long seed) {
 
@@ -100,11 +100,11 @@ public:
         mat y = z + ((sqrt(1 + normv2) - 1.) * (vbar  * (vbar.transpose() * z)));
         mat x = ((sigma * y.array()).colwise() * D.array()).colwise() + m.array();
 
-        //evals_no_sort = np.array([f(np.array(x[:, i].reshape(dim, 1))) for i in range(lamb)]);
         evals_no_sort = vec(lamb);
+        fitfun->values(x, evals_no_sort);
         for (int k = 0; k < lamb; k++) {
-            vec xk = fitfun->getClosestFeasible(x.col(k));
-            evals_no_sort[k] = fitfun->eval(fitfun->decode(xk))(0);
+            if (!isfinite(evals_no_sort[k]))
+                evals_no_sort[k] = DBL_MAX;
         }
         xs_no_sort = mat(x);
         ivec sorted_indices;
@@ -239,7 +239,7 @@ public:
         return stop;
     }
 
-    Fitness* getFitfun() {
+    FitnessParallel* getFitfun() {
         return fitfun;
     }
 
@@ -294,7 +294,7 @@ private:
     }
 
     long runid;
-    Fitness *fitfun;
+    FitnessParallel *fitfun;
     int dim;
     vec m;
     double sigma;
@@ -340,7 +340,7 @@ private:
 using namespace crmfnes;
 
 extern "C" {
-void optimizeCRFMNES_C(long runid, callback_type func, int dim,
+void optimizeCRFMNES_C(long runid, callback_parallel func_par, int dim,
         double *init, double *lower, double *upper, double sigma,
         int maxEvals, double stopfitness, int popsize,
         long seed, double penalty_coef, bool use_constraint_violation, bool normalize, double* res) {
@@ -358,7 +358,8 @@ void optimizeCRFMNES_C(long runid, callback_type func, int dim,
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
-    Fitness fitfun(func, n, 1, lower_limit, upper_limit);
+
+    FitnessParallel fitfun(func_par, n, lower_limit, upper_limit);
     fitfun.setNormalize(normalize);
 
     CrfmnesOptimizer opt(runid, &fitfun, dim, guess, sigma, popsize,

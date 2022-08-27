@@ -17,10 +17,9 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.ldecpp import callback_par, call_back_par
+from fcmaes.crfmnescpp import callback_par, call_back_par, parallel
 from fcmaes.decpp import libcmalib
 from fcmaes.cmaes import _check_bounds
-from fcmaes.gcldecpp import parallel
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -102,7 +101,7 @@ def minimize(fun,
         input_sigma = [input_sigma] * dim
     if stop_fitness is None:
         stop_fitness = math.inf   
-    parfun = None if workers is None else parallel(fun, workers)
+    parfun = None if (workers is None or workers <= 1) else parallel(fun, workers)
     array_type = ct.c_double * dim   
     c_callback_par = call_back_par(callback_par(fun, parfun))
     seed = int(rg.uniform(0, 2**32 - 1))
@@ -119,13 +118,12 @@ def minimize(fun,
         evals = int(res[dim+1])
         iterations = int(res[dim+2])
         stop = int(res[dim+3])
-        if not parfun is None:
-            parfun.stop() # stop all parallel evaluation processes
-        return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
+        res = OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
-        if not workers is None:
-            fun.stop() # stop all parallel evaluation processes
-        return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
+        res = OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
+    if not parfun is None:
+        parfun.stop()
+    return res
       
 optimizeLCLDE_C = libcmalib.optimizeLCLDE_C
 optimizeLCLDE_C.argtypes = [ct.c_long, call_back_par, ct.c_int, 

@@ -17,6 +17,7 @@ from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
 from fcmaes.cmaes import _check_bounds
 from fcmaes.decpp import mo_call_back_type, callback, libcmalib
+from fcmaes.crfmnescpp import callback_par, call_back_par, parallel
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -33,7 +34,10 @@ def minimize(fun,
              runid=0,
              workers = 1, 
              normalize = True,
-             update_gap = None):   
+             delayed_update = True,
+             update_gap = None
+             ):
+   
     """Minimization of a scalar function of one or more variables using a 
     C++ CMA-ES implementation called via ctypes.
      
@@ -72,7 +76,9 @@ def minimize(fun,
         If not workers is None, function evaluation is performed in parallel for the whole population. 
         Useful for costly objective functions but is deactivated for parallel retry.      
     normalize : boolean, optional
-        if true pheno -> geno transformation maps arguments to interval [-1,1] 
+        if true pheno -> geno transformation maps arguments to interval [-1,1]
+    delayed_update : boolean, optional
+        if true uses delayed update / C++ parallelism, i false uses Python multithreading
     update_gap : int, optional
         number of iterations without distribution update
            
@@ -105,27 +111,34 @@ def minimize(fun,
         stop_hist = -1;
     array_type = ct.c_double * dim 
     c_callback = mo_call_back_type(callback(fun, dim))
+    parfun = None if delayed_update == True or workers is None or workers <= 1 else parallel(fun, workers)
+    c_callback_par = call_back_par(callback_par(fun, parfun))
     res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        optimizeACMA_C(runid, c_callback, dim, array_type(*guess), array_type(*lower), array_type(*upper), 
+        optimizeACMA_C(runid, c_callback, c_callback_par, 
+                dim, array_type(*guess), array_type(*lower), array_type(*upper), 
                 array_type(*input_sigma), max_evaluations, stop_fitness, stop_hist, mu, 
-                popsize, accuracy, int(rg.uniform(0, 2**32 - 1)), normalize, -1 if update_gap is None else update_gap, 
+                popsize, accuracy, int(rg.uniform(0, 2**32 - 1)), 
+                normalize, delayed_update, -1 if update_gap is None else update_gap,
                 workers, res_p)
         x = res[:dim]
         val = res[dim]
         evals = int(res[dim+1])
         iterations = int(res[dim+2])
         stop = int(res[dim+3])
-        return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
+        res = OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
-        return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
+        res = OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
+    if not parfun is None:
+        parfun.stop()
+    return res
 
 optimizeACMA_C = libcmalib.optimizeACMA_C
-optimizeACMA_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, \
+optimizeACMA_C.argtypes = [ct.c_long, mo_call_back_type, call_back_par, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_double, ct.c_int, ct.c_int, \
-            ct.c_double, ct.c_long, ct.c_bool, ct.c_int, 
+            ct.c_double, ct.c_long, ct.c_bool, ct.c_bool, ct.c_int, 
             ct.c_int, ct.POINTER(ct.c_double)]
 
 

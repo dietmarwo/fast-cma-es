@@ -19,7 +19,7 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.decpp import libcmalib
+from fcmaes.decpp import mo_call_back_type, callback, libcmalib
 from fcmaes.cmaes import _check_bounds
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
@@ -113,7 +113,7 @@ def minimize(fun,
         stop_fitness = math.inf   
     array_type = ct.c_double * dim   
     bool_array_type = ct.c_bool * dim 
-    c_callback = call_back_type(callback(fun))
+    c_callback = mo_call_back_type(callback(fun))
     seed = int(rg.uniform(0, 2**32 - 1))
     res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
@@ -131,51 +131,9 @@ def minimize(fun,
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
-
-class callback(object):
-    
-    def __init__(self, fun):
-        self.fun = fun
-    
-    def __call__(self, n, x):
-        try:
-            fit = self.fun(np.array([x[i] for i in range(n)]))
-            return fit if math.isfinite(fit) else sys.float_info.max
-        except Exception as ex:
-            return sys.float_info.max
-
-class callback_par(object):
-    
-    def __init__(self, fun, parfun):
-        self.fun = fun
-        self.parfun = parfun
-    
-    def __call__(self, popsize, n, xs_, ys_):
-        try:
-            arrType = ct.c_double*(popsize*n)
-            addr = ct.addressof(xs_.contents)
-            xall = np.frombuffer(arrType.from_address(addr))
-            
-            if self.parfun is None:
-                for p in range(popsize):
-                    ys_[p] = self.fun(xall[p*n : (p+1)*n])
-            else:    
-                xs = []
-                for p in range(popsize):
-                    x = xall[p*n : (p+1)*n]
-                    xs.append(x)
-                ys = self.parfun(xs)
-                for p in range(popsize):
-                    ys_[p] = ys[p]
-        except Exception as ex:
-            print (ex)
-
-call_back_type = ct.CFUNCTYPE(ct.c_double, ct.c_int, ct.POINTER(ct.c_double))  
-call_back_par = ct.CFUNCTYPE(None, ct.c_int, ct.c_int, \
-                                  ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))  
       
 optimizeLDE_C = libcmalib.optimizeLDE_C
-optimizeLDE_C.argtypes = [ct.c_long, call_back_type, ct.c_int, 
+optimizeLDE_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, 
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.c_int, ct.c_double, ct.c_double, ct.c_int, \

@@ -53,7 +53,8 @@ class AcmaesOptimizer {
 
 public:
 
-    AcmaesOptimizer(long runid_, Fitness *fitfun_, int popsize_, int mu_,
+    AcmaesOptimizer(long runid_, Fitness *fitfun_, FitnessParallel *fitfun_par_,
+            int popsize_, int mu_,
             const vec &guess_, const vec &inputSigma_, int maxEvaluations_,
 			double accuracy_, double stopfitness_, double stopTolHistFun_,
             int update_gap_, long seed) {
@@ -61,6 +62,8 @@ public:
         runid = runid_;
         // fitness function to minimize
         fitfun = fitfun_;
+        // fitness function to minimize population in parallel
+        fitfun_par = fitfun_par_;
         // initial guess for the arguments of the fitness function
         guess = guess_;
         // accuracy = 1.0 is default, > 1.0 reduces accuracy
@@ -273,16 +276,15 @@ public:
         }
     }
 
-    void newArgs() {
+    mat ask_all() { // undecoded
         // generate popsize offspring.
-        xmean = fitfun->getClosestFeasible(xmean);
-        arz = normal(dim, popsize, *rs);
-        arx = mat(dim, popsize);
+        mat xz = normal(dim, popsize, *rs);
+        mat xs(dim, popsize);
         for (int k = 0; k < popsize; k++) {
-            vec delta = (BD * arz.col(k)) * sigma;
-            arx.col(k) = fitfun->getClosestFeasible(xmean + delta);
+            vec delta = (BD * xz.col(k)) * sigma;
+            xs.col(k) = fitfun->getClosestFeasible(xmean + delta);
         }
-        fitness = vec(popsize);
+        return xs;
     }
 
     vec ask() {
@@ -397,25 +399,25 @@ public:
         fitnessHistory[0] = bestFitness;
     }
 
-    void doOptimize() {
+    int doOptimize() {
 
         // -------------------- Generation Loop --------------------------------
-        for (iterations = 1; fitfun->evaluations() < maxEvaluations && !fitfun->terminate();
-                iterations++) {
+        iterations = 0;
+        fitfun_par->resetEvaluations();
+        while (fitfun_par->evaluations() < maxEvaluations && !fitfun_par->terminate()) {
             // generate and evaluate popsize offspring
-            newArgs();
-            for (int k = 0; k < popsize; k++) {
-                fitness[k] = fitfun->eval(fitfun->decode(arx.col(k)))(0);
-                if (!isfinite(fitness[k]))
-                    fitness[k] = DBL_MAX;
-            }
-            updateCMA();
+            mat xs = ask_all();
+            vec ys(popsize);
+            fitfun_par->values(xs, ys); // decodes
+            for (int k = 0; k < popsize; k++)
+                tell(ys(k), fitfun_par->decode(xs.col(k)));
             if (stop != 0)
-                return;
+                return fitfun_par->evaluations();
         }
+        return fitfun_par->evaluations();
     }
 
-    void do_optimize_delayed_update(int workers) {
+    int do_optimize_delayed_update(int workers) {
     	 iterations = 0;
     	 fitfun->resetEvaluations();
     	 evaluator eval(fitfun, 1, workers);
@@ -433,12 +435,13 @@ public:
     		 delete vid;
     		 vec x = evals_x[p];
     		 tell(y(0), x); // tell evaluated x
-    		 if (fitfun->evaluations() >= maxEvaluations)
+    		 if (fitfun->evaluations() >= maxEvaluations || stop != 0)
     			 break;
     		 x = ask();
     		 eval.evaluate(x, p);
     		 evals_x[p] = x;
     	 }
+    	 return fitfun->evaluations();
 	}
 
     vec getBestX() {
@@ -468,6 +471,7 @@ public:
 private:
     long runid;
     Fitness *fitfun;
+    FitnessParallel *fitfun_par;
     vec guess;
     double accuracy;
     int popsize; // population size
@@ -519,10 +523,10 @@ private:
 using namespace acmaes;
 
 extern "C" {
-void optimizeACMA_C(long runid, callback_type func, int dim,
+void optimizeACMA_C(long runid, callback_type func, callback_parallel func_par, int dim,
         double *init, double *lower, double *upper, double *sigma,
         int maxEvals, double stopfitness, double stopTolHistFun, int mu, int popsize, double accuracy,
-        long seed, bool normalize, int update_gap, int workers, double* res) {
+        long seed, bool normalize, bool use_delayed_update, int update_gap, int workers, double* res) {
     int n = dim;
     vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
     bool useLimit = false;
@@ -540,19 +544,23 @@ void optimizeACMA_C(long runid, callback_type func, int dim,
     }
     Fitness fitfun(func, n, 1, lower_limit, upper_limit);
     fitfun.setNormalize(normalize);
-    AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, inputSigma,
+    FitnessParallel fitfun_par(func_par, n, lower_limit, upper_limit);
+    fitfun_par.setNormalize(normalize);
+
+    AcmaesOptimizer opt(runid, &fitfun, &fitfun_par, popsize, mu, guess, inputSigma,
             maxEvals, accuracy, stopfitness, stopTolHistFun, update_gap, seed);
     try {
-        if (workers <= 1)
-            opt.doOptimize();
+        int evals = 0;
+        if (workers > 1 && use_delayed_update)
+            evals = opt.do_optimize_delayed_update(workers);
         else
-            opt.do_optimize_delayed_update(workers);
+            evals = opt.doOptimize();
         vec bestX = opt.getBestX();
         double bestY = opt.getBestValue();
         for (int i = 0; i < n; i++)
             res[i] = bestX[i];
         res[n] = bestY;
-        res[n + 1] = fitfun.evaluations();
+        res[n + 1] = evals;
         res[n + 2] = opt.getIterations();
         res[n + 3] = opt.getStop();
     } catch (std::exception &e) {

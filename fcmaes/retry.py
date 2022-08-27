@@ -371,7 +371,7 @@ class Store(object):
         Ys = self.get_ys()
         vals = []
         for i in range(min(20, len(Ys))):
-            vals.append(round(Ys[i],2))     
+            vals.append(round(Ys[i],4))     
         dt = dtime(self.t0)   
                  
         message = '{0} {1} {2} {3} {4:.6f} {5:.2f} {6:.2f} {7!s} {8!s}'.format(

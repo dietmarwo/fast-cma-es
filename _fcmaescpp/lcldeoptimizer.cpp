@@ -15,82 +15,19 @@
 #include <ctime>
 #include <random>
 #include "pcg_random.hpp"
+#include "evaluator.h"
 
 using namespace std;
 
-typedef Eigen::Matrix<double, Eigen::Dynamic, 1> vec;
-typedef Eigen::Matrix<int, Eigen::Dynamic, 1> ivec;
-typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> mat;
-
-typedef void (*callback_parallel)(int, int, double[], double[]);
-
 namespace lcl_differential_evolution {
-
-static uniform_real_distribution<> distr_01 = std::uniform_real_distribution<>(
-        0, 1);
-
-static normal_distribution<> gauss_01 = std::normal_distribution<>(0, 1);
-
-static vec zeros(int n) {
-    return Eigen::MatrixXd::Zero(n, 1);
-}
-
-static vec constant(int n, double val) {
-    return vec::Constant(n, val);
-}
-
-static Eigen::MatrixXd uniformVec(int dim, pcg64 &rs) {
-    return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
-        return distr_01(rs);
-    });
-}
-
-static Eigen::MatrixXd normalVec(int dim, pcg64 &rs) {
-    return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
-        return gauss_01(rs);
-    });
-}
-
-static double normreal(double mean, double sdev, pcg64 &rs) {
-    return gauss_01(rs) * sdev + mean;
-}
-
-static vec normalVec(const vec &mean, const vec &sdev, int dim, pcg64 &rs) {
-    vec nv = Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
-        return gauss_01(rs);
-    });
-    return (nv.array() * sdev.array()).matrix() + mean;
-}
-
-struct IndexVal {
-    int index;
-    double val;
-};
-
-static bool compareIndexVal(IndexVal i1, IndexVal i2) {
-    return (i1.val < i2.val);
-}
-
-static ivec sort_index(const vec &x) {
-    int size = x.size();
-    IndexVal ivals[size];
-    for (int i = 0; i < size; i++) {
-        ivals[i].index = i;
-        ivals[i].val = x[i];
-    }
-    std::sort(ivals, ivals + size, compareIndexVal);
-    return Eigen::MatrixXi::NullaryExpr(size, 1, [&ivals](int i) {
-        return ivals[i].index;
-    });
-}
 
 // wrapper around the fitness function, scales according to boundaries
 
-class Fitness {
+class FitnessSigma {
 
 public:
 
-    Fitness(callback_parallel func_par_, int dim_, const vec &lower_limit,
+    FitnessSigma(callback_parallel func_par_, int dim_, const vec &lower_limit,
             const vec &upper_limit, const vec &guess_, const vec &sigma_,
             pcg64 &rs_) {
         func_par = func_par_;
@@ -137,11 +74,11 @@ public:
         double nx;
         if (distr_01(rs) < 0.5) {
             do {
-                nx = normreal(xmean[i], sigma0[i], rs);
+                nx = normreal(rs, xmean[i], sigma0[i]);
             } while (!feasible(i, nx));
         } else {
             do {
-                nx = normreal(xmean[i], sigma[i], rs);
+                nx = normreal(rs, xmean[i], sigma[i]);
             } while (!feasible(i, nx));
         }
         return nx;
@@ -216,7 +153,7 @@ class LclDeOptimizer {
 
 public:
 
-    LclDeOptimizer(long runid_, Fitness *fitfun_, int dim_, pcg64 *rs_,
+    LclDeOptimizer(long runid_, FitnessSigma *fitfun_, int dim_, pcg64 *rs_,
             int popsize_, int maxEvaluations_, double pbest_,
             double stopfitness_, double F0_, double CR0_) {
         // runid used to identify a specific run
@@ -310,12 +247,12 @@ public:
                         - sqrt(float(iterations / maxIter))
                                 * exp(float(-gen_stuck / iterations));
                 if (iterations % 2 == 1) {
-                    CR = normreal(0.95, 0.01, *rs);
-                    F = normreal(mu, 1, *rs);
+                    CR = normreal(*rs, 0.95, 0.01);
+                    F = normreal(*rs, mu, 1);
                     if (F < 0 || F > 1)
                         F = rnd01();
                 } else {
-                    CR = abs(normreal(CR0, 0.01, *rs));
+                    CR = abs(normreal(*rs, CR0, 0.01));
                     F = F0;
                 }
                 vec ui = popX.col(p);
@@ -376,7 +313,7 @@ public:
 
 private:
     long runid;
-    Fitness *fitfun;
+    FitnessSigma *fitfun;
     int popsize; // population size
     int dim;
     int maxEvaluations;
@@ -422,7 +359,7 @@ void optimizeLCLDE_C(long runid, callback_parallel func_par, int dim,
         upper_limit.resize(0);
     }
     pcg64 *rs = new pcg64(seed);
-    Fitness fitfun(func_par, dim, lower_limit, upper_limit, guess, inputSigma,
+    FitnessSigma fitfun(func_par, dim, lower_limit, upper_limit, guess, inputSigma,
             *rs);
     LclDeOptimizer opt(runid, &fitfun, dim, rs, popsize, maxEvals, pbest,
             stopfitness, F0, CR0);

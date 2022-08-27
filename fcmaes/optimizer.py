@@ -148,7 +148,7 @@ class Choice(Optimizer):
         return opt.minimize(fun, bounds, guess, sdevs, rg, store)
 
 def de_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
-           de_max_evals = None, cma_max_evals = None, ints = None):
+           de_max_evals = None, cma_max_evals = None, ints = None, workers = None):
     """Sequence differential evolution -> CMA-ES."""
 
     de_evals = np.random.uniform(0.1, 0.5)
@@ -157,13 +157,13 @@ def de_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
     if cma_max_evals is None:
         cma_max_evals = int((1.0-de_evals)*max_evaluations)
     opt1 = De_cpp(popsize=popsize, max_evaluations = de_max_evals, 
-                  stop_fitness = stop_fitness, ints=ints)
+                  stop_fitness = stop_fitness, ints=ints, workers = workers)
     opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
-                   stop_fitness = stop_fitness)
+                   stop_fitness = stop_fitness, workers = workers)
     return Sequence([opt1, opt2])
 
 def de_cma_py(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
-           de_max_evals = None, cma_max_evals = None, ints = None):
+           de_max_evals = None, cma_max_evals = None, ints = None, workers = None):
     """Sequence differential evolution -> CMA-ES in python."""
 
     de_evals = np.random.uniform(0.1, 0.5)
@@ -172,13 +172,13 @@ def de_cma_py(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
     if cma_max_evals is None:
         cma_max_evals = int((1.0-de_evals)*max_evaluations)
     opt1 = De_python(popsize=popsize, max_evaluations = de_max_evals, 
-                     stop_fitness = stop_fitness, ints=ints)
+                     stop_fitness = stop_fitness, ints=ints, workers = workers)
     opt2 = Cma_python(popsize=popsize, max_evaluations = cma_max_evals, 
-                   stop_fitness = stop_fitness)
+                   stop_fitness = stop_fitness, workers = workers)
     return Sequence([opt1, opt2])
 
 def de2_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
-           de_max_evals = None, cma_max_evals = None, ints = None):
+           de_max_evals = None, cma_max_evals = None, ints = None, workers = None):
     """Sequence differential evolution -> CMA-ES."""
 
     de_evals = np.random.uniform(0.1, 0.5)
@@ -186,12 +186,13 @@ def de2_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
         de_max_evals = int(de_evals*max_evaluations)
     if cma_max_evals is None:
         cma_max_evals = int((1.0-de_evals)*max_evaluations)
-    opt1 = Choice([GCLDE_cpp(de_max_evals), De_cpp(de_max_evals, ints=ints)])
-    opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fitness = stop_fitness)
+    opt1 = Choice([GCLDE_cpp(de_max_evals, workers = workers), 
+                   De_cpp(de_max_evals, ints=ints, workers = workers)])
+    opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fitness = stop_fitness, workers = workers)
     return Sequence([opt1, opt2])
 
 def de3_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
-           de_max_evals = None, cma_max_evals = None):
+           de_max_evals = None, cma_max_evals = None, workers = None):
     """Sequence differential evolution -> CMA-ES."""
 
     de_evals = np.random.uniform(0.1, 0.5)
@@ -199,8 +200,9 @@ def de3_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
         de_max_evals = int(de_evals*max_evaluations)
     if cma_max_evals is None:
         cma_max_evals = int((1.0-de_evals)*max_evaluations)
-    opt1 =  Choice([GCLDE_cpp(de_max_evals), Cma_cpp(de_max_evals), De_cpp(de_max_evals)])
-    opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fitness = stop_fitness)
+    opt1 =  Choice([GCLDE_cpp(de_max_evals), Cma_cpp(de_max_evals, workers = workers), 
+                    De_cpp(de_max_evals, workers = workers)])
+    opt2 = Cma_cpp(cma_max_evals, popsize=popsize, stop_fitness = stop_fitness, workers = workers)
     return Sequence([opt1, opt2])
 
 def gclde_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
@@ -281,12 +283,13 @@ class Crfmnes(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = 32, guess=None, stop_fitness = None,
-                 sdevs = None):        
+                 sdevs = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'crfmnes')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.guess = guess
         self.sdevs = sdevs
+        self.workers = workers
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
         ret = crfmnes.minimize(fun, bounds, 
@@ -295,7 +298,8 @@ class Crfmnes(Optimizer):
                 max_evaluations = self.max_eval_num(store), 
                 popsize=self.popsize, 
                 stop_fitness = self.stop_fitness,
-                rg=rg, runid=self.get_count_runs(store))     
+                rg=rg, runid=self.get_count_runs(store),
+                workers = self.workers)     
         return ret.x, ret.fun, ret.nfev
 
 class Crfmnes_cpp(Optimizer):
@@ -303,12 +307,13 @@ class Crfmnes_cpp(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = 32, guess=None, stop_fitness = None,
-                 sdevs = None):        
+                 sdevs = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'crfmnes cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.guess = guess
         self.sdevs = sdevs
+        self.workers = workers
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
         ret = crfmnescpp.minimize(fun, bounds, 
@@ -317,7 +322,8 @@ class Crfmnes_cpp(Optimizer):
                 max_evaluations = self.max_eval_num(store), 
                 popsize=self.popsize, 
                 stop_fitness = self.stop_fitness,
-                rg=rg, runid=self.get_count_runs(store))     
+                rg=rg, runid=self.get_count_runs(store), 
+                workers = self.workers)     
         return ret.x, ret.fun, ret.nfev
 
 class Cma_python(Optimizer):
@@ -325,13 +331,14 @@ class Cma_python(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = 31, guess=None, stop_fitness = None,
-                 update_gap = None, sdevs = None):        
+                 update_gap = None, sdevs = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'cma py')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.update_gap = update_gap
         self.guess = guess
         self.sdevs = sdevs
+        self.workers = workers
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
         ret = cmaes.minimize(fun, bounds, 
@@ -341,7 +348,8 @@ class Cma_python(Optimizer):
                 popsize=self.popsize, 
                 stop_fitness = self.stop_fitness,
                 rg=rg, runid=self.get_count_runs(store),
-                update_gap = self.update_gap)     
+                update_gap = self.update_gap,
+                workers = self.workers)     
         return ret.x, ret.fun, ret.nfev
 
 class Cma_cpp(Optimizer):
@@ -349,7 +357,7 @@ class Cma_cpp(Optimizer):
    
     def __init__(self, max_evaluations=50000,
                  popsize = 31, guess=None, stop_fitness = None, stop_hist = None, 
-                 update_gap = None, workers = None, sdevs = None):        
+                 update_gap = None, delayed_update = True, sdevs = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'cma cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -357,20 +365,21 @@ class Cma_cpp(Optimizer):
         self.guess = guess
         self.sdevs = sdevs
         self.update_gap = update_gap
+        self.delayed_update = delayed_update
         self.workers = workers
 
-    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()),
-                 store=None, workers=None):
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
         ret = cmaescpp.minimize(fun, bounds,
                 self.guess if not self.guess is None else guess,
-                input_sigma= self.sdevs if not self.sdevs is None else sdevs,
-                max_evaluations=self.max_eval_num(store),
-                popsize=self.popsize,
-                stop_fitness=self.stop_fitness,
-                stop_hist=self.stop_hist,
-                rg=rg, runid=self.get_count_runs(store),
-		              update_gap=self.update_gap,
-                workers=self.workers if workers is None else workers)     
+                input_sigma = self.sdevs if not self.sdevs is None else sdevs,
+                max_evaluations =self.max_eval_num(store),
+                popsize = self.popsize,
+                stop_fitness = self.stop_fitness,
+                stop_hist = self.stop_hist,
+                rg = rg, runid = self.get_count_runs(store),
+		        update_gap = self.update_gap,
+                delayed_update = self.delayed_update,
+                workers = self.workers)   
         return ret.x, ret.fun, ret.nfev
 
 class Cma_orig(Optimizer):
@@ -422,7 +431,7 @@ class De_cpp(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fitness = None, 
-                 keep = 200, f = 0.5, cr = 0.9, ints = None):        
+                 keep = 200, f = 0.5, cr = 0.9, ints = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'de cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -430,6 +439,7 @@ class De_cpp(Optimizer):
         self.f = f
         self.cr = cr
         self.ints = ints
+        self.workers = workers
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
         ret = decpp.minimize(fun, None, bounds, 
@@ -437,7 +447,8 @@ class De_cpp(Optimizer):
                 max_evaluations = self.max_eval_num(store), 
                 stop_fitness = self.stop_fitness,
                 keep = self.keep, f = self.f, cr = self.cr, ints=self.ints,
-                rg=rg, runid = self.get_count_runs(store))
+                rg=rg, runid = self.get_count_runs(store), 
+                workers = self.workers)
         return ret.x, ret.fun, ret.nfev
 
 class De_python(Optimizer):
@@ -445,7 +456,7 @@ class De_python(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fitness = None, 
-                 keep = 200, f = 0.5, cr = 0.9, ints = None):        
+                 keep = 200, f = 0.5, cr = 0.9, ints = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'de py')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -453,13 +464,14 @@ class De_python(Optimizer):
         self.f = f
         self.cr = cr
         self.ints = ints
+        self.workers = workers
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
         ret = de.minimize(fun, None, 
-                bounds, self.popsize, self.max_eval_num(store), workers=None,
+                bounds, self.popsize, self.max_eval_num(store),
                 stop_fitness = self.stop_fitness,
                 keep = self.keep, f = self.f, cr = self.cr, ints=self.ints,
-                rg=rg)
+                rg=rg, workers = self.workers)
         return ret.x, ret.fun, ret.nfev
 
 class Cma_ask_tell(Optimizer):
@@ -579,15 +591,14 @@ class GCLDE_cpp(Optimizer):
         self.cr0 = cr0
         self.workers = workers
 
-    def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), 
-                 store=None, workers = None):
+    def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), store=None):
         ret = gcldecpp.minimize(fun, None, bounds, 
                 popsize=self.popsize, 
                 max_evaluations = self.max_eval_num(store), 
                 stop_fitness = self.stop_fitness,
                 pbest = self.pbest, f0 = self.f0, cr0 = self.cr0,
                 rg=rg, runid = self.get_count_runs(store),
-                workers = self.workers if workers is None else workers)
+                workers = self.workers)
         return ret.x, ret.fun, ret.nfev
 
 class LCLDE_cpp(Optimizer):
@@ -595,7 +606,7 @@ class LCLDE_cpp(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, stop_fitness = None, 
-                 pbest = 0.7, f0 = 0.0, cr0 = 0.0, workers = None, guess = None, sdevs = None):        
+                 pbest = 0.7, f0 = 0.0, cr0 = 0.0, guess = None, sdevs = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'lclde cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -606,8 +617,7 @@ class LCLDE_cpp(Optimizer):
         self.guess = guess
         self.sdevs = sdevs
 
-    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), 
-                 store=None, workers = None):
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
         ret = lcldecpp.minimize(fun, bounds, 
                 self.guess if not self.guess is None else guess, 
                 self.sdevs if not self.sdevs is None else sdevs,
@@ -616,7 +626,7 @@ class LCLDE_cpp(Optimizer):
                 stop_fitness = self.stop_fitness,
                 pbest = self.pbest, f0 = self.f0, cr0 = self.cr0,
                 rg=rg, runid = self.get_count_runs(store),
-                workers = self.workers if workers is None else workers)
+                workers = self.workers)
 
         return ret.x, ret.fun, ret.nfev
     
@@ -642,16 +652,15 @@ class Csma_cpp(Optimizer):
     """SCMA C++ implementation."""
    
     def __init__(self, max_evaluations=50000,
-                 popsize = None, guess=None, stop_fitness = None, workers = None, sdevs = None):        
+                 popsize = None, guess=None, stop_fitness = None, sdevs = None):        
         Optimizer.__init__(self, max_evaluations, 'scma cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.guess = guess
-        self.workers = workers
         self.sdevs = sdevs
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.16, rg=Generator(MT19937()), 
-                 store=None, workers = None):
+                 store=None):
         ret = csmacpp.minimize(fun, bounds, 
                 self.guess if guess is None else guess,
                 self.sdevs if not self.sdevs is None else sdevs,
@@ -665,17 +674,16 @@ class Bite_cpp(Optimizer):
    
     def __init__(self, max_evaluations=50000, 
                  guess=None, stop_fitness = None, M = None, popsize = None, 
-                 stall_criterion = None, workers = None):        
+                 stall_criterion = None):        
         Optimizer.__init__(self, max_evaluations, 'bite cpp')
         self.guess = guess
         self.stop_fitness = stop_fitness
         self.M = 1 if M is None else M 
         self.popsize = 0 if popsize is None else popsize 
         self.stall_criterion = 0 if stall_criterion is None else stall_criterion 
-        self.workers = workers
 
     def minimize(self, fun, bounds, guess=None, sdevs=None, rg=Generator(MT19937()), 
-                 store=None, workers = None):
+                 store=None):
         
         ret = bitecpp.minimize(fun, bounds, 
                 self.guess if guess is None else guess,

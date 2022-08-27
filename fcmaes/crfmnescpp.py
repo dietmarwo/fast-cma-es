@@ -15,8 +15,10 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
+import multiprocessing as mp
 from fcmaes.cmaes import _check_bounds
-from fcmaes.decpp import mo_call_back_type, callback, libcmalib
+from fcmaes.decpp import libcmalib
+from fcmaes.evaluator import Evaluator, eval_parallel
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -26,6 +28,7 @@ def minimize(fun,
              input_sigma = 0.3, 
              popsize = 32, 
              max_evaluations = 100000, 
+             workers = None,
              stop_fitness = -math.inf, 
              rg = Generator(MT19937()),
              runid=0,
@@ -57,6 +60,9 @@ def minimize(fun,
         CMA-ES population size.
     max_evaluations : int, optional
         Forced termination after ``max_evaluations`` function evaluations.
+    workers : int or None, optional
+        If workers > 1, function evaluation is performed in parallel for the whole population. 
+        Useful for costly objective functions but is deactivated for parallel retry.  
     stop_fitness : float, optional 
          Limit for fitness value. If reached minimize terminates.
     rg = numpy.random.Generator, optional
@@ -92,12 +98,13 @@ def minimize(fun,
         input_sigma = np.mean(input_sigma)
     if stop_fitness is None:
         stop_fitness = -math.inf    
-    array_type = ct.c_double * dim 
-    c_callback = mo_call_back_type(callback(fun, dim))
+    parfun = None if (workers is None or workers <= 1) else parallel(fun, workers)
+    array_type = ct.c_double * dim   
+    c_callback_par = call_back_par(callback_par(fun, parfun))
     res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        optimizeCRFMNES_C(runid, c_callback, dim, array_type(*guess), 
+        optimizeCRFMNES_C(runid, c_callback_par, dim, array_type(*guess), 
                        array_type(*lower), array_type(*upper), 
                 input_sigma, max_evaluations, stop_fitness,
                 popsize, int(rg.uniform(0, 2**32 - 1)), penalty_coef, 
@@ -107,12 +114,77 @@ def minimize(fun,
         evals = int(res[dim+1])
         iterations = int(res[dim+2])
         stop = int(res[dim+3])
-        return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
+        res = OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
-        return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
+        res = OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
+    if not parfun is None:
+        parfun.stop()
+    return res
+    
+class parallel(object):
+    """Convert an objective function for parallel execution for cmaes.minimize.
+    
+    Parameters
+    ----------
+    fun : objective function mapping a list of float arguments to a float value.
+   
+    represents a function mapping a list of lists of float arguments to a list of float values
+    by applying the input function using parallel processes. stop needs to be called to avoid
+    a resource leak"""
+        
+    def __init__(self, fun, workers = mp.cpu_count()):
+        self.evaluator = Evaluator(fun)
+        self.evaluator.start(workers)
+    
+    def __call__(self, xs):
+        return eval_parallel(xs, self.evaluator)
 
+    def stop(self):
+        self.evaluator.stop()
+        
+class callback(object):
+    
+    def __init__(self, fun):
+        self.fun = fun
+    
+    def __call__(self, n, x):
+        try:
+            fit = self.fun(np.array([x[i] for i in range(n)]))
+            return fit if math.isfinite(fit) else sys.float_info.max
+        except Exception as ex:
+            return sys.float_info.max
+
+class callback_par(object):
+    
+    def __init__(self, fun, parfun):
+        self.fun = fun
+        self.parfun = parfun
+    
+    def __call__(self, popsize, n, xs_, ys_):
+        try:
+            arrType = ct.c_double*(popsize*n)
+            addr = ct.addressof(xs_.contents)
+            xall = np.frombuffer(arrType.from_address(addr))
+            
+            if self.parfun is None:
+                for p in range(popsize):
+                    ys_[p] = self.fun(xall[p*n : (p+1)*n])
+            else:    
+                xs = []
+                for p in range(popsize):
+                    x = xall[p*n : (p+1)*n]
+                    xs.append(x)
+                ys = self.parfun(xs)
+                for p in range(popsize):
+                    ys_[p] = ys[p]
+        except Exception as ex:
+            print (ex)
+
+call_back_type = ct.CFUNCTYPE(ct.c_double, ct.c_int, ct.POINTER(ct.c_double))  
+call_back_par = ct.CFUNCTYPE(None, ct.c_int, ct.c_int, \
+                                  ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))  
 optimizeCRFMNES_C = libcmalib.optimizeCRFMNES_C
-optimizeCRFMNES_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, \
+optimizeCRFMNES_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.c_double, ct.c_int, ct.c_double, ct.c_int, 
             ct.c_long, ct.c_double, 

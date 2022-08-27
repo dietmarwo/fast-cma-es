@@ -750,12 +750,54 @@ solution: [0 1 0 1 0 0 1 1 0 0 0 1 1]
 solution objective: 20.0
 ----
 
+=== Update: cmaes version 1.4.3 now supports CR-FM-NES parallel function evaluation 
+
+cmaes version 1.4.2 doesn't support parallel function evaluation for CR-FM-NES. For 1.4.3 this is now implemented (do `pip install fcmaes --upgrade`). Works both for the Python and the C++ version. This changes the picture completely: With 8000 evaluations and population
+size 16 (which makes CR-FM-NES more reliable, 15 out of 16 runs resulted in perfect energy=7.0), we get:
+
+==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
+
+[source,python]
+----
+energy: -7.000000000000002
+time: 20.248756647109985
+max-cut objective: -20.0
+solution: [1 0 1 0 1 1 1 0 1 0 1 0 0]
+----
+
+This is about 20 seconds for a reliable perfect optimization result. 
+SPSA with 8000 evaluations only gets 12 out of 16 results with perfect energy=7.0, and needs 90 seconds. 
+The Python variant of CR-FM-NES is not slower for this task:
+
+==== maxcut(fcmaes_Optimizer(Crfmnes(8000, popsize=16, workers = 16), use_wrapper=True), n, "aer_simulator")
+
+[source,python]
+----
+energy: -7.000000000000002
+time: 19.557249069213867
+max-cut objective: -20.0
+solution: [0 1 0 1 0 0 0 1 0 1 0 1 1]
+----
+
+And even CMA-ES can almost compete using parallel function evaluation. 
+
+==== maxcut(fcmaes_Optimizer(Cma_python(8000, popsize=16, workers = 16), use_wrapper=True), n, "aer_simulator")
+
+[source,python]
+----
+energy: -6.5556640625
+time: 22.300697326660156
+max-cut objective: -19.5556640625
+solution: [1 0 1 0 1 0 1 0 1 0 1 0 0]
+----
+
 === Summary
 
 - SPSA is an excellent algorithm for VQE optimization, specially if noise is involved. 
 - CR-FM-NES (Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see 
 https://arxiv.org/abs/2201.11422) is a good alternative which may have advantages for more complex VQEs. 
 - Both can be parallelized using fcmaes. 
+- Using parallel function evaluation CR-FM-NES is more reliable and much faster than SPSA.
 - Maxcut parallelization scaling is best for "qasm_simulator" and "aer_simulator" without noise with less or equal 13 graph nodes.
 - For bigger graphs cache size becomes the dominating performance limit.   
 - Avoid the "room heater", don't allow "aer_simulator_statevector" to use > 1 thread, even without parallel optimization. At least if it is not winter time.

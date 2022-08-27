@@ -77,6 +77,8 @@ typedef Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic> imat;
 
 typedef bool (*callback_type)(int, const double*, double*);
 
+typedef void (*callback_parallel)(int, int, double[], double[]);
+
 static std::uniform_real_distribution<> distr_01 = std::uniform_real_distribution<>(
         0, 1);
 
@@ -88,11 +90,23 @@ static Eigen::MatrixXd normal(int dx, int dy, pcg64 &rs) {
     });
 }
 
+static double normreal(pcg64 &rs, double mu, double sdev) {
+    return gauss_01(rs) * sdev + mu;
+}
+
 static Eigen::MatrixXd normalVec(int dim, pcg64 &rs) {
     return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
         return gauss_01(rs);
     });
 }
+
+static vec normalVec(const vec &mean, const vec &sdev, int dim, pcg64 &rs) {
+    vec nv = Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
+        return gauss_01(rs);
+    });
+    return (nv.array() * sdev.array()).matrix() + mean;
+}
+
 
 static Eigen::MatrixXd uniform(int dx, int dy, pcg64 &rs) {
     return Eigen::MatrixXd::NullaryExpr(dx, dy, [&]() {
@@ -301,6 +315,122 @@ private:
     callback_type _func;
     int _dim;
     int _nobj;
+    vec _lower;
+    vec _upper;
+    vec _scale;
+    vec _typx;
+    bool _normalize;
+    bool _terminate;
+    long _evaluationCounter;
+};
+
+class FitnessParallel {
+
+public:
+
+    FitnessParallel(callback_parallel func_par_, int dim_,
+            const vec &lower_limit, const vec &upper_limit) {
+        _func_par = func_par_;
+        _dim = dim_;
+        _lower = lower_limit;
+        _upper = upper_limit;
+        _evaluationCounter = 0;
+        if (_lower.size() > 0) {    // bounds defined
+            _scale = (_upper - _lower);
+            _typx = 0.5 * (_upper + _lower);
+        }
+        _normalize = false;
+        _terminate = false;
+    }
+
+    void resetEvaluations() {
+        _evaluationCounter = 0;
+    }
+
+    bool terminate() {
+        return _terminate;
+    }
+
+    vec getClosestFeasible(const vec &X) const {
+        if (_lower.size() > 0) {
+            return X.cwiseMin(_upper).cwiseMax(_lower);
+        }
+        return X;
+    }
+
+    vec encode(const vec &X) const {
+        if (_normalize)
+            return 2*(X - _typx).array() / _scale.array();
+        else
+            return X;
+    }
+
+    vec decode(const vec &X) const {
+        if (_normalize)
+            return 0.5*(X.array() * _scale.array()).matrix() + _typx;
+        else
+            return X;
+    }
+
+    void values(const mat &popX, vec &ys) {
+        int popsize = popX.cols();
+        int n = popX.rows();
+        double pargs[popsize * n];
+        double res[popsize];
+        for (int p = 0; p < popX.cols(); p++) {
+            vec x = getClosestFeasible(decode(popX.col(p)));
+            for (int i = 0; i < n; i++)
+                pargs[p * n + i] = x(i);
+        }
+        _func_par(popsize, n, pargs, res);
+        for (int p = 0; p < popX.cols(); p++)
+            ys[p] = res[p];
+        _evaluationCounter += popsize;
+    }
+
+    vec violations(const mat &X, double penalty_coef) {
+         vec violations = zeros(X.cols());
+         for (int i = 0; i < X.cols(); i++) {
+             vec x = decode(X.col(i));
+             violations[i] =  penalty_coef * ((_lower - x).cwiseMax(0).sum() + (x - _upper).cwiseMax(0).sum());
+         }
+         return violations;
+    }
+
+    bool feasible(int i, double x) {
+        return _lower.size() == 0 || (x >= _lower[i] && x <= _upper[i]);
+    }
+
+    vec sample(pcg64 &rs) {
+        if (_lower.size() > 0) {
+            vec rv = uniformVec(_dim, rs);
+            return (rv.array() * _scale.array()).matrix() + _lower;
+        } else
+            return normalVec(_dim, rs);
+    }
+
+    double sample_i(int i, pcg64 &rs) {
+        if (_lower.size() > 0)
+            return _lower[i] + _scale[i] * distr_01(rs);
+        else
+            return gauss_01(rs);
+    }
+
+    int evaluations() {
+        return _evaluationCounter;
+    }
+
+    void setNormalize(bool normalize) {
+        _normalize = normalize;
+    }
+
+    void setTerminate() {
+        _terminate = true;
+    }
+
+private:
+    callback_parallel _func_par;
+    int _dim;
     vec _lower;
     vec _upper;
     vec _scale;

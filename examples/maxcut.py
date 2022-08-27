@@ -40,7 +40,7 @@ from scipy.optimize import Bounds
 import threadpoolctl
 import multiprocessing as mp
     
-from fcmaes.optimizer import Optimizer, Crfmnes_cpp, wrapper, logger 
+from fcmaes.optimizer import Optimizer, Crfmnes_cpp, Crfmnes, Cma_python, wrapper, logger 
 from fcmaes import retry
 
 # wraps SPSA as fcmaes optimizer
@@ -182,11 +182,13 @@ if __name__ == '__main__':
     # maxcut(SPSA(maxiter=1000), n, "aer_simulator") 
     # maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), use_wrapper=True), n, "aer_simulator")
     
-    maxcut(fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
-    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
- 
-    # maxcut(SPSA(maxiter=1000), n, "aer_simulator", add_noise=True)
+    maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
+    #maxcut(fcmaes_Optimizer(Crfmnes(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
+    #maxcut(fcmaes_Optimizer(Cma_python(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
+    
+    # maxcut(fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries=16, use_wrapper=True, logger=logger()), n, "aer_simulator")    
+    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), max_retries=16, use_wrapper=True, logger=logger()), n, "aer_simulator")
     # maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), use_wrapper=True), n, "aer_simulator", add_noise=True)
     
-    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), max_retries = 8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
-    # maxcut(fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries = 8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), max_retries=8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+    # maxcut(fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries=8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)

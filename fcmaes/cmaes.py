@@ -351,8 +351,6 @@ class Cmaes(object):
         return self.stop                
            
     def newArgs(self):
-        self.xmean = self.fitfun.closestFeasible(self.xmean)
-        self.fitness = np.full(self.popsize, math.inf)
         # generate random offspring
         self.arz = self.randn(self.popsize, self.dim)    
         delta = (self.BD @ self.arz.transpose()) * self.sigma
@@ -395,10 +393,9 @@ class Cmaes(object):
             self.iterations += 1
             if self.fitfun.evaluation_counter > self.max_evaluations:
                 break
-            # Generate and evaluate popsize offspring
-            self.newArgs()            
-            self.fitness = self.fitfun.values(self.arx)
-            self.updateCMA()
+            xs = self.ask()
+            ys = self.fitfun.values(xs)
+            self.tell(ys, xs)
             if self.stop != 0:
                 break
         return self.best_x, self.best_value, self.fitfun.evaluation_counter, self.iterations, self.stop 
@@ -639,12 +636,12 @@ class _fitness(object):
             self.upper = upper
             self.scale = 0.5 * (upper - lower)
             self.typx = 0.5 * (upper + lower)
-                
+
     def values(self, Xs): #enables parallel evaluation
-        values = self.fun([self.decode(X) for X in Xs])
+        values = self.fun(Xs)
         self.evaluation_counter += len(Xs)
         return np.array(values)
-
+    
     def closestFeasible(self, X):
         if self.lower is None:
             return X    
