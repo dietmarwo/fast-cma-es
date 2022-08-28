@@ -13,7 +13,7 @@ image::logo.gif[]
 fcmaes performs really well for the very hard http://www.midaco-solver.com/data/pub/GTOPX_Benchmarks.pdf[GTOPX benchmarks]
 as shown here: https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Performance.adoc[Performance]. 
 Here we want to analyze what part of the library is responsible: 
-The specific implementation of the basic algorithms (DE -> CMA), or the coordinated retry meta algorithm. 
+The specific implementation of the basic algorithms (DE -> CMA), or the coordinated retry / boundary management meta algorithm. 
 To check this we replace the fcmaes versions of DE and CMA by the ones provided by 
 https://github.com/esa/pygmo2[pygmo2] / https://github.com/esa/pagmo2[pagmo2]. 
 It seems it is mostly the meta algorithm, as the results are very similar.

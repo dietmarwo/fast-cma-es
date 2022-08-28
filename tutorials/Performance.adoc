@@ -63,7 +63,7 @@ Note that 'stopVal' is the threshold value determining success and
 'mean time' includes the time for failed runs.
 Execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/benchmark_gtop.py[benchmark_gtop.py]
 to reproduce these results. The same optimization algorithm
-was applied for all problems, using the same parameters both for the optimization algorithm and the coordinated retry.
+was applied for all problems, using the same parameters both for the optimization algorithm and the coordinated retry / boundary management.
 
 .GTOP coordinated retry results for reaching the absolute best value
 [width="80%",cols="2,^2,^2,^2,^2,^2,^2",options="header"]
