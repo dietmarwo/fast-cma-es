@@ -11,7 +11,7 @@ image::logo.gif[]
 == Solving the GTOPX Benchmark Problems using PYGMO2/PAGMO2
 
 fcmaes performs really well for the very hard http://www.midaco-solver.com/data/pub/GTOPX_Benchmarks.pdf[GTOPX benchmarks]
-as shown in the https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc[README]. 
+as shown here: https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Performance.adoc[Performance]. 
 Here we want to analyze what part of the library is responsible: 
 The specific implementation of the basic algorithms (DE -> CMA), or the coordinated retry meta algorithm. 
 To check this we replace the fcmaes versions of DE and CMA by the ones provided by 
