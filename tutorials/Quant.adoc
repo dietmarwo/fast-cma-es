@@ -452,7 +452,7 @@ Suppose our task it to compare different optimizers for the maxcut VQE. Prelimin
 fcmaes optimizers used in the first section don't work well here. So we are finally faced with two options:
 
 - SPSA from qiskit.
-- CR-FM-NES from fcmaes.
+- CR-FM-NES (Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see https://arxiv.org/abs/2201.11422 ) from fcmaes.
 
 How do we proceed? First we need to wrap CR-FM-NES as a qiskit optimizer so that qiskits VQE implementation can use it:
 
@@ -480,29 +480,27 @@ Lets also take the opposite route, wrapping SPSA as fcmaes algorithm as follows:
             return ret.x, ret.fun, ret.nfev
 ----  
 
-Now we can also execute SPSA in parallel by using a "double-wrapping":
+Now we can also execute SPSA in parallel by using a "double-wrapping" configuring 8000 evaluations / 4000 iterations:
 
 [source,python]
 ----
-    optimizer = fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries = 16)
+    optimizer = fcmaes_Optimizer(fcmaes_SPSA(4000), max_retries = 16)
 ----
 
 Note that fcmaes parallel retry doesn't forward an initial guess `x0` to improve the diversity of the runs. 
 We take care of that by generating a random guess in this case. Other parameters of `minimize` are:
 
-- `sdevs` the initial step size used to narrow / widen the search performed by the optimizer. CMA-ES and CR-FM_NES use this parameter. Lowering this value helps to enhance diversity of parallel retries. 
+- `sdevs` the initial step size used to narrow / widen the search performed by the optimizer. CMA-ES and CR-FM-NES use this parameter. Lowering this value helps to enhance diversity of parallel retries. 
 - `rg` a random generator, helps to preserve diversity if multiple processes are involved. 
 - `store` used to maintain optimization results for statistical evaluation. 
 
 === Experiments
 
-Execution of our experiments can be reproduced by adapting/executing https://github.com/dietmarwo/fast-cma-es/blob/master/examples/maxcut.py[maxcut.py]. 
+Execution of the experiments can be reproduced by adapting/executing https://github.com/dietmarwo/fast-cma-es/blob/master/examples/maxcut.py[maxcut.py]. You need fcmaes version 1.4.3 for these experiments (do `pip install fcmaes --upgrade`).
 
-==== maxcut(SPSA(maxiter=1000), n, "aer_simulator")
-
-As a reference lets first try "aer_simulator" without noise using SPSA, similar to what is done in the original qiskit tutorial
+Similar to what is done in the original qiskit tutorial
 https://qiskit.org/documentation/optimization/tutorials/06_examples_max_cut_and_tsp.html[06_examples_max_cut_and_tsp.html].
-But instead of a tiny graph we increase the number of graph nodes to `n=13`.
+we solve the maxcut graph problem, but instead of a tiny graph we increase the number of graph nodes to `n=14`.
 
 [source,python]
 ----
@@ -511,165 +509,187 @@ But instead of a tiny graph we increase the number of graph nodes to `n=13`.
         G.edges[u,v]['weight'] = 1
 ----
 
-is used to generate an random 13 node graph using a fixed seed. Using a bigger graph will result in different timings, as the processor cache size becomes
-the dominating resource limitation. All our experiments were executed on a 16 core AMD 5950x CPU with 128 GB RAM on Linux Mint 20.3.  
+is used to generate an random 14 node graph using a fixed seed. Using a bigger graph will result in different timings, as the processor cache size becomes the dominating resource limitation. This graph results in 84 continuous decision variables. 
 
+image::graph14.png[]
+
+All our experiments were executed on a 16 core AMD 5950x CPU with 128 GB RAM on Linux Mint 20.3.  
+
+Lets compare SPSA with CR-FM-NES trying to minimize execution time. This means we apply parallel
+fitness evaluation to CR-FM-NES and use SPSA unmodified since parallel fitness evaluation requires support from the base algorithm. 
+
+==== maxcut(SPSA(maxiter=4000), n, "aer_simulator")
+
+As a reference lets first try "aer_simulator" without noise using SPSA.
 We get 
 
 [source,python]
 ----
-energy: -6.9658203125
-time: 90.57734179496765
-max-cut objective: -19.9658203125
+energy: -7.9980468749999964
+time: 313.02003717422485
+max-cut objective: -21.998046874999996
 ----
 
-which means our optimization nearly found the optimum in 90.5 seconds. 
+which means the optimization nearly found the optimum in about 313 seconds. Next a single run using CR-FM-NES utilizing
+parallel fitness evaluation.
 
-==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), use_wrapper=True), n, "aer_simulator")
+==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
 
-Next the same experiment using CR-FM-NES (Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see 
-https://arxiv.org/abs/2201.11422 ). `Crfmnes_cpp` uses the evaluation- not the iteration-number as parameter, so we have to 
-use `2000` instead of `1000` to configure the same number of function evaluations. 
+`Crfmnes_cpp` uses the evaluation- not the iteration-number as parameter, so we have to 
+use `8000` instead of `4000` to configure the same number of function evaluations. 
 
 [source,python]
 ----
-energy: -6.968749999999999
-time: 106.77298545837402
-max-cut objective: -19.96875
+energy: -8.000000000000002
+time: 26.00557279586792
+max-cut objective: -22.0
 ----
 
-The resulting `max-cut objective` is almost the same, but there is a slight speed advantage for SPSA.
- 
-Population size needs to be configured very low for CR-FM-NES, which means the solution landscape
-is quite smooth. This also explains why a gradient decent based approach like SPSA is successful. If you check out
-one of the many other fcmaes https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials] you will notice
-that this is not the "usual" environment fcmaes is designed for. But still it contains a competitive algorithm. And more important:
-We can use fcmaes to speed up qiskits SPSA when multiple restarts are required. 
+This means there is > factor 10 speed gain by parallel fitness evaluation. As we can derive from the results below, the algorithm overhead from CR-FM-NES and SPSA itself is quite similar, but SPSA doesn't support parallel fitness evaluation. 
 
-May be we should execute multiple optimizations to decide which optimizer is better. This is one of the possible applications of parallel
-optimization retry. Another is to improve the final result, because we can choose the best run. 
-
-==== maxcut(fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
-
-We use the "double wrapping" from above to execute 16 optimization runs in parallel, at least on our 16 core CPU. A smaller CPU will use 
-less parallelization. Using `use_wrapper=True` we configured monitoring of the optimization resulting in output like:
+Using parameter `use_wrapper=True` we configured monitoring of the optimization resulting in output like:
 
 [source,python]
 ----
-104.34 26362 253.0 -6.988281249999998 [-2.8288650478093085, -2.3794439915346755, ...] 
+24.68 7152 290.0 -8.000000000000002 [1.3432903811499826, -2.9505684864231103, ...]
 ----
 
 Where we have:
 
-- 104.34 : execution time in seconds.
-- 26362 : number of function evaluations so far.
-- 253.0 : number of function evaluations per second (eval/sec).
-- -6.988281249999998 : best function value so far.
-- [-2.8288650478093085, -2.3794439915346755, ...] : best solution vector so far.
+- 24.68 : execution time in seconds.
+- 7152 : number of function evaluations so far.
+- 290.0 : number of function evaluations per second (eval/sec).
+- -8.000000000000002 : best function value so far.
+- [1.3432903811499826, -2.9505684864231103, ...] : best solution vector so far.
+
+Adding noise we get:
+
+==== maxcut(SPSA(maxiter=4000), n, "aer_simulator", add_noise=True)
+
+[source,python]
+----
+energy: -7.749023437499998
+time: 522.2729697227478
+max-cut objective: -21.7490234375
+----
+
+==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator", add_noise=True)
+
+[source,python]
+----
+energy: -7.7685546875
+time: 241.8653633594513
+max-cut objective: -21.7685546875
+----
+
+This means now there is a factor 2.16 speed gain by parallel fitness evaluation. Much less than without noise where it was
+> factor 10.   
+
+We found good optimization results, but how do we check how reliable these are? We need a multi-restart/retry of the optimization. 
+Fortunately this can be parallelized using fcmaes also for SPSA. But why do a parallel retry also for CR-FM-NES? 
+We have parallel function evaluation and could apply this mode in a loop. Reason is that parallelization introduces
+an overhead which grows when the tasks are shorter. An optimization lasts much longer than a fitness evaluation, so the
+overhead shrinks which means we get better scaling: The execution of all optimization needs less time,
+
+- Use parallel fitness evaluation mode if you want a fast result.
+- Use parallel optimization retry if you want to test the reliability of an algorithm. 
+
+====  maxcut(fcmaes_Optimizer(fcmaes_SPSA(4000), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
+
+[source,python]
+----
+441.87 289 16 128000 -8.000000 -7.66 0.58 [-8.0, -8.0, -7.998, -7.9961, -7.9932, -7.9912, -7.9912, -7.9873, -7.9873, -7.9805, -7.9727, -7.6709, -6.9912, -6.9893, -6.9814, -5.9922] [4.16771830053249, 6.088996100937207, ...]
+energy: -8.000000000000002
+time: 441.8702871799469
+max-cut objective: -22.0
+----
 
 Parameter `logger=logger()` is used to monitor the results we get from the different parallel runs:
 
-[source,python]
-----
-135.47 236 16 32000 -6.988281 -6.84 0.34 [-6.99, -6.99, -6.98, -6.98, -6.98, -6.97, -6.97, -6.97, -6.96, -6.96, -6.95, -6.94, -6.93, -6.92, -5.96, -5.93] ...
-----
-
-- 135.47 : execution time in seconds.
-- 236 : number of function evaluations per second (eval/sec).
+- 441.87 : execution time in seconds.
+- 289 : number of function evaluations per second (eval/sec).
 - 16 : number of finished optimization runs.
-- 32000 : number of function calls.
-- -6.988281 : best function value so far.
-- -6.84 : mean value of all optimization results.
-- -0.34 : standard deviation of all optimization results.
-- - [-6.99, -6.99, -6.98, -6.98, -6.98, ...] list of best optimization results.
+- 128000 : number of function calls.
+- -8.000000 : best function value so far.
+- -7.66 : mean value of all optimization results.
+- -0.58 : standard deviation of all optimization results.
+- - [-8.0, -8.0, -7.998, -7.9961, -7.9932,, ...] list of best optimization results.
 
-Finally we get:
+So we have for SPSA(4000):
 
-[source,python]
-----
-energy: -6.988281249999998
-time: 135.46813488006592
-max-cut objective: -19.98828125
-----
+- 442 seconds for 16 runs resulting in energy =  `[8.0, 8.0, 7.998, 7.9961, 7.9932, 7.9912, 7.9912, 7.9873, 7.9873, 7.9805, 7.9727, 7.6709, 6.9912, 6.9893, 6.9814, 5.9922]`
 
-==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
-
-16 CR-FM-NES optimization runs result in:
-
-[source,python]
-----
-energy: -6.989257812499999
-time: 146.4702537059784
-max-cut objective: -19.9892578125
-----
-
-and we get:
-
-- Mean value: -6.73
-- Standard deviation 0.38
-- All 16 runs: [-6.99, -6.98, -6.98, -6.97, -6.97, -6.96, -6.96, -6.96, -6.95, -6.93, -6.9, -6.71, -6.47, -6.02, -5.97, -5.94]
-
-Which one is better now? CR-FM-NES is "tuned" to produce diverse results, therefore optimum and standard deviation are higher, but the
-mean value is lower. If you plan to perform only one run, SPSA is the clear winner. But there is another winner here: Parallel retry. 
-Only about 30% more time for 16 instead of a single run! 
-
-What about noise?
-
-==== maxcut(SPSA(maxiter=1000), n, "aer_simulator", add_noise=True)
-
-[source,python]
-----
-energy: -6.50390625
-time: 170.7763273715973
-max-cut objective: -19.50390625
-----
-
-As expected, we get a worse `max-cut objective = -19.50' but we also need a lot more time. 
-
-==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), use_wrapper=True), n, "aer_simulator", add_noise=True)
-
-[source,python]
-----
-energy: -6.501953125000001
-time: 185.95762133598328
-max-cut objective: -19.501953125
-----
-
-A bit surprising since SPSA is advertised for noisy objective functions. But the real surprise reveals when we try to 
-parallelize:
-
-==== maxcut(fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries = 8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+For CR-FM-NES we get:
  
+==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
+
 [source,python]
 ----
-energy: -6.565429687500001
-time: 422.138060092926
-max-cut objective: -19.5654296875
----- 
+333.24 384 16 128000 -8.000000 -7.50 0.71 [-8.0, -8.0, -8.0, -7.998, -7.998, -7.998, -7.998, -7.9941, -7.9932, -7.9912, -7.001, -7.0, -7.0, -7.0, -5.998, -5.998] [1.8212847242570533, -2.2382899214165737, ...]
+energy: -8.000000000000004
+time: 333.24353432655334
+max-cut objective: -22.000000000000004
+----
 
-- Mean value: -6.52
-- Standard deviation 0.03
-- All 8 runs: [-6.57, -6.56, -6.55, -6.54, -6.51, -6.5, -6.48, -6.47] 
- 
-Already with 8 parallel runs execution time more than doubles. There are some multi-threading shenanigans going on for noise computations I found no way to switch off. This reduces significantly the performance of parallel optimization. 
+- 333 seconds for 16 runs resulting in energy = `[8.0, 8.0, 8.0, 7.998, 7.998, 7.998, 7.998, 7.9941, 7.9932, 7.9912, 7.001, 7.0, 7.0, 7.0, 5.998, 5.998]`
 
-==== maxcut(fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries = 8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
- 
+Comparing the 16 results for both optimizers we notice:
+
+- SPSA is slightly slower when parallelized compared to CR-FM-NES.
+- SPSA still saves a lot of time when parallelized (442 sec compared to 16*313 sec = factor 11.3)
+- Optimization results for the 16 runs are roughly comparable between CR-FM-NES and SPSA (8000 fitness evaluations each). 
+
+Adding noise we perform only 8 runs since execution is much slower and get for SPSA:
+
+====  maxcut(fcmaes_Optimizer(fcmaes_SPSA(4000), max_retries = 8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+
+
 [source,python]
 ----
-energy: -6.5703125
-time: 413.346088886261
-max-cut objective: -19.5703125
----- 
+1792.22 35 8 64000 -7.755859 -7.60 0.32 [-7.7559, -7.7549, -7.7363, -7.7256, -7.7188, -7.7129, -7.6562, -6.7461] [1.321933480266777, -6.299646940427553, ...]
+----
 
-- Mean value: -6.01
-- Standard deviation 0.50
-- All 8 runs: [-6.57, -6.52, -6.47, -6.27, -5.85, -5.73, -5.55, -5.1] 
- 
-Now we see that without multiple restarts CR-FM-NES is "lost". If you plan to perform only one run, definitely use SPSA, specially if noise is involved. 
-Again we see that we need more than double the time to execute 8 parallel runs, much less scaling as without noise.
+- 1792 seconds for 8 runs resulting in energy = `[7.7559, 7.7549, 7.7363, 7.7256, 7.7188, 7.7129, 7.6562, 6.7461]`
+For CR-FM-NES with noise we get using 8 parallel retries:
+
+==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16), max_retries = 8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+
+[source,python]
+----
+1798.09 35 8 64000 -7.790039 -7.10 0.89 [-7.79, -7.7725, -7.7422, -7.7217, -7.6836, -6.7832, -5.7119, -5.585] ...
+energy: -7.7900390625
+time: 1798.0911939144135
+max-cut objective: -21.7900390625
+----
+
+- 1798 seconds for 8 runs resulting in energy = `[7.79, 7.7725, 7.7422, 7.7217, 7.6836, 6.7832, 5.7119, 5.585]`
+
+Comparing the 8 results for both optimizers we notice:
+
+- SPSA and CR-FM-NES need the same time.
+- Parallel optimization saves a lot of time compared to a serial restart: 1792 sec compared to 16*522 sec: Factor 4.66. 
+This confirms that parallel optimization scales better than parallel function evaluation (factor 2.16). 
+But the advantage is smaller than without noise, since noise generation is itself multi-threaded. 
+- Optimization results for the 16 runs differ slightly, CR-FM-NES has higher standard deviation and best energy found, SPSA has a
+better mean value. Even the second best CR-FM-NES energy value is better than the best SPSA one. 
+
+The mean result can be improved by increasing the population size parameter without a significant slow down: 
+
+[source,python]
+----
+==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=24), max_retries = 8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+
+1831.95 35 8 64128 -7.805664 -7.36 0.49 [-7.8057, -7.7822, -7.7588, -7.666, -7.6455, -6.7695, -6.7354, -6.6982] ... 
+energy: -7.805664062499999
+time: 1831.9511473178864
+max-cut objective: -21.8056640625
+----
+
+- 1832 seconds for 8 runs resulting in energy = `[7.8057, 7.7822, 7.7588, 7.666, 7.6455, 6.7695, 6.7354, 6.6982]`
 
 Finally lets try another simulator: "aer_simulator_statevector":
+
+We reduce the size of the graph to 13 nodes and use only 2000 evaluations.
 
 ==== maxcut(SPSA(maxiter=1000), n, "aer_simulator_statevector")
 
@@ -717,131 +737,20 @@ as there is no speed-up.
 ==== Exercises
 
 - Test "qasm_simulator" with and without noise.
-- For "qasm_simulator" without noise implement a sequential restart using SPSA executing the optimization 16 times and compare the wall time
-required with parallel retry using `fcmaes_SPSA(1000), max_retries = 16,...`
-- Can you further enhance the accuracy of the result? Can you reach perfect accuracy? 
-You may try something like `Crfmnes_cpp(4000, popsize=17), max_retries = 16` or
-`fcmaes_SPSA(2000), max_retries = 16`. How much wall time does it take to reach this result without parallel retry? 
-For such a solution (here `Crfmnes_cpp(4000, popsize=17)` was used) you will notice that the exact solution
-and the computed solution are equal:
-
-[source,python]
-----
-solution: [1 0 1 0 1 0 0 0 1 0 1 0 0]
-energy: -6.999999999999998
-time: 225.83396410942078
-max-cut objective: -20.0
-solution: [1 0 1 0 1 0 0 0 1 0 1 0 0]
-----
-
-Even a slight inaccuracy may cause a wrong solution, which means that noisy gates are a severe problem for non-trivial graphs. 
-
-- The following solution was generated using `fcmaes_SPSA(3000), max_retries = 16`. Can you explain, why it is wrong, even
-with perfectly correct energy? Is there an issue with the maxcut algorithm or with the generated graph? I myself don't know 
-the answer yet.
-
-[source,python]
-----
-solution: [1 0 1 0 1 0 0 0 1 0 1 0 0]
-energy: -7.0
-time: 267.5921332836151
-max-cut objective: -20.0
-solution: [0 1 0 1 0 0 1 1 0 0 0 1 1]
-solution objective: 20.0
-----
-
-=== Update: fcmaes version 1.4.3 now supports CR-FM-NES parallel function evaluation 
-
-The major limitation of fcmaes for maxcut is that for the best algorithm CR-FM-NES no parallel function evaluation was implemented.
-This parallelization mode was successfully applied in the first section about the variational qubit. 
-For fcmaes version 1.4.3 this is now implemented (do `pip install fcmaes --upgrade`). 
-Works both for the Python and the C++ version. 
-This changes the picture significantly: 
-With 8000 evaluations and population size 16 (which makes CR-FM-NES more reliable, 
-15 out of 16 runs resulted in perfect energy=7.0), we get:
-
-==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
-
-[source,python]
-----
-energy: -7.000000000000002
-time: 20.248756647109985
-max-cut objective: -20.0
-solution: [1 0 1 0 1 1 1 0 1 0 1 0 0]
-----
-
-This is about 20 seconds for a reliable perfect optimization result. 
-SPSA with 8000 evaluations only gets 12 out of 16 results with perfect energy=7.0, and needs 90 seconds. 
-The Python variant of CR-FM-NES is not slower for this task:
-
-==== maxcut(fcmaes_Optimizer(Crfmnes(8000, popsize=16, workers = 16), use_wrapper=True), n, "aer_simulator")
-
-[source,python]
-----
-energy: -7.000000000000002
-time: 19.557249069213867
-max-cut objective: -20.0
-solution: [0 1 0 1 0 0 0 1 0 1 0 1 1]
-----
-
-And even CMA-ES can almost compete using parallel function evaluation. 
-
-==== maxcut(fcmaes_Optimizer(Cma_python(8000, popsize=16, workers = 16), use_wrapper=True), n, "aer_simulator")
-
-[source,python]
-----
-energy: -6.5556640625
-time: 22.300697326660156
-max-cut objective: -19.5556640625
-solution: [1 0 1 0 1 0 1 0 1 0 1 0 0]
-----
-
-- Note that CMA-ES and DE use a more advanced version of parallel function evaluation
-(see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/DelayedUpdate.adoc) than CR-FM-NES.
-Please choose `popsize=ps, workers = n*ps` for an integer n >= 1 for CR-FM-NES, CMA-ES and DE are less restrictive. 
-- Note that the `workers` parameter for the optimizer means: parallel function evaluation and 
-the `workers` parameter for the optimizer-wrapper `fcmaes_Optimizer` means parallel optimization runs. One of these
-should be set to `1`. 
-
-What about adding noise? As with parallel optimization runs we have to limit the number of workers to 8. 
-
-==== maxcut(fcmaes_Optimizer(Crfmnes(8000, popsize=16, workers = 8), use_wrapper=True), n, "aer_simulator", add_noise=True)
-
-[source,python]
-----
-energy: -6.627929687499999
-time: 207.9624924659729
-max-cut objective: -19.6279296875
-solution: [0 1 0 1 0 0 0 1 0 1 0 1 1]
-----
-
-207 seconds for `energy =  -6.6279`. We executed 8 more runs and got energy = [-6.6445, -6.6201, -6.5986, -6.5957, -6.5947, -6.5938, -6.5527, -5.7783]
-
-We also check SPSA with 8000 evaluations - but cannot use parallel function evaluation as this needs to be supported by the 
-algorithm itself:
-
-==== maxcut(fcmaes_Optimizer(SPSA(maxiter=4000), n, "aer_simulator", add_noise=True)
-
-[source,python]
-----
-energy: -6.539062499999999
-time: 490.370365858078
-max-cut objective: -19.5390625
-solution: [1 0 1 0 1 1 1 0 1 0 1 0 0]
-----
-
-490 seconds for `energy =  -6.539`. We executed 8 more runs and got energy = [-6.5674, -6.5361, -6.5352, -6.5283, -6.5205, -6.5166, -6.5107, -5.7187]. This means with 8000 evaluations - possible because parallel evaluation speeds thing up - SPSA is no longer
-competitive if noise is added.  
+- Can you find a single threaded noise generator? Expectation is that both parallelization modes work much better 
+if the whole quantum simulation including noise generation is single threaded. 
 
 === Summary
 
 - SPSA is an excellent algorithm for VQE optimization, specially if noise is involved. 
 - CR-FM-NES (Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see 
 https://arxiv.org/abs/2201.11422) is a good alternative which may have advantages for more complex VQEs. 
-- Both can be parallelized using fcmaes. 
-- Using parallel function evaluation CR-FM-NES is more reliable and much faster than SPSA.
-- Maxcut parallelization scaling is best for "qasm_simulator" and "aer_simulator" without noise with less or equal 13 graph nodes.
-- For bigger graphs cache size becomes the dominating performance limit.   
-- Avoid the "room heater", don't allow "aer_simulator_statevector" to use > 1 thread, even without parallel optimization. At least if it is not winter time.
+- Both can be parallelized using fcmaes parallel restart/retry resulting in very good scaling, specially if there is no noise. 
+- Noise greatly reduces what can be gained by parallelization, probably because noise generation is multi-threaded.
+- Using parallel function evaluation CR-FM-NES is much faster than SPSA, specially if there is no noise. 
+- Maxcut parallelization scaling is best for "qasm_simulator" and "aer_simulator" without noise with less or equal 14 graph nodes.
+- For bigger graphs either cache size becomes the dominating performance limit or the simulation performs some internal 
+  multi-threading only for very large circuits.   
+- Avoid the "room heater", don't allow "aer_simulator_statevector" used with VQEs to use > 1 thread, even without parallel optimization. At least if it is not winter time.
 
   

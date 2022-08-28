@@ -179,18 +179,12 @@ def maxcut(optimizer, # used quiskit optimizer
     print("solution objective:", qp.objective.evaluate(x))
 
 if __name__ == '__main__':
-    n = 13 # number of nodes in graph
+    n = 14 # number of nodes in graph
     
-    # maxcut(SPSA(maxiter=1000), n, "aer_simulator") 
-    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), use_wrapper=True), n, "aer_simulator")
-    
+    # maxcut(SPSA(maxiter=4000), n, "aer_simulator") 
     maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
-    #maxcut(fcmaes_Optimizer(Crfmnes(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
-    #maxcut(fcmaes_Optimizer(Cma_python(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
+    # maxcut(SPSA(maxiter=4000), n, "aer_simulator", add_noise=True)
+    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator", add_noise=True)
+    # maxcut(fcmaes_Optimizer(fcmaes_SPSA(4000), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
+    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
     
-    # maxcut(fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries=16, use_wrapper=True, logger=logger()), n, "aer_simulator")    
-    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), max_retries=16, use_wrapper=True, logger=logger()), n, "aer_simulator")
-    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), use_wrapper=True), n, "aer_simulator", add_noise=True)
-    
-    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(2000, popsize=7), max_retries=8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
-    # maxcut(fcmaes_Optimizer(fcmaes_SPSA(1000), max_retries=8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
