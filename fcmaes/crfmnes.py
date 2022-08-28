@@ -99,6 +99,8 @@ def minimize(fun,
                  max_evaluations, stop_fitness, is_terminate, runid, options)
     
     cr.optimize()
+    if isinstance(fun, parallel):
+        fun.stop()
 
     return OptimizeResult(x=f.decode(cr.x_best), fun=cr.f_best, nfev=cr.no_of_evals, 
                           nit=cr.g, status=cr.stop, 
