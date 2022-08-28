@@ -545,7 +545,7 @@ time: 26.00557279586792
 max-cut objective: -22.0
 ----
 
-This means there is > factor 10 speed gain by parallel fitness evaluation. As we can derive from the results below, the algorithm overhead from CR-FM-NES and SPSA itself is quite similar, but SPSA doesn't support parallel fitness evaluation. 
+This means there is factor >  10 speed gain by parallel fitness evaluation. As we can derive from the results below, the algorithm overhead from CR-FM-NES and SPSA itself is quite similar, but SPSA doesn't support parallel fitness evaluation. 
 
 Using parameter `use_wrapper=True` we configured monitoring of the optimization resulting in output like:
 
@@ -583,13 +583,13 @@ max-cut objective: -21.7685546875
 ----
 
 This means now there is a factor 2.16 speed gain by parallel fitness evaluation. Much less than without noise where it was
-> factor 10.   
+factor > 10.   
 
 We found good optimization results, but how do we check how reliable these are? We need a multi-restart/retry of the optimization. 
 Fortunately this can be parallelized using fcmaes also for SPSA. But why do a parallel retry also for CR-FM-NES? 
 We have parallel function evaluation and could apply this mode in a loop. Reason is that parallelization introduces
 an overhead which grows when the tasks are shorter. An optimization lasts much longer than a fitness evaluation, so the
-overhead shrinks which means we get better scaling: The execution of all optimization needs less time,
+overhead shrinks which means we get better scaling: The execution of all optimizations needs less time,
 
 - Use parallel fitness evaluation mode if you want a fast result.
 - Use parallel optimization retry if you want to test the reliability of an algorithm. 
@@ -666,11 +666,11 @@ max-cut objective: -21.7900390625
 
 Comparing the 8 results for both optimizers we notice:
 
-- SPSA and CR-FM-NES need the same time.
+- SPSA and CR-FM-NES need the same time, it seems generating noise is the dominating factor. 
 - Parallel optimization saves a lot of time compared to a serial restart: 1792 sec compared to 16*522 sec: Factor 4.66. 
 This confirms that parallel optimization scales better than parallel function evaluation (factor 2.16). 
 But the advantage is smaller than without noise, since noise generation is itself multi-threaded. 
-- Optimization results for the 16 runs differ slightly, CR-FM-NES has higher standard deviation and best energy found, SPSA has a
+- Optimization results for the 8 runs differ slightly, CR-FM-NES has higher standard deviation and best energy found, SPSA has a
 better mean value. Even the second best CR-FM-NES energy value is better than the best SPSA one. 
 
 The mean result can be improved by increasing the population size parameter without a significant slow down: 
