@@ -675,10 +675,10 @@ better mean value. Even the second best CR-FM-NES energy value is better than th
 
 The mean result can be improved by increasing the population size parameter without a significant slow down: 
 
-[source,python]
-----
 ==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=24), max_retries = 8, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
 
+[source,python]
+----
 1831.95 35 8 64128 -7.805664 -7.36 0.49 [-7.8057, -7.7822, -7.7588, -7.666, -7.6455, -6.7695, -6.7354, -6.6982] ... 
 energy: -7.805664062499999
 time: 1831.9511473178864
