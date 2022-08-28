@@ -100,9 +100,7 @@ class fcmaes_Optimizer(optimizers.Optimizer):
         jac: Optional[Callable[[POINT], POINT]] = None,
         bounds: Optional[List[Tuple[float, float]]] = None,
     ) -> OptimizerResult:
-        bnds = self._bounds
-        # the following doesn't work because VQE submits invalid bounds containing None values: 
-        # bnds = self._bounds if bounds is None else Bounds([b[0] for b in bounds], [b[1] for b in bounds])
+        bnds = self._bounds if bounds is None else Bounds([b[0] for b in bounds], [b[1] for b in bounds])
         if self._use_wrapper:
             fun = wrapper(fun) # monitors progress for all parallel processes
         result = OptimizerResult()
@@ -165,7 +163,7 @@ def maxcut(optimizer, # used quiskit optimizer
     ry = TwoLocal(qubitOp.num_qubits, "ry", "cz", reps=5, entanglement="linear")
     vqe = VQE(ry, optimizer=optimizer, quantum_instance=quantum_instance)    
     dim = vqe.ansatz.num_parameters
-    optimizer._bounds = Bounds([-2 * np.pi]*dim, [2 * np.pi]*dim)
+    vqe.ansatz.parameter_bounds = [(-2 * np.pi, 2 * np.pi)]*dim
     
     # run VQE
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"): 
