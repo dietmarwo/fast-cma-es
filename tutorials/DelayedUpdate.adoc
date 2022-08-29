@@ -8,13 +8,23 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 
 image::logo.gif[]
 
-=== Update
-The mechanism described here for parallel fitness function evaluation are now used 
-in most of the fcmaes algorithms: MO-DE, DE and CMA-ES both in the C++ and in the
-Python implementation. Therefore the 'delayed_update' parameter is no longer needed.
-If 'workers > 1' delayed update / parallel function evaluation is used. 
-
 == Delayed State Update
+
+This tutorial is about:
+
+- A new mechanism performing parallel fitness evaluation during optimization.
+- Analyzes its performance for hyper-parameter optimization.
+- Compares with hyperband optimization.
+
+This mechanism currently is implemented for DE, CMA-ES and MODE. Note that there
+are differences between the Python- and {Cpp}-implementations of these algorithms:
+The {Cpp}-variants use {Cpp}-multithreading mechanisms, the Python ones use
+Python-multi-processing. You should check for your application what works best.
+GCL-DE and CR-FM-NES only use Python-multi-processing for parallel fitness evaluation
+even for {Cpp}-variants and don't support the delayed update mechanism. You should configure 
+`popsize=n*workers` with an integer `n >= 1` for parallel fitness evaluation without delayed update. 
+
+=== Introduction
 
 If your objective function is expensive to evaluate and poorly parallelized like in the 
 domain of Hyperparameter Optimization 
@@ -66,7 +76,7 @@ single result pipe listener running in a separate thread. This concept is not ye
 implemented in fcmaes because our experiments indicated even with an update
 delay we still get acceptable results. 
 
-==== Comparison with Hyperband Optimization
+=== Comparison with Hyperband Optimization
 
 Note that the idea above is closely related to the
 https://homes.cs.washington.edu/~jamieson/hyperband.html[Hyperband Algorithm] with
@@ -98,7 +108,7 @@ parallelization of the function/loss evaluation may be limited, then we could
 try a clustered solution based on https://docs.ray.io/en/master/cluster/index.html[ray] 
 similar to https://github.com/dietmarwo/fcmaes-ray[fcmaes-ray].
 
-==== Application to Hyperparameter Optimization
+=== Application to Hyperparameter Optimization
 
 What happens if we apply delayed state update to the scenario described in the
 https://github.com/dietmarwo/fast-cma-es/blob/master/HyperparameterOptimization.adoc[Hyper Parameter Tutorial]?
@@ -125,7 +135,7 @@ from fcmaes import cmaes
 Note that only for 'cmaes' 'workers > popsize' is supported. For 'de' you have to increase 
 'popsize' accordingly. 
 
-==== Myths regarding Hyperparameter Optimization
+=== Myths regarding Hyperparameter Optimization
 
 There are two myths regarding hyperparameter optimization 
 (hyperparameters are the values controlling a machine learning process):
@@ -139,7 +149,12 @@ Data from our
 https://github.com/dietmarwo/fast-cma-es/blob/master/HyperparameterOptimization.adoc[Hyper Parameter Tutorial]
 combined with new results for "delayed" CMA-ES and DE (population size = 16, number of parallel threads = 32)
 seems to confirm the myth: If we check the mean squared error after the same number of 
-evaluations (cross validations) we see:
+evaluations (cross === Update
+
+The mechanism described here for parallel fitness function evaluation are now used 
+in most of the fcmaes algorithms: MO-DE, DE and CMA-ES both in the C++ and in the
+Python implementation. Therefore the 'delayed_update' parameter is partly removed.
+If 'workers > 1' delayed update / parallel function evaluation is used. validations) we see:
 
 image::Hyper_Parameter_Optimization_300_evals.png[] 
 
@@ -168,7 +183,7 @@ doing "real" work.
 Therefore we no longer show performance in relation to evaluations but in relation to the time used. 
 
 
-==== Performance of longer runs
+=== Performance of longer runs
 
 image::Hyper_Parameter_Optimization_3000_sec.png[] 
 
@@ -182,7 +197,7 @@ image::Hyper_Parameter_Optimization_70000_sec.png[]
 
 Finally we see that with CMA-ES 16/32 it may be worth to invest even more time.
 
-==== Conclusion
+=== Conclusion
 
 - On a modern multi core processor hyperparameter optimization for CPU based regressors like `XGBRegressor`
 can be improved by executing multiple cross validations in parallel 

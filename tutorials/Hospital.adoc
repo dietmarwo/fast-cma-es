@@ -10,6 +10,13 @@ image::logo.gif[]
 
 == Reactive Programming and Real World Optimization
 
+This tutorial is about:
+
+- Discusses the relation between reactive programming and optimization using parallel fitness evaluations. 
+- Applies parallel fitness evaluation to a real live hospital management related problem.
+- Parallel fitness evaluation leads to in increased evaluation count. 
+- Shows that the advantage of using surrogates / approximations / gaussian processes gets lost as the evaluation count grows.
+
 === Reactive Programming
 
 Recently https://blog.oakbits.com/introduction-to-rxpy.html[reactive programming]

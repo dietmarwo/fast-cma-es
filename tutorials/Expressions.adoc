@@ -10,6 +10,11 @@ image::logo.gif[]
 
 == Optimization with Expressions
 
+This tutorial is about:
+
+- Constructing trees of optimization-algorithms consisting of sequences and random choices. 
+- Showing that the resulting combined algorithms may be superior to each of the algorithms at the tree leaves. 
+
 To cite https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/[NLopt_Algorithms]:
 "For any given optimization problem, it is a good idea to compare several of the available algorithms that are applicable to that problem—in general, one often finds that the "best" algorithm strongly depends upon the problem at hand."
 

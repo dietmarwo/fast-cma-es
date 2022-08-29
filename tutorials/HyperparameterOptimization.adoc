@@ -8,6 +8,13 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 
 image::logo.gif[]
 
+This tutorial is about:
+
+- Discusses a typical machine learning hyperparameter tuning problem.
+- Compares typical solution approaches (Tree of Parzen Estimators, Bayesian Optimization)
+  to the performance of fcmaes DE and CMA-ES. 
+- Shows that the fcmaes algorithms shine as the evaluation count grows. 
+
 == Hyperparameter Tuning
 
 How to choose a set of optimal parameters for a learning algorithm?
