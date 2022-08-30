@@ -448,7 +448,7 @@ major qiskit refactorings ongoing and not all tutorials are adapted yet, so we h
 
 === Compare Different Optimizers
 
-Suppose our task it to compare different optimizers for the maxcut VQE. Preliminary tests revealed that the 
+Suppose our task is to compare different optimizers for the maxcut VQE. Preliminary tests revealed that the 
 fcmaes optimizers used in the first section don't work well here. So we are finally faced with two options:
 
 - SPSA from qiskit.
