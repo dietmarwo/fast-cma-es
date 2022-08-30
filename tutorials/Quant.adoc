@@ -480,11 +480,11 @@ Lets also take the opposite route, wrapping SPSA as fcmaes algorithm as follows:
             return ret.x, ret.fun, ret.nfev
 ----  
 
-Now we can also execute SPSA in parallel by using a "double-wrapping" configuring 8000 evaluations / 4000 iterations:
+Now we can also execute SPSA in parallel by using a "double-wrapping" configuring 12000 evaluations / 6000 iterations:
 
 [source,python]
 ----
-    optimizer = fcmaes_Optimizer(fcmaes_SPSA(4000), max_retries = 16)
+    optimizer = fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32)
 ----
 
 Note that fcmaes parallel retry doesn't forward an initial guess `x0` to improve the diversity of the runs. 
