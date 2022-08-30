@@ -159,6 +159,8 @@ def maxcut(optimizer, # used quiskit optimizer
         quantum_instance = QuantumInstance(backend, noise_model=noise_model)
     else:
         quantum_instance = QuantumInstance(backend)
+        
+    backend.set_options(max_parallel_threads=1)
     
     ry = TwoLocal(qubitOp.num_qubits, "ry", "cz", reps=5, entanglement="linear")
     vqe = VQE(ry, optimizer=optimizer, quantum_instance=quantum_instance)    
@@ -179,12 +181,25 @@ def maxcut(optimizer, # used quiskit optimizer
     print("solution objective:", qp.objective.evaluate(x))
 
 if __name__ == '__main__':
-    n = 14 # number of nodes in graph
+    n = 16 # number of nodes in graph
     
-    # maxcut(SPSA(maxiter=4000), n, "aer_simulator") 
-    maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
-    # maxcut(SPSA(maxiter=4000), n, "aer_simulator", add_noise=True)
-    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator", add_noise=True)
-    # maxcut(fcmaes_Optimizer(fcmaes_SPSA(4000), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
-    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(8000, popsize=16), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
-    
+# 1 run SPSA  
+# maxcut(SPSA(maxiter=6000), n, "aer_simulator")
+# 1 run SPSA with noise
+# maxcut(SPSA(maxiter=6000), n, "aer_simulator", add_noise=True)
+# 1 run CR-FM-NES parallel fitness evaluation
+maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
+# 1 run CR-FM-NES parallel fitness evaluation with noise
+# maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator", add_noise=True)
+# 32 parallel runs SPSA 
+# maxcut(fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator")
+# 32 parallel runs CR-FM-NES
+# maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
+# 32 parallel runs CR-FM-NES increased population size
+# maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
+# 32 parallel runs SPSA with noise
+# maxcut(fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+# 32 parallel runs CR-FM-NES increased population size 
+# maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+# 32 parallel runs CR-FM-NES increased population size with noise
+# maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)    
