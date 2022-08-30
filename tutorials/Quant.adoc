@@ -532,7 +532,7 @@ which means we need more than 10 minutes and failed to reach the optimal energy 
 
 image::CPU_1.png[]
 
-We see 25% CPU load corresponding to 8 cores on our 16 core CPU. How much did we gain by parallelization?
+We see 25% CPU load corresponding to 4 cores on our 16 core CPU. How much did we gain by parallelization?
 Lets restore the `with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):`
 and `backend.set_options(max_parallel_threads=1)` statements and rerun the experiment. 
 
