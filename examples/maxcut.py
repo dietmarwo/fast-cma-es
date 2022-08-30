@@ -199,7 +199,7 @@ maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16, workers=16), use_wrapper=
 # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
 # 32 parallel runs SPSA with noise
 # maxcut(fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
-# 32 parallel runs CR-FM-NES increased population size 
+# 32 parallel runs CR-FM-NES with noise
 # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
 # 32 parallel runs CR-FM-NES increased population size with noise
 # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)    
