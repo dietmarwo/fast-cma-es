@@ -771,7 +771,7 @@ max-cut objective: -23.86328125
 - SPSA is an excellent algorithm for VQE optimization, specially if noise is involved. 
 - CR-FM-NES (Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see 
 https://arxiv.org/abs/2201.11422) is a good alternative which may have advantages for more complex VQEs. 
-- Both can be parallelized using fcmaes parallel restart/retry resulting in very good scaling, specially if there is no noise. 
+- Both can be parallelized using fcmaes parallel restart/retry resulting in very good scaling. 
 - Using parallel function evaluation CR-FM-NES is much faster than SPSA.
 - Maxcut parallelization scaling is best for "qasm_simulator" and "aer_simulator" but we have to make sure that fitness evaluation / quantum circuit simulation is performed single threaded. 
 - Avoid the "room heater", don't execute circuit simulation with VQEs multi-threaded without making sure there is a performance
