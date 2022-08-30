@@ -576,12 +576,12 @@ time: 1006.533504486084
 max-cut objective: -23.71875
 ---- 
 
-Again parallelization hurt the performance. And we observe that the optimization results differ (we got lucky here)
+Again qiskit's parallelization hurts the performance. And we observe that the optimization results differ (we got lucky here)
 so multiple retries are unavoidable. To compare different algorithms a reasonable number of optimization runs is required
 to generate meaningful results, which requires many CPU-hours for such an experiment. Fortunately there are cloud offerings
-so that we could run our experiments in parallel utilizing multiple cloud nodes. 
+so that we could run our experiments in parallel utilizing multiple cloud nodes. May be there is an cheaper alternative.
 
-In winter time we observe an advantage of qiskits parallelization: CPU temperature raised by 10 degrees Celsius
+During winter time we observe an advantage of qiskits parallelization: CPU temperature raised by 10 degrees Celsius
 so we can at least use our machine as a room heater. May be this is worth the negative scaling? Or we should
 try to get the CPU really hot thereby achieving reasonable scaling: Parallelization performed by the optimization algorithm. 
 But before you do this, make sure there is no other parallelization going on evaluating your fitness function. 
