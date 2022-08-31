@@ -11,7 +11,6 @@ image::logo.gif[]
 
 == Designing a Card Game
 
-
 The code for this tutorial is at 
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/top_trumps.py[top_trumps.py] and uses 
 https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/retry.py[retry.py] and

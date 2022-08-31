@@ -15,9 +15,7 @@ This tutorial is about:
 - Explains how to apply weighted sum penalty approach to evaluate constraints for single objective optimization.
 - Applies this method to an optimization problem from the space mission design domain. 
 
-Not all optimization problems are boxed constrained, there may be additional equality and/or inequality constraints.
-Using a real life example we will discuss how such a problem can be converted into a boxed constrained one. 
-We will investigate the drawbacks of this conversion. There are dedicated optimizers solving problems with constraints and we will 
+Not all optimization problems are boxed constrained, there may be additional equality and/or inequality constraints. Using a real life example we will discuss how such a problem can be converted into a boxed constrained one. We will investigate the drawbacks of this conversion. There are dedicated optimizers solving problems with constraints and we will 
 show how they can be applied. 
 
 Note that alternatively the fcmaes multi-objective MODE optimization algorithm. supports explicit constraints which there are automatically prioritized and weighted. You may apply MODE also to single objective problems to use this mechanism. 

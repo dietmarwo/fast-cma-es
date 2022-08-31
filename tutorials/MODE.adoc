@@ -12,7 +12,7 @@ image::logo.gif[]
 == Multi-objective optimization with MODE 
 
 - Clarifies when to apply which multi-objective optimization method to which
-kind of real world optimization problem. We leave the artificial problems for the scientists.
+kind of real world optimization problem. 
 
 - Discusses a new multi-objective algorithm fcmaes-MODE supporting constraints 
 which comes with two variants:

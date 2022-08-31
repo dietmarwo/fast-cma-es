@@ -8,6 +8,17 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 
 image::logo.gif[]
 
+This tutorial:
+
+- Applies continuous optimization and https://numba.pydata.org/[numba] to solve 
+the Flexible job shop problem (FJSP). 
+- On modern many core CPUs dedicated algorithms often can be replaced by generic
+optimization still delivering good results. 
+- Advantages are:
+* Ease of implementation.
+* Can easily be adapted to additional constraints / objectives or noise. 
+- This flexibility is shown by solving a problem variant optimizing asteroid harvesting. 
+
 == Solving the flexible job shop scheduling problem using continuous optimization
 
 Production scheduling is concerned with allocating available

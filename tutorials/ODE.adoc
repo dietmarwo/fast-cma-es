@@ -10,6 +10,19 @@ image::logo.gif[]
 
 == Optimization of functions solving differential equations
 
+This tutorial:
+
+- Applies continuous optimization to problems involving the solution of ODEs.
+- Discusses different implementation approaches to solve ODEs in Python. Sometimes
+it is advantageous to define them in {Cpp} and call the code from Python. 
+- Shows how parallel optimization can be applied. 
+
+Note that recently there are new alternatives you should also consider:
+
+- https://www.esa.int/gsp/ACT/open_source/heyoka[heyoka]
+which helps when there are high accuracy requirements,
+- https://www.esa.int/gsp/ACT/open_source/desolver/[desolver].
+
 === Rabbits and Foxes
 
 Complete closure of fishery during World War I caused an increase in predatory fish and an decrease

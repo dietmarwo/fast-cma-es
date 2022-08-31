@@ -10,6 +10,14 @@ image::logo.gif[]
 
 == Solving Mixed Integer Problems
 
+This tutorial:
+
+- Shows how to solve mixed integer problems by enumeration and parallel optimization.
+
+This method is supported by a specific fcmaes meta optimizer `multiretry`. 
+Note that some fcmaes optimizers support discrete arguments (DE and MODE), and some
+work very well with continuous decision variables converted into integers using numpys
+`astype(int)` or `argsort()` (BiteOpt). 
 
 === Introduction
 
