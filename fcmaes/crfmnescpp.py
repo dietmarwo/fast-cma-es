@@ -95,9 +95,7 @@ def minimize(fun,
     if callable(input_sigma):
         input_sigma=input_sigma()
     if np.ndim(input_sigma) > 0:
-        input_sigma = np.mean(input_sigma)
-    if stop_fitness is None:
-        stop_fitness = -math.inf    
+        input_sigma = np.mean(input_sigma)   
     parfun = None if (workers is None or workers <= 1) else parallel(fun, workers)
     array_type = ct.c_double * dim   
     c_callback_par = call_back_par(callback_par(fun, parfun))

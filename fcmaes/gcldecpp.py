@@ -26,7 +26,7 @@ def minimize(fun,
              bounds = None, 
              popsize = None, 
              max_evaluations = 100000, 
-             stop_fitness = None, 
+             stop_fitness = -math.inf, 
              pbest = 0.7,
              f0 = 0.0,
              cr0 = 0.0,
@@ -87,9 +87,7 @@ def minimize(fun,
         popsize = int(dim*8.5+150)
     if lower is None:
         lower = [0]*dim
-        upper = [0]*dim
-    if stop_fitness is None:
-        stop_fitness = math.inf   
+        upper = [0]*dim  
     parfun = None if (workers is None or workers <= 1) else parallel(fun, workers)
     array_type = ct.c_double * dim   
     c_callback_par = call_back_par(callback_par(fun, parfun))

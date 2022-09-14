@@ -14,6 +14,7 @@ image::logo.gif[]
 The code for this tutorial is at 
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/moexamples.py[moexamples.py] and uses 
 https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/moretry.py[moretry.py] . 
+
 We show:
 
 - How fcmaes single objective optimization algorithms together with a specialized parallel retry implementation

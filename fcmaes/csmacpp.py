@@ -26,7 +26,7 @@ def minimize(fun,
              input_sigma = 0.166, 
              popsize = 0, 
              max_evaluations = 100000, 
-             stop_fitness = None, 
+             stop_fitness = -math.inf, 
              rg = Generator(MT19937()),
              runid=0):
        
@@ -79,9 +79,7 @@ def minimize(fun,
     if callable(input_sigma):
         input_sigma=input_sigma()
     if np.ndim(input_sigma) == 0:
-        input_sigma = [input_sigma] * dim
-    if stop_fitness is None:
-        stop_fitness = -math.inf   
+        input_sigma = [input_sigma] * dim  
     array_type = ct.c_double * dim 
     c_callback = mo_call_back_type(callback(fun, dim))
     res = np.empty(dim+4)

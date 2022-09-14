@@ -32,7 +32,7 @@ def minimize(fun,
              bounds = None, 
              popsize = None, 
              max_evaluations = 100000, 
-             stop_fitness = None, 
+             stop_fitness = -math.inf, 
              keep = 200,
              f = 0.5,
              cr = 0.9,
@@ -111,9 +111,7 @@ def minimize(fun,
     if ints is None:
         ints = [False]*dim
     if workers is None:
-        workers = 0
-    if stop_fitness is None:
-        stop_fitness = math.inf   
+        workers = 0 
     array_type = ct.c_double * dim   
     bool_array_type = ct.c_bool * dim 
     c_callback = mo_call_back_type(callback(fun, dim, is_terminate))

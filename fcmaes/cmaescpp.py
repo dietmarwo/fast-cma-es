@@ -28,7 +28,7 @@ def minimize(fun,
              popsize = 31, 
              max_evaluations = 100000, 
              accuracy = 1.0, 
-             stop_fitness = None, 
+             stop_fitness = -math.inf, 
              stop_hist = None,
              rg = Generator(MT19937()),
              runid=0,
@@ -105,8 +105,6 @@ def minimize(fun,
         input_sigma=input_sigma()
     if np.ndim(input_sigma) == 0:
         input_sigma = [input_sigma] * dim
-    if stop_fitness is None:
-        stop_fitness = math.inf  
     if stop_hist is None:
         stop_hist = -1;
     array_type = ct.c_double * dim 

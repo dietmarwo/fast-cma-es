@@ -29,7 +29,7 @@ def minimize(fun,
              input_sigma = 0.3, 
              popsize = None, 
              max_evaluations = 100000, 
-             stop_fitness = None, 
+             stop_fitness = -math.inf, 
              pbest = 0.7,
              f0 = 0.0,
              cr0 = 0.0,
@@ -99,8 +99,6 @@ def minimize(fun,
         input_sigma=input_sigma()
     if np.ndim(input_sigma) == 0:
         input_sigma = [input_sigma] * dim
-    if stop_fitness is None:
-        stop_fitness = math.inf   
     parfun = None if (workers is None or workers <= 1) else parallel(fun, workers)
     array_type = ct.c_double * dim   
     c_callback_par = call_back_par(callback_par(fun, parfun))

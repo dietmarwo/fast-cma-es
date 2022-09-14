@@ -25,7 +25,7 @@ def minimize(fun,
              bounds=None, 
              x0=None, 
              max_evaluations = 100000, 
-             stop_fitness = None, 
+             stop_fitness = -math.inf, 
              M = 1,
              popsize = 0,
              stall_criterion = 0, 
@@ -78,9 +78,7 @@ def minimize(fun,
     dim = guess.size   
     if lower is None:
         lower = [0]*dim
-        upper = [0]*dim
-    if stop_fitness is None:
-        stop_fitness = -math.inf   
+        upper = [0]*dim 
     array_type = ct.c_double * dim 
     c_callback = mo_call_back_type(callback(fun, dim))
     res = np.empty(dim+4)

@@ -51,7 +51,7 @@ def minimize(fun,
              popsize = 31, 
              max_evaluations = 100000, 
              workers = None,
-             stop_fitness = None, 
+             stop_fitness = -math.inf, 
              keep = 200, 
              f = 0.5, 
              cr = 0.9, 
@@ -144,7 +144,7 @@ def minimize(fun,
 
 class DE(object):
     
-    def __init__(self, dim, bounds, popsize = 31, stop_fitness = None, keep = 200, 
+    def __init__(self, dim, bounds, popsize = 31, stop_fitness = -math.inf, keep = 200, 
                  F = 0.5, Cr = 0.9, rg = Generator(MT19937()), filter = None, ints = None, 
                  min_mutate = 0.1, max_mutate = 1.0, modifier = None, logger = None):
         self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
@@ -263,7 +263,7 @@ class DE(object):
                 if self.best_value > y:
                     self.best_x = x
                     self.best_value = y
-                    if not self.stop_fitness is None and self.stop_fitness > y:
+                    if self.stop_fitness > y:
                         self.stop = 1
             self.pop_iter[p] = self.iterations
         else:

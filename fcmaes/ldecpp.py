@@ -30,7 +30,7 @@ def minimize(fun,
              input_sigma = 0.3, 
              popsize = None, 
              max_evaluations = 100000, 
-             stop_fitness = None, 
+             stop_fitness = -math.inf, 
              keep = 200,
              f = 0.5,
              cr = 0.9,
@@ -108,9 +108,7 @@ def minimize(fun,
     if callable(input_sigma):
         input_sigma=input_sigma()
     if np.ndim(input_sigma) == 0:
-        input_sigma = [input_sigma] * dim
-    if stop_fitness is None:
-        stop_fitness = math.inf   
+        input_sigma = [input_sigma] * dim  
     array_type = ct.c_double * dim   
     bool_array_type = ct.c_bool * dim 
     c_callback = mo_call_back_type(callback(fun))

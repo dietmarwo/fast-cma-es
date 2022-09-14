@@ -119,7 +119,7 @@ class Cmaes(object):
                         max_evaluations = 100000, 
                         max_iterations = 100000,  
                         accuracy = 1.0, 
-                        stop_fitness = np.nan, 
+                        stop_fitness = -math.inf, 
                         is_terminate = None, 
                         rg = Generator(MT19937()), # used if x0 is undefined
                         randn = np.random.randn, # used for random offspring 
@@ -411,10 +411,9 @@ class Cmaes(object):
         if self.best_value > best_fitness:
             self.best_value = best_fitness
             self.best_x = self.fitfun.decode(self.arx[arindex[0]])    
-            if self.stop_fitness != None: # only if stop_fitness is defined
-                if best_fitness < self.stop_fitness:
-                    self.stop = 1
-                    return 
+            if best_fitness < self.stop_fitness:
+                self.stop = 1
+                return 
 
         # Calculate new xmean, this is selection and recombination
         xold = self.xmean # for speed up of Eq. (2) and (3)

@@ -225,7 +225,7 @@ class CRFMNES:
         vbar = self.v / normv
         y = self.z + ((np.sqrt(1 + normv2) - 1) * (vbar @ (vbar.T @ self.z)))
         x = self.m + (self.sigma * y) * self.D
-        evals_no_sort = self.f.values(self.f.closestFeasible(x.T))
+        evals_no_sort = self.f.values(self.f.decode(self.f.closestFeasible(x.T)))
 
         violations = np.zeros(lamb)
         if self.use_constraint_violation:
@@ -318,5 +318,5 @@ class CRFMNES:
         if (not self.is_terminate is None) and \
                        self.is_terminate(self.runid, self.iterations, self.f_best):
             self.stop = 7
-        if self.stop_fitness != None and self.f_best < self.stop_fitness:
+        if self.f_best < self.stop_fitness:
             self.stop = 1
