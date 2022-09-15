@@ -390,7 +390,7 @@ class Cma_orig(Optimizer):
     """CMA_ES original implementation."""
    
     def __init__(self, max_evaluations=50000,
-                 popsize = 31, guess=None, stop_fitness = -math.inf, sdevs = None):        
+                 popsize = None, guess=None, stop_fitness = -math.inf, sdevs = None):        
         Optimizer.__init__(self, max_evaluations, 'cma orig')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -434,7 +434,7 @@ class Cma_lw(Optimizer):
     """CMA lightweight Python implementation."""
     
     def __init__(self, max_evaluations=50000,
-                 popsize = 32, guess=None, stop_fitness = None,
+                 popsize = None, guess=None, stop_fitness = None,
                  sdevs = None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'cma_lw')
         self.popsize = popsize
@@ -471,7 +471,7 @@ class Cma_lw(Optimizer):
                     best_y = y
                     best_x = x
             optimizer.tell(solutions)
-            evals += self.popsize           
+            evals += optimizer.population_size           
         if isinstance(fun, parallel):
             fun.stop()
         return best_x, best_y, evals
@@ -480,14 +480,15 @@ class Cma_awm(Optimizer):
     """CMA awm Python implementation."""
     
     def __init__(self, max_evaluations=50000,
-                 popsize = 32, guess=None, stop_fitness = None,
-                 sdevs = None, discrete_space=None, workers = None):        
+                 popsize = None, guess=None, stop_fitness = None,
+                 sdevs = None, continuous_space=None, discrete_space=None, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'cma_awm')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.guess = guess
         self.sdevs = sdevs
         self.workers = workers
+        self.continuous_space = continuous_space
         self.discrete_space = discrete_space
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
@@ -500,26 +501,27 @@ class Cma_awm(Optimizer):
             guess = self.guess
         if guess is None:    
             guess = rg.uniform(bounds.lb, bounds.ub)
-        bds = np.array([t for t in zip(bounds.lb, bounds.ub)])
         seed = int(rg.uniform(0, 2**32 - 1))
-        optimizer = cmaes.CMAwM(mean=guess, sigma=np.mean(sdevs), bounds=bds, seed=seed, population_size=self.popsize, 
-                         discrete_space=self.discrete_space)
+        optimizer = cmaes.CMAwM(mean=guess, sigma=np.mean(sdevs),       
+                         continuous_space=self.continuous_space,  
+                         discrete_space=self.discrete_space, 
+                         seed=seed, population_size=self.popsize)
         best_y = 1E99
         evals = 0
         fun = serial(fun) if (self.workers is None or self.workers <= 1) else parallel(fun, self.workers)  
         while evals < self.max_evaluations and not optimizer.should_stop():
-            xs = [optimizer.ask() for _ in range(optimizer.population_size)]
-            ys = fun(xs)
+            asks = [optimizer.ask() for _ in range(optimizer.population_size)]
+            ys = fun([x[0] for x in asks])
             solutions = []
             for i in range(optimizer.population_size):
-                x = xs[i]
+                x = asks[i][1]
                 y = ys[i]
                 solutions.append((x, y))
                 if y < best_y:
                     best_y = y
                     best_x = x
             optimizer.tell(solutions)
-            evals += self.popsize           
+            evals += optimizer.population_size           
         if isinstance(fun, parallel):
             fun.stop()
         return best_x, best_y, evals
@@ -565,7 +567,7 @@ class Cma_sep(Optimizer):
                     best_y = y
                     best_x = x
             optimizer.tell(solutions)
-            evals += self.popsize           
+            evals += optimizer.population_size          
         if isinstance(fun, parallel):
             fun.stop()
         return best_x, best_y, evals
