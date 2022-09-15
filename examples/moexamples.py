@@ -226,15 +226,15 @@ def plot_all(folder, fname):
 def decpp_minimize_plot(problem, name, popsize = 64, max_eval = 100000, nobj = 2):
     plot_name = problem.name + '_' + name
     modecpp.minimize(problem.fun, nobj, 0, problem.bounds, popsize = popsize, 
-                       workers=32, max_evaluations = max_eval, nsga_update=True, plot_name = "cpp_nsga_on" + plot_name)
+                       workers=32, max_evaluations = max_eval, nsga_update=True)
 
 def de_minimize_plot(problem, name, popsize = 64, max_eval = 100000, nobj = 2):
     mode.minimize_plot(problem.name + '_' + name, problem.fun, nobj, 0, problem.bounds, popsize = popsize, 
-                       workers = 32, max_evaluations = max_eval, nsga_update=False, plot_name = "nsga_on")
+                       workers = 32, max_evaluations = max_eval, nsga_update=False)
 
 def nsga_minimize_plot(problem, name, popsize = 64, max_eval = 100000, nobj = 2):
     mode.minimize_plot(problem.name + '_' + name, problem.fun, nobj, 0, problem.bounds, popsize = popsize, 
-                       max_evaluations = max_eval, nsga_update=True, plot_name = "nsga_on")
+                       max_evaluations = max_eval, nsga_update=True)
 
 def minimize_plot(problem, opt, name, exp = 2.0, num_retries = 1024, value_limits=None):
     moretry.minimize_plot(problem.name + '_' + name, opt, 

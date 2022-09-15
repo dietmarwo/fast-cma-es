@@ -12,8 +12,9 @@
 
 from multiprocessing import Process, Pipe
 import multiprocessing as mp
+import ctypes as ct
 import numpy as np
-import sys   
+import sys, math, os  
 
 def eval_parallel(xs, evaluator):
     popsize = len(xs)
@@ -73,3 +74,201 @@ def _evaluate(fun, pipe, read_mutex, write_mutex): # worker
             y =  sys.float_info.max
         with write_mutex:            
             pipe[1].send((i, y)) # Send result
+
+def _check_bounds(bounds, guess, rg):
+    if bounds is None and guess is None:
+        raise ValueError('either guess or bounds need to be defined')
+    if bounds is None:
+        return None, None, np.asarray(guess)
+    if guess is None:
+        guess = rg.uniform(bounds.lb, bounds.ub)
+    return np.asarray(bounds.lb), np.asarray(bounds.ub), np.asarray(guess)
+
+class _fitness(object):
+    """wrapper around the objective function, scales relative to boundaries."""
+     
+    def __init__(self, fun, lower, upper, normalize = None):
+        self.fun = fun
+        self.evaluation_counter = 0
+        self.lower = lower
+        self.normalize = False
+        if not (lower is None or normalize is None):
+            self.normalize = normalize
+        if not lower is None:
+            self.upper = upper
+            self.scale = 0.5 * (upper - lower)
+            self.typx = 0.5 * (upper + lower)
+
+    def values(self, Xs): #enables parallel evaluation
+        values = self.fun(Xs)
+        self.evaluation_counter += len(Xs)
+        return np.array(values)
+    
+    def closestFeasible(self, X):
+        if self.lower is None:
+            return X    
+        else:
+            if self.normalize:
+                return np.maximum(np.minimum(X, 1.0), -1.0)
+            else:
+                return np.maximum(np.minimum(X, self.upper), self.lower)
+
+    def encode(self, X):
+        if self.normalize:
+            return (X - self.typx) / self.scale
+        else:
+            return X
+   
+    def decode(self, X):
+        if self.normalize:
+            return (X * self.scale) + self.typx
+        else:
+            return X
+         
+def serial(fun):
+    """Convert an objective function for serial execution for cmaes.minimize.
+    
+    Parameters
+    ----------
+    fun : objective function mapping a list of float arguments to a float value
+
+    Returns
+    -------
+    out : function
+        A function mapping a list of lists of float arguments to a list of float values
+        by applying the input function in a loop."""
+  
+    return lambda xs : [_tryfun(fun, x) for x in xs]
+        
+def _func_serial(fun, num, pid, xs, ys):
+    for i in range(pid, len(xs), num):
+        ys[i] = _tryfun(fun, xs[i])
+
+def _tryfun(fun, x):
+    try:
+        fit = fun(x)
+        return fit if math.isfinite(fit) else sys.float_info.max
+    except Exception:
+        return sys.float_info.max
+    
+class parallel(object):
+    """Convert an objective function for parallel execution for cmaes.minimize.
+    
+    Parameters
+    ----------
+    fun : objective function mapping a list of float arguments to a float value.
+   
+    represents a function mapping a list of lists of float arguments to a list of float values
+    by applying the input function using parallel processes. stop needs to be called to avoid
+    a resource leak"""
+        
+    def __init__(self, fun, workers = mp.cpu_count()):
+        self.evaluator = Evaluator(fun)
+        self.evaluator.start(workers)
+    
+    def __call__(self, xs):
+        return eval_parallel(xs, self.evaluator)
+
+    def stop(self):
+        self.evaluator.stop()
+        
+class callback(object):
+    
+    def __init__(self, fun):
+        self.fun = fun
+    
+    def __call__(self, n, x):
+        try:
+            fit = self.fun(np.array([x[i] for i in range(n)]))
+            return fit if math.isfinite(fit) else sys.float_info.max
+        except Exception as ex:
+            return sys.float_info.max
+        
+class callback_so(object):
+    
+    def __init__(self, fun, dim, is_terminate = None):
+        self.fun = fun
+        self.dim = dim
+        self.nobj = 1
+        self.is_terminate = is_terminate
+    
+    def __call__(self, dim, x, y):
+        try:
+            arrTypeX = ct.c_double*(self.dim)
+            xaddr = ct.addressof(x.contents)
+            xbuf = np.frombuffer(arrTypeX.from_address(xaddr))
+            arrTypeY = ct.c_double*(self.nobj)
+            yaddr = ct.addressof(y.contents)   
+            ybuf = np.frombuffer(arrTypeY.from_address(yaddr))  
+            fit = self.fun(xbuf)
+            ybuf[0] = fit if math.isfinite(fit) else sys.float_info.max
+            return False if self.is_terminate is None else self.is_terminate(xbuf, ybuf) 
+        except Exception as ex:
+            print (ex)
+            return False
+
+class callback_mo(object):
+    
+    def __init__(self, fun, dim, nobj, is_terminate = None):
+        self.fun = fun
+        self.dim = dim
+        self.nobj = nobj
+        self.is_terminate = is_terminate
+    
+    def __call__(self, dim, x, y):
+        try:
+            arrTypeX = ct.c_double*(dim)
+            xaddr = ct.addressof(x.contents)
+            xbuf = np.frombuffer(arrTypeX.from_address(xaddr))
+            arrTypeY = ct.c_double*(self.nobj)
+            yaddr = ct.addressof(y.contents)   
+            ybuf = np.frombuffer(arrTypeY.from_address(yaddr))  
+            ybuf[:] = self.fun(xbuf)[:]
+            return False if self.is_terminate is None else self.is_terminate(xbuf, ybuf) 
+        except Exception as ex:
+            print (ex)
+            return False
+
+class callback_par(object):
+    
+    def __init__(self, fun, parfun):
+        self.fun = fun
+        self.parfun = parfun
+    
+    def __call__(self, popsize, n, xs_, ys_):
+        try:
+            arrType = ct.c_double*(popsize*n)
+            addr = ct.addressof(xs_.contents)
+            xall = np.frombuffer(arrType.from_address(addr))
+            
+            if self.parfun is None:
+                for p in range(popsize):
+                    ys_[p] = self.fun(xall[p*n : (p+1)*n])
+            else:    
+                xs = []
+                for p in range(popsize):
+                    x = xall[p*n : (p+1)*n]
+                    xs.append(x)
+                ys = self.parfun(xs)
+                for p in range(popsize):
+                    ys_[p] = ys[p]
+        except Exception as ex:
+            print (ex)
+
+basepath = os.path.dirname(os.path.abspath(__file__))
+
+if sys.platform.startswith('linux'):
+    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.so')  
+elif 'mac' in sys.platform or 'darwin' in sys.platform:
+    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
+else:
+    os.environ['PATH'] = (basepath + '/lib') + os.pathsep + os.environ['PATH']
+    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')  
+    
+mo_call_back_type = ct.CFUNCTYPE(ct.c_bool, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))
+  
+call_back_type = ct.CFUNCTYPE(ct.c_double, ct.c_int, ct.POINTER(ct.c_double))  
+
+call_back_par = ct.CFUNCTYPE(None, ct.c_int, ct.c_int, \
+                                  ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))  
+

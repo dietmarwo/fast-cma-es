@@ -12,7 +12,7 @@ import math
 import logging
 import ctypes as ct
 import multiprocessing as mp 
-
+from fcmaes.evaluator import serial, parallel
 from fcmaes import crfmnes, crfmnescpp, cmaes, de, cmaescpp, decpp, dacpp, gcldecpp, lcldecpp, ldecpp, csmacpp, bitecpp
 
 _logger = None
@@ -331,13 +331,14 @@ class Cma_python(Optimizer):
     
     def __init__(self, max_evaluations=50000,
                  popsize = 31, guess=None, stop_fitness = -math.inf,
-                 update_gap = None, sdevs = None, workers = None):        
+                 update_gap = None, sdevs = None, normalize = True, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'cma py')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.update_gap = update_gap
         self.guess = guess
         self.sdevs = sdevs
+        self.normalize = normalize
         self.workers = workers
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
@@ -348,6 +349,7 @@ class Cma_python(Optimizer):
                 popsize=self.popsize, 
                 stop_fitness = self.stop_fitness,
                 rg=rg, runid=self.get_count_runs(store),
+                normalize = self.normalize,
                 update_gap = self.update_gap,
                 workers = self.workers)     
         return ret.x, ret.fun, ret.nfev
@@ -357,7 +359,7 @@ class Cma_cpp(Optimizer):
    
     def __init__(self, max_evaluations=50000,
                  popsize = 31, guess=None, stop_fitness = -math.inf, stop_hist = None, 
-                 update_gap = None, delayed_update = True, sdevs = None, workers = None):        
+                 update_gap = None, delayed_update = True, sdevs = None, normalize = True, workers = None):        
         Optimizer.__init__(self, max_evaluations, 'cma cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -366,6 +368,7 @@ class Cma_cpp(Optimizer):
         self.sdevs = sdevs
         self.update_gap = update_gap
         self.delayed_update = delayed_update
+        self.normalize = normalize
         self.workers = workers
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
@@ -378,6 +381,7 @@ class Cma_cpp(Optimizer):
                 stop_hist = self.stop_hist,
                 rg = rg, runid = self.get_count_runs(store),
 		        update_gap = self.update_gap,
+                normalize = self.normalize,
                 delayed_update = self.delayed_update,
                 workers = self.workers)   
         return ret.x, ret.fun, ret.nfev
@@ -425,7 +429,147 @@ class Cma_orig(Optimizer):
             return es.result.xbest, es.result.fbest, evals
         except Exception as ex:
             print(ex)
-  
+
+class Cma_lw(Optimizer):
+    """CMA lightweight Python implementation."""
+    
+    def __init__(self, max_evaluations=50000,
+                 popsize = 32, guess=None, stop_fitness = None,
+                 sdevs = None, workers = None):        
+        Optimizer.__init__(self, max_evaluations, 'cma_lw')
+        self.popsize = popsize
+        self.stop_fitness = stop_fitness
+        self.guess = guess
+        self.sdevs = sdevs
+        self.workers = workers
+
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
+        try:
+            import cmaes
+        except ImportError as e:
+            raise ImportError("Please install cmaes (pip install cmaes)") 
+
+        if guess is None:
+            guess = self.guess
+        if guess is None:    
+            guess = rg.uniform(bounds.lb, bounds.ub)
+        bds = np.array([t for t in zip(bounds.lb, bounds.ub)])
+        seed = int(rg.uniform(0, 2**32 - 1))
+        optimizer = cmaes.CMA(mean=guess, sigma=np.mean(sdevs), bounds=bds, seed=seed, population_size=self.popsize)
+        best_y = math.inf
+        evals = 0
+        fun = serial(fun) if (self.workers is None or self.workers <= 1) else parallel(fun, self.workers)  
+        while evals < self.max_evaluations and not optimizer.should_stop():
+            xs = [optimizer.ask() for _ in range(optimizer.population_size)]
+            ys = fun(xs)
+            solutions = []
+            for i in range(optimizer.population_size):
+                x = xs[i]
+                y = ys[i]
+                solutions.append((x, y))
+                if y < best_y:
+                    best_y = y
+                    best_x = x
+            optimizer.tell(solutions)
+            evals += self.popsize           
+        if isinstance(fun, parallel):
+            fun.stop()
+        return best_x, best_y, evals
+
+class Cma_awm(Optimizer):
+    """CMA awm Python implementation."""
+    
+    def __init__(self, max_evaluations=50000,
+                 popsize = 32, guess=None, stop_fitness = None,
+                 sdevs = None, discrete_space=None, workers = None):        
+        Optimizer.__init__(self, max_evaluations, 'cma_awm')
+        self.popsize = popsize
+        self.stop_fitness = stop_fitness
+        self.guess = guess
+        self.sdevs = sdevs
+        self.workers = workers
+        self.discrete_space = discrete_space
+
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
+        try:
+            import cmaes
+        except ImportError as e:
+            raise ImportError("Please install cmaes (pip install cmaes)") 
+              
+        if guess is None:
+            guess = self.guess
+        if guess is None:    
+            guess = rg.uniform(bounds.lb, bounds.ub)
+        bds = np.array([t for t in zip(bounds.lb, bounds.ub)])
+        seed = int(rg.uniform(0, 2**32 - 1))
+        optimizer = cmaes.CMAwM(mean=guess, sigma=np.mean(sdevs), bounds=bds, seed=seed, population_size=self.popsize, 
+                         discrete_space=self.discrete_space)
+        best_y = 1E99
+        evals = 0
+        fun = serial(fun) if (self.workers is None or self.workers <= 1) else parallel(fun, self.workers)  
+        while evals < self.max_evaluations and not optimizer.should_stop():
+            xs = [optimizer.ask() for _ in range(optimizer.population_size)]
+            ys = fun(xs)
+            solutions = []
+            for i in range(optimizer.population_size):
+                x = xs[i]
+                y = ys[i]
+                solutions.append((x, y))
+                if y < best_y:
+                    best_y = y
+                    best_x = x
+            optimizer.tell(solutions)
+            evals += self.popsize           
+        if isinstance(fun, parallel):
+            fun.stop()
+        return best_x, best_y, evals
+
+class Cma_sep(Optimizer):
+    """CMA sep Python implementation."""
+    
+    def __init__(self, max_evaluations=50000,
+                 popsize = 32, guess=None, stop_fitness = None,
+                 sdevs = None, workers = None):        
+        Optimizer.__init__(self, max_evaluations, 'cma_sep')
+        self.popsize = popsize
+        self.stop_fitness = stop_fitness
+        self.guess = guess
+        self.sdevs = sdevs
+        self.workers = workers
+
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
+        try:
+            import cmaes
+        except ImportError as e:
+            raise ImportError("Please install cmaes (pip install cmaes)") 
+
+        if guess is None:
+            guess = self.guess
+        if guess is None:    
+            guess = rg.uniform(bounds.lb, bounds.ub)
+        bds = np.array([t for t in zip(bounds.lb, bounds.ub)])
+        seed = int(rg.uniform(0, 2**32 - 1))
+        optimizer = cmaes.SepCMA(mean=guess, sigma=np.mean(sdevs), bounds=bds, seed=seed, population_size=self.popsize)
+        best_y = math.inf
+        evals = 0
+        fun = serial(fun) if (self.workers is None or self.workers <= 1) else parallel(fun, self.workers)  
+        while evals < self.max_evaluations and not optimizer.should_stop():
+            xs = [optimizer.ask() for _ in range(optimizer.population_size)]
+            ys = fun(xs)
+            solutions = []
+            for i in range(optimizer.population_size):
+                x = xs[i]
+                y = ys[i]
+                solutions.append((x, y))
+                if y < best_y:
+                    best_y = y
+                    best_x = x
+            optimizer.tell(solutions)
+            evals += self.popsize           
+        if isinstance(fun, parallel):
+            fun.stop()
+        return best_x, best_y, evals
+      
 class De_cpp(Optimizer):
     """Differential Evolution C++ implementation."""
     

@@ -333,7 +333,7 @@ class DE(object):
                         if y < self.best_value:
                             self.best_value = y;
                             self.best_x = x;
-                            if not self.stop_fitness is None and self.stop_fitness > y:
+                            if self.stop_fitness > y:
                                 self.stop = 1
                 else:
                     # reinitialize individual

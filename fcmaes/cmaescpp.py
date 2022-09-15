@@ -15,9 +15,7 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaes import _check_bounds
-from fcmaes.decpp import mo_call_back_type, callback, libcmalib
-from fcmaes.crfmnescpp import callback_par, call_back_par, parallel
+from fcmaes.evaluator import _check_bounds, mo_call_back_type, callback_so, callback_par, call_back_par, parallel, libcmalib
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -108,7 +106,7 @@ def minimize(fun,
     if stop_hist is None:
         stop_hist = -1;
     array_type = ct.c_double * dim 
-    c_callback = mo_call_back_type(callback(fun, dim))
+    c_callback = mo_call_back_type(callback_so(fun, dim))
     parfun = None if delayed_update == True or workers is None or workers <= 1 else parallel(fun, workers)
     c_callback_par = call_back_par(callback_par(fun, parfun))
     res = np.empty(dim+4)

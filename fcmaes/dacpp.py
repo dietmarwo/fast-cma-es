@@ -12,11 +12,9 @@ import sys
 import os
 import ctypes as ct
 import numpy as np
-import math
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaes import _check_bounds
-from fcmaes.decpp import libcmalib
+from fcmaes.evaluator import _check_bounds, call_back_type, callback, libcmalib
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -87,19 +85,6 @@ def minimize(fun,
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
       
-class callback(object):
-    
-    def __init__(self, fun):
-        self.fun = fun
-    
-    def __call__(self, n, x):
-        try:
-            fit = self.fun(np.array([x[i] for i in range(n)]))
-            return fit if math.isfinite(fit) else sys.float_info.max
-        except Exception as ex:
-            return sys.float_info.max      
-      
-call_back_type = ct.CFUNCTYPE(ct.c_double, ct.c_int, ct.POINTER(ct.c_double))  
 optimizeDA_C = libcmalib.optimizeDA_C
 optimizeDA_C.argtypes = [ct.c_long, call_back_type, ct.c_int, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \

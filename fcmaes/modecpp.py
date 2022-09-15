@@ -42,21 +42,19 @@
     See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc for a detailed description.
 """
 
-import sys
 import os
-import math
 import time
 import threadpoolctl
 import ctypes as ct
 import multiprocessing as mp 
 from multiprocessing import Process
 import numpy as np
-from numpy.random import MT19937, Generator
-from fcmaes.decpp import mo_call_back_type, callback_mo, libcmalib
-from fcmaes import de, mode, moretry
+from fcmaes import mode, moretry
 from fcmaes.mode import _filter
 from numpy.random import Generator, MT19937, SeedSequence
 from fcmaes.optimizer import dtime
+from fcmaes.evaluator import mo_call_back_type, callback_mo, libcmalib
+from fcmaes.de import _check_bounds
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -152,7 +150,7 @@ def minimize(mofun,
     -------
     x, y: list of argument vectors and corresponding value vectors of the optimization results. """
     
-    dim, lower, upper = de._check_bounds(bounds, None)
+    dim, lower, upper = _check_bounds(bounds, None)
     if popsize is None:
         popsize = 64
     if popsize % 2 == 1 and nsga_update: # nsga update requires even popsize
@@ -241,7 +239,7 @@ def retry(mofun,
     is_terminate : callable, optional
         Callback to be used if the caller of minimize wants to decide when to terminate. """
     
-    dim, _, _ = de._check_bounds(bounds, None)
+    dim, _, _ = _check_bounds(bounds, None)
     store = mode.store(dim, nobj + ncon, 100*popsize*2)
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]

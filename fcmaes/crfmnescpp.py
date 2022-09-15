@@ -15,10 +15,7 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-import multiprocessing as mp
-from fcmaes.cmaes import _check_bounds
-from fcmaes.decpp import libcmalib
-from fcmaes.evaluator import Evaluator, eval_parallel
+from fcmaes.evaluator import _check_bounds, callback_par, parallel, call_back_par, libcmalib
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -119,73 +116,9 @@ def minimize(fun,
         parfun.stop()
     return res
     
-class parallel(object):
-    """Convert an objective function for parallel execution for cmaes.minimize.
-    
-    Parameters
-    ----------
-    fun : objective function mapping a list of float arguments to a float value.
-   
-    represents a function mapping a list of lists of float arguments to a list of float values
-    by applying the input function using parallel processes. stop needs to be called to avoid
-    a resource leak"""
-        
-    def __init__(self, fun, workers = mp.cpu_count()):
-        self.evaluator = Evaluator(fun)
-        self.evaluator.start(workers)
-    
-    def __call__(self, xs):
-        return eval_parallel(xs, self.evaluator)
-
-    def stop(self):
-        self.evaluator.stop()
-        
-class callback(object):
-    
-    def __init__(self, fun):
-        self.fun = fun
-    
-    def __call__(self, n, x):
-        try:
-            fit = self.fun(np.array([x[i] for i in range(n)]))
-            return fit if math.isfinite(fit) else sys.float_info.max
-        except Exception as ex:
-            return sys.float_info.max
-
-class callback_par(object):
-    
-    def __init__(self, fun, parfun):
-        self.fun = fun
-        self.parfun = parfun
-    
-    def __call__(self, popsize, n, xs_, ys_):
-        try:
-            arrType = ct.c_double*(popsize*n)
-            addr = ct.addressof(xs_.contents)
-            xall = np.frombuffer(arrType.from_address(addr))
-            
-            if self.parfun is None:
-                for p in range(popsize):
-                    ys_[p] = self.fun(xall[p*n : (p+1)*n])
-            else:    
-                xs = []
-                for p in range(popsize):
-                    x = xall[p*n : (p+1)*n]
-                    xs.append(x)
-                ys = self.parfun(xs)
-                for p in range(popsize):
-                    ys_[p] = ys[p]
-        except Exception as ex:
-            print (ex)
-
-call_back_type = ct.CFUNCTYPE(ct.c_double, ct.c_int, ct.POINTER(ct.c_double))  
-call_back_par = ct.CFUNCTYPE(None, ct.c_int, ct.c_int, \
-                                  ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))  
 optimizeCRFMNES_C = libcmalib.optimizeCRFMNES_C
 optimizeCRFMNES_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.c_double, ct.c_int, ct.c_double, ct.c_int, 
             ct.c_long, ct.c_double, 
             ct.c_bool, ct.c_bool, ct.POINTER(ct.c_double)]
-
-

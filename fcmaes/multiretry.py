@@ -10,7 +10,7 @@ import _pickle as cPickle
 import bz2
 import multiprocessing as mp
 from scipy.optimize import OptimizeResult
-from fcmaes.optimizer import logger, de_cma, eprint
+from fcmaes.optimizer import de_cma, eprint
 from fcmaes import advretry
 
 def minimize(problems, ids=None, retries_inc = min(256, 8*mp.cpu_count()), num_retries = 10000,

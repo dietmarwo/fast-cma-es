@@ -184,11 +184,11 @@ if __name__ == '__main__':
     n = 16 # number of nodes in graph
     
     # 1 run SPSA  
-    # maxcut(SPSA(maxiter=6000), n, "aer_simulator")
+    maxcut(SPSA(maxiter=6000), n, "aer_simulator")
     # 1 run SPSA with noise
     # maxcut(SPSA(maxiter=6000), n, "aer_simulator", add_noise=True)
     # 1 run CR-FM-NES parallel fitness evaluation
-    maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
+    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
     # 1 run CR-FM-NES parallel fitness evaluation with noise
     # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator", add_noise=True)
     # 32 parallel runs SPSA 

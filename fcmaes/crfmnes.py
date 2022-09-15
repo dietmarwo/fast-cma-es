@@ -1,12 +1,10 @@
 
 import math
 import numpy as np
-import copy
-from fcmaes.cmaes import _check_bounds, _fitness, serial
+import os
 from scipy.optimize import OptimizeResult
 from numpy.random import MT19937, Generator
-from fcmaes.crfmnescpp import parallel
-import os
+from fcmaes.evaluator import _check_bounds, _fitness, serial, parallel
 
 """ Numpy based implementation of Fast Moving Natural Evolution Strategy 
     for High-Dimensional Problems (CR-FM-NES), see https://arxiv.org/abs/2201.11422 .

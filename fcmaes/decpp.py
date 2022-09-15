@@ -23,7 +23,8 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes import de
+from fcmaes.evaluator import mo_call_back_type, callback_so, libcmalib
+from fcmaes.de import _check_bounds
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -102,7 +103,7 @@ def minimize(fun,
         ``nit`` the number of iterations,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
     
-    dim, lower, upper = de._check_bounds(bounds, dim)
+    dim, lower, upper = _check_bounds(bounds, dim)
     if popsize is None:
         popsize = 31
     if lower is None:
@@ -114,7 +115,7 @@ def minimize(fun,
         workers = 0 
     array_type = ct.c_double * dim   
     bool_array_type = ct.c_bool * dim 
-    c_callback = mo_call_back_type(callback(fun, dim, is_terminate))
+    c_callback = mo_call_back_type(callback_so(fun, dim, is_terminate))
     seed = int(rg.uniform(0, 2**32 - 1))
     res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
@@ -131,65 +132,6 @@ def minimize(fun,
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
-
-class callback(object):
-    
-    def __init__(self, fun, dim, is_terminate = None):
-        self.fun = fun
-        self.dim = dim
-        self.nobj = 1
-        self.is_terminate = is_terminate
-    
-    def __call__(self, dim, x, y):
-        try:
-            arrTypeX = ct.c_double*(self.dim)
-            xaddr = ct.addressof(x.contents)
-            xbuf = np.frombuffer(arrTypeX.from_address(xaddr))
-            arrTypeY = ct.c_double*(self.nobj)
-            yaddr = ct.addressof(y.contents)   
-            ybuf = np.frombuffer(arrTypeY.from_address(yaddr))  
-            fit = self.fun(xbuf)
-            ybuf[0] = fit if math.isfinite(fit) else sys.float_info.max
-            return False if self.is_terminate is None else self.is_terminate(xbuf, ybuf) 
-        except Exception as ex:
-            print (ex)
-            return False
-
-
-class callback_mo(object):
-    
-    def __init__(self, fun, dim, nobj, is_terminate = None):
-        self.fun = fun
-        self.dim = dim
-        self.nobj = nobj
-        self.is_terminate = is_terminate
-    
-    def __call__(self, dim, x, y):
-        try:
-            arrTypeX = ct.c_double*(dim)
-            xaddr = ct.addressof(x.contents)
-            xbuf = np.frombuffer(arrTypeX.from_address(xaddr))
-            arrTypeY = ct.c_double*(self.nobj)
-            yaddr = ct.addressof(y.contents)   
-            ybuf = np.frombuffer(arrTypeY.from_address(yaddr))  
-            ybuf[:] = self.fun(xbuf)[:]
-            return False if self.is_terminate is None else self.is_terminate(xbuf, ybuf) 
-        except Exception as ex:
-            print (ex)
-            return False
-
-
-mo_call_back_type = ct.CFUNCTYPE(ct.c_bool, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))  
-
-basepath = os.path.dirname(os.path.abspath(__file__))
-
-if sys.platform.startswith('linux'):
-    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.so')  
-elif 'mac' in sys.platform or 'darwin' in sys.platform:
-    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
-else:
-    os.environ['PATH'] = (basepath + '/lib') + os.pathsep + os.environ['PATH']
-    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')  
       
 optimizeDE_C = libcmalib.optimizeDE_C
 optimizeDE_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, ct.c_int, \

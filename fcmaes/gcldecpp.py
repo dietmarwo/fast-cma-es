@@ -15,9 +15,8 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.crfmnescpp import callback_par, call_back_par, parallel
-from fcmaes.decpp import libcmalib
-from fcmaes import de
+from fcmaes.evaluator import callback_par, call_back_par, parallel, libcmalib
+from fcmaes.de import _check_bounds
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -82,7 +81,7 @@ def minimize(fun,
         ``nit`` the number of iterations,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
                 
-    dim, lower, upper = de._check_bounds(bounds, dim)
+    dim, lower, upper = _check_bounds(bounds, dim)
     if popsize is None:
         popsize = int(dim*8.5+150)
     if lower is None:

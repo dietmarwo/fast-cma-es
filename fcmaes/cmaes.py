@@ -18,7 +18,7 @@ import multiprocessing as mp
 from scipy import linalg
 from scipy.optimize import OptimizeResult
 from numpy.random import MT19937, Generator
-from fcmaes.evaluator import Evaluator
+from fcmaes.evaluator import Evaluator, serial, _check_bounds, _fitness
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -585,80 +585,4 @@ class Cmaes(object):
             self.diagD = np.sqrt(self.diagD) # diagD contains standard deviations now
             
             self.BD = self.B * self.diagD # O(n^2)
-
-def serial(fun):
-    """Convert an objective function for serial execution for cmaes.minimize.
-    
-    Parameters
-    ----------
-    fun : objective function mapping a list of float arguments to a float value
-
-    Returns
-    -------
-    out : function
-        A function mapping a list of lists of float arguments to a list of float values
-        by applying the input function in a loop."""
-  
-    return lambda xs : [_tryfun(fun, x) for x in xs]
-        
-def _func_serial(fun, num, pid, xs, ys):
-    for i in range(pid, len(xs), num):
-        ys[i] = _tryfun(fun, xs[i])
-
-def _tryfun(fun, x):
-    try:
-        fit = fun(x)
-        return fit if math.isfinite(fit) else sys.float_info.max
-    except Exception:
-        return sys.float_info.max
                         
-def _check_bounds(bounds, guess, rg):
-    if bounds is None and guess is None:
-        raise ValueError('either guess or bounds need to be defined')
-    if bounds is None:
-        return None, None, np.asarray(guess)
-    if guess is None:
-        guess = rg.uniform(bounds.lb, bounds.ub)
-    return np.asarray(bounds.lb), np.asarray(bounds.ub), np.asarray(guess)
-
-class _fitness(object):
-    """wrapper around the objective function, scales relative to boundaries."""
-     
-    def __init__(self, fun, lower, upper, normalize = None):
-        self.fun = fun
-        self.evaluation_counter = 0
-        self.lower = lower
-        self.normalize = False
-        if not (lower is None or normalize is None):
-            self.normalize = normalize
-        if not lower is None:
-            self.upper = upper
-            self.scale = 0.5 * (upper - lower)
-            self.typx = 0.5 * (upper + lower)
-
-    def values(self, Xs): #enables parallel evaluation
-        values = self.fun(Xs)
-        self.evaluation_counter += len(Xs)
-        return np.array(values)
-    
-    def closestFeasible(self, X):
-        if self.lower is None:
-            return X    
-        else:
-            if self.normalize:
-                return np.maximum(np.minimum(X, 1.0), -1.0)
-            else:
-                return np.maximum(np.minimum(X, self.upper), self.lower)
-
-    def encode(self, X):
-        if self.normalize:
-            return (X - self.typx) / self.scale
-        else:
-            return X
-   
-    def decode(self, X):
-        if self.normalize:
-            return (X * self.scale) + self.typx
-        else:
-            return X
-         

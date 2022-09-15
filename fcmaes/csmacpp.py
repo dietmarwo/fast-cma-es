@@ -15,8 +15,7 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.cmaes import _check_bounds
-from fcmaes.decpp import mo_call_back_type, callback, libcmalib
+from fcmaes.evaluator import _check_bounds, mo_call_back_type, callback_so, libcmalib
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -81,7 +80,7 @@ def minimize(fun,
     if np.ndim(input_sigma) == 0:
         input_sigma = [input_sigma] * dim  
     array_type = ct.c_double * dim 
-    c_callback = mo_call_back_type(callback(fun, dim))
+    c_callback = mo_call_back_type(callback_so(fun, dim))
     res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:

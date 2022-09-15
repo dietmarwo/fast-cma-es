@@ -676,7 +676,7 @@ class wrapper(object):
         
 
 def minimize_plot(name, fun, nobj, ncon, bounds, popsize = 64, max_evaluations = 100000, nsga_update=False, 
-                  pareto_update=0, workers = mp.cpu_count()):
+                  pareto_update=0, workers = mp.cpu_count(), logger = logger()):
     name += '_mode_' + str(popsize) + '_' + \
                 ('nsga_update' if nsga_update else ('de_update_' + str(pareto_update)))
     logger.info('optimize ' + name) 
