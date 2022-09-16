@@ -431,7 +431,7 @@ class Cma_orig(Optimizer):
             print(ex)
 
 class Cma_lw(Optimizer):
-    """CMA lightweight Python implementation."""
+    """CMA lightweight Python implementation. See https://github.com/CyberAgentAILab/cmaes """
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, guess=None, stop_fitness = None,
@@ -477,7 +477,7 @@ class Cma_lw(Optimizer):
         return best_x, best_y, evals
 
 class Cma_awm(Optimizer):
-    """CMA awm Python implementation."""
+    """CMA awm Python implementation. See https://github.com/CyberAgentAILab/cmaes """
     
     def __init__(self, max_evaluations=50000,
                  popsize = None, guess=None, stop_fitness = None,
@@ -527,7 +527,7 @@ class Cma_awm(Optimizer):
         return best_x, best_y, evals
 
 class Cma_sep(Optimizer):
-    """CMA sep Python implementation."""
+    """CMA sep Python implementation. See https://github.com/CyberAgentAILab/cmaes """
     
     def __init__(self, max_evaluations=50000,
                  popsize = 32, guess=None, stop_fitness = None,
