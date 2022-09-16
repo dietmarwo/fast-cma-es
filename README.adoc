@@ -56,7 +56,7 @@ https://www.researchgate.net/publication/309179699_Differential_evolution_for_pr
     https://arxiv.org/abs/2201.11422. Derived from https://github.com/nomuramasahir0/crfmnes .
 Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/crfmnes.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/crfmnes.cpp[C++]. Both implementations provide parallel function evaluation.
 
-- Wrapper for https://github.com/CyberAgentAILab/cmaes[cmaes] which provides different CMA-ES variants implemented in Python. Different variants are included like
+- Wrapper for https://github.com/CyberAgentAILab/cmaes[cmaes] which provides different CMA-ES variants implemented in Python like
 separable CMA-ES and CMA-ES with Margin (see https://arxiv.org/abs/2205.13482) which improves support for mixed integer problems. The wrapper additionally supports
 parallel function evaluation.
  
