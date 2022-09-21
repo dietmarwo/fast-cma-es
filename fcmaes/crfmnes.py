@@ -82,28 +82,6 @@ def minimize(fun,
                           nit=cr.g, status=cr.stop, 
                           success=True)
 
-def get_h_inv(dim):
-    f = lambda a, b: ((1. + a * a) * math.exp(a * a / 2.) / 0.24) - 10. - dim
-    f_prime = lambda a: (1. / 0.24) * a * math.exp(a * a / 2.) * (3. + a * a)
-    h_inv = 1.0
-    while abs(f(h_inv, dim)) > 1e-10:
-        h_inv = h_inv - 0.5 * (f(h_inv, dim) / f_prime(h_inv))
-    return h_inv
-
-def sort_indices_by(evals, z):
-    lam = len(evals)
-    evals = np.array(evals)
-    sorted_indices = np.argsort(evals)
-    sorted_evals = evals[sorted_indices]
-    no_of_feasible_solutions = np.where(sorted_evals != INFEASIBLE)[0].size
-    if no_of_feasible_solutions != lam:
-        infeasible_z = z[:, np.where(evals == INFEASIBLE)[0]]
-        distances = np.sum(infeasible_z ** 2, axis=0)
-        infeasible_indices = sorted_indices[no_of_feasible_solutions:]
-        indices_sorted_by_distance = np.argsort(distances)
-        sorted_indices[no_of_feasible_solutions:] = infeasible_indices[indices_sorted_by_distance]
-    return sorted_indices
-
 class CRFMNES:
     
     def __init__(self, 
@@ -178,7 +156,7 @@ class CRFMNES:
         self.h_inv = get_h_inv(self.dim)
         self.alpha_dist = lambda lambF: self.h_inv * min(1., math.sqrt(float(self.lamb) / self.dim)) * math.sqrt(
             float(lambF) / self.lamb)
-        self.w_dist_hat = lambda z, lambF: math.exp(self.alpha_dist(lambF) * np.linalg.norm(z))
+        self.w_dist_hat = lambda z, lambF: exp(self.alpha_dist(lambF) * np.linalg.norm(z))
         # learning rate
         self.eta_m = 1.0
         self.eta_move_sigma = 1.
@@ -329,4 +307,27 @@ class CRFMNES:
         self.sigma = self.sigma * np.exp(eta_sigma / 2 * G_s)
         return self.stop
 
+def exp(a):
+    return math.exp(min(100, a)) # avoid overflow
 
+def get_h_inv(dim):
+    f = lambda a, b: ((1. + a * a) * exp(a * a / 2.) / 0.24) - 10. - dim
+    f_prime = lambda a: (1. / 0.24) * a * exp(a * a / 2.) * (3. + a * a)
+    h_inv = 1.0
+    while abs(f(h_inv, dim)) > 1e-10:
+        h_inv = h_inv - 0.5 * (f(h_inv, dim) / f_prime(h_inv))
+    return h_inv
+
+def sort_indices_by(evals, z):
+    lam = len(evals)
+    evals = np.array(evals)
+    sorted_indices = np.argsort(evals)
+    sorted_evals = evals[sorted_indices]
+    no_of_feasible_solutions = np.where(sorted_evals != INFEASIBLE)[0].size
+    if no_of_feasible_solutions != lam:
+        infeasible_z = z[:, np.where(evals == INFEASIBLE)[0]]
+        distances = np.sum(infeasible_z ** 2, axis=0)
+        infeasible_indices = sorted_indices[no_of_feasible_solutions:]
+        indices_sorted_by_distance = np.argsort(distances)
+        sorted_indices[no_of_feasible_solutions:] = infeasible_indices[indices_sorted_by_distance]
+    return sorted_indices
