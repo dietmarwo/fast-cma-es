@@ -3,9 +3,9 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-""" Eigen based implementation of active CMA-ES.
-    Derived from http://cma.gforge.inria.fr/cmaes.m which follows
-    https://www.researchgate.net/publication/227050324_The_CMA_Evolution_Strategy_A_Comparing_Review
+""" Eigen based implementation of Fast Moving Natural Evolution Strategy 
+    for High-Dimensional Problems (CR-FM-NES), see https://arxiv.org/abs/2201.11422 .
+    Derived from https://github.com/nomuramasahir0/crfmnes .
 """
 
 import sys
@@ -15,7 +15,7 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.evaluator import _check_bounds, callback_par, parallel, call_back_par, libcmalib
+from fcmaes.evaluator import _check_bounds, _get_bounds, callback_par, parallel, call_back_par, libcmalib
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -35,7 +35,7 @@ def minimize(fun,
              ):
        
     """Minimization of a scalar function of one or more variables using a 
-    C++ CMA-ES implementation called via ctypes.
+    C++ CR-FM-NES implementation called via ctypes.
      
     Parameters
     ----------
@@ -115,10 +115,150 @@ def minimize(fun,
     if not parfun is None:
         parfun.stop()
     return res
-    
+
 optimizeCRFMNES_C = libcmalib.optimizeCRFMNES_C
 optimizeCRFMNES_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
             ct.c_double, ct.c_int, ct.c_double, ct.c_int, 
             ct.c_long, ct.c_double, 
             ct.c_bool, ct.c_bool, ct.POINTER(ct.c_double)]
+
+class CRFMNES_C:
+
+    def __init__(self,
+         dim, 
+         bounds=None, 
+         x0=None, 
+         input_sigma = 0.3, 
+         popsize = 32, 
+         rg = Generator(MT19937()),
+         runid=0,
+         normalize = False,
+         use_constraint_violation = True,
+         penalty_coef = 1E5
+         ):
+       
+        """Minimization of a scalar function of one or more variables using a 
+        C++ CR-FM-NES implementation called via ctypes.
+         
+        Parameters
+        ----------
+        fun : callable
+            The objective function to be minimized.
+                ``fun(x) -> float``
+            where ``x`` is an 1-D array with shape (dim,)
+        bounds : sequence or `Bounds`, optional
+            Bounds on variables. There are two ways to specify the bounds:
+                1. Instance of the `scipy.Bounds` class.
+                2. Sequence of ``(min, max)`` pairs for each element in `x`. None
+                   is used to specify no bound.
+        x0 : ndarray, shape (dim,)
+            Initial guess. Array of real elements of size (dim,),
+            where 'dim' is the number of independent variables.  
+        input_sigma : float, optional
+            Initial step size.
+        popsize = int, optional
+            CMA-ES population size.
+        max_evaluations : int, optional
+            Forced termination after ``max_evaluations`` function evaluations.
+        workers : int or None, optional
+            If workers > 1, function evaluation is performed in parallel for the whole population. 
+            Useful for costly objective functions but is deactivated for parallel retry.  
+        stop_fitness : float, optional 
+             Limit for fitness value. If reached minimize terminates.
+        rg = numpy.random.Generator, optional
+            Random generator for creating random guesses.
+        runid : int, optional
+            id used by the is_terminate callback to identify the CMA-ES run.     
+        normalize : boolean, optional
+            if true pheno -> geno transformation maps arguments to interval [-1,1]"""
+
+        lower, upper, guess = _get_bounds(dim, bounds, x0, rg)      
+        if popsize is None:
+            popsize = 32      
+        if popsize % 2 == 1: # requires even popsize
+            popsize += 1
+        if lower is None:
+            lower = [0]*dim
+            upper = [0]*dim
+        if callable(input_sigma):
+            input_sigma=input_sigma()
+        if np.ndim(input_sigma) > 0:
+            input_sigma = np.mean(input_sigma)   
+        array_type = ct.c_double * dim   
+        try:
+            self.ptr = initCRFMNES_C(runid, dim, array_type(*guess), 
+                           array_type(*lower), array_type(*upper), 
+                    input_sigma, popsize, int(rg.uniform(0, 2**32 - 1)), penalty_coef, 
+                    use_constraint_violation, normalize)
+            self.popsize = popsize
+            self.dim = dim            
+        except Exception as ex:
+            print (ex)
+            pass
+    
+    def __del__(self):
+        destroyCRFMNES_C(self.ptr)
+            
+    def ask(self):
+        try:
+            lamb = self.popsize
+            n = self.dim
+            res = np.empty(lamb*n)
+            res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
+            askCRFMNES_C(self.ptr, res_p)
+            xs = np.empty((lamb, n))
+            for p in range(self.popsize):
+                xs[p,:] = res[p*n : (p+1)*n]
+            return xs
+        except Exception as ex:
+            print (ex)
+            return None
+
+    def tell(self, ys): # , xs):
+        try:
+            # flat_xs = xs.flatten()
+            # array_type_xs = ct.c_double * len(flat_xs)
+            array_type_ys = ct.c_double * len(ys)
+            return tellCRFMNES_C(self.ptr, array_type_ys(*ys))
+        except Exception as ex:
+            print (ex)
+            return -1        
+
+    def population(self):
+        try:
+            lamb = self.popsize
+            n = self.dim
+            res = np.empty(lamb*n)
+            res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
+            populationCRFMNES_C(self.ptr, res_p)
+            xs = np.array(lamb, n)
+            for p in range(self.popsize):
+                xs[p] = res[p*n : (p+1)*n]
+                return xs
+        except Exception as ex:
+            print (ex)
+            return None
+
+initCRFMNES_C = libcmalib.initCRFMNES_C
+initCRFMNES_C.argtypes = [ct.c_long, ct.c_int, \
+            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+            ct.c_double, ct.c_int,
+            ct.c_long, ct.c_double, 
+            ct.c_bool, ct.c_bool]
+
+initCRFMNES_C.restype = ct.c_void_p   
+
+destroyCRFMNES_C = libcmalib.destroyCRFMNES_C
+destroyCRFMNES_C.argtypes = [ct.c_void_p]
+
+askCRFMNES_C = libcmalib.askCRFMNES_C
+askCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+
+tellCRFMNES_C = libcmalib.tellCRFMNES_C
+tellCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+tellCRFMNES_C.restype = ct.c_int
+
+populationCRFMNES_C = libcmalib.populationCRFMNES_C
+populationCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+

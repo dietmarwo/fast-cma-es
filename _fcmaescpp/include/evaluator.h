@@ -77,7 +77,7 @@ typedef Eigen::Matrix<int, Eigen::Dynamic, Eigen::Dynamic> imat;
 
 typedef bool (*callback_type)(int, const double*, double*);
 
-typedef void (*callback_parallel)(int, int, double[], double[]);
+typedef void (*callback_parallel)(int, int, double*, double*);
 
 static std::uniform_real_distribution<> distr_01 = std::uniform_real_distribution<>(
         0, 1);
@@ -377,7 +377,7 @@ public:
         int n = popX.rows();
         double pargs[popsize * n];
         double res[popsize];
-        for (int p = 0; p < popX.cols(); p++) {
+        for (int p = 0; p < popsize; p++) {
             vec x = getClosestFeasible(decode(popX.col(p)));
             for (int i = 0; i < n; i++)
                 pargs[p * n + i] = x(i);
@@ -390,9 +390,11 @@ public:
 
     vec violations(const mat &X, double penalty_coef) {
          vec violations = zeros(X.cols());
-         for (int i = 0; i < X.cols(); i++) {
-             vec x = decode(X.col(i));
-             violations[i] =  penalty_coef * ((_lower - x).cwiseMax(0).sum() + (x - _upper).cwiseMax(0).sum());
+         if (_lower.size() > 0) {
+             for (int i = 0; i < X.cols(); i++) {
+                 vec x = decode(X.col(i));
+                 violations[i] =  penalty_coef * ((_lower - x).cwiseMax(0).sum() + (x - _upper).cwiseMax(0).sum());
+             }
          }
          return violations;
     }

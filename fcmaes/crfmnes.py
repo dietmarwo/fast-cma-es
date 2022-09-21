@@ -4,7 +4,7 @@ import numpy as np
 import os
 from scipy.optimize import OptimizeResult
 from numpy.random import MT19937, Generator
-from fcmaes.evaluator import _check_bounds, _fitness, serial, parallel
+from fcmaes.evaluator import _get_bounds, _fitness, serial, parallel
 
 """ Numpy based implementation of Fast Moving Natural Evolution Strategy 
     for High-Dimensional Problems (CR-FM-NES), see https://arxiv.org/abs/2201.11422 .
@@ -73,34 +73,12 @@ def minimize(fun,
     res : scipy.OptimizeResult
         The optimization result is represented as an ``OptimizeResult`` object"""
 
-    if popsize is None:
-        popsize = 32
-          
-    if popsize % 2 == 1: # requires even popsize
-        popsize += 1
-
-    lower, upper, guess = _check_bounds(bounds, x0, rg) 
-    fun = serial(fun) if (workers is None or workers <= 1) else parallel(fun, workers)  
-    f = _fitness(fun, lower, upper, normalize)      
-    dim = guess.size  
-     
-    sigma = input_sigma
-    if not np.isscalar(sigma):
-        sigma = np.mean(sigma)
-         
-    mean = np.array([f.encode(guess)]).T
-    if options is None:
-        options = {}
-    options['constraint'] = [ [lower[i], upper[i]] for i in range(dim)]
-
-    cr = CRFMNES(dim, f, mean, sigma, popsize, 
-                 max_evaluations, stop_fitness, is_terminate, runid, options)
+    cr = CRFMNES(dim, fun, bounds, x0, input_sigma, popsize, 
+                 max_evaluations, stop_fitness, is_terminate, runid, normalize, options, rg, workers)
     
     cr.optimize()
-    if isinstance(fun, parallel):
-        fun.stop()
 
-    return OptimizeResult(x=f.decode(cr.x_best), fun=cr.f_best, nfev=cr.no_of_evals, 
+    return OptimizeResult(x=cr.f.decode(cr.x_best), fun=cr.f_best, nfev=cr.no_of_evals, 
                           nit=cr.g, status=cr.stop, 
                           success=True)
 
@@ -127,30 +105,59 @@ def sort_indices_by(evals, z):
     return sorted_indices
 
 class CRFMNES:
-    def __init__(self, dim, f, m, sigma, lamb, 
-                 max_evaluations, stop_fitness, is_terminate, 
-                 runid = 0, options = {}, 
-                 randn = np.random.randn, # used for random offspring  
-                 ):
-
+    
+    def __init__(self, 
+                 dim = None, 
+                 fun = None, 
+                 bounds = None,
+                 x0 = None, 
+                 input_sigma = None, 
+                 lamb = 32, 
+                 max_evaluations = 100000, 
+                 stop_fitness = -math.inf, 
+                 is_terminate = None, 
+                 runid = 0, 
+                 normalize = False,
+                 options = {}, 
+                 rg = Generator(MT19937()), 
+                 workers = None): # used for random offspring  ):
+        
+        if lamb is None:
+            lamb = 32         
+        if lamb % 2 == 1: # requires even popsize
+            lamb += 1
+        if dim is None:
+            if not x0 is None: dim = len(x0)
+            else: 
+                if not bounds is None: dim = len(bounds.lb)
+        lower, upper, guess = _get_bounds(dim, bounds, x0, rg) 
+        if fun is None:
+            fun = lambda x: 0
+        self.fun = serial(fun) if (workers is None or workers <= 1) else parallel(fun, workers)  
+        self.f = _fitness(self.fun, lower, upper, normalize)       
         if options is None:
             options = {}
+        if not lower is None:
+            options['constraint'] = [ [lower[i], upper[i]] for i in range(dim)]   
+        self.constraint = options.get('constraint', [[-np.inf, np.inf] for _ in range(dim)])
         if 'seed' in options.keys():
             np.random.seed(options['seed'])
+        sigma = input_sigma
+        if not np.isscalar(sigma):
+            sigma = np.mean(sigma)         
+        self.m = np.array([self.f.encode(guess)]).T
+
         self.dim = dim
-        self.f = f
-        self.constraint = options.get('constraint', [[-np.inf, np.inf] for _ in range(dim)])
-        self.m = m
         self.sigma = sigma
         self.lamb = lamb
               
         self.max_evaluations = max_evaluations
         self.stop_fitness = stop_fitness
         self.is_terminate = is_terminate
-        self.randn = randn
+        self.rg = rg
         self.runid = runid
 
-        self.v = options.get('v', self.randn(dim, 1) / np.sqrt(dim))
+        self.v = options.get('v', self.rg.normal(0,1,(dim, 1)) / np.sqrt(dim))
         
         self.D = np.ones([dim, 1])
         self.penalty_coef = options.get('penalty_coef', 1e5)
@@ -192,6 +199,10 @@ class CRFMNES:
         self.f_best = float('inf')
         self.x_best = np.empty(self.dim)
 
+    def __del__(self):
+        if isinstance(self.fun, parallel):
+            self.fun.stop()
+        
     def calc_violations(self, x):
         violations = np.zeros(self.lamb)
         for i in range(self.lamb):
@@ -207,36 +218,41 @@ class CRFMNES:
             if self.stop != 0:
                 break
             try:
-                _ = self.one_iteration()
+                x = self.ask()
+                y = self.f.values(self.f.decode(self.f.closestFeasible(x)))
+                self.tell(y)
+                if self.stop != 0:
+                    break 
             except Exception as ex:
                 self.stop = -1
                 break
 
-    def one_iteration(self):
+    def ask(self):
         d = self.dim
         lamb = self.lamb
-        zhalf = self.randn(d, int(lamb / 2))  # dim x lamb/2
+        zhalf = self.rg.normal(0,1,(d, int(lamb / 2)))  # dim x lamb/2
         self.z[:, self.idxp] = zhalf
         self.z[:, self.idxm] = -zhalf
-        normv = np.linalg.norm(self.v)
-        normv2 = normv ** 2
-        vbar = self.v / normv
-        y = self.z + ((np.sqrt(1 + normv2) - 1) * (vbar @ (vbar.T @ self.z)))
-        x = self.m + (self.sigma * y) * self.D
-        evals_no_sort = self.f.values(self.f.decode(self.f.closestFeasible(x.T)))
+        self.normv = np.linalg.norm(self.v)
+        self.normv2 = self.normv ** 2
+        self.vbar = self.v / self.normv
+        self.y = self.z + ((np.sqrt(1 + self.normv2) - 1) * (self.vbar @ (self.vbar.T @ self.z)))
+        self.x = self.m + (self.sigma * self.y) * self.D
+        return self.x.T
 
-        violations = np.zeros(lamb)
+    def tell(self, evals_no_sort):
+        violations = np.zeros(self.lamb)
         if self.use_constraint_violation:
-            violations = self.calc_violations(x)
+            violations = self.calc_violations(self.x)
             sorted_indices = sort_indices_by(evals_no_sort + violations, self.z)
         else:
             sorted_indices = sort_indices_by(evals_no_sort, self.z)
         best_eval_id = sorted_indices[0]
         f_best = evals_no_sort[best_eval_id]
-        x_best = x[:, best_eval_id]
+        x_best = self.x[:, best_eval_id]
         self.z = self.z[:, sorted_indices]
-        y = y[:, sorted_indices]
-        x = x[:, sorted_indices]
+        y = self.y[:, sorted_indices]
+        x = self.x[:, sorted_indices]
 
         self.no_of_evals += self.lamb
         self.g += 1
@@ -267,24 +283,24 @@ class CRFMNES:
         self.m += self.eta_m * wxm
         # calculate s, t
         # step1
-        normv4 = normv2 ** 2
+        normv4 = self.normv2 ** 2
         exY = np.append(y, self.pc / self.D, axis=1)  # dim x lamb+1
         yy = exY * exY  # dim x lamb+1
-        ip_yvbar = vbar.T @ exY
-        yvbar = exY * vbar  # dim x lamb+1. exYのそれぞれの列にvbarがかかる
-        gammav = 1. + normv2
-        vbarbar = vbar * vbar
+        ip_yvbar = self.vbar.T @ exY
+        yvbar = exY * self.vbar  # dim x lamb+1. exYのそれぞれの列にvbarがかかる
+        gammav = 1. + self.normv2
+        vbarbar = self.vbar * self.vbar
         alphavd = np.min(
-            [1, np.sqrt(normv4 + (2 * gammav - np.sqrt(gammav)) / np.max(vbarbar)) / (2 + normv2)])  # scalar
+            [1, np.sqrt(normv4 + (2 * gammav - np.sqrt(gammav)) / np.max(vbarbar)) / (2 + self.normv2)])  # scalar
         
-        t = exY * ip_yvbar - vbar * (ip_yvbar ** 2 + gammav) / 2  # dim x lamb+1
+        t = exY * ip_yvbar - self.vbar * (ip_yvbar ** 2 + gammav) / 2  # dim x lamb+1
         b = -(1 - alphavd ** 2) * normv4 / gammav + 2 * alphavd ** 2
         H = np.ones([self.dim, 1]) * 2 - (b + 2 * alphavd ** 2) * vbarbar  # dim x 1
         invH = H ** (-1)
-        s_step1 = yy - normv2 / gammav * (yvbar * ip_yvbar) - np.ones([self.dim, self.lamb + 1])  # dim x lamb+1
-        ip_vbart = vbar.T @ t  # 1 x lamb+1
+        s_step1 = yy - self.normv2 / gammav * (yvbar * ip_yvbar) - np.ones([self.dim, self.lamb + 1])  # dim x lamb+1
+        ip_vbart = self.vbar.T @ t  # 1 x lamb+1
  
-        s_step2 = s_step1 - alphavd / gammav * ((2 + normv2) * (t * vbar) - normv2 * vbarbar @ ip_vbart)  # dim x lamb+1
+        s_step2 = s_step1 - alphavd / gammav * ((2 + self.normv2) * (t * self.vbar) - self.normv2 * vbarbar @ ip_vbart)  # dim x lamb+1
         invHvbarbar = invH * vbarbar
         ip_s_step2invHvbarbar = invHvbarbar.T @ s_step2  # 1 x lamb+1
         
@@ -294,11 +310,11 @@ class CRFMNES:
         
         s = (s_step2 * invH) - b / div * invHvbarbar @ ip_s_step2invHvbarbar  # dim x lamb+1
         ip_svbarbar = vbarbar.T @ s  # 1 x lamb+1
-        t = t - alphavd * ((2 + normv2) * (s * vbar) - vbar @ ip_svbarbar)  # dim x lamb+1
+        t = t - alphavd * ((2 + self.normv2) * (s * self.vbar) - self.vbar @ ip_svbarbar)  # dim x lamb+1
         # update v, D
         exw = np.append(self.eta_B(lambF) * weights, np.array([self.c1(lambF)]).reshape(1, 1),
                         axis=0)  # lamb+1 x 1
-        self.v = self.v + (t @ exw) / normv
+        self.v = self.v + (t @ exw) / self.normv
         self.D = self.D + (s @ exw) * self.D
         # calculate detA
         if np.amin(self.D) < 0:
@@ -311,10 +327,6 @@ class CRFMNES:
         # update sigma
         G_s = np.sum((self.z * self.z - np.ones([self.dim, self.lamb])) @ weights) / self.dim
         self.sigma = self.sigma * np.exp(eta_sigma / 2 * G_s)
+        return self.stop
 
-        # call is_terminate callback
-        if (not self.is_terminate is None) and \
-                       self.is_terminate(self.runid, self.iterations, self.f_best):
-            self.stop = 7
-        if self.f_best < self.stop_fitness:
-            self.stop = 1
+
