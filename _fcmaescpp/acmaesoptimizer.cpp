@@ -53,8 +53,7 @@ class AcmaesOptimizer {
 
 public:
 
-    AcmaesOptimizer(long runid_, Fitness *fitfun_, FitnessParallel *fitfun_par_,
-            int popsize_, int mu_,
+    AcmaesOptimizer(long runid_, Fitness *fitfun_, int popsize_, int mu_,
             const vec &guess_, const vec &inputSigma_, int maxEvaluations_,
 			double accuracy_, double stopfitness_, double stopTolHistFun_,
             int update_gap_, long seed) {
@@ -62,8 +61,6 @@ public:
         runid = runid_;
         // fitness function to minimize
         fitfun = fitfun_;
-        // fitness function to minimize population in parallel
-        fitfun_par = fitfun_par_;
         // initial guess for the arguments of the fitness function
         guess = guess_;
         // accuracy = 1.0 is default, > 1.0 reduces accuracy
@@ -282,17 +279,31 @@ public:
         mat xs(dim, popsize);
         for (int k = 0; k < popsize; k++) {
             vec delta = (BD * xz.col(k)) * sigma;
-            xs.col(k) = fitfun->getClosestFeasible(xmean + delta);
+            xs.col(k) = fitfun->getClosestFeasibleNormed(xmean + delta);
         }
         return xs;
+    }
+
+    int tell_all(mat ys, mat xs) {
+       told = 0;
+       for (int p = 0; p < popsize; p++)
+           tell(ys(p), xs.col(p));
+       return stop;
+    }
+
+    mat getPopulation() {
+        mat pop(dim, popsize);
+        for (int p = 0; p < popsize; p++)
+            pop.col(p) = fitfun->decode(fitfun->getClosestFeasibleNormed(popX.col(p)));
+        return pop;
     }
 
     vec ask() {
         // ask for one new argument vector.
         vec arz1 = normalVec(dim, *rs);
         vec delta = (BD * arz1) * sigma;
-        vec arx1 = fitfun->getClosestFeasible(xmean + delta);
-        return fitfun->decode(arx1);
+        vec arx1 = fitfun->getClosestFeasibleNormed(xmean + delta);
+        return arx1;
     }
 
     int tell(double y, const vec &x) {
@@ -303,11 +314,11 @@ public:
             arz = mat(dim, popsize);
         }
         fitness[told] = isfinite(y) ? y : DBL_MAX;
-        arx.col(told) = fitfun->encode(x);
+        arx.col(told) = x;
         told++;
 
         if (told >= popsize) {
-            xmean = fitfun->getClosestFeasible(xmean);
+            xmean = fitfun->getClosestFeasibleNormed(xmean);
             try {
                 arz = (BD.inverse()
                         * ((arx - xmean.replicate(1, popsize)) / sigma));
@@ -403,18 +414,18 @@ public:
 
         // -------------------- Generation Loop --------------------------------
         iterations = 0;
-        fitfun_par->resetEvaluations();
-        while (fitfun_par->evaluations() < maxEvaluations && !fitfun_par->terminate()) {
+        fitfun->resetEvaluations();
+        while (fitfun->evaluations() < maxEvaluations && !fitfun->terminate()) {
             // generate and evaluate popsize offspring
             mat xs = ask_all();
             vec ys(popsize);
-            fitfun_par->values(xs, ys); // decodes
+            fitfun->values(xs, ys); // decodes
             for (int k = 0; k < popsize; k++)
-                tell(ys(k), fitfun_par->decode(xs.col(k)));
+                tell(ys(k), xs.col(k)); // tell encoded
             if (stop != 0)
-                return fitfun_par->evaluations();
+                return fitfun->evaluations();
         }
-        return fitfun_par->evaluations();
+        return fitfun->evaluations();
     }
 
     int do_optimize_delayed_update(int workers) {
@@ -425,8 +436,9 @@ public:
 	     // fill eval queue with initial population
     	 for (int i = 0; i < workers; i++) {
     		 vec x = ask();
-    		 eval.evaluate(x, i);
-    		 evals_x[i] = x;
+    		 vec xdec = fitfun->decode(x);
+    		 eval.evaluate(xdec, i);
+    		 evals_x[i] = x; // encoded
     	 }
     	 while (fitfun->evaluations() < maxEvaluations) {
     		 vec_id* vid = eval.result();
@@ -434,7 +446,7 @@ public:
     		 int p = vid->_id;
     		 delete vid;
     		 vec x = evals_x[p];
-    		 tell(y(0), x); // tell evaluated x
+    		 tell(y(0), x); // tell evaluated encoded x
     		 if (fitfun->evaluations() >= maxEvaluations || stop != 0)
     			 break;
     		 x = ask();
@@ -468,10 +480,19 @@ public:
         return dim;
     }
 
+    int getPopsize() {
+        return popsize;
+    }
+
+    Fitness* getFitfunPar() {
+        return fitfun;
+    }
+
+    mat popX;
+
 private:
     long runid;
     Fitness *fitfun;
-    FitnessParallel *fitfun_par;
     vec guess;
     double accuracy;
     int popsize; // population size
@@ -541,13 +562,12 @@ void optimizeACMA_C(long runid, callback_type func, callback_parallel func_par, 
     if (useLimit == false) {
         lower_limit.resize(0);
         upper_limit.resize(0);
+        normalize = false;
     }
-    Fitness fitfun(func, n, 1, lower_limit, upper_limit);
+    Fitness fitfun(func, func_par, n, 1, lower_limit, upper_limit);
     fitfun.setNormalize(normalize);
-    FitnessParallel fitfun_par(func_par, n, lower_limit, upper_limit);
-    fitfun_par.setNormalize(normalize);
 
-    AcmaesOptimizer opt(runid, &fitfun, &fitfun_par, popsize, mu, guess, inputSigma,
+    AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, inputSigma,
             maxEvals, accuracy, stopfitness, stopTolHistFun, update_gap, seed);
     try {
         int evals = 0;
@@ -566,5 +586,85 @@ void optimizeACMA_C(long runid, callback_type func, callback_parallel func_par, 
     } catch (std::exception &e) {
         cout << e.what() << endl;
     }
+}
+
+uintptr_t initACMA_C(long runid, int dim,
+        double *init, double *lower, double *upper, double *sigma,
+        int maxEvals, double stopfitness, double stopTolHistFun, int mu, int popsize, double accuracy,
+        long seed, bool normalize, bool use_delayed_update, int update_gap) {
+
+    int n = dim;
+    vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
+    bool useLimit = false;
+    for (int i = 0; i < n; i++) {
+        guess[i] = init[i];
+        inputSigma[i] = sigma[i];
+        lower_limit[i] = lower[i];
+        upper_limit[i] = upper[i];
+        useLimit |= (lower[i] != 0);
+        useLimit |= (upper[i] != 0);
+    }
+    if (useLimit == false) {
+        lower_limit.resize(0);
+        upper_limit.resize(0);
+    }
+    Fitness* fitfun = new Fitness(noop_callback, noop_callback_par, n, 1, lower_limit, upper_limit); // never used here
+    fitfun->setNormalize(normalize);
+
+    AcmaesOptimizer* opt = new AcmaesOptimizer(runid, fitfun, popsize, mu, guess, inputSigma,
+            maxEvals, accuracy, stopfitness, stopTolHistFun, update_gap, seed);
+    return (uintptr_t) opt;
+}
+
+void destroyACMA_C(uintptr_t ptr) {
+    AcmaesOptimizer* opt = (AcmaesOptimizer*)ptr;
+    Fitness* fitfun = opt->getFitfun();
+    delete fitfun;
+    delete opt;
+}
+
+void askACMA_C(uintptr_t ptr, double* xs) {
+    AcmaesOptimizer *opt = (AcmaesOptimizer*) ptr;
+    int n = opt->getDim();
+    int popsize = opt->getPopsize();
+    opt->popX = opt->ask_all();
+    Fitness* fitfun = opt->getFitfun();
+    for (int p = 0; p < popsize; p++) {
+        vec x = fitfun->decode(fitfun->getClosestFeasibleNormed(opt->popX.col(p)));
+        for (int i = 0; i < n; i++)
+            xs[p * n + i] = x[i];
+    }
+}
+
+int tellACMA_C(uintptr_t ptr, double* ys) {//, double* xs) {
+    AcmaesOptimizer *opt = (AcmaesOptimizer*) ptr;
+    int popsize = opt->getPopsize();
+//    int dim = opt->getDim();
+//    Fitness* fitfun = opt->getFitfun();
+//    mat popX(dim, popsize);
+//    for (int p = 0; p < popsize; p++) {
+//        vec x(dim);
+//        for (int i = 0; i < dim; i++)
+//            x[i] = xs[p * dim + i];
+//        popX.col(p) = fitfun->decode(x);
+//    }
+    vec vals(popsize);
+    for (int i = 0; i < popsize; i++)
+        vals[i] = ys[i];
+    opt->tell_all(vals, opt->popX);
+    return opt->getStop();
+}
+
+int populationACMA_C(uintptr_t ptr, double* xs) {
+    AcmaesOptimizer *opt = (AcmaesOptimizer*) ptr;
+    int dim = opt->getDim();
+    int popsize = opt->getPopsize();
+    mat popX = opt->getPopulation();
+    for (int p = 0; p < popsize; p++) {
+        vec x = popX.col(p);
+        for (int i = 0; i < dim; i++)
+            x[i] = xs[p * dim + i];
+    }
+    return opt->getStop();
 }
 }

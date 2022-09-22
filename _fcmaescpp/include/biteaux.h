@@ -28,7 +28,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * @version 2022.31
+ * @version 2022.32
  */
 
 #ifndef BITEAUX_INCLUDED
@@ -1008,33 +1008,33 @@ public:
 		{
 			CurPopPos++;
 		}
-//		else
-//		{
-//			if( CanRejectCost )
-//			{
-//				// Reject same-cost solution using equality precision level.
-//				// This approach reduces search locality due to allowing older
-//				// solutions to remain in population.
-//
-//				static const double etol = 0x1p-52;
-//				const double c = *getObjPtr( PopParams[ p ]);
-//				const double cd = fabs( UpdCost - c );
-//
-//				if( cd == 0.0 )
-//				{
-//					return( PopSize );
-//				}
-//				else
-//				{
-//					const double cs = fabs( UpdCost ) + fabs( c );
-//
-//					if( cd < cs * etol )
-//					{
-//						return( PopSize );
-//					}
-//				}
-//			}
-//		}
+		// else
+		// {
+			// if( CanRejectCost )
+			// {
+				// // Reject same-cost solution using equality precision level.
+				// // This approach reduces search locality due to allowing older
+				// // solutions to remain in population.
+
+				// static const double etol = 0x1p-52;
+				// const double c = *getObjPtr( PopParams[ p ]);
+				// const double cd = fabs( UpdCost - c );
+
+				// if( cd == 0.0 )
+				// {
+					// return( PopSize );
+				// }
+				// else
+				// {
+					// const double cs = fabs( UpdCost ) + fabs( c );
+
+					// if( cd < cs * etol )
+					// {
+						// return( PopSize );
+					// }
+				// }
+			// }
+		// }
 
 		ptype* const rp = PopParams[ ri ];
 
@@ -1799,7 +1799,7 @@ protected:
 
 			if( v < maxv + dv )
 			{
-				return( maxv - rnd.get() * ( v - dv ));
+				return( maxv - rnd.get() * ( v - maxv ));
 			}
 
 			return( maxv - rnd.get() * dv );

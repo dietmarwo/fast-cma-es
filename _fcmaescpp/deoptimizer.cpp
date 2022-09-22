@@ -376,7 +376,7 @@ void optimizeDE_C(long runid, callback_type func, int dim, int seed,
         isInt[i] = ints[i];
         useIsInt |= ints[i];
     }
-    Fitness fitfun(func, dim, 1, lower_limit, upper_limit);
+    Fitness fitfun(func, noop_callback_par, dim, 1, lower_limit, upper_limit);
     DeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, keep,
             stopfitness, F, CR, min_mutate, max_mutate,
             useIsInt ? isInt : NULL);

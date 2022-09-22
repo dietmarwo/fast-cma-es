@@ -41,7 +41,7 @@ class CrfmnesOptimizer {
 
 public:
 
-    CrfmnesOptimizer(int64_t  runid_, FitnessParallel* fitfun_, int dim_, vec m_, double sigma_, int lamb_,
+    CrfmnesOptimizer(int64_t  runid_, Fitness* fitfun_, int dim_, vec m_, double sigma_, int lamb_,
             int maxEvaluations_, double stopfitness_,
             double penalty_coef_, bool use_constraint_violation_, int64_t  seed) {
 
@@ -129,12 +129,17 @@ public:
         return stop;
     }
 
-    FitnessParallel* getFitfun() {
+    Fitness* getFitfun() {
         return fitfun;
     }
 
     int getDim() {
         return dim;
+    }
+
+
+    int getPopsize() {
+        return lamb;
     }
 
     mat ask() {
@@ -256,11 +261,6 @@ public:
         sigma = sigma * cexp(eta_sigma / 2 * G_s);
     }
 
-    int popsize() {
-        return lamb;
-    }
-
-
 private:
 
     double cexp(double a) { return exp(min(a, 100.0)); } // avoid overflow
@@ -309,7 +309,7 @@ private:
     }
 
     int64_t  runid;
-    FitnessParallel *fitfun;
+    Fitness *fitfun;
     int dim;
     vec m;
     double sigma;
@@ -381,7 +381,7 @@ void optimizeCRFMNES_C(int64_t  runid, callback_parallel func_par, int dim,
         upper_limit.resize(0);
     }
 
-    FitnessParallel fitfun(func_par, n, lower_limit, upper_limit);
+    Fitness fitfun(noop_callback, func_par, n, 1, lower_limit, upper_limit);
     fitfun.setNormalize(normalize);
 
     CrfmnesOptimizer opt(runid, &fitfun, dim, guess, sigma, popsize,
@@ -401,9 +401,6 @@ void optimizeCRFMNES_C(int64_t  runid, callback_parallel func_par, int dim,
     res[n + 3] = opt.getStop();
 }
 
-void noop(int popsize, int dim, double* x, double* y) {
-}
-
 uintptr_t initCRFMNES_C(int64_t  runid, int dim,
         double *init, double *lower, double *upper, double sigma,
         int popsize, int64_t  seed, double penalty_coef, bool use_constraint_violation, bool normalize) {
@@ -421,9 +418,10 @@ uintptr_t initCRFMNES_C(int64_t  runid, int dim,
      if (useLimit == false) {
          lower_limit.resize(0);
          upper_limit.resize(0);
+         normalize = false;
      }
 
-     FitnessParallel* fitfun = new FitnessParallel(noop, n, lower_limit, upper_limit);
+     Fitness* fitfun = new Fitness(noop_callback, noop_callback_par, n, 1, lower_limit, upper_limit);
      fitfun->setNormalize(normalize);
 
      CrfmnesOptimizer* opt = new CrfmnesOptimizer(runid, fitfun, dim, guess, sigma, popsize,
@@ -434,7 +432,7 @@ uintptr_t initCRFMNES_C(int64_t  runid, int dim,
 
 void destroyCRFMNES_C(uintptr_t ptr) {
     CrfmnesOptimizer* opt = (CrfmnesOptimizer*)ptr;
-    FitnessParallel* fitfun = opt->getFitfun();
+    Fitness* fitfun = opt->getFitfun();
     delete fitfun;
     delete opt;
 }
@@ -442,9 +440,9 @@ void destroyCRFMNES_C(uintptr_t ptr) {
 void askCRFMNES_C(uintptr_t ptr, double* xs) {
     CrfmnesOptimizer *opt = (CrfmnesOptimizer*) ptr;
     int n = opt->getDim();
-    int lamb = opt->popsize();
+    int lamb = opt->getPopsize();
     mat popX = opt->ask();
-    FitnessParallel* fitfun = opt->getFitfun();
+    Fitness* fitfun = opt->getFitfun();
     for (int p = 0; p < lamb; p++) {
         vec x = fitfun->getClosestFeasible(fitfun->decode(popX.col(p)));
         for (int i = 0; i < n; i++)
@@ -454,9 +452,9 @@ void askCRFMNES_C(uintptr_t ptr, double* xs) {
 
 int tellCRFMNES_C(uintptr_t ptr, double* ys) {//, double* xs) {
     CrfmnesOptimizer *opt = (CrfmnesOptimizer*) ptr;
-    int lamb = opt->popsize();
+    int lamb = opt->getPopsize();
 //    int dim = opt->getDim();
-//    FitnessParallel* fitfun = opt->getFitfun();
+//    Fitness* fitfun = opt->getFitfun();
 //    mat popX(dim, lamb);
 //    for (int p = 0; p < lamb; p++) {
 //        vec x(dim);
@@ -474,7 +472,7 @@ int tellCRFMNES_C(uintptr_t ptr, double* ys) {//, double* xs) {
 int populationCRFMNES_C(uintptr_t ptr, double* xs) {
     CrfmnesOptimizer *opt = (CrfmnesOptimizer*) ptr;
     int dim = opt->getDim();
-    int lamb = opt->popsize();
+    int lamb = opt->getPopsize();
     mat popX = opt->getPopulation();
     for (int p = 0; p < lamb; p++) {
         vec x = popX.col(p);

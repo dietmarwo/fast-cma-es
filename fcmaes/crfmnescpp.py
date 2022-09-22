@@ -126,27 +126,25 @@ optimizeCRFMNES_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
 class CRFMNES_C:
 
     def __init__(self,
-         dim, 
-         bounds=None, 
-         x0=None, 
-         input_sigma = 0.3, 
-         popsize = 32, 
-         rg = Generator(MT19937()),
-         runid=0,
-         normalize = False,
-         use_constraint_violation = True,
-         penalty_coef = 1E5
-         ):
+        dim, 
+        bounds=None, 
+        x0=None, 
+        input_sigma = 0.3, 
+        popsize = 32, 
+        rg = Generator(MT19937()),
+        runid=0,
+        normalize = False,
+        use_constraint_violation = True,
+        penalty_coef = 1E5
+        ):
        
         """Minimization of a scalar function of one or more variables using a 
         C++ CR-FM-NES implementation called via ctypes.
          
         Parameters
         ----------
-        fun : callable
-            The objective function to be minimized.
-                ``fun(x) -> float``
-            where ``x`` is an 1-D array with shape (dim,)
+        dim : int
+            dimension of the argument of the objective function
         bounds : sequence or `Bounds`, optional
             Bounds on variables. There are two ways to specify the bounds:
                 1. Instance of the `scipy.Bounds` class.
@@ -208,7 +206,7 @@ class CRFMNES_C:
             res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
             askCRFMNES_C(self.ptr, res_p)
             xs = np.empty((lamb, n))
-            for p in range(self.popsize):
+            for p in range(lamb):
                 xs[p,:] = res[p*n : (p+1)*n]
             return xs
         except Exception as ex:
@@ -233,7 +231,7 @@ class CRFMNES_C:
             res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
             populationCRFMNES_C(self.ptr, res_p)
             xs = np.array(lamb, n)
-            for p in range(self.popsize):
+            for p in range(lamb):
                 xs[p] = res[p*n : (p+1)*n]
                 return xs
         except Exception as ex:

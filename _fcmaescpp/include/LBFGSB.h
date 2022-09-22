@@ -21,7 +21,7 @@ namespace LBFGSpp {
 /// L-BFGS-B solver for box-constrained numerical optimization
 ///
 template < typename Scalar,
-template<class> class LineSearch = LineSearchMoreThuente >
+           template<class> class LineSearch = LineSearchMoreThuente >
 class LBFGSBSolver
 {
 private:
@@ -225,7 +225,7 @@ public:
             std::cout << "f(xcp) = " << fcp << ", ||proj_grad|| = " << projgcpnorm << std::endl << std::endl;*/
 
             SubspaceMin<Scalar>::subspace_minimize(m_bfgs, x, xcp, m_grad, lb, ub,
-                    vecc, newact_set, fv_set, m_param.max_submin, m_drt);
+                vecc, newact_set, fv_set, m_param.max_submin, m_drt);
 
             /*Vector gsm(n);
             Scalar fsm = f(x + m_drt, gsm);

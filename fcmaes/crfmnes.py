@@ -298,13 +298,13 @@ class CRFMNES:
         if np.amin(self.D) < 0:
             raise ValueError("D < 0")
 
-        nthrootdetA = np.exp(np.sum(np.log(self.D)) / self.dim + np.log(1 + (self.v.T @ self.v)[0][0]) / (2 * self.dim))
+        nthrootdetA = exp(np.sum(np.log(self.D)) / self.dim + np.log(1 + (self.v.T @ self.v)[0][0]) / (2 * self.dim))
          
         self.D = self.D / nthrootdetA
         
         # update sigma
         G_s = np.sum((self.z * self.z - np.ones([self.dim, self.lamb])) @ weights) / self.dim
-        self.sigma = self.sigma * np.exp(eta_sigma / 2 * G_s)
+        self.sigma = self.sigma * exp(eta_sigma / 2 * G_s)
         return self.stop
 
 def exp(a):

@@ -55,7 +55,7 @@ public:
     MoDeOptimizer(long runid_, Fitness *fitfun_, callback_type log_, int dim_,
             int nobj_, int ncon_, int seed_, int popsize_, int maxEvaluations_,
             double F_, double CR_, double pro_c_, double dis_c_, double pro_m_,
-            double dis_m_, bool nsga_update_, bool switch_nsga_, double pareto_update_,
+            double dis_m_, bool nsga_update_, double pareto_update_,
             double min_mutate_, double max_mutate_,
             int log_period_, bool *isInt_) {
         // runid used to identify a specific run
@@ -109,7 +109,7 @@ public:
         // Indicating which parameters are discrete integer values. If defined these parameters will be
         // rounded to the next integer and some additional mutation of discrete parameters are performed.
         isInt = isInt_;
-        switch_nsga = switch_nsga_;
+        stop = 0;
         init();
     }
 
@@ -186,11 +186,6 @@ public:
             if (iterations % log_period == 0) {
                 if (log(popX.cols(), popX.data(), popY.data()))
                     fitfun->setTerminate();
-            }
-            if (switch_nsga) {
-                nsga_update = !nsga_update;
-                if (nsga_update)
-                    vX = variation(popX(Eigen::indexing::all, Eigen::seqN(0, popsize)));
             }
         }
         if (nsga_update) {
@@ -500,9 +495,38 @@ public:
                 vec x = nextX(p);
                 popX.col(popsize + p) = x;
                 popY.col(popsize + p) = fitfun->eval(x);
+//                std::cout << p << " x " << popX.col(popsize + p).transpose() << std::endl;
+//                std::cout << p << " y " << popY.col(popsize + p).transpose() << std::endl;
             }
             pop_update();
         }
+    }
+
+    mat askAll() {
+       for (int p = 0; p < popsize; p++) {
+           vec x = nextX(p);
+           popX.col(popsize + p) = x;
+       }
+       return popX.rightCols(popsize);
+    }
+
+    int tellAll(mat ys) {
+       for (int p = 0; p < popsize; p++)
+            popY.col(popsize + p) = ys.col(p);
+//            std::cout << p << " x " << popX.col(popsize + p).transpose() << std::endl;
+//            std::cout << p << " y " << ys.col(p).transpose() << std::endl;
+       pop_update();
+       return stop;
+    }
+
+    int tellAll(mat ys, bool nsga_update_, double pareto_update_) {
+        nsga_update = nsga_update_;
+        pareto_update = pareto_update_;
+        return tellAll(ys);
+    }
+
+    mat getPopulation() {
+         return popX;
     }
 
     void do_optimize_delayed_update(int workers) {
@@ -580,6 +604,10 @@ public:
         return ncon;
     }
 
+    int getPopsize() {
+        return popsize;
+    }
+
 private:
     long runid;
     Fitness *fitfun;
@@ -618,7 +646,6 @@ private:
     double max_mutate;
     int log_period;
     bool *isInt;
-    bool switch_nsga;
 };
 }
 
@@ -629,7 +656,7 @@ void optimizeMODE_C(long runid, callback_type func, callback_type log, int dim,
         int nobj, int ncon, int seed, double *lower, double *upper, bool *ints,
         int maxEvals, int popsize, int workers, double F, double CR,
         double pro_c, double dis_c, double pro_m, double dis_m,
-        bool nsga_update, bool switch_nsga, double pareto_update,
+        bool nsga_update, double pareto_update,
         double min_mutate, double max_mutate,
         int log_period, double *res) {
     vec lower_limit(dim), upper_limit(dim);
@@ -641,9 +668,9 @@ void optimizeMODE_C(long runid, callback_type func, callback_type log, int dim,
         isInt[i] = ints[i];
         useIsInt |= ints[i];
     }
-    Fitness fitfun(func, dim, nobj + ncon, lower_limit, upper_limit);
+    Fitness fitfun(func, noop_callback_par, dim, nobj + ncon, lower_limit, upper_limit);
     MoDeOptimizer opt(runid, &fitfun, log, dim, nobj, ncon, seed, popsize,
-            maxEvals, F, CR, pro_c, dis_c, pro_m, dis_m, nsga_update, switch_nsga,
+            maxEvals, F, CR, pro_c, dis_c, pro_m, dis_m, nsga_update,
             pareto_update, min_mutate, max_mutate,
             log_period, useIsInt ? isInt : NULL);
     try {
@@ -656,5 +683,90 @@ void optimizeMODE_C(long runid, callback_type func, callback_type log, int dim,
     } catch (std::exception &e) {
         std::cout << e.what() << std::endl;
     }
+}
+
+uintptr_t initMODE_C(int64_t  runid, int dim,
+       int nobj, int ncon, int seed, double *lower, double *upper, bool *ints,
+       int maxEvals, int popsize, double F, double CR,
+       double pro_c, double dis_c, double pro_m, double dis_m,
+       bool nsga_update, double pareto_update,
+       double min_mutate, double max_mutate) {
+
+    vec lower_limit(dim), upper_limit(dim);
+    bool isInt[dim];
+    bool useIsInt = false;
+    for (int i = 0; i < dim; i++) {
+        lower_limit[i] = lower[i];
+        upper_limit[i] = upper[i];
+        isInt[i] = ints[i];
+        useIsInt |= ints[i];
+    }
+    Fitness* fitfun = new Fitness(noop_callback, noop_callback_par, dim, nobj + ncon, lower_limit, upper_limit);
+    MoDeOptimizer* opt = new MoDeOptimizer(runid, fitfun, noop_callback, dim, nobj, ncon, seed, popsize,
+            maxEvals, F, CR, pro_c, dis_c, pro_m, dis_m, nsga_update,
+            pareto_update, min_mutate, max_mutate,
+            INT_MAX, useIsInt ? isInt : NULL);
+    return (uintptr_t) opt;
+}
+
+void destroyMODE_C(uintptr_t ptr) {
+    MoDeOptimizer* opt = (MoDeOptimizer*)ptr;
+    Fitness* fitfun = opt->getFitfun();
+    delete fitfun;
+    delete opt;
+}
+
+void askMODE_C(uintptr_t ptr, double* xs) {
+    MoDeOptimizer *opt = (MoDeOptimizer*) ptr;
+    int n = opt->getDim();
+    int popsize = opt->getPopsize();
+    mat pop = opt->askAll();
+    Fitness* fitfun = opt->getFitfun();
+    for (int p = 0; p < popsize; p++) {
+        vec x = pop.col(p);
+        for (int i = 0; i < n; i++)
+            xs[p * n + i] = x[i];
+    }
+}
+
+int tellMODE_C(uintptr_t ptr, double* ys) {
+    MoDeOptimizer *opt = (MoDeOptimizer*) ptr;
+    int popsize = opt->getPopsize();
+    int nobj = opt->getNobj();
+    mat vals(nobj, popsize);
+    for (int p = 0; p < popsize; p++) {
+        vec y(nobj);
+        for (int i = 0; i < nobj; i++)
+            y[i] = ys[p * nobj + i];
+        vals.col(p) = y;
+    }
+    return opt->tellAll(vals);
+}
+
+int tellMODE_switchC(uintptr_t ptr, double* ys, bool nsga_update, double pareto_update) {
+    MoDeOptimizer *opt = (MoDeOptimizer*) ptr;
+    int popsize = opt->getPopsize();
+    int nobj = opt->getNobj();
+    mat vals(nobj, popsize);
+    for (int p = 0; p < popsize; p++) {
+        vec y(nobj);
+        for (int i = 0; i < nobj; i++)
+            y[i] = ys[p * nobj + i];
+        vals.col(p) = y;
+    }
+    return opt->tellAll(vals, nsga_update, pareto_update);
+}
+
+int populationMODE_C(uintptr_t ptr, double* xs) {
+    MoDeOptimizer *opt = (MoDeOptimizer*) ptr;
+    int dim = opt->getDim();
+    int lamb = opt->getPopsize();
+    mat popX = opt->getPopulation();
+    for (int p = 0; p < lamb; p++) {
+        vec x = popX.col(p);
+        for (int i = 0; i < dim; i++)
+            x[i] = xs[p * dim + i];
+    }
+    return opt->getStop();
 }
 }

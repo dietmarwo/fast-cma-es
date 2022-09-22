@@ -53,7 +53,7 @@ from fcmaes import mode, moretry
 from fcmaes.mode import _filter
 from numpy.random import Generator, MT19937, SeedSequence
 from fcmaes.optimizer import dtime
-from fcmaes.evaluator import mo_call_back_type, callback_mo, libcmalib
+from fcmaes.evaluator import mo_call_back_type, callback_mo, parallel_mo, libcmalib
 from fcmaes.de import _check_bounds
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
@@ -72,7 +72,6 @@ def minimize(mofun,
              pro_m = 1.0,
              dis_m = 20.0,
              nsga_update = True,
-             switch_nsga = False,
              pareto_update = 0,
              ints = None,
              min_mutate = 0.1,
@@ -134,10 +133,6 @@ def minimize(mofun,
         The log callback is called each log_period iterations. As default the callback is never called.
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
-    logger : logger, optional
-        logger for log output for tell_one, If None, logging
-        is switched off. Default is a logger which logs both to stdout and
-        appends to a file ``optimizer.log``.
     store : result store, optional
         if defined the optimization results are added to the result store. For multi threaded execution.
         use workers=1 if you call minimize from multiple threads
@@ -174,7 +169,7 @@ def minimize(mofun,
                            array_type(*lower), array_type(*upper), bool_array_type(*ints), 
                            max_evaluations, popsize, workers, f, cr, 
                            pro_c, dis_c, pro_m, dis_m,
-                           nsga_update, switch_nsga, pareto_update, min_mutate, max_mutate, 
+                           nsga_update, pareto_update, min_mutate, max_mutate, 
                            log_period, res_p)
         x = np.empty((2*popsize,dim))
         for p in range(2*popsize):
@@ -196,7 +191,6 @@ def retry(mofun,
             max_evaluations = 100000, 
             workers = mp.cpu_count(),
             nsga_update = False,
-            switch_nsga = False,
             pareto_update = 0,
             ints = None,
             logger = None,
@@ -245,7 +239,7 @@ def retry(mofun,
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
            args=(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
-                 max_evaluations, workers, nsga_update, switch_nsga, pareto_update, 
+                 max_evaluations, workers, nsga_update, pareto_update, 
                  is_terminate, store, logger, ints))
                 for pid in range(workers)]
     [p.start() for p in proc]
@@ -256,7 +250,7 @@ def retry(mofun,
     return xs, ys
 
 def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
-                max_evaluations, workers, nsga_update, switch_nsga, pareto_update, 
+                max_evaluations, workers, nsga_update, pareto_update, 
                 is_terminate, store, logger, ints):
     t0 = time.perf_counter()
     num = max(1, num_retries - workers)
@@ -266,7 +260,7 @@ def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize,
                 is_terminate.reinit()
             minimize(mofun, nobj, ncon, bounds, popsize,
                         max_evaluations = max_evaluations, 
-                        nsga_update=nsga_update, switch_nsga=switch_nsga, pareto_update=pareto_update,
+                        nsga_update=nsga_update, pareto_update=pareto_update,
                         workers = 1, rg = rgs[pid], store = store, is_terminate=is_terminate, ints=ints) 
             if not logger is None:
                 logger.info("retries = {0}: time = {1:.1f} i = {2}"
@@ -313,6 +307,193 @@ optimizeMODE_C.argtypes = [ct.c_long, mo_call_back_type, mo_call_back_type, ct.c
             ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
             ct.c_int, ct.c_int, ct.c_int,\
             ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
-            ct.c_bool, ct.c_bool, ct.c_double, ct.c_double, ct.c_double, 
+            ct.c_bool, ct.c_double, ct.c_double, ct.c_double, 
             ct.c_int, ct.POINTER(ct.c_double)]
+
+class MODE_C:
+
+    def __init__(self,
+        nobj, 
+        ncon,
+        bounds,
+        popsize = 64, 
+        max_evaluations = 100000, 
+        #workers = 1,
+        f = 0.5, 
+        cr = 0.9, 
+        pro_c = 1.0,
+        dis_c = 20.0,
+        pro_m = 1.0,
+        dis_m = 20.0,
+        nsga_update = True,
+        pareto_update = 0,
+        ints = None,
+        min_mutate = 0.1,
+        max_mutate = 0.5,           
+        #log_period = 10000000,
+        rg = Generator(MT19937()),
+        #plot_name = None,
+        #store = None,
+        #is_terminate = None,
+        runid=0
+    ):
+       
+        """    Parameters
+        ----------
+        nobj : int
+            number of objectives
+        ncon : int
+            number of constraints, default is 0. 
+            The objective function needs to return vectors of size nobj + ncon
+        bounds : sequence or `Bounds`
+            Bounds on variables. There are two ways to specify the bounds:
+                1. Instance of the `scipy.Bounds` class.
+                2. Sequence of ``(min, max)`` pairs for each element in `x`. None
+                   is used to specify no bound.
+        popsize : int, optional
+            Population size.
+        max_evaluations : int, optional
+            Forced termination after ``max_evaluations`` function evaluations.
+        f = float, optional
+            The mutation constant. In the literature this is also known as differential weight, 
+            being denoted by F. Should be in the range [0, 2], usually leave at default.  
+        cr = float, optional
+            The recombination constant. Should be in the range [0, 1]. 
+            In the literature this is also known as the crossover probability, usually leave at default.     
+        pro_c, dis_c, pro_m, dis_m = float, optional
+            NSGA population update parameters, usually leave at default. 
+        nsga_update = boolean, optional
+            Use of NSGA-II or DE population update. Default is True    
+        pareto_update = float, optional
+            Only applied if nsga_update = False. Favor better solutions for sample generation. Default 0 - 
+            use all population members with the same probability.   
+        ints = list or array of bool, optional
+            indicating which parameters are discrete integer values. If defined these parameters will be
+            rounded to the next integer and some additional mutation of discrete parameters are performed.  
+        min_mutate = float, optional
+            Determines the minimal mutation rate for discrete integer parameters.
+        max_mutate = float, optional
+            Determines the maximal mutation rate for discrete integer parameters.   
+        rg = numpy.random.Generator, optional
+            Random generator for creating random guesses.
+        runid : int, optional
+            id used to identify the run for debugging / logging."""
+
+        dim, lower, upper = _check_bounds(bounds, None)
+        if popsize is None:
+            popsize = 64
+        if popsize % 2 == 1 and nsga_update: # nsga update requires even popsize
+            popsize += 1
+        if lower is None:
+            lower = [0]*dim
+            upper = [0]*dim  
+        if ints is None or nsga_update: # nsga update doesn't support mixed integer
+            ints = [False]*dim   
+        array_type = ct.c_double * dim   
+        bool_array_type = ct.c_bool * dim 
+        seed = int(rg.uniform(0, 2**32 - 1))
+        try:
+            self.ptr = initMODE_C(runid, dim, nobj, ncon, seed,
+                               array_type(*lower), array_type(*upper), bool_array_type(*ints), 
+                               max_evaluations, popsize, f, cr, 
+                               pro_c, dis_c, pro_m, dis_m,
+                               nsga_update, pareto_update, min_mutate, max_mutate)
+            self.popsize = popsize
+            self.dim = dim    
+            self.nobj = nobj  
+            self.ncon = ncon
+            self.bounds = bounds        
+        except Exception as ex:
+            print (ex)
+            pass
+     
+    def __del__(self):
+        destroyMODE_C(self.ptr)
+            
+    def ask(self):
+        try:
+            popsize = self.popsize
+            n = self.dim
+            res = np.empty(popsize*n)
+            res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
+            askMODE_C(self.ptr, res_p)
+            xs = np.empty((popsize, n))
+            for p in range(popsize):
+                xs[p,:] = res[p*n : (p+1)*n]
+            return xs
+        except Exception as ex:
+            print (ex)
+            return None
+
+    def tell(self, ys):
+        try:
+            flat_ys = ys.flatten()
+            array_type_ys = ct.c_double * len(flat_ys)
+            return tellMODE_C(self.ptr, array_type_ys(*flat_ys))
+        except Exception as ex:
+            print (ex)
+            return -1       
+    
+    def tell_switch(self, ys, nsga_update = True, pareto_update = 0):
+        try:
+            flat_ys = ys.flatten()
+            array_type_ys = ct.c_double * len(flat_ys)
+            return tellMODE_switchC(self.ptr, array_type_ys(*flat_ys), nsga_update, pareto_update)
+        except Exception as ex:
+            print (ex)
+            return -1        
+ 
+    def population(self):
+        try:
+            lamb = self.popsize
+            n = self.dim
+            res = np.empty(lamb*n)
+            res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
+            populationMODE_C(self.ptr, res_p)
+            xs = np.array(lamb, n)
+            for p in range(self.popsize):
+                xs[p] = res[p*n : (p+1)*n]
+                return xs
+        except Exception as ex:
+            print (ex)
+            return None
+        
+    def minimize_par(self, fun, max_evaluations = 100000, workers = mp.cpu_count()):
+        fit = parallel_mo(fun, self.nobj, workers)
+        evals = 0
+        stop = 0
+        while stop == 0 and evals < max_evaluations:
+            xs = es.ask()
+            ys = fit(xs)
+            stop = es.tell(ys)
+            evals += self.popsize
+        fit.stop()
+        return xs, ys
+
+initMODE_C = libcmalib.initMODE_C
+initMODE_C.argtypes = [ct.c_long, ct.c_int, ct.c_int, \
+            ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
+            ct.c_int, ct.c_int,\
+            ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
+            ct.c_bool, ct.c_double, ct.c_double, ct.c_double]
+
+initMODE_C.restype = ct.c_void_p   
+
+destroyMODE_C = libcmalib.destroyMODE_C
+destroyMODE_C.argtypes = [ct.c_void_p]
+
+askMODE_C = libcmalib.askMODE_C
+askMODE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+
+tellMODE_C = libcmalib.tellMODE_C
+tellMODE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+tellMODE_C.restype = ct.c_int
+
+tellMODE_switchC = libcmalib.tellMODE_switchC
+tellMODE_switchC.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double), ct.c_bool, ct.c_double]
+tellMODE_switchC.restype = ct.c_int
+
+populationMODE_C = libcmalib.populationMODE_C
+populationMODE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+
 

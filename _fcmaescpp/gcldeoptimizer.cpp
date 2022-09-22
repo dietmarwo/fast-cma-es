@@ -27,7 +27,7 @@ class GclDeOptimizer {
 
 public:
 
-    GclDeOptimizer(long runid_, FitnessParallel *fitfun_, int dim_, int seed_,
+    GclDeOptimizer(long runid_, Fitness *fitfun_, int dim_, int seed_,
             int popsize_, int maxEvaluations_, double pbest_,
             double stopfitness_, double F0_, double CR0_) {
         // runid used to identify a specific run
@@ -178,7 +178,7 @@ public:
 
 private:
     long runid;
-    FitnessParallel *fitfun;
+    Fitness *fitfun;
     int popsize; // population size
     int dim;
     int maxEvaluations;
@@ -219,7 +219,7 @@ void optimizeGCLDE_C(long runid, callback_parallel func_par, int dim,
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
-    FitnessParallel fitfun(func_par, n, lower_limit, upper_limit);
+    Fitness fitfun(noop_callback, func_par, n, 1, lower_limit, upper_limit);
     GclDeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, pbest,
             stopfitness, F0, CR0);
     try {

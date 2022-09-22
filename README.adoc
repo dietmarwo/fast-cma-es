@@ -82,34 +82,18 @@ version. On ubuntu this is:
 - sudo apt update
 - sudo apt install gcc-9
 
-If you have a new anaconda version installed, the required gcc runtime libraries should already be there. 
+* Recommended Python environment: https://repo.anaconda.com/archive/Anaconda3-2022.05-Linux-x86_64.sh[Anaconda3-2022.05] or newer.
 
 ==== Windows
 
 * `pip install fcmaes`
 
-* install {cpp} runtime libraries https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
+* Install {cpp} runtime libraries https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
 
-* install https://docs.epics-controls.org/projects/how-tos/en/latest/getting-started/installation-windows-msys2.html[MSYS2] using mingw-64:
+* Recommended Python environment: https://repo.anaconda.com/archive/Anaconda3-2022.05-Windows-x86_64.exe[Anaconda3-2022.05] or newer.
 
-- download and install the MSYS2 installer https://www.msys2.org/ . 
-- start a MSYS2 shell then execute:
-- pacman -S mingw-w64-ucrt-x86_64-cmake
-- pacman -S mingw-w64-ucrt-x86_64-gcc
-- pacman -S mingw-w64-ucrt-x86_64-ninja
-- pacman -S mingw-w64-ucrt-x86_64-jemalloc
-- pacman -S mingw-w64-ucrt-x86_64-python
-- pacman -S mingw-w64-ucrt-x86_64-python-pip
-- pacman -S mingw-w64-ucrt-x86_64-python-scipy
-- pacman -S mingw-w64-ucrt-x86_64-python-matplotlib
-- pacman -S mingw-w64-ucrt-x86_64-python-numba
-
-Make sure that the MSYS2 mingw-w64 ucrt binary path is set in your environment. 
-If you have anaconda or other mingw versions installed, make sure there is no path priority issue. 
-For fcmaes it is better to use the MSYS2 python installation. 
-
-Parallel fitness function evaluation works only with the native Python optimizers, not with the {cpp} ones. Use "workers = 1" for the 
-{cpp}-optimizers. Python multiprocessing is currently generally flawed on Windows. 
+For parallel fitness function evaluation use the native Python optimizers
+or the ask/tell interface of the {cpp} ones. Python multiprocessing works better on Linux. 
 To get optimal scaling from parallel retry and parallel function evaluation use:
 
 * Linux subsystem for Windows https://docs.microsoft.com/en-us/windows/wsl/[WSL].
@@ -121,6 +105,8 @@ think about using the fcmaes java port: https://github.com/dietmarwo/fcmaes-java
 ==== MacOS
 
 * `pip install fcmaes`
+
+The {cpp} shared library is outdated, use the native Python optimizers. 
 
 === Usage
 

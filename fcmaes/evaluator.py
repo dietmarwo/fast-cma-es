@@ -30,6 +30,20 @@ def eval_parallel(xs, evaluator):
         i1 = min(popsize, i1 + pipe_limit)
     return ys
         
+def eval_parallel_mo(xs, evaluator, nobj):
+    popsize = len(xs)
+    ys = np.empty((popsize,nobj))
+    pipe_limit = 256
+    i0 = 0
+    i1 = min(popsize, pipe_limit)
+    while True:
+        _eval_parallel_segment(xs, ys, i0, i1, evaluator)
+        if i1 >= popsize:
+            break;
+        i0 += pipe_limit
+        i1 = min(popsize, i1 + pipe_limit)
+    return ys
+        
 class Evaluator(object):
        
     def __init__(self, 
@@ -180,7 +194,20 @@ class parallel(object):
 
     def stop(self):
         self.evaluator.stop()
+
+class parallel_mo(object):
         
+    def __init__(self, fun, nobj, workers = mp.cpu_count()):
+        self.nobj = nobj
+        self.evaluator = Evaluator(fun)
+        self.evaluator.start(workers)
+    
+    def __call__(self, xs):
+        return eval_parallel_mo(xs, self.evaluator, self.nobj)
+
+    def stop(self):
+        self.evaluator.stop()
+
 class callback(object):
     
     def __init__(self, fun):

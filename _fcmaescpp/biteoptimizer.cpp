@@ -139,7 +139,7 @@ void optimizeBite_C(long runid, callback_type func, int dim, int seed,
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
-    Fitness fitfun(func, n, 1, lower_limit, upper_limit);
+    Fitness fitfun(func, noop_callback_par,  n, 1, lower_limit, upper_limit);
     BiteOptimizer opt(runid, &fitfun, dim, init, seed, M, popsize, stall_iterations, maxEvals,
             stopfitness);
 

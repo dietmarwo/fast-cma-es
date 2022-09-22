@@ -137,7 +137,7 @@ void optimizeCsma_C(long runid, callback_type func, int dim, int seed,
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
-    Fitness fitfun(func, dim, 1, lower_limit, upper_limit);
+    Fitness fitfun(func, noop_callback_par, dim, 1, lower_limit, upper_limit);
     CsmaOptimizer opt(runid, &fitfun, dim, init, sigma, seed, popsize, maxEvals,
             stopfitness);
 

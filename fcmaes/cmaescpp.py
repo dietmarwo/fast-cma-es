@@ -15,7 +15,7 @@ import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
-from fcmaes.evaluator import _check_bounds, mo_call_back_type, callback_so, callback_par, call_back_par, parallel, libcmalib
+from fcmaes.evaluator import _check_bounds, _get_bounds, mo_call_back_type, callback_so, callback_par, call_back_par, parallel, libcmalib
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
@@ -137,4 +137,143 @@ optimizeACMA_C.argtypes = [ct.c_long, mo_call_back_type, call_back_par, ct.c_int
             ct.c_double, ct.c_long, ct.c_bool, ct.c_bool, ct.c_int, 
             ct.c_int, ct.POINTER(ct.c_double)]
 
+class ACMA_C:
 
+    def __init__(self,
+        dim, 
+        bounds=None, 
+        x0=None, 
+        input_sigma = 0.3, 
+        popsize = 31, 
+        max_evaluations = 100000, 
+        accuracy = 1.0, 
+        stop_fitness = -math.inf, 
+        stop_hist = None,
+        rg = Generator(MT19937()),
+        runid=0,
+        normalize = True,
+        delayed_update = True,
+        update_gap = None
+     ):
+       
+        """Parameters
+        ----------
+        dim : int
+            dimension of the argument of the objective function
+        bounds : sequence or `Bounds`, optional
+            Bounds on variables. There are two ways to specify the bounds:
+                1. Instance of the `scipy.Bounds` class.
+                2. Sequence of ``(min, max)`` pairs for each element in `x`. None
+                   is used to specify no bound.
+        x0 : ndarray, shape (dim,)
+            Initial guess. Array of real elements of size (dim,),
+            where 'dim' is the number of independent variables.  
+        input_sigma : ndarray, shape (dim,) or scalar
+            Initial step size for each dimension.
+        popsize = int, optional
+            CMA-ES population size.
+        max_evaluations : int, optional
+            Forced termination after ``max_evaluations`` function evaluations.
+        accuracy : float, optional
+            values > 1.0 reduce the accuracy.
+        stop_fitness : float, optional 
+             Limit for fitness value. If reached minimize terminates.
+        stop_hist : float, optional 
+             Set to 0 if you want to prevent premature termination because 
+             there is no progress
+        rg = numpy.random.Generator, optional
+            Random generator for creating random guesses.
+        runid : int, optional
+            id used by the is_terminate callback to identify the CMA-ES run.     
+        normalize : boolean, optional
+            if true pheno -> geno transformation maps arguments to interval [-1,1]
+        delayed_update : boolean, optional
+            if true uses delayed update / C++ parallelism, i false uses Python multithreading
+        update_gap : int, optional
+            number of iterations without distribution update"""
+             
+        lower, upper, guess = _get_bounds(dim, bounds, x0, rg)     
+        if lower is None:
+            lower = [0]*dim
+            upper = [0]*dim
+        mu = int(popsize/2)
+        if callable(input_sigma):
+            input_sigma=input_sigma()
+        if np.ndim(input_sigma) == 0:
+            input_sigma = [input_sigma] * dim
+        if stop_hist is None:
+            stop_hist = -1;
+        array_type = ct.c_double * dim 
+        try:
+            self.ptr = initACMA_C(runid,
+                dim, array_type(*guess), array_type(*lower), array_type(*upper), 
+                array_type(*input_sigma), max_evaluations, stop_fitness, stop_hist, mu, 
+                popsize, accuracy, int(rg.uniform(0, 2**32 - 1)), 
+                normalize, delayed_update, -1 if update_gap is None else update_gap)
+            self.popsize = popsize
+            self.dim = dim            
+        except Exception as ex:
+            print (ex)
+            pass
+    
+    def __del__(self):
+        destroyACMA_C(self.ptr)
+            
+    def ask(self):
+        try:
+            popsize = self.popsize
+            n = self.dim
+            res = np.empty(popsize*n)
+            res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
+            askACMA_C(self.ptr, res_p)
+            xs = np.empty((popsize, n))
+            for p in range(popsize):
+                xs[p,:] = res[p*n : (p+1)*n]
+            return xs
+        except Exception as ex:
+            print (ex)
+            return None
+
+    def tell(self, ys): # , xs):
+        try:
+            array_type_ys = ct.c_double * len(ys)
+            return tellACMA_C(self.ptr, array_type_ys(*ys))
+        except Exception as ex:
+            print (ex)
+            return -1        
+
+    def population(self):
+        try:
+            popsize = self.popsize
+            n = self.dim
+            res = np.empty(popsize*n)
+            res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
+            populationACMA_C(self.ptr, res_p)
+            xs = np.array(popsize, n)
+            for p in range(popsize):
+                xs[p] = res[p*n : (p+1)*n]
+                return xs
+        except Exception as ex:
+            print (ex)
+            return None
+
+initACMA_C = libcmalib.initACMA_C
+initACMA_C.argtypes = [ct.c_long, ct.c_int, \
+            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+            ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_double, ct.c_int, 
+            ct.c_int, ct.c_double, ct.c_long, ct.c_bool, ct.c_bool, ct.c_int]
+                
+initACMA_C.restype = ct.c_void_p   
+
+destroyACMA_C = libcmalib.destroyACMA_C
+destroyACMA_C.argtypes = [ct.c_void_p]
+
+askACMA_C = libcmalib.askACMA_C
+askACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+
+tellACMA_C = libcmalib.tellACMA_C
+tellACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+tellACMA_C.restype = ct.c_int
+
+populationACMA_C = libcmalib.populationACMA_C
+populationACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
