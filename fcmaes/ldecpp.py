@@ -110,7 +110,7 @@ def minimize(fun,
         input_sigma = [input_sigma] * dim  
     array_type = ct.c_double * dim   
     bool_array_type = ct.c_bool * dim 
-    c_callback = mo_call_back_type(callback_so(fun))
+    c_callback = mo_call_back_type(callback_so(fun, dim))
     seed = int(rg.uniform(0, 2**32 - 1))
     res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
@@ -136,4 +136,4 @@ optimizeLDE_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int,
             ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
             ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
             ct.POINTER(ct.c_bool), ct.POINTER(ct.c_double)]
-     
+
