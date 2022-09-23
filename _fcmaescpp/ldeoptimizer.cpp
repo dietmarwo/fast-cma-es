@@ -25,7 +25,7 @@ typedef Eigen::Matrix<double, Eigen::Dynamic, 1> vec;
 typedef Eigen::Matrix<int, Eigen::Dynamic, 1> ivec;
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> mat;
 
-typedef double (*callback_type)(int, const double*);
+typedef bool (*callback_type)(int, const double*, double*);
 
 namespace l_differential_evolution {
 
@@ -170,10 +170,15 @@ public:
     }
 
     double eval(const vec &X) {
-        int n = X.size();
-        double res = func(n, X.data());
+        int nobj = 1;
+        double res[nobj];
+        func(dim, X.data(), res);
+        for (int i = 0; i < nobj; i++) {
+            if (std::isnan(res[i]) || !std::isfinite(res[i]))
+                res[i] = 1E99;
+        }
         evaluationCounter++;
-        return res;
+        return res[0];
     }
 
     int getEvaluations() {
