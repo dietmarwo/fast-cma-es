@@ -251,9 +251,11 @@ public:
         D = D.array() + (s * exw).array() * D.array();
 
         // calculate detA
-        if (D.minCoeff() < 0)
-            throw std::invalid_argument( "D < 0" );
-
+        if (D.minCoeff() < 0) {
+            //throw std::invalid_argument( "D < 0" );
+            stop = -1;
+            return;
+        }
         double nthrootdetA = cexp(D.array().log().sum() / dim + log(1 + (v.transpose() * v)(0,0)) / (2 * dim));
         D = D.array() / nthrootdetA;
         // update sigma
