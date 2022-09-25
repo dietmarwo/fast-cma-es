@@ -154,15 +154,15 @@ class CRFMNES:
         self.ps = np.zeros([self.dim, 1])
         # distance weight parameter
         self.h_inv = get_h_inv(self.dim)
-        self.alpha_dist = lambda lambF: self.h_inv * min(1., math.sqrt(float(self.lamb) / self.dim)) * math.sqrt(
-            float(lambF) / self.lamb)
+        self.alpha_dist = lambda lambF: self.h_inv * min(1., math.sqrt(self.lamb / self.dim)) * math.sqrt(
+            lambF / self.lamb)
         self.w_dist_hat = lambda z, lambF: exp(self.alpha_dist(lambF) * np.linalg.norm(z))
         # learning rate
         self.eta_m = 1.0
         self.eta_move_sigma = 1.
         self.eta_stag_sigma = lambda lambF: math.tanh((0.024 * lambF + 0.7 * self.dim + 20.) / (self.dim + 12.))
         self.eta_conv_sigma = lambda lambF: 2. * math.tanh((0.025 * lambF + 0.75 * self.dim + 10.) / (self.dim + 4.))
-        self.c1 = lambda lambF: self.c1_cma * (self.dim - 5) / 6 * (float(lambF) / self.lamb)
+        self.c1 = lambda lambF: self.c1_cma * (self.dim - 5) / 6 * (lambF / self.lamb)
         self.eta_B = lambda lambF: np.tanh((min(0.02 * lambF, 3 * np.log(self.dim)) + 5) / (0.23 * self.dim + 25))
 
         self.g = 0
@@ -247,9 +247,8 @@ class CRFMNES:
         self.ps = (1 - self.cs) * self.ps + np.sqrt(self.cs * (2. - self.cs) * self.mueff) * (self.z @ self.w_rank)
         ps_norm = np.linalg.norm(self.ps)
         # distance weight
-        w_tmp = np.array(
-            [self.w_rank_hat[i] * self.w_dist_hat(np.array(self.z[:, i]), lambF) for i in range(self.lamb)]).reshape(
-            self.lamb, 1)
+        f1 =  self.h_inv * min(1., math.sqrt(self.lamb / dim)) * math.sqrt(lambF / self.lamb)        
+        w_tmp = self.w_rank_hat * np.exp(np.linalg.norm(self.z, axis = 0) * f1).reshape((self.lamb,1))
         weights_dist = w_tmp / sum(w_tmp) - 1. / self.lamb
         # switching weights and learning rate
         weights = weights_dist if ps_norm >= self.chiN else self.w_rank
@@ -268,8 +267,7 @@ class CRFMNES:
         yvbar = exY * self.vbar  # dim x lamb+1. exYのそれぞれの列にvbarがかかる
         gammav = 1. + self.normv2
         vbarbar = self.vbar * self.vbar
-        alphavd = np.min(
-            [1, np.sqrt(normv4 + (2 * gammav - np.sqrt(gammav)) / np.max(vbarbar)) / (2 + self.normv2)])  # scalar
+        alphavd = min(1, np.sqrt(normv4 + (2 * gammav - np.sqrt(gammav)) / np.max(vbarbar)) / (2 + self.normv2))  # scalar
         
         t = exY * ip_yvbar - self.vbar * (ip_yvbar ** 2 + gammav) / 2  # dim x lamb+1
         b = -(1 - alphavd ** 2) * normv4 / gammav + 2 * alphavd ** 2
@@ -284,7 +282,7 @@ class CRFMNES:
         
         div = 1 + b * vbarbar.T @ invHvbarbar
         if np.amin(abs(div)) == 0:
-            raise ValueError("div")
+            return -1
         
         s = (s_step2 * invH) - b / div * invHvbarbar @ ip_s_step2invHvbarbar  # dim x lamb+1
         ip_svbarbar = vbarbar.T @ s  # 1 x lamb+1
@@ -296,7 +294,7 @@ class CRFMNES:
         self.D = self.D + (s @ exw) * self.D
         # calculate detA
         if np.amin(self.D) < 0:
-            raise ValueError("D < 0")
+            return -1
 
         nthrootdetA = exp(np.sum(np.log(self.D)) / self.dim + np.log(1 + (self.v.T @ self.v)[0][0]) / (2 * self.dim))
          
