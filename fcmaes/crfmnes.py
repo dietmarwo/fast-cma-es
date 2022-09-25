@@ -73,8 +73,8 @@ def minimize(fun,
     res : scipy.OptimizeResult
         The optimization result is represented as an ``OptimizeResult`` object"""
 
-    cr = CRFMNES(dim, fun, bounds, x0, input_sigma, popsize, 
-                 max_evaluations, stop_fitness, is_terminate, runid, normalize, options, rg, workers)
+    cr = CRFMNES(dim, bounds, x0, input_sigma, popsize, 
+                 max_evaluations, stop_fitness, is_terminate, runid, normalize, options, rg, workers, fun)
     
     cr.optimize()
 
@@ -86,7 +86,6 @@ class CRFMNES:
     
     def __init__(self, 
                  dim = None, 
-                 fun = None, 
                  bounds = None,
                  x0 = None, 
                  input_sigma = None, 
@@ -98,7 +97,8 @@ class CRFMNES:
                  normalize = False,
                  options = {}, 
                  rg = Generator(MT19937()), 
-                 workers = None): # used for random offspring  ):
+                 workers = None, 
+                 fun = lambda x: 0): # used for random offspring  ):
         
         if lamb is None:
             lamb = 32         
@@ -109,8 +109,6 @@ class CRFMNES:
             else: 
                 if not bounds is None: dim = len(bounds.lb)
         lower, upper, guess = _get_bounds(dim, bounds, x0, rg) 
-        if fun is None:
-            fun = lambda x: 0
         self.fun = serial(fun) if (workers is None or workers <= 1) else parallel(fun, workers)  
         self.f = _fitness(self.fun, lower, upper, normalize)       
         if options is None:
