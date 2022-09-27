@@ -67,6 +67,7 @@ image::logo.gif[]
 
 ==== Machine Learning
 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/EvoJax.adoc[EvoJax] Hardware-Accelerated Neuroevolution.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/HyperparameterOptimization.adoc[Hyper Parameters] Hyper parameter optimization.
 
 ==== Miscellaneous 
