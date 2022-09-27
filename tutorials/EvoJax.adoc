@@ -124,6 +124,7 @@ Note that for OpenES there is no more improvement until 3000 iterations where fo
 === Summary
 
 All measured task show quite consistent results:
+
 - PGPE is slightly superior for lower optimization budgets and proves that JAX-based optimization algorithms can be very competitive in the machine learning domain. 
 - FCRFMC shows the highest improvement rate for increasing optimization budget and may be an alternative for even more complex tasks. Note that this CR-FM-NES implementation, 
 despite being single CPU-threaded and using very low CPU/GPU/TPU resources is quite competitive. The overhead transferring data between CPU and GPU/TPU seems not being a decisive disadvantage. 
