@@ -121,6 +121,12 @@ Our waterworld results after 1000 iterations are in general significantly higher
 but the distance between the algorithms is quite consistent. Again we see PGPE in the lead, caught in the end by FCRFMC. OpenES performs strongly and CMA_ES_JAX is lagging behind. 
 Note that for OpenES there is no more improvement until 3000 iterations where for PGPE and FCRFMC the score is still growing. 
 
+=== Slimevolley
+
+image::slimevolley_EvoJax_Benchmark_Score.png[]
+
+This final benchmark is clearly dominated by CR-FM-NES, even OpenES can finally surpass PGPE.
+
 === Summary
 
 All measured task show quite consistent results:
