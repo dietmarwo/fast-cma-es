@@ -35,9 +35,8 @@ by fcmaes makes no sense here, since the GPU/TPU resources are the bottleneck. I
 which should be parallelized. We noticed that here the fcmaes Python implementation of CMA-ES is much faster than its {cpp} counterpart, since numpy parallelizes its matrix operations. And https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[cma_jax.py] again is much faster than any fcmaes CMA-ES implementation.    
 
 - CMA-ES has not only performance issues, it may converge slower in case of dependencies between decision variables.
-- Other algorithms may perform well on a CPU, specially if implemented in {cpp}, and even improve the convergence. 
 
-But fcmaes provides one algorithms specialized for high dimensional problems: CR-FM-NES, which we will compare with the other 
+fcmaes provides one algorithm specialized for high dimensional problems: CR-FM-NES. We will compare this algorithm with other 
 EvoJax https://github.com/google/evojax/blob/main/evojax/algo[algorithms].
 
 All CPU based algorithms have a disadvantage: The argument and result vectors need to be transferred between CPU and GPU/TPU which causes an overhead. We need concrete experiments to evaluate this overhead in detail. 
