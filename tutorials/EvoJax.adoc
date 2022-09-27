@@ -129,7 +129,7 @@ This final benchmark is clearly dominated by CR-FM-NES, even OpenES and CMA-ES c
 
 === Summary
 
-All measured task show quite consistent results:
+All measured tasks show consistent results:
 
 - PGPE is slightly superior for lower optimization budgets and proves that JAX-based optimization algorithms can be very competitive in the machine learning domain. 
 - FCRFMC shows the highest improvement rate for increasing optimization budget and may be an alternative for even more complex tasks. Note that this CR-FM-NES implementation, 
