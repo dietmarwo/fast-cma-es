@@ -61,10 +61,10 @@ Note that
 
 - Our results are partly inconsistent with the ones reported in 
 https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks] even if you compare only
-the score after n iterations (so this should be independent from the used hardware). Since our results are better, it may be
+the score after n iterations (should be independent from the used hardware). Since our results are better, it may be
 there are improvements in the problem formulation itself or our hyper-parameter settings were superior. 
 - The benchmarked JAX implementation of https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[CMA-ES] is based on 
-https://github.com/CyberAgentAILab/cmaes/blob/main/cmaes/_cma.py[_cma.py], see https://arxiv.org/abs/1604.00772[1604.00772], is from the
+https://github.com/CyberAgentAILab/cmaes/blob/main/cmaes/_cma.py[_cma.py], see https://arxiv.org/abs/1604.00772[1604.00772]. It is from the
 same author as the original CR-FM-NES: https://github.com/nomuramasahir0[Masahiro Nomura].
 - Our {cpp} https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/crfmnes.cpp[implementation] of  CR-FM-NES, beside adding the ask/tell interface, is
 very close to its Python original.  
