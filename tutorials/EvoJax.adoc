@@ -14,7 +14,7 @@ image::logo.gif[]
 This tutorial
 
 - Shows how to apply fcmaes/CR-FM-NES to train deep neural networks (DNN) for real world https://github.com/google/evojax/tree/main/examples[applications], see also 
-https://cloud.google.com/blog/topics/developers-practitioners/evojax-bringing-power-neuroevolution-solve-your-problems[evojax intro]EvoJax
+https://cloud.google.com/blog/topics/developers-practitioners/evojax-bringing-power-neuroevolution-solve-your-problems[evojax intro].
 - Analyzes whether evojax algorithms should always being implemented using jax. 
 - Compares the performance (wall time per iteration and convergence) with other EvoJax algorithms. 
 
