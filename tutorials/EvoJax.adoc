@@ -44,7 +44,8 @@ All CPU based algorithms have a disadvantage: The argument and result vectors ne
 
 We will show, that the fcmaes {cpp} implementation of CR-FM-NES outperforms most EvoJax https://github.com/google/evojax/blob/main/evojax/algo[algos], at least on our hardware: AMD 5950x CPU and NVIDIA 3090 GPU. This is a typical hardware configuration since the NVIDIA 3090 GPU is very well suited for machine learning because of its 24GB RAM.
 
-Our "jaxified" Python implementation of CR-FM-NES performs similar to the {cpp} implementation. Differences are
+Our "jaxified" Python implementation of CR-FM-NES performs similar to the {cpp} implementation. Differences are:
+
 - The {cpp} implementation uses less GPU/TPU resources.
 - The {cpp} implementation performs better if the EvoJax optimization task is executed only on CPUs. 
 - The {cpp} implementation has higher accuracy (64 bit). For most benchmarks (beside Waterworld MA) we didn't observe
@@ -75,8 +76,7 @@ there are improvements in the problem formulation itself or our hyper-parameter 
 - The benchmarked JAX implementation of https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[CMA-ES] is based on 
 https://github.com/CyberAgentAILab/cmaes/blob/main/cmaes/_cma.py[_cma.py], see https://arxiv.org/abs/1604.00772[1604.00772]. It is from the
 same author as the original CR-FM-NES: https://github.com/nomuramasahir0[Masahiro Nomura].
-- Our {cpp} https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/crfmnes.cpp[implementation] of  CR-FM-NES, beside adding the ask/tell interface, is
-very close to its Python original.  
+- Our {cpp} https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/crfmnes.cpp[implementation] of  CR-FM-NES, beside adding the ask/tell interface, is very close to its Python original.  
 - We performed experiments with both fcmaes CMA-ES implementations: They converge similar to CMA_ES_JAX for high dimensions. Since CMA_ES_JAX is a simpler version of CMA-ES it is both easier to "jaxify" and is slightly faster. 
 
 == Benchmark Results
