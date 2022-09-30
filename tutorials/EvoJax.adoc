@@ -146,7 +146,7 @@ This final benchmark is clearly dominated by CR-FM-NES, even OpenES and CMA-ES c
 
 We further increase the optimization budged for the two waterworld tasks to investigate:
 
-- How far did the results listen in https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks] miss the potential maximal score?
+- How far did the results listed in https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks] miss the potential maximal score?
 - Does the relative maximal scores of the algorithms change if we increase the budget?
 
 ==== Waterworld 
