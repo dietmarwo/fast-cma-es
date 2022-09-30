@@ -140,7 +140,42 @@ of its 64-bit accuracy.
 
 image::slimevolley_EvoJax_Benchmark_Score.png[]
 
-This final benchmark is clearly dominated by CR-FM-NES, even OpenES and CMA-ES can surpass PGPE. Slimevolley has only 323 decision variables, a fraction compared to the other tasks - this is no longer PGPE territory. We expect CR-FM-NES generally being superior for "low" dimensional machine learning tasks. Even CMA-ES is back in the game, since its wall time disadvantage shrinks significantly, specially for its JAX based implementation. But it still trails behind CR-FM-NES. The highest dimensionality where we observed top performance using CMA-ES is https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[multi-UAV task assignment] with 104 parameters.    
+This final benchmark is clearly dominated by CR-FM-NES, even OpenES and CMA-ES can surpass PGPE. Slimevolley has only 323 decision variables, a fraction compared to the other tasks - this is no longer PGPE territory. We expect CR-FM-NES generally being superior for "low" dimensional machine learning tasks. Even CMA-ES is back in the game, since its wall time disadvantage shrinks significantly, specially for its JAX based implementation. But it still trails behind CR-FM-NES. The highest dimensionality where we observed top performance using CMA-ES is https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[multi-UAV task assignment] with 104 parameters.   
+
+=== Increasing the Optimization Budget
+
+We further increase the optimization budged for the two waterworld tasks to investigate:
+
+- How far did the results listen in https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks] miss the potential maximal score?
+- Does the relative maximal scores of the algorithms change if we increase the budget?
+
+==== Waterworld 
+
+image::waterworld_EvoJax_Benchmark_Score384.png[]
+
+We increased the population size to 384 and applied the best algorithms from the first test. Now the best score is 16.0625, 
+a lot better than the 11.64 reported at https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks].
+
+.Score/Time for Waterworld task 
+[width="50%",options="header"]
+|===
+|algorithm |score |time in sec 
+|CRFMNES|16.0625|6948
+|FCRFMC|16.0625|7781
+|PGPE|16.0625|7983
+|===
+
+All algorithms reach the same score, were the Python/JAX implementation of CR-FM-NES is the fastest one beating both its {cpp}-Variant and PGPE. But we see very clearly now, that PGPE is faster in the beginning and CR-FM-NES at the end. Which "screams" for an idea
+successfully applied for other domains using https://github.com/dietmarwo/fast-cma-es[fcmaes]: The application of different algorithms for the same optimization process. We could try to apply PGPE in the first phase and then supply the resulting PGPE population
+(or just the best result so far) to CR-FM-NES. This would imply an extension of the existing solver API to being able to feed a solver with a whole initial population. 
+
+==== Waterworld MA
+
+image::waterworld_ma_EvoJax_Benchmark_Score384.png[]
+
+Population size cannot be changed here, it remains 16. Increasing the budged reveals:
+- A sore of 3.03125 can be reached, far better than what is reported in https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks].
+- No algorithm can compete with PGPE, which was not visible before. 
 
 === Summary
 
