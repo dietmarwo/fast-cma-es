@@ -140,7 +140,7 @@ of its 64-bit accuracy.
 
 image::slimevolley_EvoJax_Benchmark_Score.png[]
 
-This final benchmark is clearly dominated by CR-FM-NES, even OpenES and CMA-ES can surpass PGPE. Slimevolley has only 323 decision variables, a fraction compared to the other tasks - this seems no longer PGPE territory - although PGPE's Waterworld MA results contradict that. We expect CR-FM-NES generally being superior for "low" dimensional machine learning tasks. Even CMA-ES is back in the game, since its wall time disadvantage shrinks significantly, specially for its JAX based implementation. But it still trails behind CR-FM-NES. The highest dimensionality where we observed top performance using CMA-ES is https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[multi-UAV task assignment] with 104 parameters.   
+This final benchmark is clearly dominated by CR-FM-NES, even OpenES and CMA-ES can surpass PGPE. Slimevolley has only 323 decision variables, a fraction compared to the other tasks - this seems no longer PGPE territory - although PGPE's Waterworld MA results contradict that. We expect CR-FM-NES generally being very competitive for "low" dimensional machine learning tasks. Even CMA-ES is back in the game, since its wall time disadvantage shrinks significantly, specially for its JAX based implementation. But it still trails behind CR-FM-NES. The highest dimensionality where we observed top performance using CMA-ES is https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[multi-UAV task assignment] with 104 parameters.   
 
 === Increasing the Optimization Budget
 
