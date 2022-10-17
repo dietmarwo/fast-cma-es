@@ -209,7 +209,7 @@ successfully applied for other domains using https://github.com/dietmarwo/fast-c
 image::waterworld_ma_EvoJax_Benchmark_Score384.png[]
 
 Population size cannot be changed here, it remains 16. Increasing the budged reveals:
-- A sore of 3.03125 can be reached, far better than what is reported in https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks].
+- A score of 3.03125 can be reached, far better than what is reported in https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks].
 - No algorithm can compete with PGPE, which was not visible before. 
 
 === Summary
@@ -217,8 +217,8 @@ Population size cannot be changed here, it remains 16. Increasing the budged rev
 All measured tasks show consistent results:
 
 - PGPE is slightly superior for lower optimization budgets and proves - together with CRFMNES - that JAX-based optimization algorithms are very competitive in the machine learning domain. 
-- FCRFMC/CRFMNES shows the highest improvement rate for increasing optimization budget and may be an alternative for even more complex tasks. Note that FCRFMC, despite being single CPU-threaded and using very low CPU/GPU/TPU resources is quite competitive. The overhead transferring data between CPU and GPU/TPU seems not being a decisive disadvantage. Use FCRFMC ({cpp}) on CPUs and CRFMNES (Python) on 
-GPUs/TPUs, older operating systems or with a lower number of decision variables. 
+- FCRFMC/CRFMNES shows the highest improvement rate for increasing optimization budget and may be an alternative for even more complex tasks. Note that FCRFMC, despite being single CPU-threaded and using very low CPU/GPU/TPU resources is quite competitive. The overhead transferring data between CPU and GPU/TPU seems not being a decisive disadvantage. 
+Use FCRFMC ({cpp}) on CPUs and on older operating systems or with a lower number of decision variables. 
 - CRFMNES, the 'jaxified' Python implementation of CR-FM-NES has no significant wall time disadvantage compared to the {cpp}-version FCRFMC, sometimes it is even faster. The reduced accuracy doesn't harm the convergence. 
 - OpenES is a valid alternative only slightly behind. 
 - CMA_ES_JAX: Although JAX brings CMA-ES the biggest performance boost for all algorithms, CMA_ES_JAX is still lagging behind. The low convergence of CMA-ES for high dimensional problems makes it the worst choice in the machine learning domain. Note that as the name of my library (fcmaes) indicates, I am a big fan of this algorithm for lower dimensions. 
