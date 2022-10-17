@@ -99,15 +99,15 @@ based on a covariance matrix. Full covariance update is expensive, therefore CRF
 diagonal based covariance matrix representation.    
 
 .Algorithm properties 
-[width="60%",options="header"]
+[width="60%",cols="3,^2,^2,^2,^2,^2",options="header"]
 |===
 ||ARS |PGPE |CMA-ES |CRFMNES |FCRFMC    
-|population based on random normal distribution vector^|+^|+^|+^|+^|+
-|symmetric sampling^|+^|+^|-^|+^|+
-|ADAM for mean update^|+^|+^|-^|-^|-
-|distribution shaped by covariance matrix^|-^|-^|+^|+^|+
-|covariance matrix based on diagonal (fast)^|-^|-^|-^|+^|+
-|rank one update only on ridge structures^|-^|-^|-^|+^|+
+|population based on random normal distribution vector|+|+|+|+|+
+|symmetric sampling|+|+|-|+|+
+|ADAM for mean update|+|+|-|-|-
+|distribution shaped by covariance matrix|-|-|+|+|+
+|covariance matrix based on diagonal (fast)|-|-|-|+|+
+|rank one update only on ridge structures|-|-|-|+|+
 |===
 
 Since https://arxiv.org/pdf/1803.07055.pdf[ARS] (Augmented Random Search) is the simplest of all algorithms we additionally show the relative score to
