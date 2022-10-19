@@ -51,11 +51,16 @@ Can also be applied to single-objective problems with constraints. Supports mixe
 - Differential Evolution: Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/de.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/deoptimizer.cpp[C++]. Additional concepts implemented are 
 https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model[temporal locality], stochastic reinitialization of individuals based on their age and oscillating CR/F parameters. Provides an ask/tell interface and supports parallel function evaluation. Supports mixed integer problems (see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] for details)
 
-- CMA-ES: Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[C++]. Provides an ask/tell interface and supports parallel function evaluation.
+- CMA-ES: Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[C++]. Provides an ask/tell interface and supports parallel function evaluation. Good option for low number of decision variables (< 500). 
 
 - CR-FM-NES: Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see 
     https://arxiv.org/abs/2201.11422. Derived from https://github.com/nomuramasahir0/crfmnes .
-Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/crfmnes.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/crfmnes.cpp[C++]. Both implementations provide parallel function evaluation.
+Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/crfmnes.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/crfmnes.cpp[C++]. Both implementations provide parallel function evaluation and an ask/tell interface. Good option for high number of decision variables (> 100). 
+
+- PGPE Parameter Exploring Policy Gradients, see http://mediatum.ub.tum.de/doc/1099128/631352.pdf . 
+Implemented in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/pgpe.cpp[C++]. Provides parallel function evaluation and an ask/tell interface.
+Good option for very high number of decision variables (> 1000) and for machine learning tasks. An equivalent Python implementation can be found at 
+https://github.com/google/evojax/blob/main/evojax/algo/pgpe.py[pgpe.py], use this on GPUs/TPUs.   
 
 - Wrapper for https://github.com/CyberAgentAILab/cmaes[cmaes] which provides different CMA-ES variants implemented in Python like
 separable CMA-ES and CMA-ES with Margin (see https://arxiv.org/abs/2205.13482) which improves support for mixed integer problems. The wrapper additionally supports

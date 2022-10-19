@@ -13,9 +13,10 @@
 
 // Derived from http://cma.gforge.inria.fr/cmaes.m which follows
 // https://www.researchgate.net/publication/227050324_The_CMA_Evolution_Strategy_A_Comparing_Review
-// Requires Eigen version >= 3.3.90 because new slicing capabilities are used, see
+
+// Requires Eigen version >= 3.4 because new slicing capabilities are used, see
 // https://eigen.tuxfamily.org/dox-devel/group__TutorialSlicingIndexing.html
-// requires https://github.com/imneme/pcg-cpp
+// requires https://github.com/bab2min/EigenRand for random number generation.
 
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
@@ -24,7 +25,8 @@
 #include <float.h>
 #include <stdint.h>
 #include <ctime>
-#include "pcg_random.hpp"
+#define EIGEN_VECTORIZE_SSE2
+#include <EigenRand/EigenRand>
 #include "evaluator.h"
 
 using namespace std;
@@ -166,7 +168,7 @@ public:
         // history queue of best values.
         fitnessHistory = vec::Constant(historySize, DBL_MAX);
         fitnessHistory(0) = bestValue;
-        rs = new pcg64(seed);
+        rs = new Eigen::Rand::P8_mt19937_64(seed);
     }
 
     ~AcmaesOptimizer() {
@@ -537,7 +539,7 @@ private:
     vec bestX;
     int stop;
     int told = 0;
-    pcg64 *rs;
+    Eigen::Rand::P8_mt19937_64 *rs;
 };
 }
 
@@ -630,7 +632,7 @@ void askACMA_C(uintptr_t ptr, double* xs) {
     opt->popX = opt->ask_all();
     Fitness* fitfun = opt->getFitfun();
     for (int p = 0; p < popsize; p++) {
-        vec x = fitfun->decode(fitfun->getClosestFeasibleNormed(opt->popX.col(p)));
+        vec x = fitfun->decode(opt->popX.col(p));
         for (int i = 0; i < n; i++)
             xs[p * n + i] = x[i];
     }

@@ -14,7 +14,8 @@
 #include <float.h>
 #include <ctime>
 #include <random>
-#include "pcg_random.hpp"
+#define EIGEN_VECTORIZE_SSE2
+#include <EigenRand/EigenRand>
 #include "evaluator.h"
 
 using namespace std;
@@ -29,7 +30,7 @@ public:
 
     FitnessSigma(callback_parallel func_par_, int dim_, const vec &lower_limit,
             const vec &upper_limit, const vec &guess_, const vec &sigma_,
-            pcg64 &rs_) {
+            Eigen::Rand::P8_mt19937_64 *rs_) {
         func_par = func_par_;
         dim = dim_;
         lower = lower_limit;
@@ -65,20 +66,20 @@ public:
     }
 
     vec normX() {
-        return distr_01(rs) < 0.5 ?
-                getClosestFeasible(normalVec(xmean, sigma0, dim, rs)) :
-                getClosestFeasible(normalVec(xmean, sigma, dim, rs));
+        return distr_01(*rs) < 0.5 ?
+                getClosestFeasible(normalVec(xmean, sigma0, dim, *rs)) :
+                getClosestFeasible(normalVec(xmean, sigma, dim, *rs));
     }
 
     double normXi(int i) {
         double nx;
-        if (distr_01(rs) < 0.5) {
+        if (distr_01(*rs) < 0.5) {
             do {
-                nx = normreal(rs, xmean[i], sigma0[i]);
+                nx = normreal(*rs, xmean[i], sigma0[i]);
             } while (!feasible(i, nx));
         } else {
             do {
-                nx = normreal(rs, xmean[i], sigma[i]);
+                nx = normreal(*rs, xmean[i], sigma[i]);
             } while (!feasible(i, nx));
         }
         return nx;
@@ -114,7 +115,7 @@ public:
         return lower.size() == 0 || (x >= lower[i] && x <= upper[i]);
     }
 
-    vec sample(pcg64 &rs) {
+    vec sample(Eigen::Rand::P8_mt19937_64 &rs) {
         if (lower.size() > 0) {
             vec rv = uniformVec(dim, rs);
             return (rv.array() * scale.array()).matrix() + lower;
@@ -122,7 +123,7 @@ public:
             return normalVec(dim, rs);
     }
 
-    double sample_i(int i, pcg64 &rs) {
+    double sample_i(int i, Eigen::Rand::P8_mt19937_64 &rs) {
         if (lower.size() > 0)
             return lower[i] + scale[i] * distr_01(rs);
         else
@@ -143,7 +144,7 @@ private:
     vec sigma0;
     vec sigma;
     vec maxSigma;
-    pcg64 rs;
+    Eigen::Rand::P8_mt19937_64 *rs;
     long evaluationCounter;
     vec scale;
     vec invScale;
@@ -153,7 +154,7 @@ class LclDeOptimizer {
 
 public:
 
-    LclDeOptimizer(long runid_, FitnessSigma *fitfun_, int dim_, pcg64 *rs_,
+    LclDeOptimizer(long runid_, FitnessSigma *fitfun_, int dim_, Eigen::Rand::P8_mt19937_64 *rs_,
             int popsize_, int maxEvaluations_, double pbest_,
             double stopfitness_, double F0_, double CR0_) {
         // runid used to identify a specific run
@@ -325,7 +326,7 @@ private:
     int stop;
     double F0;
     double CR0;
-    pcg64 *rs;
+    Eigen::Rand::P8_mt19937_64 *rs;
     mat popX;
     vec popY;
     mat nextX;
@@ -358,9 +359,9 @@ void optimizeLCLDE_C(long runid, callback_parallel func_par, int dim,
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
-    pcg64 *rs = new pcg64(seed);
+    Eigen::Rand::P8_mt19937_64 *rs = new Eigen::Rand::P8_mt19937_64(seed);
     FitnessSigma fitfun(func_par, dim, lower_limit, upper_limit, guess, inputSigma,
-            *rs);
+            rs);
     LclDeOptimizer opt(runid, &fitfun, dim, rs, popsize, maxEvals, pbest,
             stopfitness, F0, CR0);
     try {

@@ -7,9 +7,9 @@
 //    for High-Dimensional Problems (CR-FM-NES), see https://arxiv.org/abs/2201.11422 .
 //    Derived from https://github.com/nomuramasahir0/crfmnes .
 //
-// Requires Eigen version >= 3.3.90 because new slicing capabilities are used, see
+// Requires Eigen version >= 3.4 because new slicing capabilities are used, see
 // https://eigen.tuxfamily.org/dox-devel/group__TutorialSlicingIndexing.html
-// requires https://github.com/imneme/pcg-cpp for random number generation.
+// requires https://github.com/bab2min/EigenRand for random number generation.
 
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
@@ -19,7 +19,8 @@
 #include <stdint.h>
 #include <ctime>
 #include <inttypes.h>
-#include "pcg_random.hpp"
+#define EIGEN_VECTORIZE_SSE2
+#include <EigenRand/EigenRand>
 #include "evaluator.h"
 
 using namespace std;
@@ -56,7 +57,7 @@ public:
         stopfitness = stopfitness_;
         penalty_coef = penalty_coef_ > 0 ? penalty_coef_ : 1e5;
         use_constraint_violation = use_constraint_violation_;
-        rs = new pcg64(seed);
+        rs = new Eigen::Rand::P8_mt19937_64(seed);
 
         stop = 0;
         v = normalVec(dim, *rs) / sqrt(dim);
@@ -102,8 +103,6 @@ public:
             } catch (std::exception &e) {
                  stop = -1;
             }
-            if (f_best < stopfitness)
-                stop = 1;
             if (stop != 0)
                 return;
         }
@@ -136,7 +135,6 @@ public:
     int getDim() {
         return dim;
     }
-
 
     int getPopsize() {
         return lamb;
@@ -180,6 +178,8 @@ public:
         if (f_best_ < f_best) {
             f_best = f_best_;
             x_best = fitfun->decode(xs_no_sort.col(best_eval_id));
+            if (f_best < stopfitness)
+                stop = 1;
             //cout << f_best << endl;
         }
         // This operation assumes that if the solution is infeasible, infinity comes in as input.
@@ -318,7 +318,7 @@ private:
     int lamb;
     int mu;
     bool use_constraint_violation;
-    pcg64 *rs;
+    Eigen::Rand::P8_mt19937_64 *rs;
     vec v;
     vec D;
     double penalty_coef;

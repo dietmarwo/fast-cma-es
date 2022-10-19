@@ -12,7 +12,8 @@
 #include <float.h>
 #include <ctime>
 #include <random>
-#include "pcg_random.hpp"
+#define EIGEN_VECTORIZE_SSE2
+#include <EigenRand/EigenRand>
 #include "evaluator.h"
 
 using namespace std;
@@ -48,7 +49,7 @@ public:
         CR0 = CR0_;
         // stop criteria
         stop = 0;
-        rs = new pcg64(seed_);
+        rs = new Eigen::Rand::P8_mt19937_64(seed_);
         init();
     }
 
@@ -190,7 +191,7 @@ private:
     int stop;
     double F0;
     double CR0;
-    pcg64 *rs;
+    Eigen::Rand::P8_mt19937_64 *rs;
     mat popX;
     vec popY;
     mat nextX;

@@ -7,8 +7,11 @@
 // Uses two deviations from the standard DE algorithm:
 // a) temporal locality introduced in 
 // https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model
-// b) reinitialization of individuals based on their age. 
-// requires https://github.com/imneme/pcg-cpp
+// b) reinitialization of individuals based on their age.
+//
+// Requires Eigen version >= 3.4 because new slicing capabilities are used, see
+// https://eigen.tuxfamily.org/dox-devel/group__TutorialSlicingIndexing.html
+// requires https://github.com/bab2min/EigenRand for random number generation.
 //
 // Supports parallel fitness function evaluation. 
 // 
@@ -25,6 +28,7 @@
 // If defined it causes a "special treatment" for discrete variables: They are rounded to the next integer value and
 // there is an additional mutation to avoid getting stuck at local minima.
 
+
 #include <Eigen/Core>
 #include <iostream>
 #include <float.h>
@@ -33,7 +37,8 @@
 #include <random>
 #include <queue>
 #include <tuple>
-#include "pcg_random.hpp"
+#define EIGEN_VECTORIZE_SSE2
+#include <EigenRand/EigenRand>
 #include "evaluator.h"
 
 using namespace std;
@@ -71,7 +76,7 @@ public:
         stop = 0;
         pos = 0;
         //std::random_device rd;
-        rs = new pcg64(seed_);
+        rs = new Eigen::Rand::P8_mt19937_64(seed_);
         // Indicating which parameters are discrete integer values. If defined these parameters will be
         // rounded to the next integer and some additional mutation of discrete parameters are performed.
         isInt = isInt_;
@@ -343,7 +348,7 @@ private:
     double CR0;
     double F;
     double CR;
-    pcg64 *rs;
+    Eigen::Rand::P8_mt19937_64 *rs;
     mat popX;
     mat popX0;
     vec popY;

@@ -3,9 +3,9 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-""" Eigen based implementation of Fast Moving Natural Evolution Strategy 
-    for High-Dimensional Problems (CR-FM-NES), see https://arxiv.org/abs/2201.11422 .
-    Derived from https://github.com/nomuramasahir0/crfmnes .
+"""
+Eigen based implementation of PGPE see http://mediatum.ub.tum.de/doc/1099128/631352.pdf .
+Derived from https://github.com/google/evojax/blob/main/evojax/algo/pgpe.py .
 """
 
 import sys
@@ -22,20 +22,27 @@ os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 def minimize(fun, 
              bounds=None, 
              x0=None, 
-             input_sigma = 0.3, 
+             input_sigma = 0.1, 
              popsize = 32, 
              max_evaluations = 100000, 
              workers = None,
              stop_fitness = -math.inf, 
              rg = Generator(MT19937()),
              runid=0,
-             normalize = False,
-             use_constraint_violation = True,
-             penalty_coef = 1E5
+             normalize = True,
+             lr_decay_steps = 1000,
+             use_ranking = True, 
+             center_learning_rate = 0.15,
+             stdev_learning_rate = 0.1, 
+             stdev_max_change = 0.2, 
+             b1 = 0.9,
+             b2 = 0.999, 
+             eps = 1e-8, 
+             decay_coef = 1.0,   
              ):
        
     """Minimization of a scalar function of one or more variables using a 
-    C++ CR-FM-NES implementation called via ctypes.
+    C++ PGPE implementation called via ctypes.
      
     Parameters
     ----------
@@ -51,7 +58,7 @@ def minimize(fun,
     x0 : ndarray, shape (dim,)
         Initial guess. Array of real elements of size (dim,),
         where 'dim' is the number of independent variables.  
-    input_sigma : float, optional
+    input_sigma : float or np.array, optional
         Initial step size.
     popsize = int, optional
         CMA-ES population size.
@@ -91,19 +98,21 @@ def minimize(fun,
         upper = [0]*dim
     if callable(input_sigma):
         input_sigma=input_sigma()
-    if np.ndim(input_sigma) > 0:
-        input_sigma = np.mean(input_sigma)   
+    if np.ndim(input_sigma) == 0:
+        input_sigma = [input_sigma] * dim 
+    parfun = None if (workers is None or workers <= 1) else parallel(fun, workers)
     array_type = ct.c_double * dim   
-    parfun = None if (workers is None or workers <= 1) else parallel(fun, workers)  
     c_callback_par = call_back_par(callback_par(fun, parfun))
     res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        optimizeCRFMNES_C(runid, c_callback_par, dim, array_type(*guess), 
-                       array_type(*lower), array_type(*upper), 
-                input_sigma, max_evaluations, stop_fitness,
-                popsize, int(rg.uniform(0, 2**32 - 1)), penalty_coef, 
-                use_constraint_violation, normalize, res_p)
+        optimizePGPE_C(runid, c_callback_par, dim, array_type(*guess), 
+                array_type(*lower), array_type(*upper), 
+                array_type(*input_sigma), max_evaluations, stop_fitness,
+                popsize, int(rg.uniform(0, 2**32 - 1)), 
+                lr_decay_steps, use_ranking, center_learning_rate,
+                stdev_learning_rate, stdev_max_change, b1, b2, eps, decay_coef,
+                normalize, res_p)
         x = res[:dim]
         val = res[dim]
         evals = int(res[dim+1])
@@ -116,14 +125,16 @@ def minimize(fun,
         parfun.stop()
     return res
 
-optimizeCRFMNES_C = libcmalib.optimizeCRFMNES_C
-optimizeCRFMNES_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
+optimizePGPE_C = libcmalib.optimizePGPE_C
+optimizePGPE_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.c_double, ct.c_int, ct.c_double, ct.c_int, 
-            ct.c_long, ct.c_double, 
-            ct.c_bool, ct.c_bool, ct.POINTER(ct.c_double)]
+            ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_int, 
+            ct.c_long, ct.c_int, 
+            ct.c_bool, ct.c_double, ct.c_double, ct.c_double, 
+            ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
+            ct.c_bool, ct.POINTER(ct.c_double)]
 
-class CRFMNES_C:
+class PGPE_C:
 
     def __init__(self,
         dim, 
@@ -134,8 +145,15 @@ class CRFMNES_C:
         rg = Generator(MT19937()),
         runid=0,
         normalize = False,
-        use_constraint_violation = True,
-        penalty_coef = 1E5
+        lr_decay_steps = 1000,
+        use_ranking = False, 
+        center_learning_rate = 0.15,
+        stdev_learning_rate = 0.1, 
+        stdev_max_change = 0.2, 
+        b1 = 0.9,
+        b2 = 0.999, 
+        eps = 1e-8, 
+        decay_coef = 1.0, 
         ):
        
         """Minimization of a scalar function of one or more variables using a 
@@ -157,6 +175,13 @@ class CRFMNES_C:
             Initial step size.
         popsize = int, optional
             CMA-ES population size.
+        max_evaluations : int, optional
+            Forced termination after ``max_evaluations`` function evaluations.
+        workers : int or None, optional
+            If workers > 1, function evaluation is performed in parallel for the whole population. 
+            Useful for costly objective functions but is deactivated for parallel retry.  
+        stop_fitness : float, optional 
+             Limit for fitness value. If reached minimize terminates.
         rg = numpy.random.Generator, optional
             Random generator for creating random guesses.
         runid : int, optional
@@ -174,14 +199,16 @@ class CRFMNES_C:
             upper = [0]*dim
         if callable(input_sigma):
             input_sigma=input_sigma()
-        if np.ndim(input_sigma) > 0:
-            input_sigma = np.mean(input_sigma)   
+        if np.ndim(input_sigma) == 0:
+            input_sigma = [input_sigma] * dim 
         array_type = ct.c_double * dim   
         try:
-            self.ptr = initCRFMNES_C(runid, dim, array_type(*guess), 
+            self.ptr = initPGPE_C(runid, dim, array_type(*guess), 
                            array_type(*lower), array_type(*upper), 
-                    input_sigma, popsize, int(rg.uniform(0, 2**32 - 1)), penalty_coef, 
-                    use_constraint_violation, normalize)
+                    array_type(*input_sigma), popsize, int(rg.uniform(0, 2**32 - 1)),
+                    lr_decay_steps, use_ranking, center_learning_rate,
+                    stdev_learning_rate, stdev_max_change, b1, b2, eps, decay_coef, 
+                    normalize)
             self.popsize = popsize
             self.dim = dim            
         except Exception as ex:
@@ -189,7 +216,7 @@ class CRFMNES_C:
             pass
     
     def __del__(self):
-        destroyCRFMNES_C(self.ptr)
+        destroyPGPE_C(self.ptr)
             
     def ask(self):
         try:
@@ -197,7 +224,7 @@ class CRFMNES_C:
             n = self.dim
             res = np.empty(lamb*n)
             res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
-            askCRFMNES_C(self.ptr, res_p)
+            askPGPE_C(self.ptr, res_p)
             xs = np.empty((lamb, n))
             for p in range(lamb):
                 xs[p,:] = res[p*n : (p+1)*n]
@@ -208,10 +235,8 @@ class CRFMNES_C:
 
     def tell(self, ys): # , xs):
         try:
-            # flat_xs = xs.flatten()
-            # array_type_xs = ct.c_double * len(flat_xs)
             array_type_ys = ct.c_double * len(ys)
-            return tellCRFMNES_C(self.ptr, array_type_ys(*ys))
+            return tellPGPE_C(self.ptr, array_type_ys(*ys))
         except Exception as ex:
             print (ex)
             return -1        
@@ -222,7 +247,7 @@ class CRFMNES_C:
             n = self.dim
             res = np.empty(lamb*n)
             res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
-            populationCRFMNES_C(self.ptr, res_p)
+            populationPGPE_C(self.ptr, res_p)
             xs = np.array(lamb, n)
             for p in range(lamb):
                 xs[p] = res[p*n : (p+1)*n]
@@ -230,25 +255,27 @@ class CRFMNES_C:
         except Exception as ex:
             print (ex)
             return None
+            
+initPGPE_C = libcmalib.initPGPE_C
+initPGPE_C.argtypes = [ct.c_long, ct.c_int, ct.POINTER(ct.c_double), 
+            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), 
+            ct.c_int, ct.c_long, ct.c_int, 
+            ct.c_bool, ct.c_double, ct.c_double, ct.c_double, 
+            ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
+            ct.c_bool]
 
-initCRFMNES_C = libcmalib.initCRFMNES_C
-initCRFMNES_C.argtypes = [ct.c_long, ct.c_int, \
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.c_double, ct.c_int,
-            ct.c_long, ct.c_double, 
-            ct.c_bool, ct.c_bool]
+initPGPE_C.restype = ct.c_void_p   
 
-initCRFMNES_C.restype = ct.c_void_p   
+destroyPGPE_C = libcmalib.destroyPGPE_C
+destroyPGPE_C.argtypes = [ct.c_void_p]
 
-destroyCRFMNES_C = libcmalib.destroyCRFMNES_C
-destroyCRFMNES_C.argtypes = [ct.c_void_p]
+askPGPE_C = libcmalib.askPGPE_C
+askPGPE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
 
-askCRFMNES_C = libcmalib.askCRFMNES_C
-askCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+tellPGPE_C = libcmalib.tellPGPE_C
+tellPGPE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+tellPGPE_C.restype = ct.c_int
 
-tellCRFMNES_C = libcmalib.tellCRFMNES_C
-tellCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-tellCRFMNES_C.restype = ct.c_int
+populationPGPE_C = libcmalib.populationPGPE_C
+populationPGPE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
 
-populationCRFMNES_C = libcmalib.populationCRFMNES_C
-populationCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]

@@ -13,7 +13,7 @@ import logging
 import ctypes as ct
 import multiprocessing as mp 
 from fcmaes.evaluator import serial, parallel
-from fcmaes import crfmnes, crfmnescpp, cmaes, de, cmaescpp, decpp, dacpp, gcldecpp, lcldecpp, ldecpp, csmacpp, bitecpp
+from fcmaes import crfmnes, crfmnescpp, pgpecpp, cmaes, de, cmaescpp, decpp, dacpp, gcldecpp, lcldecpp, ldecpp, csmacpp, bitecpp
 
 _logger = None
 
@@ -317,6 +317,30 @@ class Crfmnes_cpp(Optimizer):
 
     def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
         ret = crfmnescpp.minimize(fun, bounds, 
+                self.guess if not self.guess is None else guess,
+                input_sigma = self.sdevs if not self.sdevs is None else sdevs,
+                max_evaluations = self.max_eval_num(store), 
+                popsize=self.popsize, 
+                stop_fitness = self.stop_fitness,
+                rg=rg, runid=self.get_count_runs(store), 
+                workers = self.workers)     
+        return ret.x, ret.fun, ret.nfev
+
+class Pgpe_cpp(Optimizer):
+    """PGPE C++ implementation."""
+    
+    def __init__(self, max_evaluations=50000,
+                 popsize = 640, guess=None, stop_fitness = -math.inf,
+                 sdevs = None, workers = None):        
+        Optimizer.__init__(self, max_evaluations, 'pgpe cpp')
+        self.popsize = popsize
+        self.stop_fitness = stop_fitness
+        self.guess = guess
+        self.sdevs = sdevs
+        self.workers = workers
+
+    def minimize(self, fun, bounds, guess=None, sdevs=0.3, rg=Generator(MT19937()), store=None):
+        ret = pgpecpp.minimize(fun, bounds, 
                 self.guess if not self.guess is None else guess,
                 input_sigma = self.sdevs if not self.sdevs is None else sdevs,
                 max_evaluations = self.max_eval_num(store), 

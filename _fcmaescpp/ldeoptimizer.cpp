@@ -7,17 +7,21 @@
 // Uses two deviations from the standard DE algorithm:
 // a) temporal locality introduced in 
 // https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model
-// b) reinitialization of individuals based on their age. 
-// requires https://github.com/imneme/pcg-cpp
+// b) reinitialization of individuals based on their age.
 // To be used to further optimize a given solution. Initial population is created using a normal distribition
 // with mean=init and sdev=sigma (normalized over the bounds, defined separately for each variable).
+//
+// Requires Eigen version >= 3.4 because new slicing capabilities are used, see
+// https://eigen.tuxfamily.org/dox-devel/group__TutorialSlicingIndexing.html
+// requires https://github.com/bab2min/EigenRand for random number generation.
 
 #include <Eigen/Core>
 #include <iostream>
 #include <float.h>
 #include <ctime>
 #include <random>
-#include "pcg_random.hpp"
+#define EIGEN_VECTORIZE_SSE2
+#include <EigenRand/EigenRand>
 
 using namespace std;
 
@@ -41,45 +45,22 @@ static vec constant(int n, double val) {
     return vec::Constant(n, val);
 }
 
-static Eigen::MatrixXd uniform(int dx, int dy, pcg64 &rs) {
-    return Eigen::MatrixXd::NullaryExpr(dx, dy, [&]() {
-        return distr_01(rs);
-    });
+static Eigen::MatrixXd uniform(int dx, int dy, Eigen::Rand::P8_mt19937_64 &rs) {
+    return Eigen::Rand::uniformReal<mat>(dx, dy, rs);
 }
 
-static Eigen::MatrixXd uniformVec(int dim, pcg64 &rs) {
-    return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
-        return distr_01(rs);
-    });
+static Eigen::MatrixXd uniformVec(int dim, Eigen::Rand::P8_mt19937_64 &rs) {
+    return Eigen::Rand::uniformReal<vec>(dim, 1, rs);
 }
 
-static double normreal(double mean, double sdev, pcg64 &rs) {
+static double normreal(double mean, double sdev, Eigen::Rand::P8_mt19937_64 &rs) {
     return gauss_01(rs) * sdev + mean;
 }
 
-static vec normalVec(const vec &mean, const vec &sdev, int dim, pcg64 &rs) {
-    vec nv = Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
-        return gauss_01(rs);
-    });
+static vec normalVec(const vec &mean, const vec &sdev, int dim, Eigen::Rand::P8_mt19937_64 &rs) {
+    vec nv = Eigen::Rand::normal<vec>(dim, 1, rs);
     return (nv.array() * sdev.array()).matrix() + mean;
 }
-
-static int index_min(vec &v) {
-    double minv = DBL_MAX;
-    int mi = -1;
-    for (int i = 0; i < v.size(); i++) {
-        if (v[i] < minv) {
-            mi = i;
-            minv = v[i];
-        }
-    }
-    return mi;
-}
-
-struct IndexVal {
-    int index;
-    double val;
-};
 
 // wrapper around the fitness function, scales according to boundaries
 
@@ -89,7 +70,7 @@ public:
 
     Fitness(callback_type func_, int dim_, const vec &lower_limit,
             const vec &upper_limit, const vec &guess_, const vec &sigma_,
-            pcg64 &rs_) {
+            Eigen::Rand::P8_mt19937_64 *rs_) {
         func = func_;
         dim = dim_;
         lower = lower_limit;
@@ -124,20 +105,20 @@ public:
     }
 
     vec normX() {
-        return distr_01(rs) < 0.5 ?
-                getClosestFeasible(normalVec(xmean, sigma0, dim, rs)) :
-                getClosestFeasible(normalVec(xmean, sigma, dim, rs));
+        return distr_01(*rs) < 0.5 ?
+                getClosestFeasible(normalVec(xmean, sigma0, dim, *rs)) :
+                getClosestFeasible(normalVec(xmean, sigma, dim, *rs));
     }
 
     double normXi(int i) {
         double nx;
-        if (distr_01(rs) < 0.5) {
+        if (distr_01(*rs) < 0.5) {
             do {
-                nx = normreal(xmean[i], sigma0[i], rs);
+                nx = normreal(xmean[i], sigma0[i], *rs);
             } while (!feasible(i, nx));
         } else {
             do {
-                nx = normreal(xmean[i], sigma[i], rs);
+                nx = normreal(xmean[i], sigma[i], *rs);
             } while (!feasible(i, nx));
         }
         return nx;
@@ -149,7 +130,7 @@ public:
 
     vec sample() {
         if (lower.size() > 0) {
-            vec rv = uniformVec(dim, rs);
+            vec rv = uniformVec(dim, *rs);
             return (rv.array() * scale.array()).matrix() + lower;
         } else
             return normX();
@@ -157,7 +138,7 @@ public:
 
     double sample_i(int i) {
         if (lower.size() > 0)
-            return lower[i] + scale[i] * distr_01(rs);
+            return lower[i] + scale[i] * distr_01(*rs);
         else
             return normXi(i);
     }
@@ -196,7 +177,7 @@ private:
     vec sigma0;
     vec sigma;
     vec maxSigma;
-    pcg64 rs;
+    Eigen::Rand::P8_mt19937_64 *rs;
     long evaluationCounter;
     vec scale;
     vec invScale;
@@ -206,7 +187,7 @@ class LDeOptimizer {
 
 public:
 
-    LDeOptimizer(long runid_, Fitness *fitfun_, int dim_, pcg64 *rs_,
+    LDeOptimizer(long runid_, Fitness *fitfun_, int dim_, Eigen::Rand::P8_mt19937_64 *rs_,
             int popsize_, int maxEvaluations_, double keep_,
             double stopfitness_, double F_, double CR_,
             double min_mutate_, double max_mutate_, bool *isInt_) {
@@ -388,7 +369,7 @@ private:
     int stop;
     double F0;
     double CR0;
-    pcg64 *rs;
+    Eigen::Rand::P8_mt19937_64 *rs;
     mat popX;
     vec popY;
     vec popIter;
@@ -427,8 +408,8 @@ void optimizeLDE_C(long runid, callback_type func, int dim, double *init,
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
-    pcg64 *rs = new pcg64(seed);
-    Fitness fitfun(func, dim, lower_limit, upper_limit, guess, inputSigma, *rs);
+    Eigen::Rand::P8_mt19937_64 *rs = new Eigen::Rand::P8_mt19937_64(seed);
+    Fitness fitfun(func, dim, lower_limit, upper_limit, guess, inputSigma, rs);
     LDeOptimizer opt(runid, &fitfun, dim, rs, popsize, maxEvals, keep,
             stopfitness, F, CR, min_mutate, max_mutate,
             useIsInt ? isInt : NULL);

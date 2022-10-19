@@ -8,7 +8,8 @@
 #include <float.h>
 #include <ctime>
 #include <random>
-#include "pcg_random.hpp"
+#define EIGEN_VECTORIZE_SSE2
+#include <EigenRand/EigenRand>
 #include "biteopt.h"
 #include "evaluator.h"
 
@@ -38,7 +39,7 @@ public:
         // Limit for fitness value.
         stopfitness = stopfitness_;
         //std::random_device rd;
-        rs = new pcg64(seed_);
+        rs = new Eigen::Rand::P8_mt19937_64(seed_);
         // stop criteria
         stop = 0;
 
@@ -114,7 +115,7 @@ private:
     double bestY;
     int stop;
     vec bestX;
-    pcg64 *rs;
+    Eigen::Rand::P8_mt19937_64 *rs;
     CBiteRnd rnd;
 };
 

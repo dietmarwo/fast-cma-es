@@ -6,6 +6,10 @@
 // Eigen based implementation of multi objective
 // Differential Evolution using the DE/all/1 strategy.
 //
+// Requires Eigen version >= 3.4 because new slicing capabilities are used, see
+// https://eigen.tuxfamily.org/dox-devel/group__TutorialSlicingIndexing.html
+// requires https://github.com/bab2min/EigenRand for random number generation.
+//
 // Can switch to NSGA-II like population update via parameter 'nsga_update'.
 // Then it works essentially like NSGA-II but instead of the tournament selection
 // the whole population is sorted and the best individuals survive. To do this
@@ -43,7 +47,8 @@
 #include <random>
 #include <queue>
 #include <tuple>
-#include "pcg_random.hpp"
+#define EIGEN_VECTORIZE_SSE2
+#include <EigenRand/EigenRand>
 #include "evaluator.h"
 
 namespace mode_optimizer {
@@ -84,7 +89,7 @@ public:
         // position of current x/y
         pos = 0;
         //std::random_device rd;
-        rs = new pcg64(seed_);
+        rs = new Eigen::Rand::P8_mt19937_64(seed_);
         // NSGA population update parameters, ignored if nsga_update == false
         // usually use pro_c = 1.0, dis_c = 20.0, pro_m = 1.0, dis_m = 20.0.
         pro_c = pro_c_;
@@ -526,7 +531,7 @@ public:
     }
 
     mat getPopulation() {
-         return popX;
+         return popX.leftCols(popsize);
     }
 
     void do_optimize_delayed_update(int workers) {
@@ -630,7 +635,7 @@ private:
     double dis_c;
     double pro_m;
     double dis_m;
-    pcg64 *rs;
+    Eigen::Rand::P8_mt19937_64 *rs;
     mat popX;
     mat popY;
     mat nX;

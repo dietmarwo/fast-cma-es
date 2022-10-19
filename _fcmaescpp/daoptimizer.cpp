@@ -7,8 +7,7 @@
 // derived from https://github.com/scipy/scipy/blob/master/scipy/optimize/_dual_annealing.py
 // Implementation only differs regarding boundary handling - this implementattion 
 // uses boundary-normalized X values. Local search is fixed to LBFGS-B, see
-// https://github.com/yixuan/LBFGSpp/tree/master/include 
-// requires https://github.com/imneme/pcg-cpp
+// https://github.com/yixuan/LBFGSpp/tree/master/include
 
 #include <Eigen/Core>
 #include <iostream>
@@ -16,7 +15,8 @@
 #include <math.h>
 #include <ctime>
 #include <random>
-#include "pcg_random.hpp"
+#define EIGEN_VECTORIZE_SSE2
+#include <EigenRand/EigenRand>
 #include <LBFGSB.h>
 
 using namespace LBFGSpp;
@@ -42,16 +42,12 @@ static vec zeros(int n) {
     return Eigen::MatrixXd::Zero(n, 1);
 }
 
-static Eigen::MatrixXd normalVec(int dim, pcg64 &rs) {
-    return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
-        return gauss_01(rs);
-    });
+static Eigen::MatrixXd normalVec(int dim, Eigen::Rand::P8_mt19937_64 &rs) {
+    return Eigen::Rand::normal<vec>(dim, 1, rs);
 }
 
-static Eigen::MatrixXd uniformVec(int dim, pcg64 &rs) {
-    return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
-        return distr_01(rs);
-    });
+static Eigen::MatrixXd uniformVec(int dim, Eigen::Rand::P8_mt19937_64 &rs) {
+    return Eigen::Rand::uniformReal<vec>(dim, 1, rs);
 }
 
 static vec emptyVec = { };
@@ -241,7 +237,7 @@ class VisitingDistribution {
 
 public:
 
-    VisitingDistribution(int dim, double visiting_param_, pcg64 *rs_) {
+    VisitingDistribution(int dim, double visiting_param_, Eigen::Rand::P8_mt19937_64 *rs_) {
         _visiting_param = visiting_param_;
         rs = rs_;
 
@@ -255,7 +251,7 @@ public:
         double factor5 = 1.0 / (_visiting_param - 1.0) - 0.5;
         double d1 = 2.0 - factor5;
         _factor6 = M_PI * (1.0 - factor5) / sin(M_PI * (1.0 - factor5))
-                        / exp(lgamma(d1));
+                / exp(lgamma(d1));
     }
 
     vec visiting(const vec &x, int step, double temperature) {
@@ -321,17 +317,17 @@ public:
         x = x
                 * exp(
                         -(_visiting_param - 1.0) * log(_factor6 / factor4)
-                        / (3.0 - _visiting_param));
+                                / (3.0 - _visiting_param));
 
         vec den = expv(
                 logv(y.cwiseAbs() * (_visiting_param - 1.0))
-                / (3.0 - _visiting_param));
+                        / (3.0 - _visiting_param));
         return x.cwiseQuotient(den);
     }
 
 private:
 
-    pcg64 *rs;
+    Eigen::Rand::P8_mt19937_64 *rs;
     double _visiting_param;
     double _factor4_p;
     double _factor6;
@@ -367,7 +363,7 @@ public:
         current_location = { };
     }
 
-    void reset(Fitness *owf, pcg64 *rs, const vec &x0) {
+    void reset(Fitness *owf, Eigen::Rand::P8_mt19937_64 *rs, const vec &x0) {
         if (x0.size() == 0)
             current_location = normalVec(dim, *rs);
         else
@@ -416,7 +412,7 @@ class StrategyChain {
 public:
 
     StrategyChain(double acceptance_param_, VisitingDistribution *vd_,
-            Fitness *ofw_, pcg64 *rs_, EnergyState *state_) {
+            Fitness *ofw_, Eigen::Rand::P8_mt19937_64 *rs_, EnergyState *state_) {
         // Global optimizer state
         state = state_;
         // Local markov chain minimum energy and location
@@ -438,7 +434,7 @@ public:
     void accept_reject(int j, double e, const vec &x_visit) {
         double r = distr_01(*rs);
         double pqv_temp = (acceptance_param - 1.0) * (e - state->current_energy)
-                        / (temperature_step + 1.);
+                / (temperature_step + 1.);
         double pqv = 0;
         if (pqv_temp < 0.)
             pqv = 0.;
@@ -510,7 +506,7 @@ public:
         if (K < 90 * state->current_location.size()) {
             double pls = exp(
                     K * (state->ebest - state->current_energy)
-                    / temperature_step);
+                            / temperature_step);
             if (pls >= distr_01(*rs))
                 do_ls = true;
         }
@@ -541,7 +537,7 @@ private:
     VisitingDistribution *vd;
     int not_improved_idx;
     int not_improved_max_idx;
-    pcg64 *rs;
+    Eigen::Rand::P8_mt19937_64 *rs;
     Fitness *ofw;
     double temperature_step;
     double K;
@@ -563,7 +559,7 @@ public:
         if (x0_.size() > 0 && x0_.size() != owf->lower.size())
             throw sizeeexc;
         //Initialization of RandomState for reproducible runs if seed provided
-        rs = new pcg64(seed_);
+        rs = new Eigen::Rand::P8_mt19937_64(seed_);
         use_local_search = use_local_search_;
         // Initialization of the energy state
         es = new EnergyState(owf->lower.size());
@@ -631,7 +627,7 @@ private:
     // re-annealing temperature_start
     double temperature_restart = 0.1;
     Fitness *owf;
-    pcg64 *rs;
+    Eigen::Rand::P8_mt19937_64 *rs;
     EnergyState *es;
     StrategyChain *sc;
     VisitingDistribution *vd;
