@@ -52,6 +52,8 @@ Our "jaxified" Python implementation of CR-FM-NES performs similar to the {cpp} 
 a significant difference in the optimization results - 32 bits are sufficient in most cases. 
 - The "jaxified" Python implementation may perform better on fast (multi-) GPUs/TPUs if the number of decision variables is very high. 
 
+Additionally a {cpp} implementation of http://mediatum.ub.tum.de/doc/1099128/631352.pdf[PGPE] was added to fcmaes derived from its JAX-based https://github.com/google/evojax/blob/main/evojax/algo/pgpe.py[EvoJax implementation]. Performance difference between these versions are very similar as for CR-FM-NES.
+
 == Implementation
 
 - The wrapper of {cpp}-CR-FM-NES as EvoJax algorithms used for our tests is here: https://github.com/dietmarwo/evojax/blob/ADD_CR_FM_NES_JAX/evojax/algo/fcrfmc.py[fcrfmc.py]. Its implementation was straightforward, it is derived from existing wrappers like https://github.com/google/evojax/blob/main/evojax/algo/cma_wrapper.py[cma_wrapper.py]
