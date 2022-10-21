@@ -107,26 +107,26 @@ based on a covariance matrix. Full covariance update is expensive, therefore CRF
 diagonal based covariance matrix representation.    
 
 .Algorithm properties 
-[width="60%",cols="3,^2,^2,^2,^2,^2",options="header"]
+[width="60%",cols="3,^2,^2,^2,^2,^2,^2",options="header"]
 |===
-||ARS |PGPE |CMA-ES |CRFMNES |FCRFMC    
-|population based on random normal distribution vector|+|+|+|+|+
-|symmetric sampling|+|+|-|+|+
-|ADAM for mean update|+|+|-|-|-
-|distribution shaped by covariance matrix|-|-|+|+|+
-|covariance matrix based on diagonal (fast)|-|-|-|+|+
-|rank one update only on ridge structures|-|-|-|+|+
+||ARS |PGPE |FPGPEC | CMA-ES |CRFMNES |FCRFMC    
+|population based on random normal distribution vector|+|+|+|+|+|+
+|symmetric sampling|+|+|+|-|+|+
+|ADAM for mean update|+|+|+|-|-|-
+|distribution shaped by covariance matrix|-|-|-|+|+|+
+|covariance matrix based on diagonal (fast)|-|-|-|-|+|+
+|rank one update only on ridge structures|-|-|-|-|+|+
 |===
 
 Since https://arxiv.org/pdf/1803.07055.pdf[ARS] (Augmented Random Search) is the simplest of all algorithms we additionally show the relative score to
-ARS_native, its JAX-based implementation. It is interesting that PGPE, which is very similar, and almost as simple as ARS, performs so much better here - 
+ARS_native, its JAX-based implementation. It is interesting that PGPE/FPGPEC, which is very similar, and almost as simple as ARS, performs so much better here - 
 giving the distribution shaping covariance based algorithms a real challenge, not only regarding wall time.   
 
 === Cartpole Easy
 
 image::cartpole_easy_EvoJax_Benchmark_Score.png[]
 
-This benchmark is too easy to derive meaningful conclusions. PGPE and FCRFMC/CRFMNES (our CR-FM-NES wrapper) lead the pack, CMA_ES_JAX 
+This benchmark is too easy to derive meaningful conclusions. PGPE/FPGPEC and FCRFMC/CRFMNES (our CR-FM-NES wrapper) lead the pack, CMA_ES_JAX 
 is very slow on our hardware. The "iterations"-diagram shows that convergence - independent form the used hardware - is also slightly inferior to the other algorithms.  
 
 image::cartpole_easy_EvoJax_Score_relative_to_ARS_native.png[]
@@ -135,7 +135,7 @@ image::cartpole_easy_EvoJax_Score_relative_to_ARS_native.png[]
 
 image::cartpole_hard_EvoJax_Benchmark_Score.png[]
 
-Almost the same result as for Cartpole Easy. PGPE and FCRFMC/CRFMNES in the lead, CMA_ES_JAX lagging behind. 
+Almost the same result as for Cartpole Easy. PGPE/FPGPEC and FCRFMC/CRFMNES in the lead, CMA_ES_JAX lagging behind. 
 All algorithms are > 800 after 1000 iterations, inconsistent with the results reported https://github.com/google/evojax/tree/main/scripts/benchmarks[here].
 
 image::cartpole_hard_EvoJax_Score_relative_to_ARS_native.png[]
@@ -144,7 +144,7 @@ image::cartpole_hard_EvoJax_Score_relative_to_ARS_native.png[]
 
 image::brax_EvoJax_Benchmark_Score.png[]
 
-Again PGPE and FCRFMC/CRFMNES leading the pack. Since this task is more difficult we get a clearer picture: We see PGPE superior in the beginning, but FCRFMC/CRFMNES improves faster
+Again PGPE/FPGPEC and FCRFMC/CRFMNES leading the pack. Since this task is more difficult we get a clearer picture: We see PGPE superior in the beginning, but FCRFMC/CRFMNES improves faster
 and got the lead in the end. Very good performance from OpenES here, CMA_ES_JAX looses again. 
 
 image::brax_EvoJax_Score_relative_to_ARS_native.png[]
@@ -153,7 +153,7 @@ image::brax_EvoJax_Score_relative_to_ARS_native.png[]
 
 image::mnist_EvoJax_Benchmark_Score.png[]
 
-PGPE in the lead, caught in the end by both FCRFMC/CRFMNES and OpenES. CMA_ES_JAX improves slower in later stages, even if we check the hardware independent "iterations"-diagram. 
+PGPE/FPGPEC in the lead, caught in the end by both FCRFMC/CRFMNES and OpenES. CMA_ES_JAX improves slower in later stages, even if we check the hardware independent "iterations"-diagram. 
 
 image::mnist_EvoJax_Score_relative_to_ARS_native.png[]
 
@@ -163,7 +163,7 @@ image::waterworld_EvoJax_Benchmark_Score.png[]
 
 Our waterworld results after 1000 iterations are in general significantly higher than what is reported in https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks],
 but the distance between the algorithms is quite consistent. Again we see PGPE in the lead, caught in the end by FCRFMC/CRFMNES. OpenES performs strongly and CMA_ES_JAX is lagging behind. 
-Note that for OpenES there is no more improvement until 3000 iterations where for PGPE and FCRFMC/CRFMNES the score is still growing. 
+Note that for OpenES there is no more improvement until 3000 iterations where for PGPE/FPGPEC and FCRFMC/CRFMNES the score is still growing. 
 
 image::waterworld_EvoJax_Score_relative_to_ARS_native.png[]
 
@@ -172,7 +172,7 @@ image::waterworld_EvoJax_Score_relative_to_ARS_native.png[]
 image::waterworld_ma_EvoJax_Benchmark_Score.png[]
 
 This benchmark has a very small fixed population size (16). 
-Only PGPE and FCRFMC/CRFMNES are successful. This is the only benchmark where FCRFMC is faster than CRFMNES - may be because
+Only PGPE/FPGPEC and FCRFMC/CRFMNES are successful. This is the only benchmark where FCRFMC is faster than CRFMNES - may be because
 of its 64-bit accuracy. 
 
 image::waterworld_ma_EvoJax_Score_relative_to_ARS_native.png[]
@@ -181,7 +181,7 @@ image::waterworld_ma_EvoJax_Score_relative_to_ARS_native.png[]
 
 image::slimevolley_EvoJax_Benchmark_Score.png[]
 
-This final benchmark is clearly dominated by CR-FM-NES, even OpenES and CMA-ES can surpass PGPE. Slimevolley has only 323 decision variables, a fraction compared to the other tasks - this seems no longer PGPE territory - although PGPE's Waterworld MA results contradict that. We expect CR-FM-NES generally being very competitive for "low" dimensional machine learning tasks. Even CMA-ES is back in the game, since its wall time disadvantage shrinks significantly, specially for its JAX based implementation. But it still trails behind CR-FM-NES. The highest dimensionality where we observed top performance using CMA-ES is https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[multi-UAV task assignment] with 104 parameters.   
+This final benchmark is clearly dominated by CR-FM-NES, even OpenES and CMA-ES can surpass PGPE/FPGPEC. Slimevolley has only 323 decision variables, a fraction compared to the other tasks - this seems no longer PGPE territory - although PGPE's Waterworld MA results contradict that. We expect CR-FM-NES generally being very competitive for "low" dimensional machine learning tasks. Even CMA-ES is back in the game, since its wall time disadvantage shrinks significantly, specially for its JAX based implementation. But it still trails behind CR-FM-NES. The highest dimensionality where we observed top performance using CMA-ES is https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[multi-UAV task assignment] with 104 parameters.   
 
 image::slimevolley_EvoJax_Score_relative_to_ARS_native.png[]
 
