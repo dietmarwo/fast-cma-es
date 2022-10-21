@@ -65,7 +65,7 @@ Our {cpp} implementation of http://mediatum.ub.tum.de/doc/1099128/631352.pdf[PGP
 
 - The "jaxified" Python implementation of CR-FM-NES is here: https://github.com/dietmarwo/evojax/blob/ADD_CR_FM_NES_JAX/evojax/algo/crfmnes.py[crfmnes.py]. Since there are no for-loops there are not many beneficial applications of 'jax.jit', just converted most 'np.arrays' into 'jnp.arrays' deployed on the GPUs/TPUs.
 
-Our benchmark configurations for CR-FM-NES are here:
+Our benchmark configurations are here:
 
 - https://github.com/dietmarwo/evojax/tree/ADD_CR_FM_NES_JAX/scripts/benchmarks/configs/FCRFMC[configs/FCRFMC]
 - https://github.com/dietmarwo/evojax/tree/FIX_CFRMNES/scripts/benchmarks/configs/FPGPEC[configs/FPGPEC]
