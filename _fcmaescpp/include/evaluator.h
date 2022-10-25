@@ -111,6 +111,10 @@ static double rand01(Eigen::Rand::P8_mt19937_64 &rs) {
     return distr_01(rs);
 }
 
+static int randInt(Eigen::Rand::P8_mt19937_64 &rs, int max) {
+    return (int) (max * distr_01(rs));
+}
+
 static double normreal(Eigen::Rand::P8_mt19937_64 &rs, double mu, double sdev) {
     return gauss_01(rs) * sdev + mu;
 }
@@ -201,15 +205,16 @@ public:
             _func(func), _func_par(func_par_), _dim(dim), _nobj(nobj), _lower(
                     lower), _upper(upper) {
         if (_lower.size() > 0) {    // bounds defined
-            _scale = (_upper - _lower);
+            _scale =  _upper - _lower;
             _typx = 0.5 * (_upper + _lower);
         } else {
-            _scale = constant(dim, 2.0);
+            _scale = constant(dim, 1.0);
             _typx = zeros(dim);
         }
         _evaluationCounter = 0;
         _normalize = false;
         _terminate = false;
+        _dim = dim;
     }
 
     bool terminate() {
@@ -244,6 +249,10 @@ public:
         if (_lower.size() > 0)
             return X.cwiseMin(_upper).cwiseMax(_lower);
         return X;
+    }
+
+    double getClosestFeasible_i(int i, double x_i) {
+        return _lower.size() == 0 ? x_i : std::min(_upper[i], std::max(_lower[i], x_i));
     }
 
     vec getClosestFeasibleNormed(const vec &X) const {
@@ -283,6 +292,10 @@ public:
         return _lower.size() == 0 || (x >= _lower[i] && x <= _upper[i]);
     }
 
+    bool hasBounds() {
+        return _lower.size() != 0;
+    }
+
     vec sample(Eigen::Rand::P8_mt19937_64 &rs) {
         if (_lower.size() == 0)
             std::cout << "no bounds error" << std::endl;
@@ -290,10 +303,19 @@ public:
         return (rv.array() * _scale.array()).matrix() + _lower;
     }
 
+    vec sample(Eigen::Rand::P8_mt19937_64 &rs, vec &up, vec &lo) {
+         vec rv = uniformVec(_dim, rs);
+         return (rv.array() * (up - lo).array()).matrix() + lo;
+    }
+
     double sample_i(int i, Eigen::Rand::P8_mt19937_64 &rs) {
         if (_lower.size() == 0)
             std::cout << "no bounds error" << std::endl;
         return _lower[i] + _scale[i] * distr_01(rs);
+    }
+
+    double sample_i(int i, Eigen::Rand::P8_mt19937_64 &rs, vec &up, vec &lo) {
+        return lo[i] + (up[i] - lo[i]) * distr_01(rs);
     }
 
     int evaluations() {
@@ -310,6 +332,10 @@ public:
 
     vec scale() {
         return _scale;
+    }
+
+    vec typx() {
+        return _typx;
     }
 
     void setNormalize(bool normalize) {

@@ -87,6 +87,10 @@ version. On ubuntu this is:
 - sudo apt update
 - sudo apt install gcc-9
 
+Alternatively if you use Anaconda:
+
+- conda install -c conda-forge gxx_linux-64==9.5.0
+
 * Recommended Python environment: https://repo.anaconda.com/archive/Anaconda3-2022.05-Linux-x86_64.sh[Anaconda3-2022.05] or newer.
 
 ==== Windows

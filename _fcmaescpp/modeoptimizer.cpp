@@ -122,14 +122,6 @@ public:
         delete rs;
     }
 
-    double rnd01() {
-        return distr_01(*rs);
-    }
-
-    int rndInt(int max) {
-        return (int) (max * distr_01(*rs));
-    }
-
     mat variation(const mat &x) {
         int n2 = x.cols() / 2;
         int n = 2 * n2;
@@ -142,15 +134,15 @@ public:
         }
         for (int p = 0; p < n2; p++) {
             for (int i = 0; i < dim; i++) {
-                if (rnd01() > 0.5 || (pro_c < 1.0 && to1(i) < pro_c))
+                if (rand01(*rs) > 0.5 || (pro_c < 1.0 && to1(i) < pro_c))
                     beta(i, p) = 1.0;
                 else {
-                    double r = rnd01();
+                    double r = rand01(*rs);
                     if (r <= 0.5)
                         beta(i, p) = pow(2 * r, 1.0 / (dis_c + 1.0));
                     else
                         beta(i, p) = pow(2 * r, -1.0 / (dis_c + 1.0));
-                    if (rnd01() > 0.5)
+                    if (rand01(*rs) > 0.5)
                         beta(i, p) = -beta(i, p);
                 }
             }
@@ -167,8 +159,8 @@ public:
         vec scale = fitfun->scale();
         for (int p = 0; p < n; p++) {
             for (int i = 0; i < dim; i++) {
-                if (rnd01() < limit) { // site
-                    double mu = rnd01();
+                if (rand01(*rs) < limit) { // site
+                    double mu = rand01(*rs);
                     double norm = fitfun->norm_i(i, offspring(i, p));
                     if (mu <= 0.5) // temp
                         offspring(i, p) += scale(i) *
@@ -206,22 +198,22 @@ public:
         vec xp = popX.col(p);
         int r1, r2, r3;
         do {
-            r1 = rndInt(popsize);
-            r2 = rndInt(popsize);
+            r1 = randInt(*rs,popsize);
+            r2 = randInt(*rs,popsize);
             if (pareto_update > 0)
                 // sample elite solutions
-                 r3 = (int) (pow(rnd01(), 1.0 + pareto_update) * popsize);
+                 r3 = (int) (pow(rand01(*rs), 1.0 + pareto_update) * popsize);
             else
                 // sample from whole population
-                 r3 = rndInt(popsize);
+                 r3 = randInt(*rs,popsize);
         } while (r3 == p || r3 == r1 || r3 == r2 || r2 == p || r2 == r1 || r1 == p);
         vec x1 = popX.col(r1);
         vec x2 = popX.col(r2);
         vec x3 = popX.col(r3);
         vec x = x3 + (x1 - x2) * F;
-        int r = rndInt(dim);
+        int r = randInt(*rs,dim);
         for (int j = 0; j < dim; j++)
-            if (j != r && rnd01() > CR)
+            if (j != r && rand01(*rs) > CR)
                 x[j] = xp[j];
         x = fitfun->getClosestFeasible(x);
         modify(x);
@@ -235,10 +227,10 @@ public:
         for (int i = 0; i < dim; i++)
             if (isInt[i])
                 n_ints++;
-        double to_mutate = min_mutate + rnd01() * (max_mutate - min_mutate);
+        double to_mutate = min_mutate + rand01(*rs) * (max_mutate - min_mutate);
         for (int i = 0; i < dim; i++) {
             if (isInt[i]) {
-                if (rnd01() < to_mutate / n_ints)
+                if (rand01(*rs) < to_mutate / n_ints)
                     x[i] = (int)fitfun->sample_i(i, *rs); // resample
             }
         }

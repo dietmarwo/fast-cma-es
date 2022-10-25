@@ -43,6 +43,9 @@ def minimize(fun,
              max_mutate = 0.5, 
              workers = 1,
              is_terminate = None,
+             x0=None, 
+             input_sigma = 0.3,
+             min_sigma = 0,
              runid=0):  
      
     """Minimization of a scalar function of one or more variables using a 
@@ -90,6 +93,13 @@ def minimize(fun,
         Useful for costly objective functions but is deactivated for parallel retry.      
     is_terminate : callable, optional
         Callback to be used if the caller of minimize wants to decide when to terminate.
+    x0 : ndarray, shape (dim,)
+        Initial guess. Array of real elements of size (dim,),
+        where 'dim' is the number of independent variables.  
+    input_sigma : ndarray, shape (dim,) or scalar
+        Initial sigma for each dimension.
+    min_sigma = float, optional
+        minimal sigma limit. If 0, uniform random distribution is used (requires bounds).
     runid : int, optional
         id used to identify the run for debugging / logging. 
             
@@ -106,9 +116,17 @@ def minimize(fun,
     dim, lower, upper = _check_bounds(bounds, dim)
     if popsize is None:
         popsize = 31
+    if x0 is None:
+        x0 = np.zeros(dim) if lower is None else rg.uniform(bounds.lb, bounds.ub)
     if lower is None:
         lower = [0]*dim
         upper = [0]*dim
+        if min_sigma == 0:
+            min_sigma = 0.1 # no uniform random generation possible without bounds
+    if callable(input_sigma):
+        input_sigma=input_sigma()
+    if np.ndim(input_sigma) == 0:
+        input_sigma = [input_sigma] * dim
     if ints is None:
         ints = [False]*dim
     if workers is None:
@@ -121,8 +139,9 @@ def minimize(fun,
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
         optimizeDE_C(runid, c_callback, dim, seed,
-                           array_type(*lower), array_type(*upper), bool_array_type(*ints),
-                           max_evaluations, keep, stop_fitness,  
+                           array_type(*lower), array_type(*upper), 
+                           array_type(*x0), array_type(*input_sigma), min_sigma,
+                           bool_array_type(*ints), max_evaluations, keep, stop_fitness,  
                            popsize, f, cr, min_mutate, max_mutate, workers, res_p)
         x = res[:dim]
         val = res[dim]
@@ -135,8 +154,123 @@ def minimize(fun,
       
 optimizeDE_C = libcmalib.optimizeDE_C
 optimizeDE_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, ct.c_int, \
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
+            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_double, \
+            ct.POINTER(ct.c_bool), \
             ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
             ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
             ct.c_int, ct.POINTER(ct.c_double)]
+
+class DE_C:
+
+    def __init__(self,
+                 dim, 
+                 bounds = None, 
+                 popsize = 31, 
+                 keep = 200,
+                 f = 0.5,
+                 cr = 0.9,
+                 rg = Generator(MT19937()), 
+                 ints = None, 
+                 min_mutate = 0.1, 
+                 max_mutate = 1.0,
+                 x0=None, 
+                 input_sigma = 0.3,
+                 min_sigma = 0, 
+        ):      
+        dim, lower, upper = _check_bounds(bounds, dim)     
+        if popsize is None:
+            popsize = 31
+        if lower is None:
+            lower = [0]*dim
+            upper = [0]*dim
+            if min_sigma == 0:
+                min_sigma = 0.1 # no uniform random generation possible without bounds
+        if x0 is None:
+            x0 = rg.uniform(bounds.lb, bounds.ub)
+        if callable(input_sigma):
+            input_sigma=input_sigma()
+        if np.ndim(input_sigma) == 0:
+            input_sigma = [input_sigma] * dim
+        if ints is None:
+            ints = [False]*dim
+        array_type = ct.c_double * dim   
+        bool_array_type = ct.c_bool * dim 
+        seed = int(rg.uniform(0, 2**32 - 1))
+        try:
+            self.ptr = initDE_C(0, dim, seed,
+                           array_type(*lower), array_type(*upper), 
+                           array_type(*x0), array_type(*input_sigma), min_sigma,
+                           bool_array_type(*ints),
+                           keep, popsize, f, cr, min_mutate, max_mutate)
+            self.popsize = popsize
+            self.dim = dim            
+        except Exception as ex:
+            print (ex)
+            pass
+ 
+    def __del__(self):
+        destroyDE_C(self.ptr)
+            
+    def ask(self):
+        try:
+            popsize = self.popsize
+            n = self.dim
+            res = np.empty(popsize*n)
+            res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
+            askDE_C(self.ptr, res_p)
+            xs = np.empty((popsize, n))
+            for p in range(popsize):
+                xs[p,:] = res[p*n : (p+1)*n]
+            return xs
+        except Exception as ex:
+            print (ex)
+            return None
+
+    def tell(self, ys): # , xs):
+        try:
+            array_type_ys = ct.c_double * len(ys)
+            return tellDE_C(self.ptr, array_type_ys(*ys))
+        except Exception as ex:
+            print (ex)
+            return -1        
+
+    def population(self):
+        try:
+            popsize = self.popsize
+            n = self.dim
+            res = np.empty(popsize*n)
+            res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
+            populationDE_C(self.ptr, res_p)
+            xs = np.array(popsize, n)
+            for p in range(popsize):
+                xs[p] = res[p*n : (p+1)*n]
+                return xs
+        except Exception as ex:
+            print (ex)
+            return None
+
+initDE_C = libcmalib.initDE_C
+initDE_C.argtypes = [ct.c_long, ct.c_int, ct.c_int, \
+            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_double, \
+            ct.POINTER(ct.c_bool), \
+            ct.c_double, ct.c_int, \
+            ct.c_double, ct.c_double, ct.c_double, ct.c_double]
+
+initDE_C.restype = ct.c_void_p   
+
+destroyDE_C = libcmalib.destroyDE_C
+destroyDE_C.argtypes = [ct.c_void_p]
+
+askDE_C = libcmalib.askDE_C
+askDE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+
+tellDE_C = libcmalib.tellDE_C
+tellDE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+tellDE_C.restype = ct.c_int
+
+populationDE_C = libcmalib.populationDE_C
+populationDE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+
     

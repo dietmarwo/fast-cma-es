@@ -178,7 +178,7 @@ class DE(object):
             self.best_y = mp.RawValue(ct.c_double, 1E99)
             self.n_evals = mp.RawValue(ct.c_long, 0)
             self.time_0 = time()
-        
+     
     def ask(self):
         """ask for popsize new argument vectors.
             
@@ -187,7 +187,7 @@ class DE(object):
         xs : popsize sized array of dim sized argument lists."""
         
         xs = [None] * self.popsize
-        for i in range(self.popsize):
+        for _ in range(self.popsize):
             if self.improves:
                 p, x = self.improves[0]
                 if xs[p] is None:

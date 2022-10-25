@@ -37,7 +37,6 @@
 #include <random>
 #include <queue>
 #include <tuple>
-#define EIGEN_VECTORIZE_SSE2
 #include <EigenRand/EigenRand>
 #include "evaluator.h"
 
@@ -52,7 +51,8 @@ public:
     DeOptimizer(long runid_, Fitness *fitfun_, int dim_, int seed_,
             int popsize_, int maxEvaluations_, double keep_,
             double stopfitness_, double F_, double CR_,
-            double min_mutate_, double max_mutate_, bool *isInt_) {
+            double min_mutate_, double max_mutate_, bool *isInt_, 
+            const vec &guess_, const vec &inputSigma_, double minSigma_) {
         // runid used to identify a specific run
         runid = runid_;
         // fitness function to minimize
@@ -84,6 +84,11 @@ public:
         // the mutation rate for discrete parameters.
         min_mutate = min_mutate_ > 0 ? min_mutate_ : 0.1;
         max_mutate = max_mutate_ > 0 ? max_mutate_ : 0.5;
+
+        useNormal = minSigma_ > 0;
+        mean = guess_;
+        sigma = inputSigma_;
+        minSigmaVal = minSigma_;
         init();
     }
 
@@ -99,11 +104,36 @@ public:
         return (int) (max * distr_01(*rs));
     }
 
+    vec sample() {
+        if (useNormal)
+            return fitfun->getClosestFeasible(mean + (normalVec(dim, *rs).array() * sigma.array()).matrix());
+        else
+            return fitfun->sample(*rs);
+    }
+
+    double sample_i(int i) {
+        if (useNormal)
+            return fitfun->getClosestFeasible_i(i, normreal(*rs, mean[i], sigma[i]));
+        else
+            return fitfun->sample_i(i, *rs);
+    }
+
+    void update_mean() {
+        meanHist.col(meanHistIndex) = popX.col(bestI);
+        meanHistIndex = (meanHistIndex + 1) % meanHist.cols();
+        vec delta = meanHist.rowwise().maxCoeff() - meanHist.rowwise().minCoeff();
+        vec sigma_new = delta.cwiseMin(maxSigma).cwiseMax(minSigma);
+        sigma = sigma_new.mean() > sigma.mean() ? sigma_new :  0.9 * sigma + 0.1 * sigma_new;
+        mean = 0.9 * mean + 0.1 * popX.col(bestI);
+    }
+
     vec nextX(int p, const vec &xp, const vec &xb) {
         if (p == 0) {
             iterations++;
             CR = iterations % 2 == 0 ? 0.5 * CR0 : CR0;
             F = iterations % 2 == 0 ? 0.5 * F0 : F0;
+            if (iterations > 2)
+                update_mean();
         }
         int r1, r2;
         do {
@@ -125,7 +155,7 @@ public:
     }
 
     vec next_improve(const vec &xb, const vec &x, const vec &xi) {
-        vec nextx = fitfun->getClosestFeasible(xb + ((x - xi) * 0.5));
+        vec nextx = fitfun->getClosestFeasible(xb + ((x - xi) * F0));
         modify(nextx);
         return nextx;
     }
@@ -140,7 +170,7 @@ public:
         for (int i = 0; i < dim; i++) {
             if (isInt[i]) {
                 if (rnd01() < to_mutate/n_ints)
-                    x[i] = (int)fitfun->sample_i(i, *rs); // resample
+                    x[i] = (int)sample_i(i); // resample
             }
         }
     }
@@ -185,11 +215,30 @@ public:
         } else {
             // reinitialize individual
             if (keep * rnd01() < iterations - popIter[p]) {
-                popX.col(p) = fitfun->sample(*rs);
+                popX.col(p) = sample();
                 popY[p] = DBL_MAX;
             }
         }
         return stop;
+    }
+
+    mat askAll() {
+       for (int i = 0; i < popsize;) {
+           int p;
+           vec x = ask(p);
+           askedP[i] = p;
+           askedX.col(i) = x;
+           i++;
+       }
+       return askedX;
+    }
+
+    int tellAll(vec &ys) {
+       for (int i = 0; i < popsize; i++) {
+           tell(ys[i], askedX.col(i), askedP[i]);
+       }
+       //std::cout << fitfun->evaluations() << " y " << ys.transpose() << std::endl;
+       return stop;
     }
 
     void doOptimize() {
@@ -219,7 +268,7 @@ public:
                     if (j == r || rnd01() < CR) {
                         x[j] = xb[j] + F * (x1[j] - x2[j]);
                         if (!fitfun->feasible(j, x[j]))
-                            x[j] = fitfun->sample_i(j, *rs);
+                            x[j] = sample_i(j);
                     }
                 }
                 modify(x);
@@ -249,7 +298,7 @@ public:
                 } else {
                     // reinitialize individual
                     if (keep * rnd01() < iterations - popIter[p]) {
-                        popX.col(p) = fitfun->sample(*rs);
+                        popX.col(p) = sample();
                         popY[p] = DBL_MAX;
                     }
                 }
@@ -284,6 +333,10 @@ public:
     		 vec x = evals_x[id];
              int p = evals_p[id];
     		 tell(y(0), x, p); // tell evaluated x
+             if (isfinite(stopfitness) && bestY < stopfitness) {
+                 stop = 1;
+                 break;
+             }
     		 if (fitfun->evaluations() >= maxEvaluations)
     			 break;
     		 x = ask(p);
@@ -298,13 +351,25 @@ public:
         popX = mat(dim, popsize);
         popX0 = mat(dim, popsize);
         popY = vec(popsize);
+        meanHist = mean.replicate(1,10);
+        meanHistIndex = 0;
+        if (fitfun->hasBounds()) {
+            sigma = sigma.array() * fitfun->scale().array();
+            maxSigma = 0.5 * fitfun->scale();
+            minSigma = minSigmaVal * fitfun->scale();
+        } else {
+            maxSigma = constant(dim, 0.5);
+            minSigma = constant(dim, minSigmaVal);
+        }
         for (int p = 0; p < popsize; p++) {
-            popX0.col(p) = popX.col(p) = fitfun->sample(*rs);
-            popY[p] = DBL_MAX; // compute fitness
+            popX0.col(p) = popX.col(p) = sample();
+            popY[p] = DBL_MAX; 
         }
         bestI = 0;
         bestX = popX.col(bestI);
         popIter = zeros(popsize);
+        askedX = mat(dim, popsize);
+        askedP = ivec(popsize);
     }
 
     vec getBestX() {
@@ -319,10 +384,6 @@ public:
         return iterations;
     }
 
-    double getStop() {
-        return stop;
-    }
-
     Fitness* getFitfun() {
         return fitfun;
     }
@@ -330,6 +391,19 @@ public:
     int getDim() {
         return dim;
     }
+
+    mat getPopulation() {
+         return askedX;
+    }
+
+    int getStop() {
+        return stop;
+    }
+
+    int getPopsize() {
+        return popsize;
+    }
+
 
 private:
     long runid;
@@ -351,6 +425,8 @@ private:
     Eigen::Rand::P8_mt19937_64 *rs;
     mat popX;
     mat popX0;
+    mat askedX;
+    ivec askedP;
     vec popY;
     vec popIter;
     queue<vec> improvesX;
@@ -359,6 +435,15 @@ private:
     double min_mutate;
     double max_mutate;
     bool *isInt;
+
+    bool useNormal;
+    vec sigma;
+    vec mean;
+    vec maxSigma;
+    vec minSigma;
+    double minSigmaVal;
+    mat meanHist;
+    int meanHistIndex;
 };
 
 }
@@ -367,24 +452,35 @@ using namespace differential_evolution;
 
 extern "C" {
 void optimizeDE_C(long runid, callback_type func, int dim, int seed,
-        double *lower, double *upper, bool *ints,
+        double *lower, double *upper, 
+        double *init, double *sigma, double minSigma,
+        bool *ints,
         int maxEvals, double keep,
         double stopfitness, int popsize, double F, double CR,
         double min_mutate, double max_mutate,
         int workers, double* res) {
-    vec lower_limit(dim), upper_limit(dim);
+    vec guess(dim), lower_limit(dim), upper_limit(dim), inputSigma(dim);
     bool isInt[dim];
     bool useIsInt = false;
+    bool useLimit = false;
     for (int i = 0; i < dim; i++) {
+        guess[i] = init[i];
+        inputSigma[i] = sigma[i];
         lower_limit[i] = lower[i];
         upper_limit[i] = upper[i];
         isInt[i] = ints[i];
         useIsInt |= ints[i];
+        useLimit |= (lower[i] != 0);
+        useLimit |= (upper[i] != 0);
+    }
+    if (useLimit == false) {
+        lower_limit.resize(0);
+        upper_limit.resize(0);
     }
     Fitness fitfun(func, noop_callback_par, dim, 1, lower_limit, upper_limit);
     DeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, keep,
             stopfitness, F, CR, min_mutate, max_mutate,
-            useIsInt ? isInt : NULL);
+            useIsInt ? isInt : NULL, guess, inputSigma, minSigma);
     try {
         if (workers <= 1)
             opt.doOptimize();
@@ -401,6 +497,82 @@ void optimizeDE_C(long runid, callback_type func, int dim, int seed,
     } catch (std::exception &e) {
         cout << e.what() << endl;
     }
+}
+
+uintptr_t initDE_C(long runid, int dim, int seed,
+        double *lower, double *upper, 
+        double *init, double *sigma, double minSigma,
+        bool *ints,
+        double keep, int popsize, double F, double CR,
+        double min_mutate, double max_mutate) {
+
+    vec guess(dim), lower_limit(dim), upper_limit(dim), inputSigma(dim);
+    bool isInt[dim];
+    bool useIsInt = false;
+    bool useLimit = false;
+    for (int i = 0; i < dim; i++) {
+        guess[i] = init[i];
+        inputSigma[i] = sigma[i];
+        lower_limit[i] = lower[i];
+        upper_limit[i] = upper[i];
+        isInt[i] = ints[i];
+        useIsInt |= ints[i];
+        useLimit |= (lower[i] != 0);
+        useLimit |= (upper[i] != 0);
+    }
+    if (useLimit == false) {
+        lower_limit.resize(0);
+        upper_limit.resize(0);
+    }
+    Fitness* fitfun = new Fitness(noop_callback, noop_callback_par, dim, 1, 
+        lower_limit, upper_limit);
+    DeOptimizer* opt = new DeOptimizer(runid, fitfun, dim, seed, popsize, 0, keep,
+            -1E99, F, CR, min_mutate, max_mutate,
+            useIsInt ? isInt : NULL, guess, inputSigma, minSigma);
+     return (uintptr_t) opt;
+}
+
+void destroyDE_C(uintptr_t ptr) {
+    DeOptimizer* opt = (DeOptimizer*)ptr;
+    Fitness* fitfun = opt->getFitfun();
+    delete fitfun;
+    delete opt;
+}
+
+void askDE_C(uintptr_t ptr, double* xs) {
+    DeOptimizer *opt = (DeOptimizer*) ptr;
+    int n = opt->getDim();
+    int lamb = opt->getPopsize();
+    mat popX = opt->askAll();
+    Fitness* fitfun = opt->getFitfun();
+    for (int p = 0; p < lamb; p++) {
+        vec x = popX.col(p);
+        for (int i = 0; i < n; i++)
+            xs[p * n + i] = x[i];
+    }
+}
+
+int tellDE_C(uintptr_t ptr, double* ys) {
+    DeOptimizer *opt = (DeOptimizer*) ptr;
+    int lamb = opt->getPopsize();
+    vec vals(lamb);
+    for (int i = 0; i < lamb; i++)
+        vals[i] = ys[i];
+    opt->tellAll(vals);
+    return opt->getStop();
+}
+
+int populationDE_C(uintptr_t ptr, double* xs) {
+    DeOptimizer *opt = (DeOptimizer*) ptr;
+    int dim = opt->getDim();
+    int lamb = opt->getPopsize();
+    mat popX = opt->getPopulation();
+    for (int p = 0; p < lamb; p++) {
+        vec x = popX.col(p);
+        for (int i = 0; i < dim; i++)
+            x[i] = xs[p * dim + i];
+    }
+    return opt->getStop();
 }
 }
 
