@@ -75,7 +75,17 @@ def minimize(fun,
         id used by the is_terminate callback to identify the CMA-ES run.     
     normalize : boolean, optional
         if true pheno -> geno transformation maps arguments to interval [-1,1] 
-           
+    lr_decay_steps int, optional - ADAM optimizer configuration
+    use_ranking : boolean, optional - Should we treat the fitness as rankings or not.       
+    center_learning_rate : float, optional - Learning rate for the Gaussian mean.
+    stdev_learning_rate : float, optional - Learning rate for the Gaussian stdev.
+    init_stdev : float, optional - Initial stdev for the Gaussian distribution.
+    stdev_max_change : float, optional - Maximum allowed change for stdev in abs values.    
+    b1 : float, optional - ADAM optimizer configuration
+    b2 : float, optional - ADAM optimizer configuration
+    eps : float, optional - ADAM optimizer configuration
+    decay_coef : float, optional - ADAM optimizer configuration
+        
     Returns
     -------
     res : scipy.OptimizeResult
@@ -187,7 +197,17 @@ class PGPE_C:
         runid : int, optional
             id used by the is_terminate callback to identify the CMA-ES run.     
         normalize : boolean, optional
-            if true pheno -> geno transformation maps arguments to interval [-1,1]"""
+            if true pheno -> geno transformation maps arguments to interval [-1,1]
+        lr_decay_steps int, optional - ADAM optimizer configuration
+        use_ranking : boolean, optional - Should we treat the fitness as rankings or not.       
+        center_learning_rate : float, optional - Learning rate for the Gaussian mean.
+        stdev_learning_rate : float, optional - Learning rate for the Gaussian stdev.
+        init_stdev : float, optional - Initial stdev for the Gaussian distribution.
+        stdev_max_change : float, optional - Maximum allowed change for stdev in abs values.    
+        b1 : float, optional - ADAM optimizer configuration
+        b2 : float, optional - ADAM optimizer configuration
+        eps : float, optional - ADAM optimizer configuration
+        decay_coef : float, optional - ADAM optimizer configuration"""
 
         lower, upper, guess = _get_bounds(dim, bounds, x0, rg)      
         if popsize is None:
