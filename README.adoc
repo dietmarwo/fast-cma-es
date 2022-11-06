@@ -151,6 +151,7 @@ Runtime:
 
 - numpy: https://github.com/numpy/numpy
 - scipy: https://github.com/scipy/scipy
+- sklearn: https://github.com/scikit-learn/scikit-learn (for CVT-Map-Elites)
 
 Compile time (binaries for Linux and Windows are included):
 

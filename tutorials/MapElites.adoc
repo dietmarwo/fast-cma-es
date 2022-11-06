@@ -20,8 +20,10 @@ the results applying different methods.
 Back in 2015 an influential book was published: https://dl.acm.org/doi/book/10.5555/2792412[Why Greatness Cannot Be Planned: The Myth of the Objective], https://engineeringideas.substack.com/p/review-of-why-greatness-cannot-be[review]. It inspired a flurry of research activities in the area of quality diversity (QD): See https://www.frontiersin.org/articles/10.3389/frobt.2016.00040/full[Overview QD], 
 https://github.com/DanieleGravina/divergence-and-quality-diversity[Papers QD] and https://rl-vs.github.io/rlvs2021/class-material/evolutionary/light-virtual_school_qd.pdf[Map-Elites-Overview]. 
 
-It was found, that QD-algorithms often found better global solutions than traditional algorithms dedicated specifically to find them. The fcmaes library, although dedicated to diversity by its different parallel retry mechanism didn't include a specific QD-algorithm. Recently I invested more time to investigate the topic to
-evaluate if QD-algorithms are mature enough to be applied even to the hardest optimization problems - for instance
+QD-algorithms often find better global solutions compared to traditional algorithms dedicated specifically to find a global optimum. Gradients, if used as indicators directing to better solutions often lead to dead ends. 
+The fcmaes library, although dedicated to diversity by its avoidance of gradients and its
+different parallel retry mechanism didn't include a specific QD-algorithm. Recently I invested more time to investigate the topic to evaluate if QD-algorithms are mature enough to be applied 
+even to the hardest optimization problems - for instance
 to ESAs https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] problems, were these were never applied before. 
 
 === Motivation
