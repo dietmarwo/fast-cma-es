@@ -3,7 +3,63 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-""" Implementation of CVT MAP-Elites including CMA emitter
+""" Numpy based implementation of CVT MAP-Elites including CMA-ES emitter and CMA-ES drilldown. 
+
+See https://arxiv.org/abs/1610.05729 and https://arxiv.org/pdf/1912.02400.pdf
+
+MAP-Elites implementations differ in the following details:
+
+1) Initialisation of the behavior space:
+
+a) Generated from some solution distribution by applying the fitness function to determine their behavior.
+b) Generated from uniform samples of the behavior space. 
+
+We use b) because random solutions may cover only parts of the behavior space. Some parts may only be reachable 
+by optimization. Another reason: Fitness computations may be expensive. Therefore we don't compute fitness
+values for the initial solution population.     
+
+2) Initialization of the niches: 
+
+a) Generated from some solution distribution.
+b) Generated from uniform samples of the solution space. These solutions are never evaluated but serve as
+initial population for SBX or Iso+LineDD. Their associated fitness value is set to math.inf (infinity).
+
+We use b) because this way we: 
+- Avoid computing fitness values for the initial population.
+- Enhance the diversity of initial solutions emitted by SBX or Iso+LineDD.
+- Simplify the ordering used by CMA-ES: We subtract the actual fitness from the niche value. "Empty"
+cells have value math.inf, so the difference is -math.inf in this case. Which means empty cells are
+prioritized.   
+
+Disadvantage is that not only the behavior space but also the solution space needs to have box boundaries.
+This should not be relevant for real world applications were we always can define boundaries of valid
+decision variables.  
+
+3) Iso+LineDD (https://arxiv.org/pdf/1804.03906) is implemented but doesn't work well with extremely ragged solution
+landscapes. Therefore SBX+mutation is the default setting.
+
+4) SBX (Simulated binary crossover) is taken from mode.py and simplified. It is combined with mutation.
+Both spread factors - for crossover and mutation - are randomized for each application. 
+
+5) Candidates for SBX / Iso+LineDD are generated from a uniformly sampled set of niches, 
+but only from a subset of the archive. 
+The whole archive is sorted each iteration and only the best niches are chosen. We start with
+100% of the niches and reduce the selection over time. The whole process may be repeated - starting 
+again with all niches. 
+
+6) Candidates for CMA-ES are sampled with a bias to better niches. As for SBX only a subset of the archive is
+used, the worst niches are ignored. 
+
+7) Two termination limits are defined for CMA-ES, miniters and maxiters: 
+- iter <= miniters: Only CMA-ES's internal termination criteria apply
+- miniters < iter <= maxiter: terminate if no solution improves over the previous generation
+- maxiter < iter: terminate if no solution improves over the previous niche value
+
+8) There is a CMA-ES drill down for specific niches - in this mode all solutions outside the niche
+are rejected. Restricted solution box bounds are used derived from statistics maintained by the archive
+during the addition of new solution candidates. 
+
+9) Our archive uses shared memory to reduce inter-process communication overhead.
 """
 
 import numpy as np
@@ -24,8 +80,51 @@ rng = default_rng()
 
 def optimize_map_elites(fitness, bounds, desc_bounds, 
                 niche_num = 4000, samples_per_niche = 100, workers = 24, 
-                iterations = 100, min_capacity = 0.2, capacity_reduce = 0.9, 
+                iterations = 100, min_selection = 0.2, selection_reduce = 0.9, 
                 archive = None, me_params = {}, cma_params = {}, logger = logger()):
+    
+    """Application of CVT-Map Elites with additional CMA-ES emmitter.
+     
+    Parameters
+    ----------
+    fitness : callable
+        The objective function to be minimized.
+            ``fitness(x) -> float, ndarray``
+        where ``x`` is an 1-D array with shape (n,)
+    bounds : `Bounds`
+        Bounds on variables. Instance of the `scipy.Bounds` class.
+    desc_bounds : `Bounds`
+        Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.        
+    niche_num : int, optional
+        Number of niches.
+    samples_per_niche : int, optional
+        Number of samples used for niche computation.       
+    max_evaluations : int, optional
+        Forced termination after ``max_evaluations`` function evaluations.
+    workers : int, optional
+        Number of spawned parallel worker processes.
+    iterations : int, optional
+        Number of MAP-elites iterations.
+    min_selection : float, optional
+        minimal factor of used niches relative to the archive size.
+    selection_reduce : float, optional
+        Reduction factor for the selection apllied each generation.
+    archive : Archive, optional
+        If defined MAP-elites is continued for this archive.
+    me_params : dictionary, optional 
+        Parameters for MAP-elites.
+    cma_params : dictionary, optional 
+        Parameters for the CMA-ES emitter.
+    logger : logger, optional
+        logger for log output of the retry mechanism. If None, logging
+        is switched off. Default is a logger which logs both to stdout and
+        appends to a file ``optimizer.log``.
+        
+    Returns
+    -------
+    archive : Archive
+        Resulting archive of niches. Can be stored for later continuation of MAP-elites."""
+
     dim = len(bounds.lb)
     desc_dim = len(desc_bounds.lb) 
     if archive is None: 
@@ -33,21 +132,44 @@ def optimize_map_elites(fitness, bounds, desc_bounds,
         archive.init_niches(desc_bounds, samples_per_niche)
         # initialize archive with random values
         archive.set_xs(rng.uniform(bounds.lb, bounds.ub, (niche_num, dim)))        
-    t0 = perf_counter()      
+    t0 = perf_counter() 
+    best_n = me_params.get('best_n', niche_num)     
     for iter in range(iterations):
         archive.argsort() # sort archive to select the best_n
         optimize_map_elites_(archive, fitness, bounds, workers, 
-                     best_n, chunk_size, generations, use_sbx, dis_c, dis_m, cma_params, iter)
+                    me_params, cma_params, iter)
         if not logger is None:
             ys = np.sort(archive.get_ys())[:100] # best 100 fitness values
-            log.info(f'best 100 level{i} num {best_n} best {min(ys):.3f} worst {max(ys):.3f} ' + 
+            logger.info(f'best 100 iter {iter} num {best_n} best {min(ys):.3f} worst {max(ys):.3f} ' + 
                      f'mean {np.mean(ys):.3f} stdev {np.std(ys):.3f} time {dtime(t0)} s')
-        if best_n * capacity_reduce > archive.capacity * min_capacity :
-            best_n = int(capacity_reduce*best_n)
+        if best_n * selection_reduce > archive.capacity * min_selection:
+            best_n = int(selection_reduce * best_n)
     return archive
 
-def get_index_of_niches(centers = None, niche_num = None, desc_bounds = None, samples_per_niche = 100):   
-    """Returns a function deciding niche membership."""
+def get_index_of_niches(centers = None, niche_num = None, 
+                        desc_bounds = None, samples_per_niche = 100):   
+    
+    """Returns a function deciding niche membership.
+     
+    Parameters
+    ----------
+    centers : ndarray, shape (n,m), optional
+        If defined, these behavior vectors are used as niche centers
+    niche_num : int, optional
+        Number of niches. Required if centers is None.
+    desc_bounds : `Bounds`
+        Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.
+        Required if centers is None.
+    samples_per_niche : int, optional
+        Number of samples used for niche computation. Required if centers is None.          
+         
+    Returns
+    -------
+    index_of_niches : callable
+        Maps an array of description vectors to their corresponding niche indices.
+    centers : ndarray, shape (n,m)
+        behavior vectors used as niche centers."""
+
     if centers is None:
         dim = len(desc_bounds.lb)
         descs = rng.uniform(desc_bounds.lb, desc_bounds.ub, (niche_num*samples_per_niche,dim))
@@ -55,7 +177,8 @@ def get_index_of_niches(centers = None, niche_num = None, desc_bounds = None, sa
         k_means = KMeans(init='k-means++', n_clusters=niche_num, n_init=1, verbose=1)
         k_means.fit(descs)
         centers = k_means.cluster_centers_
-    kdt = KDTree(centers, leaf_size=30, metric='euclidean')     
+    kdt = KDTree(centers, leaf_size=30, metric='euclidean')  
+       
     # Uses the KDtree to determine the niche indexes.
     def index_of_niches(ds):
         return kdt.query(ds, k=1, sort_results=False)[1].T[0] 
@@ -63,6 +186,25 @@ def get_index_of_niches(centers = None, niche_num = None, desc_bounds = None, sa
     return index_of_niches, centers
 
 def load_archive(name, bounds, desc_bounds, niche_num):
+    
+    """Loads an archive from disk.
+
+    Parameters
+    ----------
+    name: string
+        Name of the archive.
+    bounds : `Bounds`
+        Bounds on variables. Instance of the `scipy.Bounds` class.
+    desc_bounds : `Bounds`
+        Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.        
+    niche_num : int, optional
+        Number of niches.
+        
+    Returns
+    -------
+    archive : Archive
+        Archive of niches. Can be used for continuation of MAP-elites."""
+     
     dim = len(bounds.lb)
     desc_dim = len(desc_bounds.lb) 
     archive = Archive(dim, desc_dim, niche_num)
@@ -119,9 +261,10 @@ def optimize_cma_(archive, fitness, bounds, rg, cma_params):
     for i in range(maxiters):
         xs = es.ask()
         ys, stop = update_archive_cma_(archive, xs, fitness)
-        if old_ys is None or (np.sort(ys) < np.sort(old_ys)).any(): # any improvement?
+        if old_ys is None or i < miniters or (np.sort(ys) < np.sort(old_ys)).any(): 
+            # no improvement?
             stop = False
-        if stop and i > miniters:
+        if stop:
             break
         if es.tell(ys) != 0:
             break 
@@ -155,6 +298,7 @@ class Archive(object):
                  desc_dim,
                  capacity,                 
                 ):    
+        """Creates an empty archive."""
         self.dim = dim
         self.desc_dim = desc_dim
         self.capacity = capacity
@@ -163,6 +307,7 @@ class Archive(object):
         self.reset()
     
     def reset(self):
+        """Resets all submitted solutions but keeps the niche centers."""
         self.xs = mp.RawArray(ct.c_double, self.capacity * self.dim)
         self.ds = mp.RawArray(ct.c_double, self.capacity * self.desc_dim)
         self.ys = mp.RawArray(ct.c_double, self.capacity)
@@ -178,15 +323,18 @@ class Archive(object):
             self.set_stat(i, 2, np.full(self.dim, np.inf)) # min
             self.set_stat(i, 3, np.full(self.dim, -np.inf)) # max
          
-    def init_niches(self, desc_bounds, samples_per_niche = 10):  
+    def init_niches(self, desc_bounds, samples_per_niche = 10): 
+        """Computes the niche centers using KMeans and builds the KDTree for niche determination.""" 
         self.index_of_niches, centers = get_index_of_niches(None, self.capacity, desc_bounds, samples_per_niche)
         self.cs = mp.RawArray(ct.c_double, self.capacity * self.desc_dim)
         self.set_cs(centers)
     
-    def fname(self, name):
+    def fname(self, name): 
+        """Archive file name."""
         return f'arch.{name}.{self.capacity}.{self.dim}.{self.desc_dim}'
            
     def save(self, name):
+        """Saves the archive to disc.""" 
         np.savez_compressed(self.fname(name), 
                             xs=self.get_xs(), 
                             ds=self.get_ds(), 
@@ -196,7 +344,8 @@ class Archive(object):
                             counts=self.get_counts()
                             )
 
-    def load(self, name):  
+    def load(self, name):
+        """Loads the archive from disc."""   
         self.cs = mp.RawArray(ct.c_double, self.capacity * self.desc_dim)
         with np.load(self.fname(name) + '.npz') as data:
             xs = data['xs']
@@ -214,9 +363,12 @@ class Archive(object):
         self.index_of_niches, _ = get_index_of_niches(self.get_cs(), None, None, None)
         
     def in_niche_filter(self, fit, index):
+        """Creates a fitness function wrapper rejecting out of niche arguments."""
         return in_niche_filter(fit, index, self.index_of_niches)
                                                                
     def set(self, i, yd, x):
+        """Adds a solution to the archive if it improves the corresponding niche.
+        Updates solution.""" 
         self.update_stats(i, x)
         y, d = yd
         # register improvement
@@ -226,6 +378,7 @@ class Archive(object):
             self.set_d(i, d)
     
     def update_stats(self, i, x):
+        """Updates solution statistics."""
         count = self.counts[i] + 1
         mean = self.get_x_mean(i)
         diff = x - mean        
@@ -336,16 +489,18 @@ class Archive(object):
         return self.get_x(i), self.get_y(i),  i
         
     def argsort(self):
+        """Sorts the archive according to its niche values.""" 
         self.si = np.argsort(self.get_ys())
         return self.si
             
     def dump(self, n = None):
+        """Dumps the archive content.""" 
         if n is None:
             n = self.capacity
         ys = self.get_ys()
         si = np.argsort(ys)
         for i in range(n):
-            print(si[i], ys[si[i]], self.get_x(si[i]))         
+            print(si[i], ys[si[i]], self.get_d(si[i]), self.get_x(si[i]))         
 
 class wrapper(object):
     """Fitness function wrapper for multi processing logging."""
@@ -392,10 +547,9 @@ class in_niche_filter(object):
         else:
             return np.inf
 
-# SBX (Simulated Binary Crossover + Mutation)
 def variation(pop, lower, upper, rg, dis_c = 20, dis_m = 20):
-    """Generate offspring individuals"""
-    dis_c *= 0.5 + 0.5*rg.random() # vary parameters randomly 
+    """Generate offspring individuals using SBX (Simulated Binary Crossover) and mutation."""
+    dis_c *= 0.5 + 0.5*rg.random() # vary spread factors randomly 
     dis_m *= 0.5 + 0.5*rg.random() 
     pop = pop[:(len(pop) // 2) * 2][:]
     (n, d) = np.shape(pop)
@@ -425,8 +579,8 @@ def variation(pop, lower, upper, rg, dis_c = 20, dis_m = 20):
                                1. / (dis_m + 1.)))
     return np.clip(offspring, lower, upper)
 
-# Iso+Line
 def iso_dd(x1, x2, lower, upper, rg, iso_sigma = 0.01, line_sigma = 0.2):
+    """Generate offspring individuals using Iso+Line."""
     a = rg.normal(0, iso_sigma, x1.shape) 
     b = rg.normal(0, line_sigma, x2.shape) 
     z = x1 + a + np.multiply(b, (x1 - x2))

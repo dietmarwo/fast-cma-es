@@ -1,8 +1,10 @@
-'''
-Created on Oct 29, 2022
+# Copyright (c) Dietmar Wolz.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory.
 
-@author: xxx
-'''
+# Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc
+
 import numpy as np
 from scipy.optimize import Bounds
 from fcmaes import mapelites
@@ -132,15 +134,15 @@ def run_map_elites():
     me_params = {'generations':50, 'chunk_size':1000}
     cma_params = {'cma_generations':0, 'best_n':200, 'maxiters':1000, 'miniters':200}
 
-    # use the cma-es "afterburner"
+    # use the CMA-ES "afterburner"
     # me_params = {'generations':100, 'chunk_size':1000}
-    # cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':1000, 'miniters':200}
+    # cma_params = {'cma_generations':20, 'best_n':200, 'maxiters':1000, 'miniters':200}
     
     fitness =  mapelites.wrapper(problem.fun, problem.desc_dim)
 
     archive = mapelites.optimize_map_elites(
         fitness, problem.bounds, problem.desc_bounds, niche_num = niche_num,
-          min_capacity = 0.1, capacity_reduce = 0.97, iterations = 100, archive = archive, 
+          min_selection = 0.1, selection_reduce = 0.97, iterations = 100, archive = archive, 
           me_params = me_params, cma_params = cma_params)
     archive.save(name)
     

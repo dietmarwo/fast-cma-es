@@ -12,8 +12,13 @@ image::logo.gif[]
 
 === This tutorial
 
-- Discusses a specific mixed integer multi-objective space flight dynamics problem and show
-the results applying different methods.  
+- Discusses how to apply QD-algorithms (Quality Diversity) to a an optimization problem
+from the space flight planning domain which has an extremely rugged solution landscape and 
+a huge number of local optima. 
+- Discusses how different configurations / solution-emitters may affect the result. 
+- Explains how CVT MAP-Elites needs to be implemented in Python to provide minimal algorithm overhead and
+maximal scaling with the number of parallel processes. 
+- Shows how CMA-ES can be used to enhance the optmization results or to improve existing solutions. 
 
 === Background
 
@@ -340,4 +345,46 @@ TBD
 
 === Conclusion
 
-TBD
+We have shown that: 
+
+- CVT MAP-elites can handle even the hardest optimization problems.
+- QD algorithms are more useful for real world problems as optimizers returning a single best solution.  
+- The CMA-ES emitter improves effectively existing archive solutions during optimization. 
+- CMA-ES can be applied after MAP-elites optimization to improve selected niches.  
+
+Our CVT MAP elites (with CMA-Emitter) implementation https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py] introduces a number of novelties enhancing its performance:
+
+- Our archive uses shared memory to reduce inter-process communication overhead. 
+
+- The initial behavior space is generated from uniform behavior samples because random solutions may cover only parts of the behavior space. Some parts may only be reachable by optimization. 
+
+- Fitness computations may be expensive - therefore we avoid the computation of fitness values for the initial solution population.     
+
+- The initial solution space is generated from uniform samples of the solution space. These solutions are never evaluated but serve as initial population for SBX or Iso+LineDD. Their associated fitness value is set to math.inf (infinity). This way we: 
+    * Avoid computing fitness values for the initial population.
+    * Enhance the diversity of initial solutions emitted by SBX or Iso+LineDD.
+    * Simplify the ordering used by CMA-ES: We subtract the actual fitness from the niche value. "Empty"
+cells have value math.inf, so the difference is -math.inf in this case. Which means empty cells are
+prioritized.   
+
+-  Iso+LineDD (https://arxiv.org/pdf/1804.03906) is implemented but doesn't work well with extremely ragged solution
+landscapes. Therefore SBX+mutation is the default setting.
+
+- SBX (Simulated binary crossover) is combined with mutation. Both spread factors - for crossover and mutation - are randomized for each application. 
+
+- Candidates for SBX / Iso+LineDD are generated from a uniformly sampled set of niches, but only from a subset of the archive. The whole archive is sorted each iteration and only the best niches are chosen. We start with
+100% of the niches and reduce the selection over time. The whole process may be repeated - starting 
+again with all niches. 
+
+- Candidates for CMA-ES are sampled with a bias to better niches. As for SBX only a subset of the archive is
+used, the worst niches are ignored. 
+
+- Two termination limits are defined for CMA-ES: miniters and maxiters: 
+    * iter <= miniters: Only CMA-ES's internal termination criteria apply
+    * miniters < iter <= maxiter: terminate if no solution improves over the previous generation
+    * maxiter < iter: terminate if no solution improves over the previous niche value
+
+- There is a CMA-ES drill down for specific niches - in this mode all solutions outside the niche
+are rejected. Restricted solution box bounds are used derived from statistics maintained by the archive
+during the addition of new solution candidates. 
+
