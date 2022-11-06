@@ -19,7 +19,7 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
 def minimize(prob, 
              algo,
-             value_limit = math.inf,
+             value_limit = np.inf,
              num_retries = 100*mp.cpu_count(),
              logger = None,
              workers = mp.cpu_count(),
@@ -66,7 +66,7 @@ def minimize(prob,
     store = Store(bounds, logger = logger)
     return retry(store, prob, algo, num_retries, value_limit, popsize, workers)
                  
-def retry(store, prob, algo, num_retries, value_limit = math.inf, popsize=1, workers=mp.cpu_count()):
+def retry(store, prob, algo, num_retries, value_limit = np.inf, popsize=1, workers=mp.cpu_count()):
     try:
         import pygmo as pg
     except ImportError as e:

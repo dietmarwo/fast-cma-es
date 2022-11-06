@@ -20,6 +20,7 @@ __all__ = [
     'csmacpp',
     'retry',
     'advretry',
+    'mapelites',
     'multiretry',
     'mode',
     'modecpp',

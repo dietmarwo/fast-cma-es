@@ -241,7 +241,7 @@ def minimize_plot(problem, opt, name, exp = 2.0, num_retries = 1024, value_limit
                           problem.fun, problem.bounds, problem.weight_bounds, 
                           num_retries = num_retries, exp = exp, value_limits = value_limits)
 
-def adv_minimize_plot(problem, opt, name, value_limit = math.inf, num_retries = 10240):
+def adv_minimize_plot(problem, opt, name, value_limit = np.inf, num_retries = 10240):
     moretry.adv_minimize_plot(problem.name + '_' + name, opt, 
                               problem.fun, problem.bounds, value_limit = value_limit,
                               num_retries = num_retries)

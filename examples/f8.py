@@ -101,7 +101,7 @@ class f8_problem(object):
         self.f8fun = f8fun
         self.bounds = bounds(dim)
         self.evals = mp.RawValue(ct.c_int, 0) 
-        self.best_y = mp.RawValue(ct.c_double, math.inf) 
+        self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.t0 = time.perf_counter()
 
     def fun(self, x):

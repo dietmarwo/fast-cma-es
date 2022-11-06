@@ -26,7 +26,7 @@ def minimize(fun,
              popsize = 31, 
              max_evaluations = 100000, 
              accuracy = 1.0, 
-             stop_fitness = -math.inf, 
+             stop_fitness = -np.inf, 
              stop_hist = None,
              rg = Generator(MT19937()),
              runid=0,
@@ -147,7 +147,7 @@ class ACMA_C:
         popsize = 31, 
         max_evaluations = 100000, 
         accuracy = 1.0, 
-        stop_fitness = -math.inf, 
+        stop_fitness = -np.inf, 
         stop_hist = None,
         rg = Generator(MT19937()),
         runid=0,
@@ -234,14 +234,26 @@ class ACMA_C:
             print (ex)
             return None
 
-    def tell(self, ys): # , xs):
+    def tell(self, ys, xs = None):
+        if not xs is None:
+            return self.tell_x(ys, xs)
         try:
             array_type_ys = ct.c_double * len(ys)
             return tellACMA_C(self.ptr, array_type_ys(*ys))
         except Exception as ex:
             print (ex)
-            return -1        
+            return -1    
 
+    def tell_x(self, ys, xs):
+        try:
+            flat_xs = xs.flatten()
+            array_type_xs = ct.c_double * len(flat_xs)
+            array_type_ys = ct.c_double * len(ys)
+            return tellXACMA_C(self.ptr, array_type_ys(*ys), array_type_xs(*flat_xs))
+        except Exception as ex:
+            print (ex)
+            return -1 
+        
     def population(self):
         try:
             popsize = self.popsize
@@ -274,6 +286,10 @@ askACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
 tellACMA_C = libcmalib.tellACMA_C
 tellACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
 tellACMA_C.restype = ct.c_int
+
+tellXACMA_C = libcmalib.tellXACMA_C
+tellXACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double)]
+tellXACMA_C.restype = ct.c_int
 
 populationACMA_C = libcmalib.populationACMA_C
 populationACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]

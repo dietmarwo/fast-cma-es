@@ -31,7 +31,7 @@ def minimize(fun,
              max_iterations = 100000,  
              workers = 1,
              accuracy = 1.0, 
-             stop_fitness = -math.inf, 
+             stop_fitness = -np.inf, 
              is_terminate = None, 
              rg = Generator(MT19937()),
              runid=0,
@@ -119,7 +119,7 @@ class Cmaes(object):
                         max_evaluations = 100000, 
                         max_iterations = 100000,  
                         accuracy = 1.0, 
-                        stop_fitness = -math.inf, 
+                        stop_fitness = -np.inf, 
                         is_terminate = None, 
                         rg = Generator(MT19937()), # used if x0 is undefined
                         randn = np.random.randn, # used for random offspring 

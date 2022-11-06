@@ -88,7 +88,7 @@ def print_result(ret, best, t0, i):
 
 def test_minimize_SLSQP(fun, num):
     ineq_cons = {'type': 'ineq', 'fun' : constraint_ineq}
-    best = math.inf
+    best = np.inf
     t0 = time.perf_counter();
     for i in range(num):
         guess = random_x(bounds.lb, bounds.ub)

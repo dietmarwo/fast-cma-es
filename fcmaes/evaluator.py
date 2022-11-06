@@ -132,9 +132,9 @@ class _fitness(object):
             return X    
         else:
             if self.normalize:
-                return np.maximum(np.minimum(X, 1.0), -1.0)
+                return np.clip(X, -1.0, 1.0)
             else:
-                return np.maximum(np.minimum(X, self.upper), self.lower)
+                return np.clip(X, self.lower, self.upper)
 
     def encode(self, X):
         if self.normalize:
@@ -215,7 +215,7 @@ class callback(object):
     
     def __call__(self, n, x):
         try:
-            fit = self.fun(np.array([x[i] for i in range(n)]))
+            fit = self.fun(np.array(np.fromiter((x[i] for i in range(n)), dtype=float)))
             return fit if math.isfinite(fit) else sys.float_info.max
         except Exception as ex:
             return sys.float_info.max

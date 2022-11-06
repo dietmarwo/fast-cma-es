@@ -42,7 +42,7 @@ class resonance:
                         self._planet.radius + safe_distance, beta, self._mu)
         self._rvt_out = rvt(self._rvt_in._r, v_out, self._time, self._rvt_in._mu)
         period = self._rvt_out.period()
-        self._timing_error = math.inf
+        self._timing_error = np.inf
         for resonance in self._resonances:
             target = self._period * resonance[1] / resonance[0];
             dt = abs(period - target)

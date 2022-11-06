@@ -83,7 +83,7 @@ class ANPCPC():
     def get_facilities(self, x):
         facilities_x = x[:self.p]
         facilities_y = x[self.p:]
-        return np.array([ [facilities_x[i], facilities_y[i]] \
+        return np.array([[facilities_x[i], facilities_y[i]] \
                                     for i in range(len(facilities_x))])
 
     def fitness(self, x):

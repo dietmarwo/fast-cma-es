@@ -87,7 +87,7 @@ def minimize(fun,
                         statistic_num = statistic_num, plot_name = plot_name)
     xs = np.array(mo_retry(fun, weight_bounds, ncon, value_exp, 
                            store, optimizer.minimize, num_retries, value_limits, workers))
-    ys = np.array([fun(x) for x in xs])
+    ys = np.array(np.fromiter((fun(x) for x in xs), dtype=float))
     return xs, ys
     
 def mo_retry(fun, weight_bounds, ncon, y_exp, store, optimize, num_retries, value_limits, 
@@ -123,7 +123,7 @@ def _retry_loop(pid, rgs, fun, weight_bounds, ncon, y_exp,
                                          [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
                 objs = wrapper.mo_eval(x) # retrieve the objective values
                 if value_limits is None or all([objs[i] < value_limits[i] for i in range(len(w))]):
-                    store.add_result(y, x, evals, math.inf)   
+                    store.add_result(y, x, evals, np.inf)   
                     if not store.plot_name is None:
                         name = store.plot_name + "_moretry_" + str(store.get_count_evals())
                         xs = np.array(store.get_xs())
@@ -156,7 +156,7 @@ class mo_wrapper(object):
         y = self.fun(np.array(x))
         weighted = _avg_exp(self.weights*y, self.y_exp)
         if self.ncon > 0: # check constraint violations
-            violations = np.array([i for i in range(self.nobj, self.ny) if y[i] > 0])
+            violations = np.array(np.fromiter((i for i in range(self.nobj, self.ny) if y[i] > 0), dtype=int))
             if len(violations) > 0:
                 weighted += sum(self.weights[violations])     
         return weighted
@@ -188,9 +188,9 @@ def plot(name, ncon, xs, ys, eps = 1E-2, all=True, interp=False, plot3d=False):
             ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])  
             con = np.sum(ycon, axis=1)
             nobj = len(ys[0]) - ncon
-            feasible = np.array([i for i in range(len(ys)) if con[i] < eps])
+            feasible = np.array(np.fromiter((i for i in range(len(ys)) if con[i] < eps), dtype=int))
             if len(feasible) > 0:
-                xs, ys = xs[feasible], np.array([ y[:nobj] for y in ys[feasible]])
+                xs, ys = xs[feasible], np.array([y[:nobj] for y in ys[feasible]])
             else:
                 print("no feasible")
                 return
@@ -204,7 +204,7 @@ def plot(name, ncon, xs, ys, eps = 1E-2, all=True, interp=False, plot3d=False):
         print(str(ex))
 
 def adv_minimize_plot(name, optimizer, fun, bounds,
-                   value_limit = math.inf, num_retries = 1024, logger=logger(), statistic_num = 0):
+                   value_limit = np.inf, num_retries = 1024, logger=logger(), statistic_num = 0):
     time0 = time.perf_counter() # optimization start time
     name += '_smart_' + optimizer.name
     logger.info('smart optimize ' + name) 
@@ -212,7 +212,7 @@ def adv_minimize_plot(name, optimizer, fun, bounds,
                            num_retries=num_retries, statistic_num = statistic_num) 
     advretry.retry(store, optimizer.minimize, value_limit)
     xs = np.array(store.get_xs())
-    ys = np.array([fun(x) for x in xs])
+    ys = np.array(np.fromiter((fun(x) for x in xs), dtype=float))
     retry.plot(ys, '_all_' + name + '.png', interp=False)
     np.savez_compressed(name , xs=xs, ys=ys)
     xs, front = pareto(xs, ys)

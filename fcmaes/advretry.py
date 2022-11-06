@@ -28,7 +28,7 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
 def minimize(fun, 
              bounds, 
-             value_limit = math.inf,
+             value_limit = np.inf,
              num_retries = 5000,
              logger = None,
              workers = mp.cpu_count(),
@@ -37,7 +37,7 @@ def minimize(fun,
              max_eval_fac = None, 
              check_interval = 100,
              capacity = 500,
-             stop_fitness = -math.inf,
+             stop_fitness = -np.inf,
              optimizer = None,
              statistic_num = 0,
              datafile = None
@@ -114,8 +114,8 @@ def minimize(fun,
             pass
     return retry(store, optimizer.minimize, value_limit, workers, stop_fitness)
 
-def retry(store, optimize, value_limit = math.inf, 
-          workers=mp.cpu_count(), stop_fitness = -math.inf):
+def retry(store, optimize, value_limit = np.inf, 
+          workers=mp.cpu_count(), stop_fitness = -np.inf):
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
@@ -127,10 +127,10 @@ def retry(store, optimize, value_limit = math.inf,
     return OptimizeResult(x=store.get_x_best(), fun=store.get_y_best(), 
                           nfev=store.get_count_evals(), success=True)
 
-def minimize_plot(name, optimizer, fun, bounds, value_limit = math.inf, 
-                  plot_limit = math.inf, num_retries = 1024, 
+def minimize_plot(name, optimizer, fun, bounds, value_limit = np.inf, 
+                  plot_limit = np.inf, num_retries = 1024, 
              workers = mp.cpu_count(), logger=logger(),
-             stop_fitness = -math.inf, statistic_num = 5000):
+             stop_fitness = -np.inf, statistic_num = 5000):
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
     logger.info('optimize ' + name)       
@@ -192,8 +192,8 @@ class Store(object):
         self.count_runs = mp.RawValue(ct.c_int, 0) 
         self.num_stored = mp.RawValue(ct.c_int, 0) 
         self.num_sorted = mp.RawValue(ct.c_int, 0)  
-        self.best_y = mp.RawValue(ct.c_double, math.inf) 
-        self.worst_y = mp.RawValue(ct.c_double, math.inf)  
+        self.best_y = mp.RawValue(ct.c_double, np.inf) 
+        self.worst_y = mp.RawValue(ct.c_double, np.inf)  
         self.best_x = mp.RawArray(ct.c_double, self.dim)
         self.statistic_num = statistic_num
         self.datafile = datafile
@@ -204,7 +204,7 @@ class Store(object):
             self.val = mp.RawArray(ct.c_double, self.statistic_num)
             self.si = mp.RawValue(ct.c_int, 0)
             self.sevals = mp.RawValue(ct.c_long, 0)
-            self.bval = mp.RawValue(ct.c_double, math.inf)
+            self.bval = mp.RawValue(ct.c_double, np.inf)
 
     # register improvement - time and value
     def wrapper(self, x):
@@ -281,7 +281,7 @@ class Store(object):
         with self.add_mutex:
             i, j = self.crossover()
             if i < 0:
-                return math.inf, None, None, None, None
+                return np.inf, None, None, None, None
             x0 = np.asarray(self.get_x(i))
             x1 = np.asarray(self.get_x(j))
             y0 = np.asarray(self.get_y(i))
@@ -290,7 +290,7 @@ class Store(object):
         delta_bound = np.maximum(0.0001, lim_fac * deltax)
         lower = np.maximum(self.lower, x0 - delta_bound)
         upper = np.minimum(self.upper, x0 + delta_bound)
-        sdev = np.maximum(0.001, np.minimum(0.5, diff_fac * deltax / self.delta))        
+        sdev = np.clip(diff_fac * deltax / self.delta, 0.001, 0.5)        
         return y0, x1, lower, upper, sdev
                  
     def distance(self, xprev, x): 
@@ -349,7 +349,7 @@ class Store(object):
         self.worst_y.value = self.get_y(numStored-1)
         return numStored        
 
-    def add_result(self, y, xs, lower, upper, evals, limit=math.inf):
+    def add_result(self, y, xs, lower, upper, evals, limit=np.inf):
         """registers an optimization result at the store."""
         with self.add_mutex:
             self.count_evals.value += evals
@@ -425,7 +425,7 @@ class Store(object):
             vals, self.best_x[:])
         self.logger.info(message)
    
-def _retry_loop(pid, rgs, store, optimize, value_limit, stop_fitness = -math.inf):    
+def _retry_loop(pid, rgs, store, optimize, value_limit, stop_fitness = -np.inf):    
     fun = store.wrapper if store.statistic_num > 0 else store.fun
     #reinitialize logging config for windows -  multi threading fix
     if 'win' in sys.platform and not store.logger is None:

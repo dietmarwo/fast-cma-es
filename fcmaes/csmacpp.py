@@ -25,7 +25,7 @@ def minimize(fun,
              input_sigma = 0.166, 
              popsize = 0, 
              max_evaluations = 100000, 
-             stop_fitness = -math.inf, 
+             stop_fitness = -np.inf, 
              rg = Generator(MT19937()),
              runid=0):
        

@@ -48,7 +48,7 @@ class TSP:
         self.noise_factor = noise_factor
         self.iter_num = iter_num
         self.evals = mp.RawValue(ct.c_long, 0)  # writable across python processes
-        self.best_y = mp.RawValue(ct.c_double, math.inf) 
+        self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.t0 = time.perf_counter()
 
     def __call__(self, x):  

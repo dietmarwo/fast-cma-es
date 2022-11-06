@@ -196,7 +196,7 @@ class problem():
         self.dim = len(g.nodes())
         self.bounds = Bounds([0]*self.dim, [1.999999999999]*self.dim)  
         self.g = graph(g)   
-        self.best_n = mp.RawValue(ct.c_double, math.inf) 
+        self.best_n = mp.RawValue(ct.c_double, np.inf) 
     
     def fitness(self, x):
         nds = nodes(x.astype(int))

@@ -48,7 +48,7 @@ def _get_observed(n_points, im_ft, chromosome):
             
     return im_ft * obs_uv_matrix
 
-best = mp.RawValue(ct.c_double, math.inf) 
+best = mp.RawValue(ct.c_double, np.inf) 
 count = mp.RawValue(ct.c_int, 0) 
 t0 = time()
 monitor = mp.Lock()

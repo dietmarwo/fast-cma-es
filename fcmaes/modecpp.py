@@ -118,7 +118,7 @@ def minimize(mofun,
     pro_c, dis_c, pro_m, dis_m = float, optional
         NSGA population update parameters, usually leave at default. 
     nsga_update = boolean, optional
-        Use of NSGA-II or DE population update. Default is True    
+        Use of NSGA-II/SBX or DE population update. Default is True    
     pareto_update = float, optional
         Only applied if nsga_update = False. Favor better solutions for sample generation. Default 0 - 
         use all population members with the same probability.   
@@ -225,7 +225,7 @@ def retry(mofun,
     workers : int or None, optional
         If not workers is None, optimization is performed in parallel.  
     nsga_update = boolean, optional
-        Use of NSGA-II or DE population update. Default is True    
+        Use of NSGA-II/SBX or DE population update. Default is False    
     logger : logger, optional
         logger for log output for tell_one, If None, logging
         is switched off. Default is a logger which logs both to stdout and

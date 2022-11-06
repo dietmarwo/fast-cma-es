@@ -150,10 +150,10 @@ def sweep_params():
             results.append((x, res))
             R = res['R'] # time series for R
             r_mean = np.mean(R)
-            r_over = np.array([r for r in R if r > r_mean])
+            r_over = np.array(np.fromiter((r for r in R if r > r_mean), dtype=float))
             ilocs_max = argrelextrema(r_over, np.greater_equal, order=3)[0]
             freq = len(ilocs_max) / len(R)
-            peak_dists = np.array([ilocs_max[i] - ilocs_max[i-1] for i in range(1, len(ilocs_max))])
+            peak_dists = np.array(np.fromiter((ilocs_max[i] - ilocs_max[i-1] for i in range(1, len(ilocs_max))), dtype=float))
             sdev_peak_dist = np.std(peak_dists)
             peaks = (r_over - r_mean)[ilocs_max]
             sdev_amp = np.std(peaks)

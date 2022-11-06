@@ -112,7 +112,7 @@ class problem_fb():
         self.dim = g.nnodes
         self.bounds = Bounds([0]*self.dim, [1.99999]*self.dim)  
         self.g = g   
-        self.best_y = mp.RawValue(ct.c_double, math.inf) 
+        self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.max_cost, self.max_cov = self.cost(np.array([1]*self.dim)) 
         
     def cost(self, x):

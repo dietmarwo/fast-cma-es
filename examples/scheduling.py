@@ -88,7 +88,7 @@ class fitness(object): # the objective function
 
     def __init__(self, transfers):
         self.evals = mp.RawValue(ct.c_long, 0)  # writable across python processes
-        self.best_y = mp.RawValue(ct.c_double, math.inf) # writable across python processes
+        self.best_y = mp.RawValue(ct.c_double, np.inf) # writable across python processes
         self.t0 = time.perf_counter()
         self.transfers = transfers
         self.asteroid = transfers["asteroid"].to_numpy()

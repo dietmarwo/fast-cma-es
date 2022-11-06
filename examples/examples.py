@@ -30,7 +30,7 @@ def _test_optimizer(opt, problem, num_retries = 32, num = 1):
     for i in range(num):
         name = str(i+1) + ' ' + problem.name if num > 1 else problem.name
         retry.minimize_plot(name, opt, problem.fun, problem.bounds, 
-                            math.inf, 10.0, num_retries, logger=log)
+                            np.inf, 10.0, num_retries, logger=log)
 
 def main():
         

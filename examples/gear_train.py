@@ -58,7 +58,7 @@ def print_result(ret, best, t0, i):
     return best
  
 def test_optimizer(fun, n):
-    best = math.inf
+    best = np.inf
     t0 = time.perf_counter()
     for i in range(n):
         max_x = i + 12
@@ -67,7 +67,7 @@ def test_optimizer(fun, n):
         best = print_result(ret, best, t0, max_x)
 
 def test_optimizer_adv(fun, n):
-    best = math.inf
+    best = np.inf
     t0 = time.perf_counter()
     for i in range(n):
         max_x = i + 12

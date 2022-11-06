@@ -124,7 +124,7 @@ class multiretry:
             ps.retry(optimizer)
     
     def values(self):
-        return np.array([ps.value for ps in self.problem_stats])
+        return np.array(np.fromiter((ps.value for ps in self.problem_stats), dtype=float))
      
     def remove_worst(self, n = 1):
         idx = self.values().argsort()
@@ -150,7 +150,7 @@ class multiretry:
                 self.logger.info(str(ps.id) + ' ' + str(ps.value))
 
     def values_all(self):
-        return np.array([ps.value for ps in self.all_stats])
+        return np.array(np.fromiter((ps.value for ps in self.all_stats), dtype=float))
  
     def result(self):
         idx = self.values_all().argsort()

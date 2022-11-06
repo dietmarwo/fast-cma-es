@@ -51,7 +51,7 @@ def minimize(fun,
              popsize = 31, 
              max_evaluations = 100000, 
              workers = None,
-             stop_fitness = -math.inf, 
+             stop_fitness = -np.inf, 
              keep = 200, 
              f = 0.5, 
              cr = 0.9, 
@@ -144,7 +144,7 @@ def minimize(fun,
 
 class DE(object):
     
-    def __init__(self, dim, bounds, popsize = 31, stop_fitness = -math.inf, keep = 200, 
+    def __init__(self, dim, bounds, popsize = 31, stop_fitness = -np.inf, keep = 200, 
                  F = 0.5, Cr = 0.9, rg = Generator(MT19937()), filter = None, ints = None, 
                  min_mutate = 0.1, max_mutate = 1.0, modifier = None, logger = None):
         self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
@@ -269,7 +269,7 @@ class DE(object):
         else:
             if self.rg.uniform(0, self.keep) < self.iterations - self.pop_iter[p]:
                 self.x[p] = self._sample()
-                self.y[p] = math.inf
+                self.y[p] = np.inf
         
         if hasattr(self, 'logger'):
             self.n_evals.value += 1
@@ -289,9 +289,9 @@ class DE(object):
         self.y = np.empty(self.popsize)
         for i in range(self.popsize):
             self.x[i] = self.x0[i] = self._sample()
-            self.y[i] = math.inf
+            self.y[i] = np.inf
         self.best_x = self.x[0]
-        self.best_value = math.inf
+        self.best_value = np.inf
         self.best_i = 0
         self.pop_iter = np.zeros(self.popsize)
        
@@ -339,7 +339,7 @@ class DE(object):
                     # reinitialize individual
                     if self.rg.uniform(0, self.keep) < self.iterations - self.pop_iter[p]:
                         self.x[p] = self._sample()
-                        self.y[p] = math.inf
+                        self.y[p] = np.inf
                 if self.evals >= self.max_evals:
                     break
 
@@ -423,7 +423,7 @@ class DE(object):
         if self.upper is None:
             return x
         else:
-            return np.maximum(np.minimum(x, self.upper), self.lower)
+            return np.clip(x, self.lower, self.upper)
     
     # default modifier for integer variables
     def _modifier(self, x):

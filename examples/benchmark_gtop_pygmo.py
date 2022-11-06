@@ -33,7 +33,7 @@ class pygmo_udp(object):
     def get_bounds(self):
         return (self.bounds.lb, self.bounds.ub)
 
-def de_cma_pyg(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
+def de_cma_pyg(max_evaluations = 50000, popsize=31, stop_fitness = -np.inf, 
            de_max_evals = None, cma_max_evals = None):
     """Sequence de1220 -> cmaes pagmo."""
 
@@ -47,7 +47,7 @@ def de_cma_pyg(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
                    stop_fitness = stop_fitness)
     return Sequence([opt1, opt2])
 
-def pyg_de_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
+def pyg_de_cma(max_evaluations = 50000, popsize=31, stop_fitness = -np.inf, 
            de_max_evals = None, cma_max_evals = None):
     """Sequence de1220 -> cmaes c++."""
 
@@ -61,7 +61,7 @@ def pyg_de_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
                    stop_fitness = stop_fitness)
     return Sequence([opt1, opt2])
 
-def de_pyg_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf, 
+def de_pyg_cma(max_evaluations = 50000, popsize=31, stop_fitness = -np.inf, 
            de_max_evals = None, cma_max_evals = None):
     """Sequence de c++ -> cmaes pagmo."""
 
@@ -78,7 +78,7 @@ def de_pyg_cma(max_evaluations = 50000, popsize=31, stop_fitness = -math.inf,
 class Cma_pyg(Optimizer):
     """CMA_ES pagmo implementation."""
    
-    def __init__(self, max_evaluations=50000, popsize = 31, guess=None, stop_fitness = -math.inf):        
+    def __init__(self, max_evaluations=50000, popsize = 31, guess=None, stop_fitness = -np.inf):        
         Optimizer.__init__(self, max_evaluations, 'cma pagmo')
         self.popsize = popsize
         self.guess = guess
@@ -103,7 +103,7 @@ class Cma_pyg(Optimizer):
 class De_pyg(Optimizer):
     """Differential Evolution pagmo implementation."""
     
-    def __init__(self, max_evaluations=50000, popsize = None, stop_fitness = -math.inf):        
+    def __init__(self, max_evaluations=50000, popsize = None, stop_fitness = -np.inf):        
         Optimizer.__init__(self, max_evaluations, 'de1220 pagmo')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -129,7 +129,7 @@ def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 10
 def _test_archipelago(algo, problem, num = 10000, stop_val = -1E99, log = logger()):   
     udp = pygmo_udp(problem.fun, problem.bounds)
     prob = pg.problem(udp) 
-    best_y = math.inf
+    best_y = np.inf
     best_x = None
     t0 = time.perf_counter()
    

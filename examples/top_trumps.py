@@ -112,12 +112,12 @@ def main():
     rep = 2000
     name = suite + '_f' + str(function) + 'i' + str(instance) + 'd' + str(dim)
     
-    problem = tt_problem(suite, name, dim, nobj, function, instance, rep)
-
-    minimize_plot(problem, random_search(10000), name + '_10k64', num_retries = 64)
-    minimize_plot(problem, Cma_cpp(10000), name + '_10k64', num_retries = 64)
-    minimize_plot(problem, De_cpp(10000), name + '_10k64', num_retries = 64)
-    minimize_plot(problem, Bite_cpp(10000, M=16), name + '_10k64', num_retries = 64)
+    # problem = tt_problem(suite, name, dim, nobj, function, instance, rep)
+    #
+    # minimize_plot(problem, random_search(10000), name + '_10k64', num_retries = 64)
+    # minimize_plot(problem, Cma_cpp(10000), name + '_10k64', num_retries = 64)
+    # minimize_plot(problem, De_cpp(10000), name + '_10k64', num_retries = 64)
+    # minimize_plot(problem, Bite_cpp(10000, M=16), name + '_10k64', num_retries = 64)
  
     suite = 'rw-top-trumps-biobj'
     function = 3
@@ -134,10 +134,10 @@ def main():
     # mo_minimize_plot(problem, Bite_cpp(4000, M=16), name + '_4k512', num_retries = 512)
     # mode.minimize_plot(name, problem.fun, problem.bounds, 2, popsize = 200, nsga_update=True, max_eval = 100000, workers=16)
     # mode.minimize_plot(name, problem.fun, problem.bounds, 2, popsize = 200, nsga_update=False, max_eval = 100000, workers=16)
-    modecpp.minimize(problem.fun, 2, 0, problem.bounds, popsize = 200, nsga_update=True, max_evaluations = 100000, 
+    modecpp.minimize(mode.wrapper(problem.fun, 2), 2, 0, problem.bounds, popsize = 200, nsga_update=True, max_evaluations = 100000, 
                      log_period=100, plot_name=name, workers=16)
-    modecpp.minimize(problem.fun, 2, 0, problem.bounds, popsize = 200, nsga_update=False, max_evaluations = 100000, 
-                     log_period=100, plot_name=name, workers=16)
+    # modecpp.minimize(problem.fun, 2, 0, problem.bounds, popsize = 200, nsga_update=False, max_evaluations = 100000, 
+    #                  log_period=100, plot_name=name, workers=16)
 
 if __name__ == '__main__':
     main()

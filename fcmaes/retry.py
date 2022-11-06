@@ -25,14 +25,14 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
 def minimize(fun, 
              bounds = None, 
-             value_limit = math.inf,
+             value_limit = np.inf,
              num_retries = 1024,
              logger = None,
              workers = mp.cpu_count(),
              popsize = 31, 
              max_evaluations = 50000, 
              capacity = 500,
-             stop_fitness = -math.inf,
+             stop_fitness = -np.inf,
              optimizer = None,
              statistic_num = 0,
              plot_name = None
@@ -96,8 +96,8 @@ def minimize(fun,
                   plot_name = plot_name)
     return retry(store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
                  
-def retry(store, optimize, num_retries, value_limit = math.inf, 
-          workers=mp.cpu_count(), stop_fitness = -math.inf):
+def retry(store, optimize, num_retries, value_limit = np.inf, 
+          workers=mp.cpu_count(), stop_fitness = -np.inf):
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
@@ -109,10 +109,10 @@ def retry(store, optimize, num_retries, value_limit = math.inf,
     return OptimizeResult(x=store.get_x_best(), fun=store.get_y_best(), 
                           nfev=store.get_count_evals(), success=True)
 
-def minimize_plot(name, optimizer, fun, bounds, value_limit = math.inf, 
-            plot_limit = math.inf, num_retries = 1024, 
+def minimize_plot(name, optimizer, fun, bounds, value_limit = np.inf, 
+            plot_limit = np.inf, num_retries = 1024, 
             workers = mp.cpu_count(), logger=logger(), 
-            stop_fitness = -math.inf, statistic_num = 5000, plot_name = None):
+            stop_fitness = -np.inf, statistic_num = 5000, plot_name = None):
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
     logger.info('optimize ' + name)       
@@ -219,7 +219,7 @@ class Store(object):
         self.t0 = time.perf_counter()
         self.mean = mp.RawValue(ct.c_double, 0) 
         self.qmean = mp.RawValue(ct.c_double, 0) 
-        self.best_y = mp.RawValue(ct.c_double, math.inf) 
+        self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.best_x = mp.RawArray(ct.c_double, self.dim)
         self.statistic_num = statistic_num
         self.plot_name = plot_name
@@ -230,7 +230,7 @@ class Store(object):
             self.val = mp.RawArray(ct.c_double, self.statistic_num)
             self.si = mp.RawValue(ct.c_int, 0)
             self.sevals = mp.RawValue(ct.c_long, 0)
-            self.bval = mp.RawValue(ct.c_double, math.inf)
+            self.bval = mp.RawValue(ct.c_double, np.inf)
 
     # register improvement - time and value
     def wrapper(self, x):
@@ -294,7 +294,7 @@ class Store(object):
         self.num_stored.value = numStored  
         return numStored        
             
-    def add_result(self, y, xs, evals, limit=math.inf):
+    def add_result(self, y, xs, evals, limit=np.inf):
         """registers an optimization result at the score."""
         with self.add_mutex:
             self.incr_count_evals(evals)
@@ -307,8 +307,8 @@ class Store(object):
                 if self.num_stored.value >= self.capacity-1:
                     self.sort()
                 cnt = self.count_stat_runs.value
-                diff = y - self.mean.value
-                self.qmean.value += (cnt - 1) * diff*diff / cnt;
+                diff = min(1E20, y - self.mean.value) # avoid overflow
+                self.qmean.value += (cnt - 1)/ cnt * diff*diff ;
                 self.mean.value += diff / cnt
                 ns = self.num_stored.value
                 self.num_stored.value = ns + 1
@@ -380,7 +380,7 @@ class Store(object):
         self.logger.info(message)
 
         
-def _retry_loop(pid, rgs, store, optimize, num_retries, value_limit, stop_fitness = -math.inf):
+def _retry_loop(pid, rgs, store, optimize, num_retries, value_limit, stop_fitness = -np.inf):
     fun = store.wrapper if store.statistic_num > 0 else store.fun
     #reinitialize logging config for windows -  multi threading fix
     if 'win' in sys.platform and not store.logger is None:

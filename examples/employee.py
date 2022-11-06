@@ -145,13 +145,13 @@ class problem():
         self.employee_to_index, self.names, self.skill_sets = employee_indices(self.employees)
         self.name_to_index, self.name_ids = index_map(self.names)
         self.skill_to_index, self.skill_set_ids = index_multi_map(self.skill_sets)
-        self.required_skill_ids = np.array([self.skill_to_index[s] for s in self.required_skills])
+        self.required_skill_ids = np.array(np.fromiter((self.skill_to_index[s] for s in self.required_skills), dtype=int))
 
         self.avails = sched['availability_list']
         self.avail_to_index, self.avail_names, self.avail_types, self.avail_days = avail_indices(self.avails)
-        self.avail_name_ids = np.array([self.name_to_index[n] for n in self.avail_names])
-        self.avail_day_ids = np.array([self.day_to_index[d] for d in self.avail_days])
-        self.avail_type_ids = np.array([avail_type_map[t] for t in self.avail_types])
+        self.avail_name_ids = np.array(np.fromiter((self.name_to_index[n] for n in self.avail_names), dtype=int))
+        self.avail_day_ids = np.array(np.fromiter((self.day_to_index[d] for d in self.avail_days), dtype=int))
+        self.avail_type_ids = np.array(np.fromiter((avail_type_map[t] for t in self.avail_types), dtype=int))
         
         print("days", self.days)
         print("day_ids",self.day_ids)

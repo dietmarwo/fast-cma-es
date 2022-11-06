@@ -101,7 +101,7 @@ def minimize(mofun,
         The recombination constant. Should be in the range [0, 1]. 
         In the literature this is also known as the crossover probability.     
     nsga_update = boolean, optional
-        Use of NSGA-II or DE population update. Default is True    
+        Use of NSGA-II/SBX or DE population update. Default is True    
     pareto_update = float, optional
         Only applied if nsga_update = False. Favor better solutions for sample generation. Default 0 - 
         use all population members with the same probability.   
@@ -447,7 +447,7 @@ class MODE(object):
         if self.upper is None:
             return x
         else:
-            return np.maximum(np.minimum(x, self.upper), self.lower)
+            return np.clip(x, self.lower, self.upper)
         
     # default modifier for integer variables
     def _modifier(self, x):
@@ -463,7 +463,7 @@ class MODE(object):
         return x   
     
     def _is_dominated(self, y, p):
-        return np.all(np.array([y[i] >= self.y[p, i] for i in range(len(y))]))
+        return np.all(np.array(np.fromiter((y[i] >= self.y[p, i] for i in range(len(y))), dtype=bool)))
 
                     
 def _check_bounds(bounds, dim):
@@ -520,12 +520,12 @@ def pareto(ys, nobj, ncon):
         popn = len(ys)
         domination = np.zeros(popn)
         # first pareto front of feasible solutions
-        cy = np.array([i for i in ci if feasible[i]])
+        cy = np.array(np.fromiter((i for i in ci if feasible[i]), dtype=int))
         if len(cy) > 0:
             ypar = pareto_levels(yobj[cy])
             domination[cy] += ypar        
         # then constraint violations   
-        ci = np.array([i for i in ci if not feasible[i]])  
+        ci = np.array(np.fromiter((i for i in ci if not feasible[i]), dtype=int))  
         if len(ci) > 0:    
             maxcdom = len(ci)
             cdom = np.arange(maxcdom, 0, -1)
@@ -550,7 +550,7 @@ def pareto_levels(ys):
 
 def crowd_dist(y): # crowd distance for 1st objective
     n = len(y)
-    y0 = np.array([yi[0] for yi in y])
+    y0 = np.array(np.fromiter((yi[0] for yi in y), dtype=float))
     si = np.argsort(y0) # sort 1st objective
     y0_s = y0[si] # sorted
     d = y0_s[1:n] - y0_s[0:n-1] # neighbor distance
@@ -596,7 +596,7 @@ def variation(pop, lower, upper, rg, pro_c = 1, dis_c = 20, pro_m = 1, dis_m = 2
                            (1. - np.power(
                                2. * (1. - mu[temp]) + 2. * (mu[temp] - 0.5) * np.power(1. - norm, dis_m + 1.),
                                1. / (dis_m + 1.)))
-    offspring = np.maximum(np.minimum(offspring, upper), lower)
+    offspring = np.clip(offspring, lower, upper)
     return offspring
 
 
@@ -605,9 +605,9 @@ def feasible(xs, ys, ncon, eps = 1E-2):
         ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])  
         con = np.sum(ycon, axis=1)
         nobj = len(ys[0]) - ncon
-        feasible = np.array([i for i in range(len(ys)) if con[i] < eps])
+        feasible = np.array(np.fromiter((i for i in range(len(ys)) if con[i] < eps), dtype=int))
         if len(feasible) > 0:
-            xs, ys = xs[feasible], np.array([ y[:nobj] for y in ys[feasible]])
+            xs, ys = xs[feasible], np.array([y[:nobj] for y in ys[feasible]])
         else:
             print("no feasible")
     return xs, ys

@@ -13,7 +13,7 @@ from fcmaes import astro, advretry, retry, cmaes, cmaescpp
 from fcmaes.optimizer import logger, dtime, random_x, Cma_python, wrapper
 
 def test_advretry(problem, value_limit, num):
-    best = math.inf
+    best = np.inf
     t0 = time.perf_counter();    
     for i in range(num):
         ret = advretry.minimize(problem.fun, bounds = problem.bounds, num_retries = 4000, 
@@ -23,7 +23,7 @@ def test_advretry(problem, value_limit, num):
               .format(i+1, dtime(t0), best, ret.fun))
 
 def test_advretry_cma_python(problem, value_limit, num):
-    best = math.inf
+    best = np.inf
     t0 = time.perf_counter();    
     for i in range(num):
         ret = advretry.minimize(problem.fun, bounds = problem.bounds, num_retries = 4000, 
@@ -34,7 +34,7 @@ def test_advretry_cma_python(problem, value_limit, num):
               .format(i+1, dtime(t0), best, ret.fun))
 
 def test_retry(problem, num):
-    best = math.inf
+    best = np.inf
     t0 = time.perf_counter();    
     for i in range(num):
         ret = retry.minimize(problem.fun, bounds = problem.bounds, 
@@ -45,7 +45,7 @@ def test_retry(problem, num):
               .format(i+1, dtime(t0), best, ret.fun))
 
 def test_retry_cma_python(problem, num):
-    best = math.inf
+    best = np.inf
     t0 = time.perf_counter();    
     for i in range(num):
         ret = retry.minimize(problem.fun, bounds = problem.bounds, 
@@ -56,7 +56,7 @@ def test_retry_cma_python(problem, num):
               .format(i+1, dtime(t0), best, ret.fun))
 
 def test_cma_python(problem, num):
-    best = math.inf
+    best = np.inf
     t0 = time.perf_counter();
     for i in range(num):
         ret = cmaes.minimize(problem.fun, max_evaluations = 100000, bounds = problem.bounds)
@@ -66,7 +66,7 @@ def test_cma_python(problem, num):
         best = min(ret.fun, best)
 
 def test_cma_cpp(problem, num):
-    best = math.inf
+    best = np.inf
     t0 = time.perf_counter();
     for i in range(num):
         ret = cmaescpp.minimize(problem.fun, max_evaluations = 100000, bounds = problem.bounds)
@@ -76,7 +76,7 @@ def test_cma_cpp(problem, num):
         best = min(ret.fun, best)
         
 def test_ask_tell(problem, num):    
-    best = math.inf
+    best = np.inf
     t0 = time.perf_counter();
     for i in range(num):
         es = cmaes.Cmaes(bounds = problem.bounds)
@@ -92,7 +92,7 @@ def test_ask_tell(problem, num):
               .format(i+1, dtime(t0), best, es.best_value))
 
 def test_cma_parallel(problem, num):
-    best = math.inf
+    best = np.inf
     t0 = time.perf_counter();
     for i in range(num):
         ret = cmaes.minimize(wrapper(problem.fun), bounds = problem.bounds, workers = mp.cpu_count())
@@ -102,7 +102,7 @@ def test_cma_parallel(problem, num):
         best = min(ret.fun, best)
 
 def test_differential_evolution(problem, num):
-    best = math.inf
+    best = np.inf
     t0 = time.perf_counter();
     for i in range(num):
         ret = differential_evolution(wrapper(problem.fun), bounds = problem.bounds)
@@ -112,7 +112,7 @@ def test_differential_evolution(problem, num):
         best = min(ret.fun, best)
 
 def test_dual_annealing(problem, num):
-    best = math.inf
+    best = np.inf
     lb = problem.bounds.lb
     ub = problem.bounds.ub
     t0 = time.perf_counter();
@@ -124,7 +124,7 @@ def test_dual_annealing(problem, num):
         best = min(ret.fun, best)
 
 def test_scipy_minimize(problem, num):
-    best = math.inf
+    best = np.inf
     t0 = time.perf_counter();
     for i in range(num):
         guess = random_x(wrapper(problem.bounds.lb), problem.bounds.ub)

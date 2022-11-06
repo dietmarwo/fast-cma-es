@@ -116,7 +116,7 @@ class fitness(object):
 
     def __init__(self, tickers, start, end, max_trades = None):
         self.evals = mp.RawValue(ct.c_int, 0) 
-        self.best_y = mp.RawValue(ct.c_double, math.inf) 
+        self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.t0 = time.perf_counter()
         self.tickers = tickers
         self.max_trades = max_trades
@@ -201,7 +201,7 @@ class fitness(object):
                     num_coins, cash = num_coins - traded, cash + traded*price   
                 # print(trade)  
             values.append(cash + num_coins*price)
-        return np.array([v/START_CASH*closes[0] for v in values]) # adjust to initial stock price        
+        return np.array(np.fromiter((v/START_CASH*closes[0] for v in values), dtype=float)) # adjust to initial stock price        
             
     def plot(self, x):
         axs = {}

@@ -51,7 +51,7 @@ class fitness(object):
 
     def __init__(self):
         self.evals = mp.RawValue(ct.c_int, 0) 
-        self.best_y = mp.RawValue(ct.c_double, math.inf) 
+        self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.t0 = time.perf_counter()
 
     def __call__(self, X):

@@ -202,7 +202,7 @@ class fitness:
 
     def __init__(self, task_data, bounds, n_jobs, n_operations, n_machines, name):
         self.evals = mp.RawValue(ct.c_long, 0)  # writable across python processes
-        self.best_y = mp.RawValue(ct.c_double, math.inf) # writable across python processes
+        self.best_y = mp.RawValue(ct.c_double, np.inf) # writable across python processes
         self.t0 = time.perf_counter()
         self.task_data = task_data   
         self.n_jobs = n_jobs
