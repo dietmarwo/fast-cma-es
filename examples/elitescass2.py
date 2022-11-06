@@ -131,7 +131,7 @@ def run_map_elites():
     #archive = mapelites.load_archive("cass2",  problem.bounds, problem.desc_bounds, niche_num)
     
     #fast preview, switches CMA-ES off
-    me_params = {'generations':50, 'chunk_size':1000}
+    me_params = {'generations':100, 'chunk_size':1000}
     cma_params = {'cma_generations':0, 'best_n':200, 'maxiters':1000, 'miniters':200}
 
     # use the CMA-ES "afterburner"
