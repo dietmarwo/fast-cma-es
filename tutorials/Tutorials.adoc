@@ -13,6 +13,7 @@ image::logo.gif[]
 ==== Space Flight Trajectory Design
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Introduction.adoc[Introduction] Solving simple example problems from space flight dynamics.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[Quality Diversity] CVT MAP-Elites + adapted CMA-ES.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SpaceFlight.adoc[Space Flight] Space flight mission design revisited.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PAGMO.adoc[Pagmo results] GTOPX Benchmark results using Pagmo
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PYKEP.adoc[Pykep gym results] Benchmark results for the Pykep gym problems
