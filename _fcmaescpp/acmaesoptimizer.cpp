@@ -25,7 +25,6 @@
 #include <float.h>
 #include <stdint.h>
 #include <ctime>
-#define EIGEN_VECTORIZE_SSE2
 #include <EigenRand/EigenRand>
 #include "evaluator.h"
 
@@ -638,18 +637,28 @@ void askACMA_C(uintptr_t ptr, double* xs) {
     }
 }
 
-int tellACMA_C(uintptr_t ptr, double* ys) {//, double* xs) {
+int tellACMA_C(uintptr_t ptr, double* ys) {
     AcmaesOptimizer *opt = (AcmaesOptimizer*) ptr;
     int popsize = opt->getPopsize();
-//    int dim = opt->getDim();
-//    Fitness* fitfun = opt->getFitfun();
-//    mat popX(dim, popsize);
-//    for (int p = 0; p < popsize; p++) {
-//        vec x(dim);
-//        for (int i = 0; i < dim; i++)
-//            x[i] = xs[p * dim + i];
-//        popX.col(p) = fitfun->decode(x);
-//    }
+    vec vals(popsize);
+    for (int i = 0; i < popsize; i++)
+        vals[i] = ys[i];
+    opt->tell_all(vals, opt->popX);
+    return opt->getStop();
+}
+
+int tellXACMA_C(uintptr_t ptr, double* ys, double* xs) {
+    AcmaesOptimizer *opt = (AcmaesOptimizer*) ptr;
+    int popsize = opt->getPopsize();
+    int dim = opt->getDim();
+    Fitness* fitfun = opt->getFitfun();
+    opt->popX = mat(dim, popsize);
+    for (int p = 0; p < popsize; p++) {
+        vec x(dim);
+        for (int i = 0; i < dim; i++)
+            x[i] = xs[p * dim + i];
+        opt->popX.col(p) = fitfun->encode(x);
+    }
     vec vals(popsize);
     for (int i = 0; i < popsize; i++)
         vals[i] = ys[i];

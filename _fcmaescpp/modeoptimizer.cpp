@@ -47,7 +47,6 @@
 #include <random>
 #include <queue>
 #include <tuple>
-#define EIGEN_VECTORIZE_SSE2
 #include <EigenRand/EigenRand>
 #include "evaluator.h"
 
@@ -123,6 +122,8 @@ public:
     }
 
     mat variation(const mat &x) {
+        double dis_c_ = (0.5 * rand01(*rs) + 0.5) * dis_c;
+        double dis_m_ = (0.5 * rand01(*rs) + 0.5) * dis_m;
         int n2 = x.cols() / 2;
         int n = 2 * n2;
         mat parent1 = x(Eigen::indexing::all, Eigen::seq(0, n2 - 1));
@@ -139,9 +140,9 @@ public:
                 else {
                     double r = rand01(*rs);
                     if (r <= 0.5)
-                        beta(i, p) = pow(2 * r, 1.0 / (dis_c + 1.0));
+                        beta(i, p) = pow(2 * r, 1.0 / (dis_c_ + 1.0));
                     else
-                        beta(i, p) = pow(2 * r, -1.0 / (dis_c + 1.0));
+                        beta(i, p) = pow(2 * r, -1.0 / (dis_c_ + 1.0));
                     if (rand01(*rs) > 0.5)
                         beta(i, p) = -beta(i, p);
                 }
@@ -164,12 +165,12 @@ public:
                     double norm = fitfun->norm_i(i, offspring(i, p));
                     if (mu <= 0.5) // temp
                         offspring(i, p) += scale(i) *
-                        (pow(2. * mu + (1. - 2. * mu) * pow(1. - norm, dis_m + 1.),
-                                1. / (dis_m + 1.)) - 1.);
+                        (pow(2. * mu + (1. - 2. * mu) * pow(1. - norm, dis_m_ + 1.),
+                                1. / (dis_m_ + 1.)) - 1.);
                     else
                         offspring(i, p) += scale(i) *
-                        (1. - pow(2. * (1. - mu) + 2. * (mu - 0.5) * pow(1. - norm, dis_m + 1.),
-                                1. / (dis_m + 1.)));
+                        (1. - pow(2. * (1. - mu) + 2. * (mu - 0.5) * pow(1. - norm, dis_m_ + 1.),
+                                1. / (dis_m_ + 1.)));
                 }
             }
         }
