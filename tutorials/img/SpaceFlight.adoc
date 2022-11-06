@@ -1,0 +1,190 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Space Flight Mission Design Revisited
+
+=== This tutorial
+
+- Discusses a specific mixed integer multi-objective space flight dynamics problem and show
+the results applying different methods.  
+
+=== Motivation
+
+The development of fcmaes initially was driven by applications in the space flight mission design domain. 
+When later focussing on other real world optimization problems, new (meta-)-algorithms were added. 
+We will close the circle now by showing, if and how these new methods can be used to handle a specific multi-objective
+mission design problem.
+
+=== Planning the Cassini Mission. 
+
+The original https://solarsystem.nasa.gov/missions/cassini/overview/[Cassini Mission]
+to Saturn involved four gravity-assists at Venus, Venus, Earth and Jupiter to save fuel. 
+
+image::cassini2.png[]
+
+Now lets assume our task is to review the mission planning. Our planning team used domain knowledge
+to decide which planets to visit in which order. But can we trust them? So we decide
+just to ignore their intuition and let the optimization decide which route to take.
+
+==== Optimizing Delta Velocity 
+
+Lets first investigate the single objective problem where our goal is to minimize fuel consumption
+expressed by the sum of the delta velocities caused by the thrust impulses necessary to
+navigate the spaceship. Our first simplified flight model assumes we only apply impulses  
+at the planet flybys before and after the gravity assist (GA) maneuvers. Between the planets we are
+coasting. This way we only need 10 decision variables, 6 for the timings of the planet flybys and
+4 for the planets we visit on our way. The fitness function truncates the float value to an integer. 
+Here are the new boundaries for the decision variables:
+
+----
+    lb = [-1000.,30.,100.,30.,400.,1000., 2, 2, 2, 3],
+    ub = [0.,400.,470.,400.,2000.,6000., 3.9999, 3.9999, 3.9999, 5.9999]       
+----
+
+We are restricting the planet selection based on domain knowledge, since we know for instance,
+that we don't want to visit Pluto on our way to Saturn. Note that the objective function
+rounds the planet to the next integer, so we defined the boundaries to assign the same
+float interval to each planet selection. 
+
+[source,python]
+----    
+    from fcmaes.astro import cassini1multi
+    
+    def cassini1(x):   
+        y = cassini1multi(x)
+        return y[0]
+    
+    advretry.minimize_plot("cassini1_mixed bm", de_cma(1500), cassini1, 
+                               bounds, 10.0, 20.0, 5000, logger=logger())
+
+----
+
+Method `cassini1` simply selects the first objective (delta velocity) and we apply the 
+boundary management meta algorithm (`advretry`) to perform a parallel retry of a 
+DE->CMA-ES sequence. 
+
+Excercise: Try other (meta-)algorithms. 
+
+image::progress_aret.cassini1_mixed_bm_de_cma.png[]
+
+As we can see, we find very fast solutions using sequence EVVE with suspiciously low dv 
+of about 2.25 km/s. The planning team offered a solution > 8km/s, so either they 
+overlooked a better planet sequence or our model is not accurate enough. We decide
+to try a more accurate model: The new model allows for one additional deep space 
+maneuver between two planets. This complicates the model significantly, since we now 
+have to decide at which angle and height we pass the planets. This decision influences the
+deviation of the flight path during the GA maneuver. The first model didn't consider this,  
+because it could simply choose the optimal values minimizing delta velocity at the planet. 
+With the new model this decision can have long term consequences several planets later on the path. 
+
+----
+lb = [-1000,3,0,0,100,100,30,400,800,0.01,0.01,0.01,0.01,0.01,1.05,1.05,1.15,1.7, -math.pi, -math.pi, -math.pi, -math.pi, 2, 2, 2, 3],
+up = [0,5,1,1,400,500,300,1600,2200,0.9,0.9,0.9,0.9,0.9,6,6,6.5,291,math.pi,  math.pi,  math.pi,  math.pi, 3.9999, 3.9999, 3.9999, 5.9999]     
+----
+
+The new model needs 26 decision variables, 22 to define the timings and flyby-parameters and 4 to decide which planet 
+to visit. 
+
+[source,python]
+----    
+    from fcmaes.astro import cassini2multi
+    
+    def cassini2(x):
+        y = cassini2multi(x)
+        return y[0]
+    
+    advretry.minimize_plot("cassini2_mixed bm", de_cma(1500), cassini2, 
+                               bounds, 12.0, 20.0, 20000, logger=logger())
+
+----
+
+image::progress_aret.cassini2_mixed _de_cma.png[]
+
+Now a "VVEJ" tour with dv = 8.38 is selected, as our planning team proposed. So they were correct after all, our first model was flawed. 
+This problem is quite "tough" for optimization algorithms. Please notify me, if you find one which can solve this problem faster. 
+
+
+==== Optimizing Delta Velocity and Flight Time
+
+Our boss storms into the office: "Almost ten years, this takes too long". She asks us to explore alternatives: "It's ok if you need more delta velocity, we build
+a more efficient engine". 
+
+From the single objective case we know, that we need the complex model with 26 decision variables, which was already hard to solve. 
+The second objective, the TOF (time of flight) is directly derived from the decision vector. From experience we know, that
+such an objective may easily dominate a multi-objective optimization. There is no "best algorithm" for this kind of problem. 
+Instead we decide to use multiple algorithms and "join" the computed pareto fronts. 
+
+First lets apply `moretry.minimize` which applies the DE->CMA sequence using parallel retry weighting the two objectives differently 
+for each run. We weight the TOF objective much lower to compensate  
+
+- for the effect that optimization "prefers" the objective which is more directly related to the decision variables
+- for the different scaling of the objectives (about 8 km/s, 2000 days)
+
+[source,python]
+----    
+    from fcmaes.astro import cassini2multi
+    from fcmaes import mode, moretry
+    
+    def cassini2_2(x):
+        y = cassini2multi(x)
+        return y[:2]
+    
+    x, y = moretry.minimize(mode.wrapper(cassini2_2, 2, interval = 10000000),
+             bounds, weight_bounds = Bounds([0.1, 0.001], [1, 0.001]),
+             ncon = 0, value_exp = 2.0, 
+             num_retries = 50000, optimizer=de_cma(50000))
+    np.savez_compressed("cassini2" + "de_cma50k", xs=x, ys=y)
+    moretry.plot("cassini2" + "de_cma50k.5", 0, x, y, all=False, interp=True)
+----
+
+
+image::front_cassini2de50k.5.png[]
+
+To complement the computed pareto front we use a "real" multi-objective algoritm, fcmaes MODE. 
+To optimally utilize our CPU-cores we use parallel retry (instead of parallel function evaluation). 
+This is a good choice for objective functions which are fast to evaluate. 
+`modecpp.retry` executes parellel runs of the MODE algorithm, in this case 
+using NSGA-II population update.
+
+[source,python]
+----    
+  x, y = modecpp.retry(mode.wrapper(cassini2_2, 2, interval = 10000000), 2, 0,
+                 bounds, popsize = 128, max_evaluations = 1000000,
+                 nsga_update=True, num_retries = 256)
+----
+
+image::front_cassini2f1281M5.png[]
+
+MODE cannot find the very best low DV solutions, but this time the "high DV" 
+area with dv > 20 km/s is covered much better. We found solutions with TOF < 1500 days, 
+which was not possible using `moretry`. 
+
+Finally, to focus on the "middle section" we use DE population update:
+
+[source,python]
+----    
+  x, y = modecpp.retry(mode.wrapper(cassini2_2, 2, interval = 10000000), 2, 0,
+                 bounds, popsize = 128, max_evaluations = 1000000,
+                 nsga_update=False, num_retries = 256)
+----
+
+image::front_cassini21281M.png[]
+
+Only by combining all three pareto fronts we can offer our boss the full set of alternatives. 
+
+=== Conclusion
+
+- Be careful with approximating models. The may over-simplify as does our first Cassini model
+without deep space maneuvers. 
+- Use a single objective algorithm to check what is possible.
+- Be careful when one objective is hard to compute and another can simply be derived from the
+decision variables.  
+- Sometimes you have to combine solutions (pareto-fronts) using different methods to get a complete
+multi-objective solution.  

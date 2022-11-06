@@ -127,9 +127,14 @@ def run_map_elites():
     name = 'cass2'
     archive = None
     #archive = mapelites.load_archive("cass2",  problem.bounds, problem.desc_bounds, niche_num)
+    
+    #fast preview, switches CMA-ES off
+    me_params = {'generations':50, 'chunk_size':1000}
+    cma_params = {'cma_generations':0, 'best_n':200, 'maxiters':1000, 'miniters':200}
 
-    me_params = {'generations':100, 'chunk_size':1000}
-    cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':1000, 'miniters':200}
+    # use the cma-es "afterburner"
+    # me_params = {'generations':100, 'chunk_size':1000}
+    # cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':1000, 'miniters':200}
     
     fitness =  mapelites.wrapper(problem.fun, problem.desc_dim)
 
