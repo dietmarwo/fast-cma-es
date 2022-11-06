@@ -33,9 +33,10 @@ support both parallel fitness function evaluation and a parallel retry mechanism
 - Excellent scaling with the number of available CPU-cores. 
 - Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
 - New multi-objective/constrained optimization algorithm MODE combining features from Differential evolution and NSGA-II, supporting parallel function evaluation. Features https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/[enhanced multiple constraint ranking] improving its performance in handling constraints for engineering design optimization.
+- New implementation of CVT-map-elites including a CMA-ES emitter. 
 - Selection of highly efficient single-objective algorithms to choose from.
 - Ask-tell interface for CMA-ES, CR-FM-NES, DE, MODE 
-- Large collection of 34 tutorials related to real world problems: 
+- Large collection of 35 tutorials related to real world problems: 
   https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials].
 
 === Optimization algorithms
@@ -45,6 +46,8 @@ To utilize modern many-core processors all single-objective algorithms should be
 - MO-DE: A new multi-objective optimization algorithm merging concepts from differential evolution and NSGA. 
 Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[C++]. Provides an ask/tell interface and supports constraints and parallel function evaluation. 
 Can also be applied to single-objective problems with constraints. Supports mixed integer problems (see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] for details)
+
+- CVT-map-elites/CMA: A new Python implementation of CVT-map-elites including a CMA-ES emitter providing low algorithm overhead and excellent multi-core scaling even for fast fitness functions. Enables "drill down" for specific selected niches. See https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mapelites.py[mapelites.py] and https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[Quality Diversity].
 
 - BiteOpt algorithm from Aleksey Vaneev https://github.com/avaneev/biteopt[BiteOpt]. Only a C++ version is provided. If your problem is single objective and if you have no clue what algorithm to apply, try this first. Works well with almost all problems. For constraints you have to use weighted penalties.
 
