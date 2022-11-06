@@ -136,7 +136,7 @@ def run_map_elites():
 
     # use the CMA-ES "afterburner"
     # me_params = {'generations':100, 'chunk_size':1000}
-    # cma_params = {'cma_generations':20, 'best_n':200, 'maxiters':1000, 'miniters':200}
+    # cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':1000, 'miniters':200}
     
     fitness =  mapelites.wrapper(problem.fun, problem.desc_dim)
 
