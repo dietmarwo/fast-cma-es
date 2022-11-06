@@ -9,6 +9,9 @@ from fcmaes import mapelites
 from fcmaes.astro import Cassini2
 
 def plot3d(ys, name, xlabel='', ylabel='', zlabel=''):
+    import matplotlib.pyplot as plt
+    import plotly
+    import plotly.graph_objs as go
     x = ys[:, 0]; y = ys[:, 1]; z = ys[:, 2]
     fig = plt.figure()
     ax = fig.add_subplot()     
@@ -39,14 +42,14 @@ def plot3d(ys, name, xlabel='', ylabel='', zlabel=''):
                          "layout": mylayout},
                          auto_open=True,
                          filename=(name + ".html"))
-def plot(archive, max_dv = 20):
+def plot_archive(archive, max_dv = 20):
     si = archive.argsort()
     ysp = []
-    phenos = archive.get_ds()[si]
+    descriptions = archive.get_ds()[si]
     ys = archive.get_ys()[si]
     for i in range(len(si)):
-        pheno = phenos[i]
-        ysp.append([pheno[0], pheno[1], ys[i]])
+        desc = descriptions[i]
+        ysp.append([desc[0], desc[1], ys[i]])
         if ys[i] > max_dv: break
     ysp = np.array(ysp)
     print(len(ysp))
@@ -116,14 +119,14 @@ niche_num = 4000
 
 def plot(name):
     problem = Cassini2_me(Cassini2())
-    archive = elites.load_archive(name, problem.bounds, problem.desc_bounds, niche_num)
-    plot(archive)
+    archive = mapelites.load_archive(name, problem.bounds, problem.desc_bounds, niche_num)
+    plot_archive(archive)
     
 def run_map_elites():
     problem = Cassini2_me(Cassini2())
-    name = "cass2arch"
+    name = 'cass2arch'
     archive = None
-    #archive = elites.load_archive("cass2arch",  problem.bounds, problem.desc_bounds, niche_num)
+    #archive = mapelites.load_archive("cass2arch",  problem.bounds, problem.desc_bounds, niche_num)
 
     me_params = {'generations':100, 'chunk_size':1000}
     cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':1000, 'miniters':200}
@@ -146,5 +149,6 @@ def run_map_elites():
 
 if __name__ == '__main__':
     
-    run_map_elites()
+    #run_map_elites()
+    plot('cass2arch.3')
     pass
