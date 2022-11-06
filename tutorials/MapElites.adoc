@@ -332,7 +332,7 @@ Note that since there is a clear preference for earlier starts and a shorter fli
 
 === Implementation
 
-The tutorial code can be found in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/mapelites.py[mapelites.py].
+The tutorial code can be found in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py].
 
 TBD
 
