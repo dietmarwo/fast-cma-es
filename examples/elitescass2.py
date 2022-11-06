@@ -124,9 +124,9 @@ def plot(name):
     
 def run_map_elites():
     problem = Cassini2_me(Cassini2())
-    name = 'cass2arch'
+    name = 'cass2'
     archive = None
-    #archive = mapelites.load_archive("cass2arch",  problem.bounds, problem.desc_bounds, niche_num)
+    #archive = mapelites.load_archive("cass2",  problem.bounds, problem.desc_bounds, niche_num)
 
     me_params = {'generations':100, 'chunk_size':1000}
     cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':1000, 'miniters':200}
@@ -138,17 +138,11 @@ def run_map_elites():
           min_capacity = 0.1, capacity_reduce = 0.97, iterations = 100, archive = archive, 
           me_params = me_params, cma_params = cma_params)
     archive.save(name)
-    me_params['best_n'] = 1000
-    for i in range(20):
-        archive = mapelites.optimize_map_elites(
-            fitness, problem.bounds, problem.desc_bounds, niche_num = niche_num, 
-                min_capacity = 0.1, capacity_reduce = 0.97, iterations = 100, archive = archive, 
-                me_params = me_params, cma_params = cma_params)
-        archive.save(name + '.' + str(i))
-    plot(archive)
+    
+    plot_archive(archive)
 
 if __name__ == '__main__':
     
-    #run_map_elites()
-    plot('cass2arch.3')
+    run_map_elites()
+    #plot('cass2')
     pass
