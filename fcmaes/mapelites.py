@@ -136,7 +136,7 @@ def optimize_map_elites(fitness, bounds, desc_bounds,
     best_n = me_params.get('best_n', niche_num)     
     for iter in range(iterations):
         archive.argsort() # sort archive to select the best_n
-        optimize_map_elites_(archive, fitness, bounds, workers, 
+        optimize_map_elites_(archive, fitness, bounds, workers, min_selection,
                     me_params, cma_params, iter)
         if not logger is None:
             ys = np.sort(archive.get_ys())[:100] # best 100 fitness values
@@ -211,19 +211,20 @@ def load_archive(name, bounds, desc_bounds, niche_num):
     archive.load(name)
     return archive
 
-def optimize_map_elites_(archive, fitness, bounds, workers, me_params, cma_params, iter):
+def optimize_map_elites_(archive, fitness, bounds, workers, min_selection, 
+                         me_params, cma_params, iter):
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=run_map_elites_,
-            args=(archive, fitness, bounds, rgs[p], 
+            args=(archive, fitness, bounds, rgs[p], min_selection,
                   me_params, cma_params, iter)) for p in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
           
-def run_map_elites_(archive, fitness, bounds, rg, me_params, cma_params, iter): 
+def run_map_elites_(archive, fitness, bounds, rg, min_selection, 
+                    me_params, cma_params, iter): 
     
     generations = me_params.get('generations', 10) 
-    best_n = me_params.get('best_n', archive.capacity)   
     chunk_size = me_params.get('chunk_size', 20)   
     use_sbx = me_params.get('use_sbx', True)     
     dis_c = me_params.get('dis_c', 20)   
@@ -231,14 +232,16 @@ def run_map_elites_(archive, fitness, bounds, rg, me_params, cma_params, iter):
     iso_sigma = me_params.get('iso_sigma', 0.01)
     line_sigma = me_params.get('line_sigma', 0.2)
     cma_generations = cma_params.get('cma_generations', 20)
-       
+    select_n = me_params.get('best_n', archive.capacity)
+    # restrict to occupied
+    #select_n = min(select_n, max(int(min_selection*archive.capacity), archive.get_occupied()))  
     for _ in range(generations):                
         if use_sbx:
-            pop = archive.random_xs(best_n, chunk_size, rg)
+            pop = archive.random_xs(select_n, chunk_size, rg)
             xs = variation(pop, bounds.lb, bounds.ub, rg, dis_c, dis_m)
         else:
-            x1 = archive.random_xs(best_n, chunk_size, rg)
-            x2 = archive.random_xs(best_n, chunk_size, rg)
+            x1 = archive.random_xs(select_n, chunk_size, rg)
+            x2 = archive.random_xs(select_n, chunk_size, rg)
             xs = iso_dd(x1, x2, bounds.lb, bounds.ub, rg, iso_sigma, line_sigma)    
         yds = [fitness(x) for x in xs]
         descs = np.array([yd[1] for yd in yds])
@@ -250,7 +253,10 @@ def run_map_elites_(archive, fitness, bounds, rg, me_params, cma_params, iter):
             optimize_cma_(archive, fitness, bounds, rg, cma_params)    
 
 def optimize_cma_(archive, fitness, bounds, rg, cma_params):
-    x0, y, i = archive.random_xs_one(cma_params.get('best_n', 100), rg)
+    select_n = cma_params.get('best_n', 100)
+    #select_n = min(select_n, archive.get_occupied()) # restrict to occupied
+    print(select_n, archive.get_occupied())
+    x0, y, i = archive.random_xs_one(select_n, rg)
     sigma = cma_params.get('sigma',rg.uniform(0.03, 0.3)**2)
     popsize = cma_params.get('popsize', 31) 
     es = cmaescpp.ACMA_C(archive.dim, bounds, x0 = x0,  
@@ -313,7 +319,7 @@ class Archive(object):
         self.ys = mp.RawArray(ct.c_double, self.capacity)
         self.counts = mp.RawArray(ct.c_long, self.capacity) # count
         self.stats = mp.RawArray(ct.c_double, self.capacity * self.dim * 4)
-        
+        self.occupied = mp.RawValue(ct.c_long, 0)
         for i in range(self.capacity):
             self.counts[i] = 0
             self.set_y(i, np.inf)  
@@ -356,7 +362,7 @@ class Archive(object):
             self.set_cs(data['cs'])
             self.set_stats(data['stats'])
             self.counts[:] = data['counts']
-            
+        self.occupied.value = np.count_nonzero(self.get_ys() < np.inf)
         self.dim = xs.shape[1]
         self.desc_dim = ds.shape[1]
         self.capacity = xs.shape[0]
@@ -372,7 +378,10 @@ class Archive(object):
         self.update_stats(i, x)
         y, d = yd
         # register improvement
-        if y < self.get_y(i):
+        yold = self.get_y(i)
+        if y < yold:
+            if yold == np.inf: # not yet occupied
+                self.occupied.value += 1
             self.set_y(i, y)
             self.set_x(i, x)
             self.set_d(i, d)
@@ -387,6 +396,9 @@ class Archive(object):
         self.counts[i] = count # count      
         self.set_stat(i, 2, np.minimum(x, self.get_stat(i, 2))) # min
         self.set_stat(i, 3, np.maximum(x, self.get_stat(i, 3))) # max
+ 
+    def get_occupied(self):
+        return self.occupied.value
     
     def get_count(self, i):
         return self.counts[i]
