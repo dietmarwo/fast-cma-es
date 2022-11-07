@@ -337,11 +337,116 @@ Although not the hardest of the https://www.esa.int/gsp/ACT/projects/gtop/[GTOP]
 Meaningful Map-elites descriptors are the mission start time and the over all time of flight, since we are interested in our mission options for different start and flight times. 
 Note that since there is a clear preference for earlier starts and a shorter flight time multi-objective optimization using the descriptors as additional objectives is a valid alternative here.  
 
-=== Implementation
+==== CVT MAP-Elites doesn't work for ESAs Cassini2 benchmark
 
-The tutorial code can be found in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py].
+Lets first try the https://github.com/resibots/pymap_elites[Python reference implementation] of CVT MAP-Elites.
+We have to normalize both the solutions and the behavior descriptions, but otherwise the implementation
+is straightforward. We use a fcmaes fitness wrapper to minitor progress end measure the evaluation rate.
 
-TBD
+[source,python]
+----
+import map_elites.cvt as cvt_map_elites
+import map_elites.common as cm_map_elites
+from fcmaes.astro import Cassini2
+from fcmaes.optimizer import wrapper
+
+problem = Cassini2()
+bounds = problem.bounds
+px = cm_map_elites.default_params.copy()
+px["dump_period"] = 2000000
+px["batch_size"] = 200
+px["min"] = 0
+px["max"] = 1
+px["parallel"] = False
+
+fun = wrapper(problem.fun)
+
+lb = bounds.lb
+scale = bounds.ub - bounds.lb
+
+def fitness(x):
+    x = lb + np.multiply(x,scale)  # denormalize  
+    return -fun(x), get_tof_launch_time(x)
+
+def get_tof_launch_time(x): # normalize   
+    tof = sum(x[4:9]) / 5000.0
+    launch_time = (1000 + x[0]) / 1000.0 
+    return np.array([tof, launch_time])
+            
+def test_cassini2():
+    archive = cvt_map_elites.compute(2, 22, fitness, n_niches=4000, max_evals=1e8, log_file=open('cvt.dat', 'w'), params=px)
+ 
+if __name__ == '__main__':
+    test_cassini2()
+----
+
+For the configured 1e8 evaluations my machine (AMD 5950x) needs almost 4 hours. Best fitness value found is 10.85, 
+the optimization performed 7150 fitness evaluations / sec. This is by far too slow to be usable. But otherwise
+the reference implementation works fine, for 1e8 evaluations this result is expected since we don't use CMA-ES here. 
+
+But with `px["parallel"] = True` the optimization slows down to about 4500 evaluations / sec because of the additional
+process creation overhead which by far outweighs the gain. 
+
+==== CVT MAP-Elites does work for ESAs Cassini2 benchmark
+
+The code implementing CVT MAP-Elites optimization using fcmaes is here:
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py].
+It performs up to 350000 fitness evaluations / sec which is about factor
+50 faster. (factor 78 if you compare with `px["parallel"] = True`). 
+Additionally, because of the CMA-ES emitter, convergence is also improved and we find solutions around 8.6 in about 15 minutes. 
+Above we show plots of the whole archive which contains a great number of good solutions. 
+
+[source,python]
+----
+...
+def tof(x):
+    return sum(x[4:9])
+
+def launch(x):
+    return x[0]
+
+class Cassini2_me():
+    ''' Map-Elites wrapper for the ESA Cassini2 benchmark problem'''
+    
+    def __init__(self, prob):
+        ...
+        self.bounds = prob.bounds
+        min_tof = tof(prob.bounds.lb)
+        max_tof = tof(prob.bounds.ub)
+        min_launch = launch(prob.bounds.lb)
+        max_launch = launch(prob.bounds.ub)
+        self.desc_bounds = Bounds([min_tof, min_launch], [max_tof, max_launch]) 
+                        
+    def fun(self, x):
+        return self.problem.fun(x), np.array([tof(x), launch(x)])
+ 
+def run_map_elites():
+    problem = Cassini2_me(Cassini2())
+    me_params = {'generations':100, 'chunk_size':1000}
+    cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':1000, 'miniters':200}
+    fitness =  mapelites.wrapper(problem.fun, problem.desc_dim)
+
+    archive = mapelites.optimize_map_elites(
+        fitness, problem.bounds, problem.desc_bounds, niche_num = niche_num,
+          min_selection = 0.1, selection_reduce = 0.97, iterations = 100, 
+          me_params = me_params, cma_params = cma_params)
+----
+
+Here the solution and description space are not normalized, which means that we have to provide the
+boundaries to the algorithm (`problem.bounds, problem.desc_bounds`).
+Not that archive objects have a load and save method to save the current status of the optimization 
+to disk. A loaded archive can be forwarded to `mapelites.optimize_map_elites` via the optional 
+`archive` parameter to continue a saved optimization. Reasons for the performance difference 
+to the reference solution:
+
+- Although both implementations use `sklearn.neighbors.KDTree` to determine the niche, fcmaes 
+forwards whole chunks of solutions to KDTree which speeds up things significantly. 
+- fcmaes applies the same trick for SBX (Simulated binary crossover) and Iso+Line to avoid 
+slow Python loops
+- Since fcmaes uses shared memory for the contents of the archive, processes can compute the
+fitness of many solutions before they have to synchronize. This way much less process creation/shutdown
+overhead is created. Note that because of the Python global interpreter lock multi threading is not applicable, 
+and process creation is quite heavyweight compared to thread creation.   
 
 === Conclusion
 
@@ -388,3 +493,14 @@ used, the worst niches are ignored.
 are rejected. Restricted solution box bounds are used derived from statistics maintained by the archive
 during the addition of new solution candidates. 
 
+Note that the https://github.com/resibots/pymap_elites[Python reference implementation] of CVT MAP-Elites also
+tesselates the behavior space independent from fitness evaluations of emitted solutions. 
+It fills the archive only partly with evaluated random solutions to save time. Difference is, 
+that as input for SBX / ISO+Line only evaluated archive niches are used. The fcmaes approach is different, 
+since the whole archive is filled with random solutions which get `np.inf` as fitness assigned to mark
+the niche as 'empty'. This approach may slightly reduce convergence, but helps a lot to fill many niches fast, 
+since a much larger number of random solutions are fed to the optimizer. fcmaes uses other means to improve
+convergence at later stages: Sorting the archive and reduce the percentage of niches used for offspring creation
+gradually over time. My feeling is, that basing the whole optimization only on a small number of random solutions
+sacrifices too much diversity for gaining convergence which is against the basic idea of QD.  
+ 
