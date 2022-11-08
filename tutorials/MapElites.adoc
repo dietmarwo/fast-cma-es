@@ -456,7 +456,7 @@ https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[JAX based impl
 are delegated to a GPU/TPU. But as the benchmarks results in 
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/EvoJax.adoc[EvoJax.adoc] show: For these high dimensional 
 problems CMA-ES is not the best choice anyway because of its slow convergence. For MAP-Elites which typically is
-applied to problems with dimension > 1000, a fast C++ CMA-ES implementation as this from fcmaes is the fastest choice, 
+applied to problems with dimension < 1000, a fast C++ CMA-ES implementation as this from fcmaes is the fastest choice, 
 since it is always executed single threaded and integrates well with parallelization at a higher level.   
 
 === Conclusion
