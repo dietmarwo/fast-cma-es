@@ -446,7 +446,18 @@ slow Python loops
 - Since fcmaes uses shared memory for the contents of the archive, processes can compute the
 fitness of many solutions before they have to synchronize. This way much less process creation/shutdown
 overhead is created. Note that because of the Python global interpreter lock multi threading is not applicable, 
-and process creation is quite heavyweight compared to thread creation.   
+and process creation is quite heavyweight compared to thread creation.
+- The CVT MAP-elite implementation doesn't support CMA-ES update, so there is no direct comparison there.    
+Because of its computationally expensive covariance matrix update CMA-ES may either become very slow
+for higher solution dimensions, or the underlying matrix library may allocate multiple CPU cores for a single   
+optimization which is counterproductive if the whole optimization is already parallelized.
+For extremly high dimensions (> 1000) there is no alternative to a 
+https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[JAX based implementation] where the matrix operations
+are delegated to a CPU/TPU. But as the benchmarks results in 
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/EvoJax.adoc[EvoJax.adoc] show: For these high dimensional 
+problems CMA-ES is not the best choice anyway because its slow convergence. For MAP-Elites which typically is
+applied to problems with dimension > 1000, a fast C++ CMA-ES implementation as this from fcmaes is the fastest choice, 
+since it is always executed single threaded and integrates well with parallelization at a higher level.   
 
 === Conclusion
 
