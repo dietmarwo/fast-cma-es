@@ -453,7 +453,7 @@ for higher solution dimensions, or the underlying matrix library may allocate mu
 optimization which is counterproductive if the whole optimization is already parallelized.
 For extremly high dimensions (> 1000) there is no alternative to a 
 https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[JAX based implementation] where the matrix operations
-are delegated to a CPU/TPU. But as the benchmarks results in 
+are delegated to a GPU/TPU. But as the benchmarks results in 
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/EvoJax.adoc[EvoJax.adoc] show: For these high dimensional 
 problems CMA-ES is not the best choice anyway because its slow convergence. For MAP-Elites which typically is
 applied to problems with dimension > 1000, a fast C++ CMA-ES implementation as this from fcmaes is the fastest choice, 
