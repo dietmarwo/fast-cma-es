@@ -434,7 +434,7 @@ def run_map_elites():
 
 Here the solution and description space are not normalized, which means that we have to provide the
 boundaries to the algorithm (`problem.bounds, problem.desc_bounds`).
-Not that archive objects have a load and save method to save the current status of the optimization 
+Note that archive objects have a load and save method to save the current status of the optimization 
 to disk. A loaded archive can be forwarded to `mapelites.optimize_map_elites` via the optional 
 `archive` parameter to continue a saved optimization. Reasons for the performance difference 
 to the reference solution:
