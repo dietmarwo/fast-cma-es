@@ -568,6 +568,8 @@ def crowd_dist(y): # crowd distance for 1st objective
 # derived from https://github.com/ChengHust/NSGA-II/blob/master/GLOBAL.py
 def variation(pop, lower, upper, rg, pro_c = 1, dis_c = 20, pro_m = 1, dis_m = 20):
     """Generate offspring individuals"""   
+    dis_c *= 0.5 + 0.5*rg.random() # vary spread factors randomly 
+    dis_m *= 0.5 + 0.5*rg.random() 
     pop = pop[:(len(pop) // 2) * 2][:]
     (n, d) = np.shape(pop)
     parent_1 = pop[:n // 2, :]
