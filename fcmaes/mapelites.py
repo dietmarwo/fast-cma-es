@@ -255,7 +255,7 @@ def run_map_elites_(archive, fitness, bounds, rg, min_selection,
 def optimize_cma_(archive, fitness, bounds, rg, cma_params):
     select_n = cma_params.get('best_n', 100)
     #select_n = min(select_n, archive.get_occupied()) # restrict to occupied
-    print(select_n, archive.get_occupied())
+    #print(select_n, archive.get_occupied())
     x0, y, i = archive.random_xs_one(select_n, rg)
     sigma = cma_params.get('sigma',rg.uniform(0.03, 0.3)**2)
     popsize = cma_params.get('popsize', 31) 
