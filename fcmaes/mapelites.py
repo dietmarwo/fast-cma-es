@@ -79,7 +79,7 @@ from time import perf_counter
 rng = default_rng()
 
 def optimize_map_elites(fitness, bounds, desc_bounds, 
-                niche_num = 4000, samples_per_niche = 100, workers = 24, 
+                niche_num = 4000, samples_per_niche = 20, workers = 24, 
                 iterations = 100, min_selection = 0.2, selection_reduce = 0.9, 
                 archive = None, me_params = {}, cma_params = {}, logger = logger()):
     
@@ -256,25 +256,30 @@ def optimize_cma_(archive, fitness, bounds, rg, cma_params):
     select_n = cma_params.get('best_n', 100)
     #select_n = min(select_n, archive.get_occupied()) # restrict to occupied
     #print(select_n, archive.get_occupied())
-    x0, y, i = archive.random_xs_one(select_n, rg)
+    x0, y, iter = archive.random_xs_one(select_n, rg)
     sigma = cma_params.get('sigma',rg.uniform(0.03, 0.3)**2)
     popsize = cma_params.get('popsize', 31) 
     es = cmaescpp.ACMA_C(archive.dim, bounds, x0 = x0,  
                          popsize = popsize, input_sigma = sigma, rg = rg)
     maxiters = cma_params.get('maxiters', 100)
     miniters = cma_params.get('miniters', 20)
+    stall_criterion = cma_params.get('stall_criterion', 5)
     old_ys = None
-    for i in range(maxiters):
+    last_improve = 0
+    for iter in range(maxiters):
         xs = es.ask()
         ys, stop = update_archive_cma_(archive, xs, fitness)
-        if old_ys is None or i < miniters or (np.sort(ys) < np.sort(old_ys)).any(): 
-            # no improvement?
-            stop = False
-        if stop:
+        if iter > miniters and stop:
+            break
+        if iter > 0:
+            if (np.sort(ys) < old_ys).any():
+                last_improve = iter          
+        if last_improve + stall_criterion < iter:
+            # no improvement
             break
         if es.tell(ys) != 0:
             break 
-        old_ys = ys
+        old_ys = np.sort(ys)
 
 def update_archive_cma_(archive, xs, fitness):
     # evaluate population, update archive and determine ranking for cma-es

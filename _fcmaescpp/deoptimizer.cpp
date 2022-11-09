@@ -527,7 +527,7 @@ uintptr_t initDE_C(long runid, int dim, int seed,
     Fitness* fitfun = new Fitness(noop_callback, noop_callback_par, dim, 1, 
         lower_limit, upper_limit);
     DeOptimizer* opt = new DeOptimizer(runid, fitfun, dim, seed, popsize, 0, keep,
-            -1E99, F, CR, min_mutate, max_mutate,
+            -DBL_MAX, F, CR, min_mutate, max_mutate,
             useIsInt ? isInt : NULL, guess, inputSigma, minSigma);
      return (uintptr_t) opt;
 }

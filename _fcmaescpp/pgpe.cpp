@@ -21,13 +21,16 @@
 #include <random>
 #include <queue>
 #include <tuple>
-#define EIGEN_VECTORIZE_SSE2
 #include <EigenRand/EigenRand>
 #include "evaluator.h"
 
 using namespace std;
 
 namespace pgpe {
+
+double sdev(vec v) {
+    return sqrt((v.array() - v.mean()).square().sum() / (v.size() - 1));
+}
 
 class ADAM {
 
@@ -58,6 +61,10 @@ public:
                 * (mhat.array()
                         * (vhat.cwiseSqrt() + eps).cwiseInverse().array());
         x -= delta;
+//        cout << i << " " << step_size(i) << " "
+//                << x.mean() << " " << sdev(x) << " "
+//                << m.mean() << " " << sdev(m) << " "
+//                << v.mean() << " " << sdev(v) << endl;
     }
 
     double step_size(int i) {
@@ -374,7 +381,7 @@ uintptr_t initPGPE_C(int64_t runid, int dim, double *init, double *lower,
             lower_limit, upper_limit);
     fitfun->setNormalize(normalize);
     PGPEOptimizer *opt = new PGPEOptimizer(runid, fitfun, dim, seed, popsize,
-            guess, inputSigma, 0, -1E99, lr_decay_steps, use_ranking,
+            guess, inputSigma, 0, -DBL_MAX, lr_decay_steps, use_ranking,
             center_learning_rate, stdev_learning_rate, stdev_max_change, b1, b2,
             eps, decay_coef);
     return (uintptr_t) opt;

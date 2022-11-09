@@ -245,7 +245,7 @@ class CRFMNES:
         self.ps = (1 - self.cs) * self.ps + np.sqrt(self.cs * (2. - self.cs) * self.mueff) * (self.z @ self.w_rank)
         ps_norm = np.linalg.norm(self.ps)
         # distance weight
-        f1 =  self.h_inv * min(1., math.sqrt(self.lamb / dim)) * math.sqrt(lambF / self.lamb)        
+        f1 =  self.h_inv * min(1., math.sqrt(self.lamb / self.dim)) * math.sqrt(lambF / self.lamb)        
         w_tmp = self.w_rank_hat * np.exp(np.linalg.norm(self.z, axis = 0) * f1).reshape((self.lamb,1))
         weights_dist = w_tmp / sum(w_tmp) - 1. / self.lamb
         # switching weights and learning rate

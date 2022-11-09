@@ -99,10 +99,10 @@ def _check_bounds(bounds, guess, rg):
     return np.asarray(bounds.lb), np.asarray(bounds.ub), np.asarray(guess)
 
 def _get_bounds(dim, bounds, guess, rg):
-    if guess is None:
-        guess = np.zeros(dim)
     if bounds is None:
-        return None, None, np.asarray(guess)
+        if guess is None:
+            guess = np.asarray(np.zeros(dim))
+        return None, None, guess
     if guess is None:
         guess = rg.uniform(bounds.lb, bounds.ub)
     return np.asarray(bounds.lb), np.asarray(bounds.ub), np.asarray(guess)

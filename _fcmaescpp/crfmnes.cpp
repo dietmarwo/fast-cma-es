@@ -19,7 +19,6 @@
 #include <stdint.h>
 #include <ctime>
 #include <inttypes.h>
-#define EIGEN_VECTORIZE_SSE2
 #include <EigenRand/EigenRand>
 #include "evaluator.h"
 
@@ -427,7 +426,7 @@ uintptr_t initCRFMNES_C(int64_t  runid, int dim,
      fitfun->setNormalize(normalize);
 
      CrfmnesOptimizer* opt = new CrfmnesOptimizer(runid, fitfun, dim, guess, sigma, popsize,
-             0, 0, penalty_coef, use_constraint_violation, seed);
+             0, -DBL_MAX, penalty_coef, use_constraint_violation, seed);
 
      return (uintptr_t) opt;
 }
@@ -455,15 +454,6 @@ void askCRFMNES_C(uintptr_t ptr, double* xs) {
 int tellCRFMNES_C(uintptr_t ptr, double* ys) {//, double* xs) {
     CrfmnesOptimizer *opt = (CrfmnesOptimizer*) ptr;
     int lamb = opt->getPopsize();
-//    int dim = opt->getDim();
-//    Fitness* fitfun = opt->getFitfun();
-//    mat popX(dim, lamb);
-//    for (int p = 0; p < lamb; p++) {
-//        vec x(dim);
-//        for (int i = 0; i < dim; i++)
-//            x[i] = xs[p * dim + i];
-//        popX.col(p) = fitfun->decode(x);
-//    }
     vec vals(lamb);
     for (int i = 0; i < lamb; i++)
         vals[i] = ys[i];
