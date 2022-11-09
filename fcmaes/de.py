@@ -200,9 +200,10 @@ class DE(object):
         for p in range(self.popsize):
             if xs[p] is None:
                 _, _, xs[p] = self._next_x(p)      
+        self.asked = xs      
         return xs
  
-    def tell(self, ys, xs):      
+    def tell(self, ys, xs = None):      
         """tell function values for the argument lists retrieved by ask().
     
         Parameters
@@ -214,6 +215,8 @@ class DE(object):
         -------
         stop : int termination criteria, if != 0 loop should stop."""
 
+        if xs is None:
+            xs = self.asked
         self.evals += len(ys)
         for p in range(len(ys)):
             self.tell_one(p, ys[p], xs[p])
