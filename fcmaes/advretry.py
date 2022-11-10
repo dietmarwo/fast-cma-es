@@ -349,7 +349,7 @@ class Store(object):
         self.worst_y.value = self.get_y(numStored-1)
         return numStored        
 
-    def add_result(self, y, xs, lower, upper, evals, limit=np.inf):
+    def add_result(self, y, xs, evals, limit=np.inf):
         """registers an optimization result at the store."""
         with self.add_mutex:
             self.count_evals.value += evals
@@ -440,7 +440,7 @@ def _retry_loop(pid, rgs, store, optimize, value_limit, stop_fitness = -np.inf):
                 dim = len(store.lower)
                 sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
                                          [rg.uniform(0.05, 0.1)]*dim, rg, store)
-                store.add_result(y, sol, store.lower, store.upper, evals, value_limit)
+                store.add_result(y, sol, evals, value_limit)
             except Exception as ex:
                 continue
 #         if pid == 0:
@@ -455,7 +455,7 @@ def _crossover(fun, store, optimize, rg):
     guess = fitting(guess, lower, upper) # take X from lower
     try:       
         sol, y, evals = optimize(fun, Bounds(lower, upper), guess, sdev, rg, store)
-        store.add_result(y, sol, lower, upper, evals, y0) # limit to y0  
+        store.add_result(y, sol, evals, y0) # limit to y0  
     except:
         return False   
     return True

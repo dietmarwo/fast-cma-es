@@ -454,6 +454,15 @@ void askCRFMNES_C(uintptr_t ptr, double* xs) {
 int tellCRFMNES_C(uintptr_t ptr, double* ys) {//, double* xs) {
     CrfmnesOptimizer *opt = (CrfmnesOptimizer*) ptr;
     int lamb = opt->getPopsize();
+//    int dim = opt->getDim();
+//    Fitness* fitfun = opt->getFitfun();
+//    mat popX(dim, lamb);
+//    for (int p = 0; p < lamb; p++) {
+//        vec x(dim);
+//        for (int i = 0; i < dim; i++)
+//            x[i] = xs[p * dim + i];
+//        popX.col(p) = fitfun->decode(x);
+//    }
     vec vals(lamb);
     for (int i = 0; i < lamb; i++)
         vals[i] = ys[i];
@@ -473,4 +482,20 @@ int populationCRFMNES_C(uintptr_t ptr, double* xs) {
     }
     return opt->getStop();
 }
+
+int resultCRFMNES_C(uintptr_t ptr, double* res) {
+    CrfmnesOptimizer *opt = (CrfmnesOptimizer*) ptr;
+    vec bestX = opt->getBestX();
+    double bestY = opt->getBestValue();
+    int n = bestX.size();
+    for (int i = 0; i < bestX.size(); i++)
+        res[i] = bestX[i];
+    res[n] = bestY;
+    Fitness* fitfun = opt->getFitfun();
+    res[n + 1] = fitfun->evaluations();
+    res[n + 2] = opt->getIterations();
+    res[n + 3] = opt->getStop();
+    return opt->getStop();
+}
+
 }

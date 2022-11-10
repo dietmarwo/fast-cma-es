@@ -222,6 +222,14 @@ class DE(object):
             self.tell_one(p, ys[p], xs[p])
         return self.stop
 
+    def population(self):
+        return self.x
+
+    def result(self):
+        return OptimizeResult(x=self.best_x, fun=self.best_value, 
+                              nfev=self.iterations*self.popsize, 
+                              nit=self.iterations, status=self.stop, success=True)
+    
     def ask_one(self):
         """ask for one new argument vector.
         

@@ -295,7 +295,15 @@ class Cmaes(object):
         self.updateCMA()
         self.arz = None
         return self.stop
- 
+    
+    def population(self):
+        return self.fitfun.decode(self.arx)
+
+    def result(self):
+        return OptimizeResult(x=self.best_x, fun=self.best_value, 
+                              nfev=self.fitfun.evaluation_counter, 
+                              nit=self.iterations, status=self.stop, success=True)
+        
     def ask_one(self):
         """ask for one new argument vector.
         

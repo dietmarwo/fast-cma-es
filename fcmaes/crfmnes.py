@@ -303,6 +303,13 @@ class CRFMNES:
         self.sigma = self.sigma * exp(eta_sigma / 2 * G_s)
         return self.stop
 
+    def population(self):
+        return self.x
+
+    def result(self):
+        return OptimizeResult(x=self.x_best, fun=self.f_best, nfev=self.no_of_evals, 
+                              nit=self.g, status=self.stop, success=True)
+        
 def exp(a):
     return math.exp(min(100, a)) # avoid overflow
 

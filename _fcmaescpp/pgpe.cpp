@@ -429,5 +429,20 @@ int populationPGPE_C(uintptr_t ptr, double *xs) {
     }
     return opt->getStop();
 }
+
+int resultPGPE_C(uintptr_t ptr, double* res) {
+    PGPEOptimizer *opt = (PGPEOptimizer*) ptr;
+    vec bestX = opt->getBestX();
+    double bestY = opt->getBestValue();
+    int n = bestX.size();
+    for (int i = 0; i < bestX.size(); i++)
+        res[i] = bestX[i];
+    res[n] = bestY;
+    Fitness* fitfun = opt->getFitfun();
+    res[n + 1] = fitfun->evaluations();
+    res[n + 2] = opt->getIterations();
+    res[n + 3] = opt->getStop();
+    return opt->getStop();
+}
 }
 

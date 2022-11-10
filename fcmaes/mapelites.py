@@ -78,7 +78,7 @@ from time import perf_counter
 
 rng = default_rng()
 
-def optimize_map_elites(fitness, bounds, desc_bounds, 
+def optimize_map_elites(qd_fitness, bounds, desc_bounds, 
                 niche_num = 4000, samples_per_niche = 20, workers = 24, 
                 iterations = 100, min_selection = 0.2, selection_reduce = 0.9, 
                 archive = None, me_params = {}, cma_params = {}, logger = logger()):
@@ -87,9 +87,9 @@ def optimize_map_elites(fitness, bounds, desc_bounds,
      
     Parameters
     ----------
-    fitness : callable
+    qd_fitness : callable
         The objective function to be minimized.
-            ``fitness(x) -> float, ndarray``
+            ``qd_fitness(x) -> float, array``
         where ``x`` is an 1-D array with shape (n,)
     bounds : `Bounds`
         Bounds on variables. Instance of the `scipy.Bounds` class.
@@ -136,7 +136,7 @@ def optimize_map_elites(fitness, bounds, desc_bounds,
     best_n = me_params.get('best_n', niche_num)     
     for iter in range(iterations):
         archive.argsort() # sort archive to select the best_n
-        optimize_map_elites_(archive, fitness, bounds, workers, min_selection,
+        optimize_map_elites_(archive, qd_fitness, bounds, workers, min_selection,
                     me_params, cma_params, iter)
         if not logger is None:
             ys = np.sort(archive.get_ys())[:100] # best 100 fitness values

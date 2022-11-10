@@ -269,6 +269,21 @@ class ACMA_C:
             print (ex)
             return None
 
+    def result(self):
+        res = np.empty(self.dim+4)
+        res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
+        try:
+            resultACMA_C(self.ptr, res_p)
+            x = res[:dim]
+            val = res[dim]
+            evals = int(res[dim+1])
+            iterations = int(res[dim+2])
+            stop = int(res[dim+3])
+            res = OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
+        except Exception as ex:
+            res = OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
+        return res
+
 initACMA_C = libcmalib.initACMA_C
 initACMA_C.argtypes = [ct.c_long, ct.c_int, \
             ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
@@ -293,3 +308,6 @@ tellXACMA_C.restype = ct.c_int
 
 populationACMA_C = libcmalib.populationACMA_C
 populationACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+
+resultACMA_C = libcmalib.resultACMA_C
+resultACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
