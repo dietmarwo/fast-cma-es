@@ -148,7 +148,7 @@ def minimize_(archive, fitness, bounds, rg, opt_params):
         old_ys = np.sort(ys)
 
 def update_archive_(archive, xs, fitness):
-    # evaluate population, update archive and determine ranking for cma-es
+    # evaluate population, update archive and determine ranking
     popsize = len(xs) 
     yds = [fitness(x) for x in xs]
     descs = np.array([yd[1] for yd in yds])
@@ -156,8 +156,7 @@ def update_archive_(archive, xs, fitness):
     ys = np.array(np.fromiter((yd[0] for yd in yds), dtype=float))
     oldys = np.array(np.fromiter((archive.get_y(niches[i]) for i in range(popsize)), dtype=float))
     is_inf = (oldys == np.inf)
-    oldys[is_inf] = np.amax(ys)+1
-    
+    oldys[is_inf] = np.amax(ys)+1   
     diff = ys - oldys
     neg = np.argwhere(diff < 0)
     if len(neg) > 0:
