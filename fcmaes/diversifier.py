@@ -35,7 +35,7 @@ import threadpoolctl
 def minimize(fitness, bounds, 
             desc_bounds, 
             niche_num = 4000, 
-            samples_per_niche = 10, 
+            samples_per_niche = 20, 
             retries = None, 
             workers = mp.cpu_count(), 
             archive = None, 
@@ -151,14 +151,6 @@ def update_archive_(archive, xs, fitness):
     # evaluate population, update archive and determine ranking for cma-es
     popsize = len(xs) 
     yds = [fitness(x) for x in xs]
-    
-    # descs = np.array([yd[1] for yd in yds])
-    # niches = archive.index_of_niches(descs)
-    # ys = np.array(np.fromiter((yd[0] for yd in yds), dtype=float))
-    # for i in range(popsize):
-    #     archive.set(niches[i], yds[i], xs[i])   
-    # return ys
-
     descs = np.array([yd[1] for yd in yds])
     niches = archive.index_of_niches(descs)
     ys = np.array(np.fromiter((yd[0] for yd in yds), dtype=float))
