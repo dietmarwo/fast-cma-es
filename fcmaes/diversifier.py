@@ -14,11 +14,11 @@ function enhance the diversification of the optimization result.
 The resulting archive may be stored and can be used to continue the
 optimization later.   
 
-Requires a ND-fitness function returning both an fitness value and a
+Requires a QD-fitness function returning both an fitness value and a
 behavior vector used to determine the corresponding archive niche using
 Voronoi tesselation. 
 
-Returns an archive of niche-elites containg also for each niche statistics 
+Returns an archive of niche-elites containing also for each niche statistics 
 about the associated solutions.     
 """
 

@@ -18,7 +18,7 @@ a huge number of local optima.
 - Discusses how different configurations / solution-emitters may affect the result. 
 - Explains how CVT MAP-Elites needs to be implemented in Python to provide minimal algorithm overhead and
 maximal scaling with the number of parallel processes. 
-- Shows how CMA-ES can be used to enhance the optmization results or to improve existing solutions. 
+- Shows how CMA-ES can be used to enhance the optimization results or to improve existing solutions. 
 
 === Background
 
@@ -395,6 +395,8 @@ It performs up to 350000 fitness evaluations / sec which is about factor
 50 faster. (factor 78 if you compare with `px["parallel"] = True`). 
 Additionally, because of the CMA-ES emitter, convergence is also improved and we find solutions around 8.6 in about 15 minutes. 
 Above we show plots of the whole archive which contains a great number of good solutions. 
+The code uses https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mapelites.py[mapelites.py], the fcmaes CVT Map-Elites
+implementation.
 
 [source,python]
 ----
@@ -417,14 +419,14 @@ class Cassini2_me():
         max_launch = launch(prob.bounds.ub)
         self.desc_bounds = Bounds([min_tof, min_launch], [max_tof, max_launch]) 
                         
-    def fun(self, x):
+    def qd_fitness(self, x):
         return self.problem.fun(x), np.array([tof(x), launch(x)])
  
 def run_map_elites():
     problem = Cassini2_me(Cassini2())
     me_params = {'generations':100, 'chunk_size':1000}
     cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':1000, 'miniters':200}
-    fitness =  mapelites.wrapper(problem.fun, problem.desc_dim)
+    fitness =  mapelites.wrapper(problem.qd_fitness, problem.desc_dim)
 
     archive = mapelites.optimize_map_elites(
         fitness, problem.bounds, problem.desc_bounds, niche_num = niche_num,
@@ -459,6 +461,50 @@ problems CMA-ES is not the best choice anyway because of its slow convergence. F
 applied to problems with dimension < 1000, a fast C++ CMA-ES implementation as the fcmaes one is the best choice, 
 since it is always executed single threaded and integrates well with parallelization at a higher level.   
 
+==== But there is an alternative: Diversifier
+
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[diversifier.py] is a new alternative to MAP-Elites. 
+generalizes the ideas from https://arxiv.org/pdf/1912.02400.pdf[CMA-ME] to other wrapped algorithms. 
+It uses the archive from CVT MAP-Elites (https://arxiv.org/abs/1610.05729) implemented in 
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mapelites.py[mapelites.py]
+
+Both the parallel retry and the archive based modification of the fitness 
+function enhance the diversification of the optimization result.
+The resulting archive may be stored and can be used to continue the
+optimization later.   
+
+As MAP-Elites it requires a QD-fitness function returning both an fitness value and a
+behavior vector used to determine the corresponding archive niche using
+Voronoi tesselation. It returns (or improves) an archive of niche-elites containing also for each niche statistics 
+about the associated solutions. 
+
+[source,python]
+----
+def run_diversifier():
+    name = 'cass2div'
+    problem = Cassini2_me(Cassini2())
+    opt_params1 = {'solver':'DE_CPP', 'max_evals':2000000, 'popsize':32, 'stall_criterion':200}
+    opt_params2 = {'solver':'CMA_CPP', 'max_evals':2000000, 'popsize':32, 'stall_criterion':200}
+    archive = diversifier.minimize(
+         diversifier.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
+         workers = 24, opt_params=[opt_params1, opt_params2])
+    diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, problem.bounds, archive, 
+                               num_retries=20000)
+    archive.save(name)
+    plot_archive(archive)
+----
+
+As can be seen by the example code above, it supports the application of arbitrary solver-sequences. 
+The optimal solution found is forwarded to the next solver as initial mean of its solution distribution. 
+A resulting niche-archive may further be improved by applying a regular non-QD algorithm: the fcmaes 
+advanced parallel retry / smart boundary management meta-algorithm. Archive-contents are transferred
+to its solution store and then back to the QD-archive. This method is very effective in improving
+the best solutions found so far, but doesn't improve the diversity of the solutions much. 
+
+The diversifier needs less fitness evaluations for the price of diversity. It may be an interesting
+alternative, if the evaluation budged is limited and/or the fitness evaluation is expensive. 
+Its results are far more diverse than what can be achieved without a QD-archive of niche-elites. 
+
 === Conclusion
 
 We have shown that: 
@@ -466,7 +512,12 @@ We have shown that:
 - CVT MAP-elites can handle even the hardest optimization problems.
 - QD algorithms are more useful for real world problems as optimizers returning a single best solution.  
 - The CMA-ES emitter improves effectively existing archive solutions during optimization. 
-- CMA-ES can be applied after MAP-elites optimization to improve selected niches.  
+- CMA-ES can be applied after MAP-elites optimization to improve selected niches.
+- Alternatively there is the general diversifier applying a QD-archive to different non-QD algorithms like
+CR-FM-NES, DE, PGPA and CMA-ES or to sequences of these. This flexibility is specially valuable for application domains
+were CMA-ES becomes slow (dimension > 1000, as for machine learning tasks). 
+- QD-archives and fcmaes parallel retry stores can interchange their solutions to improve results further applying
+non-QD (meta-)algorithms.   
 
 Our CVT MAP elites (with CMA-Emitter) implementation https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py] introduces a number of novelties enhancing its performance:
 

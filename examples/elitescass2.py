@@ -7,8 +7,9 @@
 
 import numpy as np
 from scipy.optimize import Bounds
-from fcmaes import mapelites
+from fcmaes import mapelites, diversifier
 from fcmaes.astro import Cassini2
+from fcmaes.optimizer import wrapper
 
 def plot3d(ys, name, xlabel='', ylabel='', zlabel=''):
     import matplotlib.pyplot as plt
@@ -80,8 +81,14 @@ class Cassini2_me():
 
         self.desc_bounds = Bounds([min_tof, min_launch], [max_tof, max_launch]) 
                         
-    def fun(self, x):
+    def qd_fitness(self, x):
         return self.problem.fun(x), np.array([tof(x), launch(x)])
+
+    def fitness(self, x):
+        return self.problem.fun(x)
+    
+    def descriptors(self, x):
+        return np.array([tof(x), launch(x)])
 
 def cma_elite(problem, archive, num=300):    
     ''' applies CMA-ES to the best num niches'''
@@ -96,7 +103,7 @@ def cma_elite(problem, archive, num=300):
             print (list(archive.get_x_stdev(j)))
            
             guess = archive.get_x(j) 
-            fun = archive.in_niche_filter(problem.fun, j)
+            fun = archive.in_niche_filter(problem.qd_fitness, j)
             print (archive.get_y(j), fun(guess))
     
             lb = np.nan_to_num(archive.get_x_min(j), nan=-np.inf)
@@ -108,7 +115,7 @@ def cma_elite(problem, archive, num=300):
             res = retry.minimize(fun, bounds, num_retries=24*8, logger=logger(), 
                            optimizer=Cma_cpp(guess=guess, sdevs=0.001, workers=24)
                            )       
-            y, d = problem.fun(res.x) 
+            y, d = problem.qd_fitness(res.x) 
             print (j, res.fun, fun(res.x), y, d)
             archive.set(j, [y,d], res.x)
             if i % 50 == 0:
@@ -123,10 +130,23 @@ def plot(name):
     problem = Cassini2_me(Cassini2())
     archive = mapelites.load_archive(name, problem.bounds, problem.desc_bounds, niche_num)
     plot_archive(archive)
-    
+
+def run_diversifier():
+    name = 'cass2div'
+    problem = Cassini2_me(Cassini2())
+    opt_params1 = {'solver':'DE_CPP', 'max_evals':2000000, 'popsize':32, 'stall_criterion':200}
+    opt_params2 = {'solver':'CMA_CPP', 'max_evals':2000000, 'popsize':32, 'stall_criterion':200}
+    archive = diversifier.minimize(
+         diversifier.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
+         workers = 24, opt_params=[opt_params1, opt_params2])
+    diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, problem.bounds, archive, 
+                               num_retries=20000)
+    archive.save(name)
+    plot_archive(archive)
+   
 def run_map_elites():
     problem = Cassini2_me(Cassini2())
-    name = 'cass2'
+    name = 'cass2me'
     archive = None
     #archive = mapelites.load_archive("cass2",  problem.bounds, problem.desc_bounds, niche_num)
     
@@ -138,7 +158,7 @@ def run_map_elites():
     # me_params = {'generations':100, 'chunk_size':1000}
     # cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':1000, 'miniters':200}
     
-    fitness =  mapelites.wrapper(problem.fun, problem.desc_dim)
+    fitness =  mapelites.wrapper(problem.qd_fitness, problem.desc_dim)
 
     archive = mapelites.optimize_map_elites(
         fitness, problem.bounds, problem.desc_bounds, niche_num = niche_num,
@@ -157,5 +177,6 @@ def run_map_elites():
 if __name__ == '__main__':
     
     run_map_elites()
+    #run_diversifier()
     #plot('cass2')
     pass
