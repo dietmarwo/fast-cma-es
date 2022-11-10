@@ -73,7 +73,7 @@ def minimize(fun,
     res : scipy.OptimizeResult
         The optimization result is represented as an ``OptimizeResult`` object"""
 
-    cr = CRFMNES(dim, bounds, x0, input_sigma, popsize, 
+    cr = CRFMNES(bounds, x0, input_sigma, popsize, 
                  max_evaluations, stop_fitness, is_terminate, runid, normalize, options, rg, workers, fun)
     
     cr.optimize()
@@ -89,7 +89,7 @@ class CRFMNES:
                  bounds = None,
                  x0 = None, 
                  input_sigma = None, 
-                 lamb = 32, 
+                 popsize = 32, 
                  max_evaluations = 100000, 
                  stop_fitness = -np.inf, 
                  is_terminate = None, 
@@ -100,10 +100,10 @@ class CRFMNES:
                  workers = None, 
                  fun = lambda x: 0): # used for random offspring  ):
         
-        if lamb is None:
-            lamb = 32         
-        if lamb % 2 == 1: # requires even popsize
-            lamb += 1
+        if popsize is None:
+            popsize = 32         
+        if popsize % 2 == 1: # requires even popsize
+            popsize += 1
         if dim is None:
             if not x0 is None: dim = len(x0)
             else: 
@@ -125,7 +125,7 @@ class CRFMNES:
 
         self.dim = dim
         self.sigma = sigma
-        self.lamb = lamb
+        self.popsize = popsize
               
         self.max_evaluations = max_evaluations
         self.stop_fitness = stop_fitness
@@ -139,10 +139,10 @@ class CRFMNES:
         self.penalty_coef = options.get('penalty_coef', 1e5)
         self.use_constraint_violation = options.get('use_constraint_violation', True)
 
-        self.w_rank_hat = (np.log(self.lamb / 2 + 1) - np.log(np.arange(1, self.lamb + 1))).reshape(self.lamb, 1)
+        self.w_rank_hat = (np.log(self.popsize / 2 + 1) - np.log(np.arange(1, self.popsize + 1))).reshape(self.popsize, 1)
         self.w_rank_hat[np.where(self.w_rank_hat < 0)] = 0
-        self.w_rank = self.w_rank_hat / sum(self.w_rank_hat) - (1. / self.lamb)
-        self.mueff = 1 / ((self.w_rank + (1 / self.lamb)).T @ (self.w_rank + (1 / self.lamb)))[0][0]
+        self.w_rank = self.w_rank_hat / sum(self.w_rank_hat) - (1. / self.popsize)
+        self.mueff = 1 / ((self.w_rank + (1 / self.popsize)).T @ (self.w_rank + (1 / self.popsize)))[0][0]
         self.cs = (self.mueff + 2.) / (self.dim + self.mueff + 5.)
         self.cc = (4. + self.mueff / self.dim) / (self.dim + 4. + 2. * self.mueff / self.dim)
         self.c1_cma = 2. / (math.pow(self.dim + 1.3, 2) + self.mueff)
@@ -152,15 +152,15 @@ class CRFMNES:
         self.ps = np.zeros([self.dim, 1])
         # distance weight parameter
         self.h_inv = get_h_inv(self.dim)
-        self.alpha_dist = lambda lambF: self.h_inv * min(1., math.sqrt(self.lamb / self.dim)) * math.sqrt(
-            lambF / self.lamb)
+        self.alpha_dist = lambda lambF: self.h_inv * min(1., math.sqrt(self.popsize / self.dim)) * math.sqrt(
+            lambF / self.popsize)
         self.w_dist_hat = lambda z, lambF: exp(self.alpha_dist(lambF) * np.linalg.norm(z))
         # learning rate
         self.eta_m = 1.0
         self.eta_move_sigma = 1.
         self.eta_stag_sigma = lambda lambF: math.tanh((0.024 * lambF + 0.7 * self.dim + 20.) / (self.dim + 12.))
         self.eta_conv_sigma = lambda lambF: 2. * math.tanh((0.025 * lambF + 0.75 * self.dim + 10.) / (self.dim + 4.))
-        self.c1 = lambda lambF: self.c1_cma * (self.dim - 5) / 6 * (lambF / self.lamb)
+        self.c1 = lambda lambF: self.c1_cma * (self.dim - 5) / 6 * (lambF / self.popsize)
         self.eta_B = lambda lambF: np.tanh((min(0.02 * lambF, 3 * np.log(self.dim)) + 5) / (0.23 * self.dim + 25))
 
         self.g = 0
@@ -168,9 +168,9 @@ class CRFMNES:
         self.iteration = 0
         self.stop = 0
 
-        self.idxp = np.arange(self.lamb / 2, dtype=int)
-        self.idxm = np.arange(self.lamb / 2, self.lamb, dtype=int)
-        self.z = np.zeros([self.dim, self.lamb])
+        self.idxp = np.arange(self.popsize / 2, dtype=int)
+        self.idxm = np.arange(self.popsize / 2, self.popsize, dtype=int)
+        self.z = np.zeros([self.dim, self.popsize])
 
         self.f_best = float('inf')
         self.x_best = np.empty(self.dim)
@@ -180,8 +180,8 @@ class CRFMNES:
             self.fun.stop()
         
     def calc_violations(self, x):
-        violations = np.zeros(self.lamb)
-        for i in range(self.lamb):
+        violations = np.zeros(self.popsize)
+        for i in range(self.popsize):
             for j in range(self.dim):
                 violations[i] += (- min(0, x[j][i] - self.constraint[j][0]) + max(0, x[j][i] - self.constraint[j][1])) * self.penalty_coef
         return violations
@@ -205,8 +205,8 @@ class CRFMNES:
 
     def ask(self):
         d = self.dim
-        lamb = self.lamb
-        zhalf = self.rg.normal(0,1,(d, int(lamb / 2)))  # dim x lamb/2
+        popsize = self.popsize
+        zhalf = self.rg.normal(0,1,(d, int(popsize / 2)))  # dim x popsize/2
         self.z[:, self.idxp] = zhalf
         self.z[:, self.idxm] = -zhalf
         self.normv = np.linalg.norm(self.v)
@@ -217,7 +217,7 @@ class CRFMNES:
         return self.x.T
 
     def tell(self, evals_no_sort):
-        violations = np.zeros(self.lamb)
+        violations = np.zeros(self.popsize)
         if self.use_constraint_violation:
             violations = self.calc_violations(self.x)
             sorted_indices = sort_indices_by(evals_no_sort + violations, self.z)
@@ -230,7 +230,7 @@ class CRFMNES:
         y = self.y[:, sorted_indices]
         x = self.x[:, sorted_indices]
 
-        self.no_of_evals += self.lamb
+        self.no_of_evals += self.popsize
         self.g += 1
  
         if f_best < self.f_best:
@@ -245,9 +245,9 @@ class CRFMNES:
         self.ps = (1 - self.cs) * self.ps + np.sqrt(self.cs * (2. - self.cs) * self.mueff) * (self.z @ self.w_rank)
         ps_norm = np.linalg.norm(self.ps)
         # distance weight
-        f1 =  self.h_inv * min(1., math.sqrt(self.lamb / self.dim)) * math.sqrt(lambF / self.lamb)        
-        w_tmp = self.w_rank_hat * np.exp(np.linalg.norm(self.z, axis = 0) * f1).reshape((self.lamb,1))
-        weights_dist = w_tmp / sum(w_tmp) - 1. / self.lamb
+        f1 =  self.h_inv * min(1., math.sqrt(self.popsize / self.dim)) * math.sqrt(lambF / self.popsize)        
+        w_tmp = self.w_rank_hat * np.exp(np.linalg.norm(self.z, axis = 0) * f1).reshape((self.popsize,1))
+        weights_dist = w_tmp / sum(w_tmp) - 1. / self.popsize
         # switching weights and learning rate
         weights = weights_dist if ps_norm >= self.chiN else self.w_rank
         eta_sigma = self.eta_move_sigma if ps_norm >= self.chiN else self.eta_stag_sigma(
@@ -259,35 +259,35 @@ class CRFMNES:
         # calculate s, t
         # step1
         normv4 = self.normv2 ** 2
-        exY = np.append(y, self.pc / self.D, axis=1)  # dim x lamb+1
-        yy = exY * exY  # dim x lamb+1
+        exY = np.append(y, self.pc / self.D, axis=1)  # dim x popsize+1
+        yy = exY * exY  # dim x popsize+1
         ip_yvbar = self.vbar.T @ exY
-        yvbar = exY * self.vbar  # dim x lamb+1. exYのそれぞれの列にvbarがかかる
+        yvbar = exY * self.vbar  # dim x popsize+1. exYのそれぞれの列にvbarがかかる
         gammav = 1. + self.normv2
         vbarbar = self.vbar * self.vbar
         alphavd = min(1, np.sqrt(normv4 + (2 * gammav - np.sqrt(gammav)) / np.max(vbarbar)) / (2 + self.normv2))  # scalar
         
-        t = exY * ip_yvbar - self.vbar * (ip_yvbar ** 2 + gammav) / 2  # dim x lamb+1
+        t = exY * ip_yvbar - self.vbar * (ip_yvbar ** 2 + gammav) / 2  # dim x popsize+1
         b = -(1 - alphavd ** 2) * normv4 / gammav + 2 * alphavd ** 2
         H = np.ones([self.dim, 1]) * 2 - (b + 2 * alphavd ** 2) * vbarbar  # dim x 1
         invH = H ** (-1)
-        s_step1 = yy - self.normv2 / gammav * (yvbar * ip_yvbar) - np.ones([self.dim, self.lamb + 1])  # dim x lamb+1
-        ip_vbart = self.vbar.T @ t  # 1 x lamb+1
+        s_step1 = yy - self.normv2 / gammav * (yvbar * ip_yvbar) - np.ones([self.dim, self.popsize + 1])  # dim x popsize+1
+        ip_vbart = self.vbar.T @ t  # 1 x popsize+1
  
-        s_step2 = s_step1 - alphavd / gammav * ((2 + self.normv2) * (t * self.vbar) - self.normv2 * vbarbar @ ip_vbart)  # dim x lamb+1
+        s_step2 = s_step1 - alphavd / gammav * ((2 + self.normv2) * (t * self.vbar) - self.normv2 * vbarbar @ ip_vbart)  # dim x popsize+1
         invHvbarbar = invH * vbarbar
-        ip_s_step2invHvbarbar = invHvbarbar.T @ s_step2  # 1 x lamb+1
+        ip_s_step2invHvbarbar = invHvbarbar.T @ s_step2  # 1 x popsize+1
         
         div = 1 + b * vbarbar.T @ invHvbarbar
         if np.amin(abs(div)) == 0:
             return -1
         
-        s = (s_step2 * invH) - b / div * invHvbarbar @ ip_s_step2invHvbarbar  # dim x lamb+1
-        ip_svbarbar = vbarbar.T @ s  # 1 x lamb+1
-        t = t - alphavd * ((2 + self.normv2) * (s * self.vbar) - self.vbar @ ip_svbarbar)  # dim x lamb+1
+        s = (s_step2 * invH) - b / div * invHvbarbar @ ip_s_step2invHvbarbar  # dim x popsize+1
+        ip_svbarbar = vbarbar.T @ s  # 1 x popsize+1
+        t = t - alphavd * ((2 + self.normv2) * (s * self.vbar) - self.vbar @ ip_svbarbar)  # dim x popsize+1
         # update v, D
         exw = np.append(self.eta_B(lambF) * weights, np.array([self.c1(lambF)]).reshape(1, 1),
-                        axis=0)  # lamb+1 x 1
+                        axis=0)  # popsize+1 x 1
         self.v = self.v + (t @ exw) / self.normv
         self.D = self.D + (s @ exw) * self.D
         # calculate detA
@@ -299,7 +299,7 @@ class CRFMNES:
         self.D = self.D / nthrootdetA
         
         # update sigma
-        G_s = np.sum((self.z * self.z - np.ones([self.dim, self.lamb])) @ weights) / self.dim
+        G_s = np.sum((self.z * self.z - np.ones([self.dim, self.popsize])) @ weights) / self.dim
         self.sigma = self.sigma * exp(eta_sigma / 2 * G_s)
         return self.stop
 

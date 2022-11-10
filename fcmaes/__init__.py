@@ -13,6 +13,7 @@ __all__ = [
     'de',
     'dacpp',
     'decpp',
+    'diversifier',
     'gcldecpp',
     'ldecpp',
     'lcldecpp',
