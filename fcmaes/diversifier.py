@@ -73,7 +73,7 @@ def minimize(fitness, bounds,
         Number of spawned parallel worker processes.
     archive : Archive, optional
         If defined MAP-elites is continued for this archive.
-    opt_params : dictionary, optional 
+    opt_params : dictionary, optional (or a list/tuple/array of these)
         Parameters selecting and configuring the wrapped solver.
         'solver' - supported are 'CMA','CMA_CPP','CRMFNES','CRMFNES_CPP','DE','DE_CPP','PGPE'
                     default is 'CMA_CPP'
@@ -81,7 +81,9 @@ def minimize(fitness, bounds,
         'sigma' -  initial distribution sigma, default = rg.uniform(0.03, 0.3)**2)
         'mean' - initial distribution mean, default=rg.uniform(bounds.lb, bounds.ub)) 
         'max_evals' - maximal number of evaluations per run, default = 50000
-        'stall_criterion' - how many iterations without progress allowed, default = 50 iterations      
+        'stall_criterion' - how many iterations without progress allowed, default = 50 iterations 
+        If a list/tuple/array of parameters are given, the corresponding solvers are called in a 
+        sequence.      
     logger : logger, optional
         logger for log output of the retry mechanism. If None, logging
         is switched off. Default is a logger which logs both to stdout and
@@ -101,13 +103,12 @@ def minimize(fitness, bounds,
         archive.init_niches(desc_bounds, samples_per_niche)       
     t0 = perf_counter()   
     fitness.archive = archive
-    count = mp.RawValue(ct.c_long, 0)
-    #archive.argsort() # sort archive to select the best_n
+    count = mp.RawValue(ct.c_long, 0)      
     minimize_parallel_(archive, fitness, bounds, workers, 
                        opt_params, count, retries)
     if not logger is None:
-        ys = np.sort(archive.get_ys())[:100] # best 100 fitness values
-        logger.info(f'best 100, best {min(ys):.3f} worst {max(ys):.3f} ' + 
+        ys = np.sort(archive.get_ys())[:min(100, archive.capacity)] # best fitness values
+        logger.info(f'best {min(ys):.3f} worst {max(ys):.3f} ' + 
                  f'mean {np.mean(ys):.3f} stdev {np.std(ys):.3f} time {dtime(t0)} s')
     return archive
 
@@ -121,12 +122,15 @@ def minimize_parallel_(archive, fitness, bounds, workers,
     [p.start() for p in proc]
     [p.join() for p in proc]
                     
-def run_minimize_(archive, fitness, bounds, rg, opt_params, count, retries): 
-    
+def run_minimize_(archive, fitness, bounds, rg, opt_params, count, retries):    
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
         while count.value < retries:
-            count.value += 1               
-            minimize_(archive, fitness, bounds, rg, opt_params)    
+            count.value += 1      
+            if isinstance(opt_params, (list, tuple, np.ndarray)):
+                for params in opt_params: # call in sequence
+                    minimize_(archive, fitness, bounds, rg, params)
+            else:        
+                minimize_(archive, fitness, bounds, rg, opt_params)           
 
 def minimize_(archive, fitness, bounds, rg, opt_params):  
     es = get_solver(bounds, opt_params, rg)  
@@ -221,7 +225,7 @@ class wrapper(object):
                 if not self.logger is None:
                     occ = self.archive.get_occupied() if hasattr(self, 'archive') else 0
                     self.logger.info(
-                        f'{dtime(self.t0)}  {occ} {self.evals.value:.3f} {self.evals.value/(1E-9 + dtime(self.t0)):.3f} {self.best_y.value} {list(x)}')
+                        f'{dtime(self.t0)} {occ} {self.evals.value:.3f} {self.evals.value/(1E-9 + dtime(self.t0)):.3f} {self.best_y.value} {list(x)}')
             return y, desc
         except Exception as ex:
             print(str(ex))  
