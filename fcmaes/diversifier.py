@@ -251,7 +251,7 @@ def update_archive_(archive, xs, fitness):
     ys = np.array(np.fromiter((yd[0] for yd in yds), dtype=float))
     oldys = np.array(np.fromiter((archive.get_y(niches[i]) for i in range(popsize)), dtype=float))
     is_inf = (oldys == np.inf)
-    oldys[is_inf] = np.amax(ys)+1   
+    oldys[is_inf] = np.amax(ys)+1E-9   
     diff = ys - oldys
     neg = np.argwhere(diff < 0)
     if len(neg) > 0:
