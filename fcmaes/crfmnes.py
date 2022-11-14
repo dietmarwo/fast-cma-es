@@ -88,7 +88,7 @@ class CRFMNES:
                  dim = None, 
                  bounds = None,
                  x0 = None, 
-                 input_sigma = None, 
+                 input_sigma = 0.3, 
                  popsize = 32, 
                  max_evaluations = 100000, 
                  stop_fitness = -np.inf, 

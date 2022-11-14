@@ -31,6 +31,10 @@ different parallel retry mechanism didn't include a specific QD-algorithm. Recen
 even to the hardest optimization problems - for instance
 to ESAs https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] problems, were these were never applied before. 
 
+Note that the fcmaes library is primarily aimed at problems with dimension <= 1000. Optimizing neural networks may require many thousand decision variables
+and should preferably be run on GPUs/TPUs. You may try https://github.com/google/evojax/blob/main/evojax/algo/map_elites.py[evojax map_elites] or
+https://github.com/dietmarwo/evojax/blob/ADD_DIVERSIFY_SOLVER/evojax/algo/diversifier.py[evojax diversifier] which is derived from https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[fcmaes diversifier] instead.
+
 === Motivation
 
 Lets start with an example. Suppose we are planning a space exploration mission to Saturn.
@@ -464,9 +468,14 @@ since it is always executed single threaded and integrates well with paralleliza
 ==== But there is an alternative: Diversifier
 
 https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[diversifier.py] is a new alternative to MAP-Elites. 
-generalizes the ideas from https://arxiv.org/pdf/1912.02400.pdf[CMA-ME] to other wrapped algorithms. 
+It generalizes ideas from https://arxiv.org/pdf/1912.02400.pdf[CMA-ME] to other wrapped algorithms. 
 It uses the archive from CVT MAP-Elites (https://arxiv.org/abs/1610.05729) implemented in 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mapelites.py[mapelites.py]
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mapelites.py[mapelites.py]. 
+
+Note that there is an equivalent implementation dedicated to the machine learning domain:  
+https://github.com/dietmarwo/evojax/blob/ADD_DIVERSIFY_SOLVER/evojax/algo/diversifier.py[evojax diversifier],
+able to handle many thousand decision variables. It implements parallelism at a different level: At the fitness function and
+the optimization algorithm itself.  
 
 Both the parallel retry and the archive based modification of the fitness 
 function enhance the diversification of the optimization result.

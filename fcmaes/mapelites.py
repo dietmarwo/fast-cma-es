@@ -578,8 +578,9 @@ def variation(pop, lower, upper, rg, dis_c = 20, dis_m = 20):
     beta[mu > 0.5] = np.power(2 * mu[mu > 0.5], -1 / (dis_c + 1))
     beta = beta * ((-1)** rg.integers(2, size=(n // 2, d)))
     beta[rg.random((n // 2, d)) < 0.5] = 1
-    offspring = np.vstack(((parent_1 + parent_2) / 2 + beta * (parent_1 - parent_2) / 2,
-                               (parent_1 + parent_2) / 2 - beta * (parent_1 - parent_2) / 2))
+    parent_mean = (parent_1 + parent_2) / 2
+    parent_diff = (parent_1 - parent_2) / 2
+    offspring = np.vstack((parent_mean + beta * parent_diff, parent_mean - beta * parent_diff))
     site = rg.random((n, d)) < 1.0 / d
     mu = rg.random((n, d))
     temp = site & (mu <= 0.5)

@@ -582,8 +582,9 @@ def variation(pop, lower, upper, rg, pro_c = 1, dis_c = 20, pro_m = 1, dis_m = 2
     beta[rg.random((n // 2, d)) < 0.5] = 1
     if pro_c < 1.0:
         beta[np.tile(rg.random((n // 2, 1)) > pro_c, (1, d))] = 1
-    offspring = np.vstack(((parent_1 + parent_2) / 2 + beta * (parent_1 - parent_2) / 2,
-                               (parent_1 + parent_2) / 2 - beta * (parent_1 - parent_2) / 2))
+    parent_mean = (parent_1 + parent_2) * 0.5
+    parent_diff = (parent_1 - parent_2) * 0.5
+    offspring = np.vstack((parent_mean + beta * parent_diff, parent_mean - beta * parent_diff))
     site = rg.random((n, d)) < pro_m / d
     mu = rg.random((n, d))
     temp = site & (mu <= 0.5)
