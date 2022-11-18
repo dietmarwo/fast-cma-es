@@ -32,13 +32,30 @@ support both parallel fitness function evaluation and a parallel retry mechanism
 - Parallel fitness function evaluation and different parallel retry mechanisms.
 - Excellent scaling with the number of available CPU-cores. 
 - Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
-- New multi-objective/constrained optimization algorithm MODE combining features from Differential evolution and NSGA-II, supporting parallel function evaluation. Features https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/[enhanced multiple constraint ranking] improving its performance in handling constraints for engineering design optimization.
-- New implementation of CVT-map-elites including a CMA-ES emitter. 
-- New "diversifier" meta algorithm utilizing CVT-map-elites archives. 
+- Multi-objective/constrained optimization algorithm MODE combining features from Differential evolution and NSGA-II, supporting parallel function evaluation. Features https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/[enhanced multiple constraint ranking] improving its performance in handling constraints for engineering design optimization.
+- QD support: CVT-map-elites including a CMA-ES emitter and a new "diversifier" meta algorithm utilizing CVT-map-elites archives. 
 - Selection of highly efficient single-objective algorithms to choose from.
-- Ask-tell interface for CMA-ES, CR-FM-NES, DE, MODE 
+- Ask-tell interface for CMA-ES, CR-FM-NES, DE, MODE and PGPE.
 - Large collection of 35 tutorials related to real world problems: 
   https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials].
+
+=== Changes from version 1.4.0 to 1.5.0:
+
+- Python version > 3.7 required, 3.6 is no longer supported.
+- https://peps.python.org/pep-0484/[PEP 0484] compatible type hints useful for IDEs like PyCharm. 
+- Most algorithms now support an unified ask/tell interface: cmaes, cmaescpp, crfmnes, crfmnescpp, de, decpp, mode, modecpp, pgpecpp.
+This is useful for monitoring and parallel fitness evaluation. 
+- Added support for Quality Diversity [QD]: MAP-Elites with additional CMA-ES emitter, new meta-algorithm Diversifier, a generalized
+variant of CMA-ME, "drill down" for specified niches and bidirectional archive <-> store transfer between the QD-archive and
+the smart boundary management meta algorithm (advretry). All QD algorithms support parallel optimization utilizing all CPU-cores
+and statistics for solutions associated to a specific niche: mean, stdev, maximum, minimum and count.
+
+Derivative free optimization of machine learning models often have several thousand decision
+variables and require GPU/TPU based parallelization both of the fitness evaluation and the optimization algorithm. 
+CR-FM-NES, PGPE and the QD-Diversifier applied to CR-FM-NES (CR-FM-NES-ME) are excellent choices in this domain. 
+Since fcmaes has a different focus (parallel optimizations and parallel fitness evaluations) we contributed these
+algorithms to https://github.com/google/evojax/tree/main/evojax/algo[EvoJax] which utilizes https://github.com/google/jax[JAX]
+for GPU/TPU execution. 
 
 === Optimization algorithms
 
@@ -97,7 +114,7 @@ Alternatively if you use Anaconda:
 
 - conda install -c conda-forge gxx_linux-64==9.5.0
 
-* Recommended Python environment: https://repo.anaconda.com/archive/Anaconda3-2022.05-Linux-x86_64.sh[Anaconda3-2022.05] or newer.
+* Recommended Python environment: https://repo.anaconda.com/archive/Anaconda3-2022.05-Linux-x86_64.sh[Anaconda3-2022.05] or newer. At least Python 3.7 is required.
 
 ==== Windows
 
@@ -155,9 +172,9 @@ Check the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutoria
 
 Runtime:
 
-- numpy: https://github.com/numpy/numpy
-- scipy: https://github.com/scipy/scipy
-- sklearn: https://github.com/scikit-learn/scikit-learn (for CVT-Map-Elites)
+- numpy: https://github.com/numpy/numpy, version >= 1.20
+- scipy: https://github.com/scipy/scipy, version >= 1.8
+- sklearn: https://github.com/scikit-learn/scikit-learn (for CVT-Map-Elites), version >= 1.1
 
 Compile time (binaries for Linux and Windows are included):
 
@@ -167,6 +184,7 @@ Compile time (binaries for Linux and Windows are included):
 
 Optional dependencies:
 
+- matplotlib for the optional plot output. 
 - NLopt: https://nlopt.readthedocs.io/en/latest/[NLopt]. Install with 'pip install nlopt'. 
 - pygmo2: https://github.com/esa/pygmo2[pygmo]. Install with 'pip install pygmo'. 
 

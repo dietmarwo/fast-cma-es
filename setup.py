@@ -11,7 +11,7 @@ def get_version():
 
 setup(
     name='fcmaes',
-    python_requires='>=3.7'
+    python_requires='>=3.7',
     version=get_version(),
     description=('A Python 3 gradient-free optimization library.'),
     long_description=long_description,
