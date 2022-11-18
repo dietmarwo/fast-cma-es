@@ -157,7 +157,7 @@ class Plant:
 
 
 def simulate(plant):
-    print (plant.simulate(60*60*24, [10, 32, 7, 8, 3])) # 24 hours
+    print (plant.simulate(60*60*24, [10, 32])) # 24 hours
     
 def optimize_de(plant): 
     fit = wrapper(plant.fitness)
