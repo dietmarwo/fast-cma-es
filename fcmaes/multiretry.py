@@ -9,12 +9,22 @@ import numpy as np
 import _pickle as cPickle
 import bz2
 import multiprocessing as mp
-from scipy.optimize import OptimizeResult
-from fcmaes.optimizer import de_cma, eprint
+from scipy.optimize import OptimizeResult, Bounds
+from fcmaes.optimizer import de_cma, eprint, Optimizer
 from fcmaes import advretry
 
-def minimize(problems, ids=None, retries_inc = min(256, 8*mp.cpu_count()), num_retries = 10000,
-             keep = 0.7, optimizer = de_cma(1500), logger = None, datafile = None):
+import logging
+from typing import Optional, Callable, Tuple, List
+from numpy.typing import ArrayLike
+
+def minimize(problems: ArrayLike, 
+             ids: Optional[ArrayLike] = None, 
+             retries_inc: Optional[int] = min(256, 8*mp.cpu_count()), 
+             num_retries: Optional[int] = 10000,
+             keep: Optional[float] = 0.7, 
+             optimizer: Optional[Optimizer] = de_cma(1500), 
+             logger = None, 
+             datafile = None) -> List:
       
     """Minimization of a list of optimization problems by first applying parallel retry
     to filter the best ones and then applying coordinated retry to evaluate these further. 

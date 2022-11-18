@@ -7,6 +7,7 @@
 
 import math
 import time
+import numpy as np
 import multiprocessing as mp
 from scipy.optimize import minimize, differential_evolution, dual_annealing
 from fcmaes import astro, advretry, retry, cmaes, cmaescpp

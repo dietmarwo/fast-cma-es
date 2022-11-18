@@ -7,8 +7,9 @@
 # Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Results.adoc
 
 import math
+import numpy as np
 from fcmaes.astro import MessFull, Messenger, Gtoc1, Cassini1, Cassini2, Rosetta, Tandem, Sagas, Cassini1minlp
-from fcmaes.optimizer import logger, De_python, De_ask_tell, de_cma, de2_cma, da_cma, Cma_cpp, Cma_python, De_cpp, Da_cpp, Csma_cpp, Bite_cpp, Crfmnes, Crfmnes_cpp, Pgpe_cpp, de_crfmnes, crfmnes_bite, Dual_annealing, Differential_evolution
+from fcmaes.optimizer import logger, De_python, De_ask_tell, de_cma, da_cma, Cma_cpp, Cma_python, De_cpp, Da_cpp, Csma_cpp, Bite_cpp, Crfmnes, Crfmnes_cpp, Pgpe_cpp, de_crfmnes, crfmnes_bite, Dual_annealing, Differential_evolution
 from fcmaes import retry
 
 

@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
+from __future__ import annotations
 
 import time
 import os
@@ -20,28 +21,32 @@ from numpy.random import Generator, MT19937, SeedSequence
 from scipy.optimize import OptimizeResult, Bounds
 
 from fcmaes.retry import _convertBounds, plot
-from fcmaes.optimizer import dtime, fitting, de_cma, logger
+from fcmaes.optimizer import Optimizer, dtime, fitting, de_cma, logger
+
+import logging
+from typing import Optional, Callable, List
+from numpy.typing import ArrayLike
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
-def minimize(fun, 
-             bounds, 
-             value_limit = np.inf,
-             num_retries = 5000,
-             logger = None,
-             workers = mp.cpu_count(),
-             popsize = 31, 
-             min_evaluations = 1500, 
-             max_eval_fac = None, 
-             check_interval = 100,
-             capacity = 500,
-             stop_fitness = -np.inf,
-             optimizer = None,
-             statistic_num = 0,
-             datafile = None
-             ):   
+def minimize(fun: Callable[[ArrayLike], float], 
+             bounds: Bounds,
+             value_limit: Optional[float] = np.inf,
+             num_retries: Optional[int] = 5000,
+             logger: Optional[logging.Logger] = None,
+             workers: Optional[int] = mp.cpu_count(),
+             popsize: Optional[int] = 31,
+             min_evaluations: Optional[int] = 1500,
+             max_eval_fac: Optional[int] = None,
+             check_interval: Optional[int] = 100,
+             capacity: Optional[int] = 500,
+             stop_fitness: Optional[float] = -np.inf,
+             optimizer: Optional[Optimizer] = None,
+             statistic_num: Optional[int] = 0,
+             datafile: Optional[str]  = None
+             ) -> OptimizeResult:
     """Minimization of a scalar function of one or more variables using 
     smart parallel optimization retry.
      
@@ -114,8 +119,12 @@ def minimize(fun,
             pass
     return retry(store, optimizer.minimize, value_limit, workers, stop_fitness)
 
-def retry(store, optimize, value_limit = np.inf, 
-          workers=mp.cpu_count(), stop_fitness = -np.inf):
+def retry(store: Store, 
+          optimize: Callable, 
+          value_limit:Optional[float] = np.inf, 
+          workers=mp.cpu_count(), 
+          stop_fitness = -np.inf) -> OptimizeResult:
+    
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
@@ -127,10 +136,18 @@ def retry(store, optimize, value_limit = np.inf,
     return OptimizeResult(x=store.get_x_best(), fun=store.get_y_best(), 
                           nfev=store.get_count_evals(), success=True)
 
-def minimize_plot(name, optimizer, fun, bounds, value_limit = np.inf, 
-                  plot_limit = np.inf, num_retries = 1024, 
-             workers = mp.cpu_count(), logger=logger(),
-             stop_fitness = -np.inf, statistic_num = 5000):
+def minimize_plot(name: str, 
+                  optimizer: Optimizer, 
+                  fun: Callable[[ArrayLike], float], 
+                  bounds: Bounds, 
+                  value_limit: Optional[float] = np.inf, 
+                  plot_limit: Optional[float] = np.inf, 
+                  num_retries: Optional[int] = 1024, 
+                  workers: Optional[int] = mp.cpu_count(), 
+                  logger: Optional[logging.Logger] = logger(),
+                  stop_fitness: Optional[float] = -np.inf, 
+                  statistic_num: Optional[int] = 5000) -> OptimizeResult:
+    
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
     logger.info('optimize ' + name)       
@@ -151,15 +168,15 @@ class Store(object):
     delivers boundary and initial step size vectors for advanced retry crossover operation."""
          
     def __init__(self, 
-                 fun, # fitness function
-                 bounds, # bounds of the objective function arguments
-                 max_eval_fac = None, # maximal number of evaluations factor
-                 check_interval = 100, # sort evaluation store after check_interval iterations
-                 capacity = 500, # capacity of the evaluation store
-                 logger = None, # if None logging is switched off
-                 num_retries = None,
-                 statistic_num = 0,
-                 datafile = None
+                 fun: Callable[[ArrayLike], float], # fitness function
+                 bounds: Bounds, # bounds of the objective function arguments
+                 max_eval_fac: Optional[int] = None, # maximal number of evaluations factor
+                 check_interval: Optional[int] = 100, # sort evaluation store after check_interval iterations
+                 capacity: Optional[int] = 500, # capacity of the evaluation store
+                 logger: Optional[logging.Logger] = None, # if None logging is switched off
+                 num_retries: Optional[int] = None,
+                 statistic_num: Optional[int] = 0,
+                 datafile: Optional[str] = None
                ):
         self.fun = fun
         self.lower, self.upper = _convertBounds(bounds)
@@ -207,7 +224,7 @@ class Store(object):
             self.bval = mp.RawValue(ct.c_double, np.inf)
 
     # register improvement - time and value
-    def wrapper(self, x):
+    def wrapper(self, x: ArrayLike) -> float:
         y = self.fun(x)
         self.sevals.value += 1
         if y < self.bval.value:
@@ -225,15 +242,15 @@ class Store(object):
         return y
                     
     # persist store
-    def save(self, name):
+    def save(self, name: str):
         with bz2.BZ2File(name + '.pbz2', 'w') as f: 
             cPickle.dump(self.get_data(), f)
 
-    def load(self, name):
+    def load(self, name: str):
         data = cPickle.load(bz2.BZ2File(name + '.pbz2', 'rb'))
         self.set_data(data)
   
-    def get_data(self):
+    def get_data(self) -> List:
         data = []
         data.append(self.get_xs())
         data.append(self.get_ys())
@@ -242,7 +259,7 @@ class Store(object):
         data.append(self.num_stored.value)
         return data
         
-    def set_data(self, data):
+    def set_data(self, data: ArrayLike):
         xs = data[0]
         ys = data[1]
         for i in range(len(ys)):
@@ -252,11 +269,11 @@ class Store(object):
         self.num_stored.value = data[4]
         self.sort()
                
-    def get_improvements(self):
+    def get_improvements(self) -> np.ndarray:
         return np.array(list(zip(self.time[:self.si.value], self.val[:self.si.value])))
  
     # get num best values at evenly distributed times
-    def get_statistics(self, num):
+    def get_statistics(self, num: int) -> List:
         ts = self.time[:self.si.value]
         vs = self.val[:self.si.value]
         mt = ts[-1]
@@ -271,10 +288,10 @@ class Store(object):
             stats.append(val)
         return stats
                                     
-    def eval_num(self, max_evals):
+    def eval_num(self, max_evals: int) -> int:
         return int(self.eval_fac.value * max_evals)
                                                
-    def limits(self): 
+    def limits(self) -> Tuple[float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]: 
         """guess, boundaries and initial step size for crossover operation."""
         diff_fac = self.random.uniform(0.5, 1.0)
         lim_fac =  self.random.uniform(2.0, 4.0) * diff_fac
@@ -293,16 +310,16 @@ class Store(object):
         sdev = np.clip(diff_fac * deltax / self.delta, 0.001, 0.5)        
         return y0, x1, lower, upper, sdev
                  
-    def distance(self, xprev, x): 
+    def distance(self, xprev: np.ndarray, x: np.ndarray) -> float: 
         """distance between entries in store."""
         return norm((x - xprev) / self.delta) / math.sqrt(self.dim)
         
-    def replace(self, i, y, xs):
+    def replace(self, i: int, y: float, xs: np.ndarray):
         """replace entry in store."""
         self.set_y(i, y)
         self.set_x(i, xs)
         
-    def crossover(self): # Choose two good entries for recombination
+    def crossover(self) -> Tuple[int,int]: # Choose two good entries for recombination
         """indices of store entries to be used for crossover operation."""
         n = self.num_sorted.value
         if n < 2:
@@ -320,7 +337,7 @@ class Store(object):
                         return i1, i2
         return -1, -1
 
-    def sort(self): 
+    def sort(self) -> int: 
         """sorts all store entries, keep only the 90% best to make room for new ones;
         skip entries having similar x values than their neighbors to preserve diversity"""
         ns = self.num_stored.value
@@ -349,7 +366,7 @@ class Store(object):
         self.worst_y.value = self.get_y(numStored-1)
         return numStored        
 
-    def add_result(self, y, xs, evals, limit=np.inf):
+    def add_result(self, y: float, xs: np.ndarray, evals: int, limit: Optional[float] = np.inf):
         """registers an optimization result at the store."""
         with self.add_mutex:
             self.count_evals.value += evals
@@ -367,37 +384,37 @@ class Store(object):
                 self.num_stored.value = ns + 1
                 self.replace(ns, y, xs)
       
-    def get_x(self, pid):
+    def get_x(self, pid: int) -> np.ndarray:
         return self.xs[pid*self.dim:(pid+1)*self.dim]
 
-    def get_xs(self):
+    def get_xs(self) -> np.ndarray:
         return np.array([self.get_x(i) for i in range(self.num_stored.value)])
 
-    def get_x_best(self):
+    def get_x_best(self) -> np.ndarray:
         return np.array(self.best_x[:])
 
-    def get_y(self, pid):
+    def get_y(self, pid: int) -> float:
         return self.ys[pid]
 
-    def get_ys(self):
+    def get_ys(self) -> np.ndarray:
         return np.array(self.ys[:self.num_stored.value])
 
-    def get_y_best(self):
+    def get_y_best(self) -> float:
         return self.best_y.value
 
-    def get_count_evals(self):
+    def get_count_evals(self) -> int:
         return self.count_evals.value
   
-    def get_count_runs(self):
+    def get_count_runs(self) -> int:
         return self.count_runs.value
 
     def set_x(self, pid, xs):
         self.xs[pid*self.dim:(pid+1)*self.dim] = xs[:]
 
-    def set_y(self, pid, y):
+    def set_y(self, pid: int, y: float):
         self.ys[pid] = y            
 
-    def get_runs_compare_incr(self, limit):
+    def get_runs_compare_incr(self, limit: float) -> bool:
         """trigger sorting after check_interval calls. """
         with self.add_mutex:
             if self.count_runs.value < limit:

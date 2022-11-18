@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-__version__ = '1.4.9'
+__version__ = '1.5.0'
 
 __all__ = [
     'advexamples'
@@ -13,6 +13,7 @@ __all__ = [
     'cassini2_minlp'
     'clustering'
     'crypto'
+    'elitecass2'
     'examples'
     'f8'
     'filter'
@@ -26,15 +27,19 @@ __all__ = [
     'moexamples'
     'noisy_tsp'
     'powerplant'
+    'quant'
     'reproblem'
     'repython'
     'robot'
     'routing'
     'rover'
     'scheduling'
+    'siemens'
     'solo_mgar'
     'solo_mgar_udp'
     'spring'
+    'subset'
+    'subset_mo'
     'tandem_minlp'
     'top_trumps'
     'tutorial'

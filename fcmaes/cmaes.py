@@ -16,28 +16,32 @@ from time import time
 import ctypes as ct
 import multiprocessing as mp
 from scipy import linalg
-from scipy.optimize import OptimizeResult
+from scipy.optimize import OptimizeResult, Bounds
 from numpy.random import MT19937, Generator
 from fcmaes.evaluator import Evaluator, serial, _check_bounds, _fitness
 
+import logging
+from typing import Optional, Callable, Union
+from numpy.typing import ArrayLike
+
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
-def minimize(fun, 
-             bounds=None, 
-             x0=None, 
-             input_sigma = 0.3, 
-             popsize = 31, 
-             max_evaluations = 100000, 
-             max_iterations = 100000,  
-             workers = 1,
-             accuracy = 1.0, 
-             stop_fitness = -np.inf, 
-             is_terminate = None, 
-             rg = Generator(MT19937()),
-             runid=0,
-             normalize = True,
-             update_gap = None,
-             logger = None):       
+def minimize(fun: Callable[[ArrayLike], float], 
+             bounds: Optional[Bounds] = None, 
+             x0: Optional[ArrayLike] = None,
+             input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.3,
+             popsize: Optional[int] = 31,
+             max_evaluations: Optional[int]  = 100000,
+             max_iterations: Optional[int]  = 100000,
+             workers: Optional[int]  = 1,
+             accuracy: Optional[float] = 1.0,
+             stop_fitness: Optional[float] = -np.inf,
+             is_terminate: Optional[Callable[[ArrayLike, float], bool]]  = None,
+             rg: Optional[Generator] = Generator(MT19937()),
+             runid: Optional[int] = 0,
+             normalize: Optional[bool] = True,
+             update_gap: Optional[int] = None,
+             logger: Optional[logging.Logger] = None) -> OptimizeResult:
     """Minimization of a scalar function of one or more variables using CMA-ES.
      
     Parameters
@@ -112,22 +116,22 @@ def minimize(fun,
 class Cmaes(object):
     """Implements the cma-es ask/tell interactive interface."""
     
-    def __init__(self, bounds=None, 
-                        x0=None, 
-                        input_sigma = 0.3, 
-                        popsize = 31, 
-                        max_evaluations = 100000, 
-                        max_iterations = 100000,  
-                        accuracy = 1.0, 
-                        stop_fitness = -np.inf, 
-                        is_terminate = None, 
-                        rg = Generator(MT19937()), # used if x0 is undefined
-                        randn = np.random.randn, # used for random offspring 
-                        runid=0, 
-                        normalize = True,
-                        update_gap = None,
-                        fun = None,
-                        logger = None
+    def __init__(self, bounds: Optional[Bounds] = None,
+                        x0: Optional[ArrayLike] = None,
+                        input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.3,
+                        popsize: Optional[int] = 31,
+                        max_evaluations: Optional[int] = 100000,
+                        max_iterations: Optional[int] = 100000,
+                        accuracy: Optional[int] = 1.0,
+                        stop_fitness: Optional[float] = -np.inf,
+                        is_terminate: Optional[bool] = None,
+                        rg: Optional[Generator] = Generator(MT19937()), # used if x0 is undefined
+                        randn: Optional[Callable] = np.random.randn, # used for random offspring 
+                        runid: Optional[int] = 0,
+                        normalize: Optional[bool] = True,
+                        update_gap: Optional[int] = None,
+                        fun: Optional[Callable[[ArrayLike], float]] = None,
+                        logger: Optional[logging.Logger] = None
                         ):
                         
     # runid used in is_terminate callback to identify a specific run at different iteration
@@ -255,7 +259,7 @@ class Cmaes(object):
         self.arz = None
         self.fitness = None
 
-    def ask(self):
+    def ask(self) -> np.array:
         """ask for popsize new argument vectors.
             
         Returns
@@ -263,9 +267,11 @@ class Cmaes(object):
         xs : popsize sized list of dim sized argument lists."""
 
         self.newArgs()
-        return [self.fitfun.decode(x) for x in self.arx]
+        return np.array([self.fitfun.decode(x) for x in self.arx])
  
-    def tell(self, ys, xs = None):      
+    def tell(self, 
+             ys: np.ndarray, 
+             xs: Optional[np.ndarray] = None) -> int:      
         """tell function values for the argument lists retrieved by ask().
     
         Parameters
@@ -296,15 +302,15 @@ class Cmaes(object):
         self.arz = None
         return self.stop
     
-    def population(self):
+    def population(self) -> np.array:
         return self.fitfun.decode(self.arx)
 
-    def result(self):
+    def result(self) -> OptimizeResult:
         return OptimizeResult(x=self.best_x, fun=self.best_value, 
                               nfev=self.fitfun.evaluation_counter, 
                               nit=self.iterations, status=self.stop, success=True)
         
-    def ask_one(self):
+    def ask_one(self) -> np.array:
         """ask for one new argument vector.
         
         Returns
@@ -315,7 +321,9 @@ class Cmaes(object):
         arx = self.fitfun.closestFeasible(self.xmean + delta.transpose())  
         return self.fitfun.decode(arx)
 
-    def tell_one(self, y, x):      
+    def tell_one(self,
+                 y: float, 
+                 x: np.array) -> int:      
         """tell function value for a argument list retrieved by ask_one().
     
         Parameters

@@ -49,39 +49,44 @@ import ctypes as ct
 import multiprocessing as mp 
 from multiprocessing import Process
 import numpy as np
+from scipy.optimize import Bounds
 from fcmaes import mode, moretry
-from fcmaes.mode import _filter
+from fcmaes.mode import _filter, store
 from numpy.random import Generator, MT19937, SeedSequence
 from fcmaes.optimizer import dtime
 from fcmaes.evaluator import mo_call_back_type, callback_mo, parallel_mo, libcmalib
 from fcmaes.de import _check_bounds
 
+import logging
+from typing import Optional, Callable, Tuple
+from numpy.typing import ArrayLike
+
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
-def minimize(mofun, 
-             nobj, 
-             ncon,
-             bounds,
-             popsize = 64, 
-             max_evaluations = 100000, 
-             workers = 1,
-             f = 0.5, 
-             cr = 0.9, 
-             pro_c = 1.0,
-             dis_c = 20.0,
-             pro_m = 1.0,
-             dis_m = 20.0,
-             nsga_update = True,
-             pareto_update = 0,
-             ints = None,
-             min_mutate = 0.1,
-             max_mutate = 0.5,           
-             log_period = 10000000,
-             rg = Generator(MT19937()),
-             plot_name = None,
-             store = None,
-             is_terminate = None,
-             runid=0):  
+def minimize(mofun: Callable[[ArrayLike], ArrayLike],
+             nobj: int,
+             ncon: int,
+             bounds: Bounds,
+             popsize: Optional[int] = 64,
+             max_evaluations: Optional[int] = 100000,
+             workers: Optional[int] = 1,
+             f: Optional[float] = 0.5,
+             cr: Optional[float] = 0.9,
+             pro_c: Optional[float] = 1.0,
+             dis_c: Optional[float] = 20.0,
+             pro_m: Optional[float] = 1.0,
+             dis_m: Optional[float] = 20.0,
+             nsga_update: Optional[bool] = True,
+             pareto_update: Optional[int] = 0,
+             ints: Optional[ArrayLike] = None,
+             min_mutate: Optional[float] = 0.1,
+             max_mutate: Optional[float] = 0.5,           
+             log_period: Optional[int] = 10000000,
+             rg: Optional[Generator] = Generator(MT19937()),
+             plot_name: Optional[str] = None,
+             store: Optional[store] = None,
+             is_terminate: Optional[Callable[[ArrayLike, ArrayLike], bool]] = None,
+             runid: Optional[int] = 0) -> Tuple[np.ndarray, np.ndarray]:
      
     """Minimization of a multi objjective function of one or more variables using
     Differential Evolution.
@@ -90,7 +95,7 @@ def minimize(mofun,
     ----------
     mofun : callable
         The objective function to be minimized.
-            ``mofun(x) -> list(float)``
+            ``mofun(x) -> ndarray(float)``
         where ``x`` is an 1-D array with shape (n,)
     nobj : int
         number of objectives
@@ -182,19 +187,20 @@ def minimize(mofun,
     except Exception as ex:
         return None, None
   
-def retry(mofun, 
-            nobj, 
-            ncon,
-            bounds,
-            num_retries = 64,
-            popsize = 64, 
-            max_evaluations = 100000, 
-            workers = mp.cpu_count(),
-            nsga_update = False,
-            pareto_update = 0,
-            ints = None,
-            logger = None,
-            is_terminate = None):
+def retry(mofun: Callable[[ArrayLike], ArrayLike], 
+            nobj: int,
+            ncon: int, 
+            bounds: Bounds,
+            num_retries: Optional[int] = 64,
+            popsize: Optional[int] = 64, 
+            max_evaluations: Optional[int] = 100000, 
+            workers: Optional[int] = mp.cpu_count(),
+            nsga_update: Optional[bool] = False,
+            pareto_update: Optional[int] = 0,
+            ints: Optional[ArrayLike] = None,
+            logger: Optional[logging.Logger] = None,
+            is_terminate: Optional[Callable[[ArrayLike, ArrayLike], bool]] = None):
+             
     """Minimization of a multi objjective function of one or more variables using parallel 
      optimization retry.
      
@@ -202,7 +208,7 @@ def retry(mofun,
     ----------
         mofun : callable
         The objective function to be minimized.
-            ``mofun(x, *args) -> list(float)``
+            ``mofun(x, *args) -> ndarray(float)``
         where ``x`` is an 1-D array with shape (n,) and ``args``
         is a tuple of the fixed parameters needed to completely
         specify the function.
@@ -313,30 +319,24 @@ optimizeMODE_C.argtypes = [ct.c_long, mo_call_back_type, mo_call_back_type, ct.c
 class MODE_C:
 
     def __init__(self,
-        nobj, 
-        ncon,
-        bounds,
-        popsize = 64, 
-        max_evaluations = 100000, 
-        #workers = 1,
-        f = 0.5, 
-        cr = 0.9, 
-        pro_c = 1.0,
-        dis_c = 20.0,
-        pro_m = 1.0,
-        dis_m = 20.0,
-        nsga_update = True,
-        pareto_update = 0,
-        ints = None,
-        min_mutate = 0.1,
-        max_mutate = 0.5,           
-        #log_period = 10000000,
-        rg = Generator(MT19937()),
-        #plot_name = None,
-        #store = None,
-        #is_terminate = None,
-        runid=0
-    ):
+             nobj: int,
+             ncon: int, 
+             bounds: Bounds,
+             popsize: Optional[int] = 64, 
+             max_evaluations: Optional[int] = 100000, 
+             f: Optional[float] = 0.5, 
+             cr: Optional[float] = 0.9, 
+             pro_c: Optional[float] = 1.0,
+             dis_c: Optional[float] = 20.0,
+             pro_m: Optional[float] = 1.0,
+             dis_m: Optional[float] = 20.0,
+             nsga_update: Optional[bool] = True,
+             pareto_update: Optional[int] = 0,
+             ints: Optional[ArrayLike] = None,
+             min_mutate: Optional[float] = 0.1,
+             max_mutate: Optional[float] = 0.5,           
+             rg: Optional[Generator] = Generator(MT19937()),
+             runid: Optional[int] = 0):  
        
         """    Parameters
         ----------
@@ -410,7 +410,7 @@ class MODE_C:
     def __del__(self):
         destroyMODE_C(self.ptr)
             
-    def ask(self):
+    def ask(self) -> np.ndarray:
         try:
             popsize = self.popsize
             n = self.dim
@@ -425,7 +425,7 @@ class MODE_C:
             print (ex)
             return None
 
-    def tell(self, ys):
+    def tell(self, ys: np.ndarray) -> int:
         try:
             flat_ys = ys.flatten()
             array_type_ys = ct.c_double * len(flat_ys)
@@ -434,7 +434,9 @@ class MODE_C:
             print (ex)
             return -1       
     
-    def tell_switch(self, ys, nsga_update = True, pareto_update = 0):
+    def tell_switch(self, ys: np.ndarray, 
+                        nsga_update: Optional[bool] = True,
+                        pareto_update: Optional[int] = 0) -> int:
         try:
             flat_ys = ys.flatten()
             array_type_ys = ct.c_double * len(flat_ys)
@@ -443,7 +445,7 @@ class MODE_C:
             print (ex)
             return -1        
  
-    def population(self):
+    def population(self) -> np.ndarray:
         try:
             lamb = self.popsize
             n = self.dim
@@ -458,7 +460,10 @@ class MODE_C:
             print (ex)
             return None
         
-    def minimize_par(self, fun, max_evaluations = 100000, workers = mp.cpu_count()):
+    def minimize_par(self, 
+                     fun: Callable[[ArrayLike], ArrayLike], 
+                     max_evaluations: Optional[int] = 100000, 
+                     workers: Optional[int] = mp.cpu_count()) -> Tuple[np.ndarray, np.ndarray]:
         fit = parallel_mo(fun, self.nobj, workers)
         evals = 0
         stop = 0

@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
+from __future__ import annotations
 
 import time
 import math
@@ -18,25 +19,28 @@ import multiprocessing as mp
 from multiprocessing import Process
 from fcmaes.optimizer import de_cma, dtime, logger
 
+import logging
+from typing import Optional, Callable, List
+from numpy.typing import ArrayLike
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
-def minimize(fun, 
-             bounds = None, 
-             value_limit = np.inf,
-             num_retries = 1024,
-             logger = None,
-             workers = mp.cpu_count(),
-             popsize = 31, 
-             max_evaluations = 50000, 
-             capacity = 500,
-             stop_fitness = -np.inf,
-             optimizer = None,
-             statistic_num = 0,
-             plot_name = None
-             ):   
+def minimize(fun: Callable[[ArrayLike], float], 
+             bounds: Bounds, 
+             value_limit: Optional[float] = np.inf,
+             num_retries: Optional[int] = 1024,
+             logger: Optional[logging.Logger] = None,
+             workers: Optional[int] = mp.cpu_count(),
+             popsize: Optional[int] = 31, 
+             max_evaluations: Optional[int] = 50000, 
+             capacity: Optional[int] = 500,
+             stop_fitness: Optional[float] = -np.inf,
+             optimizer: Optional[Optimizer] = None,
+             statistic_num: Optional[int] = 0,
+             plot_name:str = None
+             ) -> OptimizeResult:   
     """Minimization of a scalar function of one or more variables using parallel 
      optimization retry.
      
@@ -95,9 +99,14 @@ def minimize(fun,
     store = Store(fun, bounds, capacity = capacity, logger = logger, statistic_num = statistic_num, 
                   plot_name = plot_name)
     return retry(store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
-                 
-def retry(store, optimize, num_retries, value_limit = np.inf, 
-          workers=mp.cpu_count(), stop_fitness = -np.inf):
+
+def retry(store: Store, 
+          optimize: Callable, 
+          num_retries: int, 
+          value_limit: Optional[float] = np.inf, 
+          workers: Optional[int] = mp.cpu_count(), 
+          stop_fitness: Optional[float] = -np.inf) -> OptimizeResult:
+    
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
@@ -109,10 +118,19 @@ def retry(store, optimize, num_retries, value_limit = np.inf,
     return OptimizeResult(x=store.get_x_best(), fun=store.get_y_best(), 
                           nfev=store.get_count_evals(), success=True)
 
-def minimize_plot(name, optimizer, fun, bounds, value_limit = np.inf, 
-            plot_limit = np.inf, num_retries = 1024, 
-            workers = mp.cpu_count(), logger=logger(), 
-            stop_fitness = -np.inf, statistic_num = 5000, plot_name = None):
+def minimize_plot(name: str, 
+                  optimizer: Optimizer, 
+                  fun: Callable[[ArrayLike], float], 
+                  bounds: Bounds, 
+                  value_limit: Optional[float] = np.inf, 
+                  plot_limit: Optional[float] = np.inf, 
+                  num_retries: Optional[int] = 1024, 
+                  workers: Optional[int] = mp.cpu_count(), 
+                  logger: Optional[logging.Logger] = logger(),
+                  stop_fitness: Optional[float] = -np.inf, 
+                  statistic_num: Optional[int] = 5000, 
+                  plot_name:str = None) -> OptimizeResult:
+    
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
     logger.info('optimize ' + name)       
@@ -133,8 +151,10 @@ def minimize_plot(name, optimizer, fun, bounds, value_limit = np.inf,
          xlabel = 'time in sec', ylabel = r'$f$')
     return ret
 
-def plot(front, fname, interp=True, label=r'$\chi$', 
-         xlabel = r'$f_1$', ylabel = r'$f_2$', zlabel = r'$f_3$', plot3d=False):
+def plot(front: ArrayLike, fname: str, interp: Optional[bool] = True, 
+         label: Optional[str] = r'$\chi$', 
+         xlabel: Optional[str] = r'$f_1$', ylabel:Optional[str] = r'$f_2$', 
+         zlabel: Optional[str] = r'$f_3$', plot3d: Optional[bool] = False):
     if len(front[0]) == 3 and plot3d:
         plot3(front, fname, label, xlabel, ylabel, zlabel)
         return
@@ -169,8 +189,9 @@ def plot(front, fname, interp=True, label=r'$\chi$',
     fig.savefig(fname, dpi=300)
     pl.close('all')
 
-def plot3(front, fname, label=r'$\chi$', 
-         xlabel = r'$f_1$', ylabel = r'$f_2$', zlabel = r'$f_3$'):
+def plot3(front: ArrayLike, fname: str, label: Optional[str] =r'$\chi$', 
+         xlabel: Optional[str] = r'$f_1$', ylabel: Optional[str] = r'$f_2$', 
+         zlabel: Optional[str] = r'$f_3$'):
     import matplotlib.pyplot as pl
     fig = pl.figure()
     ax = fig.add_subplot(projection='3d')
@@ -189,13 +210,13 @@ class Store(object):
     """thread safe storage for optimization retry results."""
        
     def __init__(self, 
-                 fun, # fitness function
-                 bounds, # bounds of the objective function arguments
-                 check_interval = 10, # sort evaluation memory after check_interval iterations
-                 capacity = 500, # capacity of the evaluation store
-                 logger = None, # if None logging is switched off
-                 statistic_num = 0,
-                 plot_name = None # requires statistic_num > 500
+                 fun: Callable[[ArrayLike], float], # fitness function
+                 bounds: Bounds, # bounds of the objective function arguments
+                 check_interval: Optional[int] = 10, # sort evaluation memory after check_interval iterations
+                 capacity: Optional[int] = 500, # capacity of the evaluation store
+                 logger:Optional[logging.Logger] = None, # if None logging is switched off
+                 statistic_num: Optional[int] = 0,
+                 plot_name: Optional[str] = None # requires statistic_num > 500
                 ):    
         self.fun = fun
         self.lower, self.upper = _convertBounds(bounds)
@@ -233,7 +254,7 @@ class Store(object):
             self.bval = mp.RawValue(ct.c_double, np.inf)
 
     # register improvement - time and value
-    def wrapper(self, x):
+    def wrapper(self, x: ArrayLike):
         y = self.fun(x)
         self.sevals.value += 1
         if y < self.bval.value:
@@ -255,7 +276,7 @@ class Store(object):
         return np.array(list(zip(self.time[:self.si.value], self.val[:self.si.value])))
         
     # get num best values at evenly distributed times
-    def get_statistics(self, num):
+    def get_statistics(self, num: int) -> List:
         ts = self.time[:self.si.value]
         ys = self.val[:self.si.value]
         mt = ts[-1]
@@ -270,14 +291,14 @@ class Store(object):
             conv.append(val)
         return conv
     
-    def eval_num(self, max_evals):
+    def eval_num(self, max_evals: int) -> int:
         return max_evals
                                              
-    def replace(self, i, y, xs):
+    def replace(self, i: int, y: float, xs: ArrayLike):
         self.set_y(i, y)
         self.set_x(i, xs)
              
-    def sort(self): # sort all entries to make room for new ones, determine best and worst
+    def sort(self) -> int: # sort all entries to make room for new ones, determine best and worst
         """sorts all store entries, keep only the 90% best to make room for new ones."""
         ns = self.num_stored.value
         ys = np.asarray(self.ys[:ns])
@@ -294,7 +315,7 @@ class Store(object):
         self.num_stored.value = numStored  
         return numStored        
             
-    def add_result(self, y, xs, evals, limit=np.inf):
+    def add_result(self, y: float, xs: ArrayLike, evals: int, limit=np.inf):
         """registers an optimization result at the score."""
         with self.add_mutex:
             self.incr_count_evals(evals)
@@ -314,44 +335,44 @@ class Store(object):
                 self.num_stored.value = ns + 1
                 self.replace(ns, y, xs)
             
-    def get_x(self, pid):
+    def get_x(self, pid: int):
         return self.xs[pid*self.dim:(pid+1)*self.dim]
 
-    def get_x_best(self):
+    def get_x_best(self) -> np.ndarray:
         return np.array(self.best_x[:])
     
-    def get_xs(self):
+    def get_xs(self) -> np.ndarray:
         return np.array([self.get_x(i) for i in range(self.num_stored.value)])
     
-    def get_y(self, pid):
+    def get_y(self, pid: int) -> float:
         return self.ys[pid]
 
-    def get_y_best(self):
+    def get_y_best(self) -> float:
         return self.best_y.value
     
-    def get_ys(self):
+    def get_ys(self) -> np.ndarray:
         return np.array(self.ys[:self.num_stored.value])
              
-    def get_y_mean(self):
+    def get_y_mean(self) -> float:
         return self.mean.value
 
-    def get_y_standard_dev(self):
+    def get_y_standard_dev(self) -> float:
         cnt = self.count_stat_runs.value
         return 0 if cnt <= 0 else math.sqrt(self.qmean.value / cnt)
 
-    def get_count_evals(self):
+    def get_count_evals(self) -> int:
         return self.count_evals.value
  
-    def get_count_runs(self):
+    def get_count_runs(self) -> int:
         return self.count_runs.value
  
-    def set_x(self, pid, xs):
+    def set_x(self, pid: int, xs: ArrayLike):
         self.xs[pid*self.dim:(pid+1)*self.dim] = xs[:]
        
-    def set_y(self, pid, y):
+    def set_y(self, pid: int, y: float):
         self.ys[pid] = y    
  
-    def get_runs_compare_incr(self, limit):
+    def get_runs_compare_incr(self, limit: float):
         with self.add_mutex:
             if self.count_runs.value < limit:
                 self.count_runs.value += 1
@@ -359,7 +380,7 @@ class Store(object):
             else:
                 return False 
        
-    def incr_count_evals(self, evals):
+    def incr_count_evals(self, evals: int):
         if self.count_runs.value % self.check_interval == self.check_interval-1:
             self.sort()
         self.count_evals.value += evals

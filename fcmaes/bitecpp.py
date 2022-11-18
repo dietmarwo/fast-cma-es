@@ -14,21 +14,25 @@ import math
 import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
-from scipy.optimize import OptimizeResult
+from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, mo_call_back_type, callback_so, libcmalib
+
+import logging
+from typing import Optional, Callable
+from numpy.typing import ArrayLike
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
-def minimize(fun, 
-             bounds=None, 
-             x0=None, 
-             max_evaluations = 100000, 
-             stop_fitness = -np.inf, 
-             M = 1,
-             popsize = 0,
-             stall_criterion = 0, 
-             rg = Generator(MT19937()),
-             runid=0):   
+def minimize(fun: Callable[[ArrayLike], float],
+             bounds: Optional[Bounds] = None,
+             x0: Optional[ArrayLike] = None,
+             max_evaluations: Optional[int] = 100000,
+             stop_fitness: Optional[float] = -np.inf,
+             M: Optional[int] = 1,
+             popsize: Optional[int] = 0,
+             stall_criterion: Optional[int]  = 0,
+             rg: Optional[Generator]  = Generator(MT19937()),
+             runid: Optional[int] = 0) -> OptimizeResult:
     """Minimization of a scalar function of one or more variables using a 
     C++ SCMA implementation called via ctypes.
      

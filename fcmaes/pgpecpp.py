@@ -14,32 +14,36 @@ import math
 import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
-from scipy.optimize import OptimizeResult
+from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, _get_bounds, callback_par, parallel, call_back_par, libcmalib
+
+import logging
+from typing import Optional, Callable, Union
+from numpy.typing import ArrayLike
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
-def minimize(fun, 
-             bounds=None, 
-             x0=None, 
-             input_sigma = 0.1, 
-             popsize = 32, 
-             max_evaluations = 100000, 
-             workers = None,
-             stop_fitness = -np.inf, 
-             rg = Generator(MT19937()),
-             runid=0,
-             normalize = True,
-             lr_decay_steps = 1000,
-             use_ranking = True, 
-             center_learning_rate = 0.15,
-             stdev_learning_rate = 0.1, 
-             stdev_max_change = 0.2, 
-             b1 = 0.9,
-             b2 = 0.999, 
-             eps = 1e-8, 
-             decay_coef = 1.0,   
-             ):
+def minimize(fun: Callable[[ArrayLike], float],
+             bounds: Optional[Bounds] = None,
+             x0: Optional[ArrayLike] = None,
+             input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.1,
+             popsize: Optional[int] = 32,
+             max_evaluations: Optional[int] = 100000,
+             workers: Optional[int] = None,
+             stop_fitness: Optional[float] = -np.inf,
+             rg: Optional[Generator] = Generator(MT19937()),
+             runid: Optional[int] = 0,
+             normalize: Optional[bool] = True,
+             lr_decay_steps: Optional[int] = 1000,
+             use_ranking: Optional[bool] = True,
+             center_learning_rate: Optional[float] = 0.15,
+             stdev_learning_rate: Optional[float] = 0.1,
+             stdev_max_change: Optional[float] = 0.2,
+             b1: Optional[float] = 0.9,
+             b2: Optional[float] = 0.999,
+             eps: Optional[float] = 1e-8,
+             decay_coef: Optional[float] = 1.0,
+             ) -> OptimizeResult:
        
     """Minimization of a scalar function of one or more variables using a 
     C++ PGPE implementation called via ctypes.
@@ -147,23 +151,23 @@ optimizePGPE_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
 class PGPE_C:
 
     def __init__(self,
-        dim, 
-        bounds=None, 
-        x0=None, 
-        input_sigma = 0.3, 
-        popsize = 32, 
-        rg = Generator(MT19937()),
-        runid=0,
-        normalize = False,
-        lr_decay_steps = 1000,
-        use_ranking = False, 
-        center_learning_rate = 0.15,
-        stdev_learning_rate = 0.1, 
-        stdev_max_change = 0.2, 
-        b1 = 0.9,
-        b2 = 0.999, 
-        eps = 1e-8, 
-        decay_coef = 1.0, 
+        dim: int,
+        bounds: Optional[Bounds] = None,
+        x0: Optional[ArrayLike] = None,
+        input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.1,
+        popsize: Optional[int] = 32,
+        rg: Optional[Generator] = Generator(MT19937()),
+        runid: Optional[int] = 0,
+        normalize: Optional[bool] = True,
+        lr_decay_stepse: Optional[int] = 1000,
+        use_rankinge: Optional[bool] = False, 
+        center_learning_rate: Optional[float] = 0.15,
+        stdev_learning_rate: Optional[float] = 0.1, 
+        stdev_max_change: Optional[float] = 0.2, 
+        b1: Optional[float] = 0.9,
+        b2: Optional[float] = 0.999, 
+        eps: Optional[float] = 1e-8, 
+        decay_coef: Optional[float] = 1.0, 
         ):
        
         """Minimization of a scalar function of one or more variables using a 
@@ -238,7 +242,13 @@ class PGPE_C:
     def __del__(self):
         destroyPGPE_C(self.ptr)
             
-    def ask(self):
+    def ask(self) -> np.array:
+        """ask for popsize new argument vectors.
+            
+        Returns
+        -------
+        xs : popsize sized list of dim sized argument lists."""
+        
         try:
             lamb = self.popsize
             n = self.dim
@@ -253,7 +263,18 @@ class PGPE_C:
             print (ex)
             return None
 
-    def tell(self, ys): # , xs):
+    def tell(self, 
+             ys: np.ndarray) -> int:      
+        """tell function values for the argument lists retrieved by ask().
+        
+        Parameters
+        ----------
+        ys : popsize sized list of function values 
+ 
+        Returns
+        -------
+        stop : int termination criteria, if != 0 loop should stop."""        
+        
         try:
             array_type_ys = ct.c_double * len(ys)
             return tellPGPE_C(self.ptr, array_type_ys(*ys))
@@ -261,7 +282,7 @@ class PGPE_C:
             print (ex)
             return -1        
 
-    def population(self):
+    def population(self) -> np.array:
         try:
             lamb = self.popsize
             n = self.dim
@@ -276,7 +297,7 @@ class PGPE_C:
             print (ex)
             return None
 
-    def result(self):
+    def result(self) -> OptimizeResult:
         res = np.empty(self.dim+4)
         res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
         try:

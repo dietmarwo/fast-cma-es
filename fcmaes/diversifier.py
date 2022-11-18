@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
+from __future__ import annotations
 
 """ Numpy based implementation of an diversifying wrapper / parallel retry mechanism. 
 
@@ -25,24 +26,28 @@ about the associated solutions.
 import numpy as np
 from numpy.random import Generator, MT19937, SeedSequence
 from multiprocessing import Process
-from fcmaes.optimizer import logger, dtime, de_cma
+from fcmaes.optimizer import logger, dtime, de_cma, Optimizer
 import multiprocessing as mp
 import ctypes as ct
 from time import perf_counter
-from fcmaes.mapelites import Archive
+from fcmaes.mapelites import Archive, update_archive
 from fcmaes import advretry
 import threadpoolctl
 
-def minimize(qd_fitness, 
-            bounds, 
-            desc_bounds, 
-            niche_num = 4000, 
-            samples_per_niche = 20, 
-            retries = None, 
-            workers = mp.cpu_count(), 
-            archive = None, 
-            opt_params = {}, 
-            logger = logger()):
+import logging
+from typing import Optional, Callable, Tuple, Dict
+from numpy.typing import ArrayLike
+
+def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]], 
+            bounds: Bounds,
+            desc_bounds: Bounds,
+            niche_num: Optional[int] = 4000,
+            samples_per_niche: Optional[int] = 20,
+            retries: Optional[int] = None,
+            workers: Optional[int] = mp.cpu_count(),
+            archive: Optional[Archive] = None,
+            opt_params: Optional[Dict] = {},
+            logger: Optional[logging.Logger] = logger()) -> Archive:
     
     """Wraps an fcmaes optmizer/solver by hijacking its tell function.
     Works as CVT Map-Elites in maintaining an archive of diverse elites. 
@@ -114,17 +119,16 @@ def minimize(qd_fitness,
                  f'mean {np.mean(ys):.3f} stdev {np.std(ys):.3f} time {dtime(t0)} s')
     return archive
 
-def apply_advretry(fitness, 
-                   descriptors, 
-                   bounds, 
-                   archive, 
-                   optimizer=None, 
-                   num_retries=1000, 
-                   workers = mp.cpu_count(),
-                   max_eval_fac=5.0,
-                   logger=logger()):
-    
-    
+def apply_advretry(fitness: Callable[[ArrayLike], float], 
+                   descriptors: Callable[[ArrayLike], np.ndarray], 
+                   bounds: Bounds, 
+                   archive: Archive, 
+                   optimizer: Optional[Optimizer] = None, 
+                   num_retries: Optional[int] = 1000, 
+                   workers: Optional[int] = mp.cpu_count(),
+                   max_eval_fac: Optional[float] = 5.0,
+                   logger: Optional[logging.Logger] = logger()):
+        
     """Unifies the QD world with traditional optimization. It converts
     a QD-archive into a multiprocessing store used by the fcmaes smart
     boundary management meta algorithm (advretry). Then advretry is applied
@@ -214,7 +218,7 @@ def run_minimize_(archive, fitness, bounds, rg, opt_params, count, retries):
                 minimize_(archive, fitness, bounds, rg, opt_params)           
 
 def minimize_(archive, fitness, bounds, rg, opt_params, x0 = None):  
-    es = get_solver(bounds, opt_params, rg, x0)  
+    es = get_solver_(bounds, opt_params, rg, x0)  
     max_evals = opt_params.get('max_evals', 50000)
     stall_criterion = opt_params.get('stall_criterion', 50)
     old_ys = None
@@ -224,7 +228,7 @@ def minimize_(archive, fitness, bounds, rg, opt_params, x0 = None):
     best_y = np.inf
     for iter in range(max_iters):
         xs = es.ask()
-        ys, real_ys = update_archive_(archive, xs, fitness)
+        ys, real_ys = update_archive(archive, xs, fitness)
         # update best real fitness
         yi = np.argmin(real_ys)
         ybest = real_ys[yi] 
@@ -241,29 +245,9 @@ def minimize_(archive, fitness, bounds, rg, opt_params, x0 = None):
         old_ys = np.sort(ys)
     return best_x # real best solution
 
-def update_archive_(archive, xs, fitness):
-    # evaluate population, update archive and determine ranking
-    popsize = len(xs) 
-    yds = [fitness(x) for x in xs]
-    descs = np.array([yd[1] for yd in yds])
-    niches = archive.index_of_niches(descs)
-    # real values
-    ys = np.array(np.fromiter((yd[0] for yd in yds), dtype=float))
-    oldys = np.array(np.fromiter((archive.get_y(niches[i]) for i in range(popsize)), dtype=float))
-    is_inf = (oldys == np.inf)
-    oldys[is_inf] = np.amax(ys)+1E-9   
-    diff = ys - oldys
-    neg = np.argwhere(diff < 0)
-    if len(neg) > 0:
-        neg = neg.reshape((len(neg)))
-        for i in neg:
-            archive.set(niches[i], yds[i], xs[i])
-    # return both differences to archive elites  and real fitness
-    return diff, ys
-
 from fcmaes import cmaes, cmaescpp, crfmnescpp, pgpecpp, decpp, crfmnes, de
 
-def get_solver(bounds, opt_params, rg, x0 = None):
+def get_solver_(bounds, opt_params, rg, x0 = None):
     dim = len(bounds.lb)
     popsize = opt_params.get('popsize', 32) 
     sigma = opt_params.get('sigma',rg.uniform(0.03, 0.3)**2)
@@ -274,7 +258,7 @@ def get_solver(bounds, opt_params, rg, x0 = None):
         return cmaes.Cmaes(bounds, x0 = mean,
                           popsize = popsize, input_sigma = sigma, rg = rg)
     elif name == 'CMA_CPP':
-        return cmaescpp.ACMA_C(dim, bounds, x0 = mean,
+        return cmaescpp.ACMA_C(dim, bounds, x0 = mean, #stop_hist = 0,
                           popsize = popsize, input_sigma = sigma, rg = rg)
     elif name == 'CRMFNES':
         return crfmnes.CRFMNES(dim, bounds, x0 = mean,
@@ -292,35 +276,4 @@ def get_solver(bounds, opt_params, rg, x0 = None):
     else:
         print ("invalid solver")
         return None
-    
-class wrapper(object):
-    """Fitness function wrapper for multi processing logging."""
-
-    def __init__(self, fit, desc_dim, logger=logger()):
-        self.fit = fit
-        self.evals = mp.RawValue(ct.c_int, 0) 
-        self.best_y = mp.RawValue(ct.c_double, np.inf) 
-        self.t0 = perf_counter()
-        self.desc_dim = desc_dim
-        self.logger = logger
-
-    def __call__(self, x):
-        try:
-            if np.isnan(x).any():
-                return np.inf, np.zeros(self.desc_dim)
-            self.evals.value += 1
-            y, desc = self.fit(x)
-            if np.isnan(y) or np.isnan(desc).any():
-                return np.inf, np.zeros(self.desc_dim)
-            y0 = y if np.isscalar(y) else sum(y)
-            if y0 < self.best_y.value:
-                self.best_y.value = y0
-                if not self.logger is None:
-                    occ = self.archive.get_occupied() if hasattr(self, 'archive') else 0
-                    self.logger.info(
-                        f'{dtime(self.t0)} {occ} {self.evals.value:.3f} {self.evals.value/(1E-9 + dtime(self.t0)):.3f} {self.best_y.value} {list(x)}')
-            return y, desc
-        except Exception as ex:
-            print(str(ex))  
-            return np.inf, np.zeros(self.desc_dim)
-        
+            

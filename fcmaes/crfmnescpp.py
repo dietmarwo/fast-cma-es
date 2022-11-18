@@ -14,14 +14,18 @@ import math
 import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
-from scipy.optimize import OptimizeResult
+from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, _get_bounds, callback_par, parallel, call_back_par, libcmalib
+
+import logging
+from typing import Optional, Callable, Union
+from numpy.typing import ArrayLike
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
-def minimize(fun, 
-             bounds=None, 
-             x0=None, 
+def minimize(fun: Callable[[ArrayLike], float], 
+             bounds: Optional[Bounds] = None, 
+             x0: Optional[ArrayLike] = None,
              input_sigma = 0.3, 
              popsize = 32, 
              max_evaluations = 100000, 
@@ -32,7 +36,7 @@ def minimize(fun,
              normalize = False,
              use_constraint_violation = True,
              penalty_coef = 1E5
-             ):
+             ) -> OptimizeResult:
        
     """Minimization of a scalar function of one or more variables using a 
     C++ CR-FM-NES implementation called via ctypes.
@@ -126,17 +130,17 @@ optimizeCRFMNES_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
 class CRFMNES_C:
 
     def __init__(self,
-        dim, 
-        bounds=None, 
-        x0=None, 
-        input_sigma = 0.3, 
-        popsize = 32, 
-        rg = Generator(MT19937()),
-        runid=0,
-        normalize = False,
-        use_constraint_violation = True,
-        penalty_coef = 1E5
-        ):
+                dim: int, 
+                bounds: Optional[Bounds] = None, 
+                x0: Optional[ArrayLike] = None,
+                input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.3, 
+                popsize: Optional[int] = 32,   
+                rg: Optional[Generator] = Generator(MT19937()),
+                runid: Optional[int] = 0,
+                normalize: Optional[bool] = False,
+                use_constraint_violation: Optional[bool] = True,
+                penalty_coef: Optional[float] = 1E5
+                ):
        
         """Minimization of a scalar function of one or more variables using a 
         C++ CR-FM-NES implementation called via ctypes.
@@ -191,7 +195,7 @@ class CRFMNES_C:
     def __del__(self):
         destroyCRFMNES_C(self.ptr)
             
-    def ask(self):
+    def ask(self) -> np.ndarray:
         try:
             lamb = self.popsize
             n = self.dim
@@ -206,17 +210,15 @@ class CRFMNES_C:
             print (ex)
             return None
 
-    def tell(self, ys): # , xs):
+    def tell(self, ys: np.ndarray):
         try:
-            # flat_xs = xs.flatten()
-            # array_type_xs = ct.c_double * len(flat_xs)
             array_type_ys = ct.c_double * len(ys)
             return tellCRFMNES_C(self.ptr, array_type_ys(*ys))
         except Exception as ex:
             print (ex)
             return -1        
 
-    def population(self):
+    def population(self) -> np.ndarray:
         try:
             lamb = self.popsize
             n = self.dim
@@ -231,7 +233,7 @@ class CRFMNES_C:
             print (ex)
             return None
         
-    def result(self):
+    def result(self) -> OptimizeResult:
         res = np.empty(self.dim+4)
         res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
         try:

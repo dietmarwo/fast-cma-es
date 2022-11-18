@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
+from __future__ import annotations
 
 """ Numpy based implementation of multi objective
     Differential Evolution using either the DE/rand/1 strategy
@@ -43,30 +44,39 @@ import numpy as np
 import os, sys, time
 import ctypes as ct
 from numpy.random import Generator, MT19937
+from scipy.optimize import Bounds
 from fcmaes.evaluator import Evaluator
 from fcmaes import moretry
 import multiprocessing as mp
 from fcmaes.optimizer import logger, dtime
 
+import logging
+from typing import Optional, Callable, Tuple
+from numpy.typing import ArrayLike
+
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
-def minimize(mofun, 
-             nobj,
-             ncon, 
-             bounds,
-             popsize = 64, 
-             max_evaluations = 100000, 
-             workers = None,
-             f = 0.5, 
-             cr = 0.9, 
-             nsga_update = True,
-             pareto_update = 0,
-             min_mutate = 0.1,
-             max_mutate = 0.5, 
-             ints = None,
-             modifier = None,
-             rg = Generator(MT19937()),
-             store = None):  
+def minimize(mofun: Callable[[ArrayLike], ArrayLike], 
+             nobj: int,
+             ncon: int,
+             bounds: Bounds,
+             popsize: Optional[int] = 64,
+             max_evaluations: Optional[int] = 100000,
+             workers: Optional[int] = None,
+             f: Optional[float] = 0.5,
+             cr: Optional[float] = 0.9,
+             pro_c: Optional[float] = 1.0,
+             dis_c: Optional[float] = 20.0,
+             pro_m: Optional[float] = 1.0,
+             dis_m: Optional[float] = 20.0,
+             nsga_update: Optional[bool] = True,
+             pareto_update: Optional[int] = 0,
+             ints: Optional[ArrayLike] = None,
+             modifier: Callable = None,
+             min_mutate: Optional[float] = 0.1,
+             max_mutate: Optional[float] = 0.5,
+             rg: Optional[Generator] = Generator(MT19937()),
+             store: Optional[store] = None) -> Tuple[np.ndarray, np.ndarray]:  
       
     """Minimization of a multi objjective function of one or more variables using
     Differential Evolution.
@@ -75,7 +85,7 @@ def minimize(mofun,
     ----------
     mofun : callable
         The objective function to be minimized.
-            ``mofun(x) -> list(float)``
+            ``mofun(x) -> ndarray(float)``
         where ``x`` is an 1-D array with shape (n,)
     nobj : int
         number of objectives
@@ -99,7 +109,9 @@ def minimize(mofun,
         being denoted by F. Should be in the range [0, 2].
     cr = float, optional
         The recombination constant. Should be in the range [0, 1]. 
-        In the literature this is also known as the crossover probability.     
+        In the literature this is also known as the crossover probability.   
+    pro_c, dis_c, pro_m, dis_m = float, optional
+        NSGA population update parameters, usually leave at default.   
     nsga_update = boolean, optional
         Use of NSGA-II/SBX or DE population update. Default is True    
     pareto_update = float, optional
@@ -126,7 +138,7 @@ def minimize(mofun,
     x, y: list of argument vectors and corresponding value vectors of the optimization results. """
 
     mode = MODE(nobj, ncon, bounds, popsize, workers if not workers is None else 0, 
-            f, cr, nsga_update, pareto_update, rg, ints, min_mutate, max_mutate, modifier)
+            f, cr, pro_c, dis_c, pro_m, dis_m, nsga_update, pareto_update, rg, ints, min_mutate, max_mutate, modifier)
     try:
         if workers and workers > 1:
             x, y, evals, iterations, stop = mode.do_optimize_delayed_update(mofun, max_evaluations, workers)
@@ -223,10 +235,25 @@ class store():
 
 class MODE(object):
     
-    def __init__(self, nobj, ncon, bounds, popsize = 64, workers = 0,
-                 F = 0.5, Cr = 0.9, nsga_update = False, pareto_update = False, 
-                 rg = Generator(MT19937()), ints = None, 
-                 min_mutate = 0.1, max_mutate = 1.0, modifier = None):
+    def __init__(self, 
+                nobj: int,
+                ncon: int, 
+                bounds: Bounds,
+                popsize: Optional[int] = 64, 
+                workers: Optional[int] = 0,
+                F: Optional[float] = 0.5, 
+                Cr: Optional[float] = 0.9, 
+                pro_c: Optional[float] = 1.0,
+                dis_c: Optional[float] = 20.0,
+                pro_m: Optional[float] = 1.0,
+                dis_m: Optional[float] = 20.0,
+                nsga_update: Optional[bool] = True,
+                pareto_update: Optional[int] = 0,
+                rg: Optional[Generator] = Generator(MT19937()),
+                ints: Optional[ArrayLike] = None,
+                min_mutate: Optional[float] = 0.1,
+                max_mutate: Optional[float] = 0.5,   
+                modifier: Callable = None):
         self.nobj = nobj
         self.ncon = ncon
         self.dim, self.lower, self.upper = _check_bounds(bounds, None)
@@ -239,6 +266,10 @@ class MODE(object):
         self.rg = rg
         self.F0 = F
         self.Cr0 = Cr
+        self.pro_c = pro_c
+        self.dis_c = dis_c
+        self.pro_m = pro_m
+        self.dis_m = dis_m    
         self.nsga_update = nsga_update
         self.pareto_update = pareto_update
         self.stop = 0
@@ -259,7 +290,7 @@ class MODE(object):
             self.modifier = modifier
         self._init()
                 
-    def ask(self):
+    def ask(self) -> Tuple[int, np.ndarray]:
         """ask for one new argument vector.
         
         Returns
@@ -272,7 +303,7 @@ class MODE(object):
         self.p = (self.p + 1) % self.popsize
         return p, x
 
-    def tell(self, p, y, x):      
+    def tell(self, p: int, y: np.ndarray, x: np.ndarray) -> int:      
         """tell function value for a argument list retrieved by ask_one().
     
         Parameters
@@ -322,7 +353,8 @@ class MODE(object):
         self.vx = self.x.copy()
         self.vp = 0
                                     
-    def do_optimize(self, fun, max_evals):
+    def do_optimize(self, fun: Callable[[ArrayLike], ArrayLike], max_evals: int) \
+                                    -> Tuple[np.ndarray, np.ndarray, int, int, int]:
         self.fun = fun
         self.max_evals = max_evals    
         self.iterations = 0
@@ -337,7 +369,9 @@ class MODE(object):
         x, y = _filter(self.x, self.y)
         return x, y, self.evals, self.iterations, self.stop
 
-    def do_optimize_delayed_update(self, fun, max_evals, workers=mp.cpu_count()):
+    def do_optimize_delayed_update(self, fun: Callable[[ArrayLike], ArrayLike], max_evals: int, 
+                                   workers: Optional[int] = mp.cpu_count()) \
+                                    -> Tuple[np.ndarray, np.ndarray, int, int, int]:
         self.fun = fun
         self.max_evals = max_evals    
         evaluator = Evaluator(self.fun)
@@ -402,7 +436,8 @@ class MODE(object):
         self.x[:self.popsize] = x[:self.popsize]
         self.y[:self.popsize] = y[:self.popsize]
         if self.nsga_update:
-            self.vx = variation(self.x[:self.popsize], self.lower, self.upper, self.rg) 
+            self.vx = variation(self.x[:self.popsize], self.lower, self.upper, self.rg, 
+                pro_c = self.pro_c, dis_c = self.dis_c, pro_m = self.pro_m, dis_m = self.dis_m) 
        
     def _next_x(self, p):
         if self.nsga_update: # use NSGA-II update strategy.
@@ -626,8 +661,14 @@ def is_feasible(y, nobj, eps = 1E-2):
 class wrapper(object):
     """thread safe wrapper for objective function monitoring evaluation count and optimization result."""
    
-    def __init__(self, fun, nobj, store = None, interval = 100000, plot = False, 
-                 name = None, logger=logger()):
+    def __init__(self, 
+                 fun: Callable[[ArrayLike], ArrayLike], 
+                 nobj: int, 
+                 store: Optional[store] = None, 
+                 interval: Optional[int] = 100000, 
+                 plot: Optional[bool] = False, 
+                 name: Optional[str] = None, 
+                 logger: Optional[logging.Logger] = logger()):
         self.fun = fun
         self.nobj = nobj
         self.n_evals = mp.RawValue(ct.c_long, 0)
@@ -641,7 +682,7 @@ class wrapper(object):
         self.name = name
         self.logger = logger
     
-    def __call__(self, x):
+    def __call__(self, x: ArrayLike) -> np.ndarray:
         try:
             y = self.fun(x)
             if not self.store is None and is_feasible(y, self.nobj):
@@ -676,14 +717,24 @@ class wrapper(object):
         except Exception as ex:
             print(str(ex))  
             return None  
-        
-
-def minimize_plot(name, fun, nobj, ncon, bounds, popsize = 64, max_evaluations = 100000, nsga_update=False, 
-                  pareto_update=0, workers = mp.cpu_count(), logger = logger()):
+ 
+def minimize_plot(name: str, 
+                 fun: Callable[[ArrayLike], ArrayLike], 
+                 nobj: int,
+                 ncon: int, 
+                 bounds: Bounds,
+                 popsize: Optional[int] = 64, 
+                 max_evaluations: Optional[int] = 100000, 
+                 nsga_update: Optional[bool] = True,
+                 pareto_update: Optional[int] = 0,
+                 ints: Optional[ArrayLike] = None,
+                 workers: Optional[int] = mp.cpu_count(),
+                 logger: Optional[logging.Logger] = logger()) -> Tuple[np.ndarray, np.ndarray]:     
     name += '_mode_' + str(popsize) + '_' + \
                 ('nsga_update' if nsga_update else ('de_update_' + str(pareto_update)))
     logger.info('optimize ' + name) 
     xs, ys = minimize(fun, nobj, ncon, bounds, popsize = popsize, max_evaluations = max_evaluations,
-                   nsga_update = nsga_update, pareto_update = pareto_update, workers=workers)
+                   nsga_update = nsga_update, pareto_update = pareto_update, workers=workers, ints=ints)
     np.savez_compressed(name, xs=xs, ys=ys)
     moretry.plot(name, ncon, xs, ys)
+    return xs, ys

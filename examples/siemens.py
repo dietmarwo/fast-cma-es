@@ -139,22 +139,12 @@ class Plant:
 
     def simulate_threadsafe(self, all_time, batch_size):
         plant = Plant(self.dtime)
-        plant.reset()
-        plant.batch_size = batch_size
-        while plant.time < all_time:
-            plant.tick()
-        return plant.count_finished
+        return plant.simulate(all_time, batch_size)
         
     def fitness(self, x):
         batch_size = x.astype(dtype=int)
         count = self.simulate_threadsafe(60*60*24, batch_size)
         return -count
-                        
-    def qd_fitness(self, x):
-        batch_size = x.astype(dtype=int)
-        count = self.simulate_threadsafe(60*60*24, batch_size)
-        return 5000-count, np.array(batch_size[0], batch_size[1])
-
 
 def simulate(plant):
     print (plant.simulate(60*60*24, [10, 32])) # 24 hours

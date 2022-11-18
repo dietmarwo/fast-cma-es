@@ -2,6 +2,7 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
+from __future__ import annotations
 
 """ Parallel objective function evaluator.
     Uses pipes to avoid re-spawning new processes for each eval_parallel call. 
@@ -16,7 +17,11 @@ import ctypes as ct
 import numpy as np
 import sys, math, os  
 
-def eval_parallel(xs, evaluator):
+from typing import Optional, Callable, Tuple
+from numpy.typing import ArrayLike
+
+def eval_parallel(xs: ArrayLike, 
+                  evaluator: Evaluator):
     popsize = len(xs)
     ys = np.empty(popsize)
     pipe_limit = 256
@@ -30,7 +35,9 @@ def eval_parallel(xs, evaluator):
         i1 = min(popsize, i1 + pipe_limit)
     return ys
         
-def eval_parallel_mo(xs, evaluator, nobj):
+def eval_parallel_mo(xs: ArrayLike, 
+                     evaluator: Evaluator, 
+                     nobj: int):
     popsize = len(xs)
     ys = np.empty((popsize,nobj))
     pipe_limit = 256
@@ -47,14 +54,14 @@ def eval_parallel_mo(xs, evaluator, nobj):
 class Evaluator(object):
        
     def __init__(self, 
-                 fun, # objective function
+                 fun: Callable[[ArrayLike], float], # objective function
                 ):   
         self.fun = fun 
         self.pipe = Pipe()
         self.read_mutex = mp.Lock() 
         self.write_mutex = mp.Lock() 
             
-    def start(self, workers=mp.cpu_count()):
+    def start(self, workers: Optional[int] = mp.cpu_count()):
         self.workers = workers
         self.proc=[Process(target=_evaluate, args=(self.fun, 
                 self.pipe, self.read_mutex, self.write_mutex)) for _ in range(workers)]
@@ -185,11 +192,13 @@ class parallel(object):
     by applying the input function using parallel processes. stop needs to be called to avoid
     a resource leak"""
         
-    def __init__(self, fun, workers = mp.cpu_count()):
+    def __init__(self, 
+                 fun: Callable[[ArrayLike], float], 
+                 workers: Optional[int] = mp.cpu_count()):
         self.evaluator = Evaluator(fun)
         self.evaluator.start(workers)
     
-    def __call__(self, xs):
+    def __call__(self, xs: ArrayLike) -> np.ndarray:
         return eval_parallel(xs, self.evaluator)
 
     def stop(self):
@@ -197,12 +206,15 @@ class parallel(object):
 
 class parallel_mo(object):
         
-    def __init__(self, fun, nobj, workers = mp.cpu_count()):
+    def __init__(self, 
+                 fun: Callable[[ArrayLike], ArrayLike], 
+                 nobj: int, 
+                 workers: Optional[int] = mp.cpu_count()):
         self.nobj = nobj
         self.evaluator = Evaluator(fun)
         self.evaluator.start(workers)
     
-    def __call__(self, xs):
+    def __call__(self, xs: ArrayLike) -> np.ndarray:
         return eval_parallel_mo(xs, self.evaluator, self.nobj)
 
     def stop(self):
@@ -210,10 +222,10 @@ class parallel_mo(object):
 
 class callback(object):
     
-    def __init__(self, fun):
+    def __init__(self, fun: Callable[[ArrayLike], float]):
         self.fun = fun
     
-    def __call__(self, n, x):
+    def __call__(self, n: int, x: ArrayLike) -> float:
         try:
             fit = self.fun(np.array(np.fromiter((x[i] for i in range(n)), dtype=float)))
             return fit if math.isfinite(fit) else sys.float_info.max
@@ -222,7 +234,10 @@ class callback(object):
         
 class callback_so(object):
     
-    def __init__(self, fun, dim, is_terminate = None):
+    def __init__(self, 
+                 fun: Callable[[ArrayLike], float], 
+                 dim: int, 
+                 is_terminate: Optional[Callable[[ArrayLike, float], bool]] = None):
         self.fun = fun
         self.dim = dim
         self.nobj = 1
@@ -245,13 +260,17 @@ class callback_so(object):
 
 class callback_mo(object):
     
-    def __init__(self, fun, dim, nobj, is_terminate = None):
+    def __init__(self, 
+                 fun: Callable[[ArrayLike], ArrayLike], 
+                 dim: int, 
+                 nobj: int, 
+                 is_terminate: Optional[bool] = None):
         self.fun = fun
         self.dim = dim
         self.nobj = nobj
         self.is_terminate = is_terminate
     
-    def __call__(self, dim, x, y):
+    def __call__(self, dim: int, x, y):
         try:
             arrTypeX = ct.c_double*(dim)
             xaddr = ct.addressof(x.contents)
@@ -267,7 +286,9 @@ class callback_mo(object):
 
 class callback_par(object):
     
-    def __init__(self, fun, parfun):
+    def __init__(self, 
+                 fun: Callable[[ArrayLike], float], 
+                 parfun: Callable[[ArrayLike], ArrayLike]):
         self.fun = fun
         self.parfun = parfun
     

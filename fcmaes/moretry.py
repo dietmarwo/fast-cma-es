@@ -11,25 +11,29 @@ import multiprocessing as mp
 from multiprocessing import Process
 from scipy.optimize import Bounds
 from numpy.random import Generator, MT19937, SeedSequence
-from fcmaes.optimizer import de_cma, logger, dtime
+from fcmaes.optimizer import de_cma, logger, dtime, Optimizer
 from fcmaes import retry, advretry
 
-def minimize(fun,             
-             bounds,
-             weight_bounds,
-             ncon = 0,
-             value_exp = 2.0,
-             value_limits = None,
-             num_retries = 1024,
-             logger = None,
-             workers = mp.cpu_count(),
-             popsize = 31, 
-             max_evaluations = 50000, 
-             capacity = None,
-             optimizer = None,
-             statistic_num = 0,
-             plot_name = None
-              ):   
+import logging
+from typing import Optional, Callable, Tuple
+from numpy.typing import ArrayLike
+
+def minimize(fun: Callable[[ArrayLike], float],
+             bounds: Bounds,
+             weight_bounds: Bounds,
+             ncon: Optional[int] = 0,
+             value_exp: Optional[float] = 2.0,
+             value_limits: Optional[ArrayLike] = None,
+             num_retries: Optional[int] = 1024,
+             logger: Optional[logging.Logger] = None,
+             workers: Optional[int] = mp.cpu_count(),
+             popsize: Optional[int] = 31, 
+             max_evaluations: Optional[int] = 50000, 
+             capacity: Optional[int] = None,
+             optimizer: Optional[Optimizer] = None,
+             statistic_num: Optional[int] = 0,
+             plot_name: Optional[str] = None
+              ) -> Tuple[np.ndarray, np.ndarray]:   
     """Minimization of a multi objective function of one or more variables using parallel 
      optimization retry.
      
@@ -87,11 +91,19 @@ def minimize(fun,
                         statistic_num = statistic_num, plot_name = plot_name)
     xs = np.array(mo_retry(fun, weight_bounds, ncon, value_exp, 
                            store, optimizer.minimize, num_retries, value_limits, workers))
-    ys = np.array(np.fromiter((fun(x) for x in xs), dtype=float))
+    ys = np.array([fun(x) for x in xs])
     return xs, ys
     
-def mo_retry(fun, weight_bounds, ncon, y_exp, store, optimize, num_retries, value_limits, 
-          workers=mp.cpu_count()):
+def mo_retry(fun: Callable[[ArrayLike], float], 
+             weight_bounds: Bounds, 
+             ncon: int, 
+             y_exp: float, 
+             store, 
+             optimize: Callable, 
+             num_retries: int, 
+             value_limits: ArrayLike, 
+             workers: Optional[int] = mp.cpu_count()):
+    
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
@@ -133,7 +145,7 @@ def _retry_loop(pid, rgs, fun, weight_bounds, ncon, y_exp,
             except Exception as ex:
                 print(str(ex))
             
-def pareto(xs, ys):
+def pareto(xs: np.ndarray, ys: np.ndarray):
     """pareto front for argument vectors and corresponding function value vectors."""
     par = _pareto(ys)
     xp = xs[par]
@@ -164,10 +176,18 @@ class mo_wrapper(object):
     def mo_eval(self, x):
         return self.fun(np.array(x))
         
-def minimize_plot(name, optimizer, fun, bounds, weight_bounds, ncon = 0, 
-                  value_limits = None, num_retries = 1024, 
-             exp = 2.0, workers = mp.cpu_count(), 
+def minimize_plot(name: str, 
+                  optimizer: Optimizer, 
+                  fun: Callable[[ArrayLike], float], 
+                  bounds: Bounds, 
+                  weight_bounds, 
+                  ncon: Optional[int] = 0, 
+                  value_limits: Optional[ArrayLike] = None, 
+                  num_retries: Optional[int] = 1024, 
+                  exp: Optional[float] = 2.0, 
+                  workers: Optional[int] = mp.cpu_count(), 
              logger=logger(), statistic_num = 0, plot_name = None):
+    
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
     logger.info('optimize ' + name) 
@@ -203,8 +223,15 @@ def plot(name, ncon, xs, ys, eps = 1E-2, all=True, interp=False, plot3d=False):
     except Exception as ex:
         print(str(ex))
 
-def adv_minimize_plot(name, optimizer, fun, bounds,
-                   value_limit = np.inf, num_retries = 1024, logger=logger(), statistic_num = 0):
+def adv_minimize_plot(name: str, 
+                      optimizer: Optimizer, 
+                      fun: Callable[[ArrayLike], float], 
+                      bounds: Optional[Bounds],
+                      value_limit: Optional[float] = np.inf, 
+                      num_retries: Optional[int] = 1024, 
+                      logger: Optional[logging.Logger] = logger(), 
+                      statistic_num: Optional[int] = 0):
+    
     time0 = time.perf_counter() # optimization start time
     name += '_smart_' + optimizer.name
     logger.info('smart optimize ' + name) 

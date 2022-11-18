@@ -11,6 +11,7 @@ def get_version():
 
 setup(
     name='fcmaes',
+    python_requires='>=3.7'
     version=get_version(),
     description=('A Python 3 gradient-free optimization library.'),
     long_description=long_description,
@@ -21,7 +22,7 @@ setup(
     license='MIT',
     packages=find_packages(),
     install_requires=[
-          'numpy', 'scipy', 'sklearn'
+          'numpy>=1.20', 'scipy>=1.8', 'sklearn>=1.1'
     ],
     classifiers = [
       "Intended Audience :: Manufacturing",

@@ -16,14 +16,18 @@ import math
 import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
-from scipy.optimize import OptimizeResult
+from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, callback_par, call_back_par, parallel, libcmalib
+
+import logging
+from typing import Optional, Callable, Union
+from numpy.typing import ArrayLike
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
-def minimize(fun, 
-             bounds=None, 
-             x0=None, 
+def minimize(fun: Callable[[ArrayLike], float], 
+             bounds: Optional[Bounds] = None, 
+             x0: Optional[ArrayLike] = None,
              input_sigma = 0.3, 
              popsize = None, 
              max_evaluations = 100000, 
@@ -33,7 +37,7 @@ def minimize(fun,
              cr0 = 0.0,
              rg = Generator(MT19937()),
              runid=0,
-             workers = None):  
+             workers = None) -> OptimizeResult:  
      
     """Minimization of a scalar function of one or more variables using a 
     C++ LCL Differential Evolution implementation called via ctypes.

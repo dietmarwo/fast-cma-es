@@ -152,11 +152,11 @@ def run_map_elites():
     
     #fast preview, switches CMA-ES off
     me_params = {'generations':100, 'chunk_size':1000}
-    cma_params = {'cma_generations':0, 'best_n':200, 'maxiters':1000, 'miniters':200}
+    cma_params = {'cma_generations':0, 'best_n':200, 'maxiters':400, 'stall_criterion':3}
 
     # use the CMA-ES "afterburner"
     # me_params = {'generations':100, 'chunk_size':1000}
-    # cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':1000, 'miniters':200}
+    # cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':400, 'stall_criterion':3}
     
     fitness =  mapelites.wrapper(problem.qd_fitness, problem.desc_dim)
 

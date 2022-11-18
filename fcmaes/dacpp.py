@@ -13,18 +13,22 @@ import os
 import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
-from scipy.optimize import OptimizeResult
+from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, call_back_type, callback, libcmalib
+
+import logging
+from typing import Optional, Callable, Union
+from numpy.typing import ArrayLike
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
-def minimize(fun,
-             bounds=None, 
-             x0=None, 
-             max_evaluations = 100000, 
-             use_local_search = True,
-             rg = Generator(MT19937()),
-             runid=0):   
+def minimize(fun: Callable[[ArrayLike], float], 
+             bounds: Optional[Bounds] = None, 
+             x0: Optional[ArrayLike] = None,
+             max_evaluations: Optional[int] = 100000, 
+             use_local_search: Optional[bool] = True,
+             rg: Optional[Generator] = Generator(MT19937()),
+             runid: Optional[int] = 0) -> OptimizeResult:   
 
     """Minimization of a scalar function of one or more variables using a 
     C++ Dual Annealing implementation called via ctypes.

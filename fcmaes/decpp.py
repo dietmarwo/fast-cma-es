@@ -22,31 +22,35 @@ import math
 import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
-from scipy.optimize import OptimizeResult
+from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import mo_call_back_type, callback_so, libcmalib
 from fcmaes.de import _check_bounds
 
+import logging
+from typing import Optional, Callable, Tuple, Union
+from numpy.typing import ArrayLike
+
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
-def minimize(fun, 
-             dim = None,
-             bounds = None, 
-             popsize = None, 
-             max_evaluations = 100000, 
-             stop_fitness = -np.inf, 
-             keep = 200,
-             f = 0.5,
-             cr = 0.9,
-             rg = Generator(MT19937()),
-             ints = None,
-             min_mutate = 0.1,
-             max_mutate = 0.5, 
-             workers = 1,
-             is_terminate = None,
-             x0=None, 
-             input_sigma = 0.3,
-             min_sigma = 0,
-             runid=0):  
+def minimize(fun: Callable[[ArrayLike], float],
+             dim: Optional[int] = None,
+             bounds: Optional[Bounds] = None,
+             popsize: Optional[int] = 31,
+             max_evaluations: Optional[int] = 100000,
+             stop_fitness: Optional[float] = -np.inf,
+             keep: Optional[int] = 200,
+             f: Optional[float] = 0.5,
+             cr: Optional[float] = 0.9,
+             rg: Optional[Generator] = Generator(MT19937()),
+             ints: Optional[ArrayLike] = None,
+             min_mutate: Optional[float] = 0.1,
+             max_mutate: Optional[float] = 0.5,
+             workers: Optional[int] = 1,
+             is_terminate: Optional[Callable[[ArrayLike, float], bool]] = None,
+             x0: Optional[ArrayLike] = None,
+             input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.3,
+             min_sigma: Optional[float] = 0,
+             runid: Optional[int] = 0) -> OptimizeResult: 
      
     """Minimization of a scalar function of one or more variables using a 
     C++ Differential Evolution implementation called via ctypes.
@@ -163,20 +167,20 @@ optimizeDE_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, ct.c_int, \
 
 class DE_C:
 
-    def __init__(self,
-                 dim, 
-                 bounds = None, 
-                 popsize = 31, 
-                 keep = 200,
-                 f = 0.5,
-                 cr = 0.9,
-                 rg = Generator(MT19937()), 
-                 ints = None, 
-                 min_mutate = 0.1, 
-                 max_mutate = 1.0,
-                 x0=None, 
-                 input_sigma = 0.3,
-                 min_sigma = 0, 
+    def __init__(self,                
+                 dim: Optional[int] = None,
+                 bounds: Optional[Bounds] = None,
+                 popsize: Optional[int] = 31,
+                 keep: Optional[int] = 200,
+                 f: Optional[float] = 0.5,
+                 cr: Optional[float] = 0.9,
+                 rg: Optional[Generator] = Generator(MT19937()),
+                 ints: Optional[ArrayLike] = None,
+                 min_mutate: Optional[float] = 0.1,
+                 max_mutate: Optional[float] = 0.5,
+                 x0: Optional[ArrayLike] = None,
+                 input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.3,
+                 min_sigma: Optional[float] = 0,
         ):      
         dim, lower, upper = _check_bounds(bounds, dim)     
         if popsize is None:
@@ -212,7 +216,7 @@ class DE_C:
     def __del__(self):
         destroyDE_C(self.ptr)
             
-    def ask(self):
+    def ask(self) -> np.array:
         try:
             popsize = self.popsize
             n = self.dim
@@ -227,7 +231,7 @@ class DE_C:
             print (ex)
             return None
 
-    def tell(self, ys): # , xs):
+    def tell(self, ys: np.ndarray):
         try:
             array_type_ys = ct.c_double * len(ys)
             return tellDE_C(self.ptr, array_type_ys(*ys))
@@ -235,7 +239,7 @@ class DE_C:
             print (ex)
             return -1        
 
-    def population(self):
+    def population(self) -> np.array:
         try:
             popsize = self.popsize
             n = self.dim
@@ -250,7 +254,7 @@ class DE_C:
             print (ex)
             return None
 
-    def result(self):
+    def result(self) -> OptimizeResult:
         res = np.empty(self.dim+4)
         res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
         try:

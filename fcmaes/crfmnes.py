@@ -2,9 +2,13 @@
 import math
 import numpy as np
 import os
-from scipy.optimize import OptimizeResult
+from scipy.optimize import OptimizeResult, Bounds
 from numpy.random import MT19937, Generator
 from fcmaes.evaluator import _get_bounds, _fitness, serial, parallel
+
+import logging
+from typing import Optional, Callable, Union, Dict
+from numpy.typing import ArrayLike
 
 """ Numpy based implementation of Fast Moving Natural Evolution Strategy 
     for High-Dimensional Problems (CR-FM-NES), see https://arxiv.org/abs/2201.11422 .
@@ -16,20 +20,20 @@ INFEASIBLE = np.inf
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
-def minimize(fun, 
-             bounds=None, 
-             x0=None, 
-             input_sigma = 0.3, 
-             popsize = 32, 
-             max_evaluations = 100000, 
-             workers = None,
-             stop_fitness = -np.inf, 
-             is_terminate = None, 
-             rg = Generator(MT19937()),
-             runid=0,
-             normalize = False,
-             options={}
-             ):       
+def minimize(fun: Callable[[ArrayLike], float],
+             bounds: Optional[Bounds] = None,
+             x0: Optional[ArrayLike] = None,
+             input_sigma: Optional[float] = 0.3,
+             popsize: Optional[int] = 32,
+             max_evaluations: Optional[int] = 100000,
+             workers: Optional[int] = None,
+             stop_fitness: Optional[float] = -np.inf,
+             is_terminate: Optional[Callable[[ArrayLike, float], bool]] = None,
+             rg: Optional[Generator] = Generator(MT19937()),
+             runid: Optional[int] = 0,
+             normalize: Optional[bool] = False,
+             options: Optional[Dict] = {}
+             ) -> OptimizeResult:       
     """Minimization of a scalar function of one or more variables using CMA-ES.
      
     Parameters
@@ -85,20 +89,20 @@ def minimize(fun,
 class CRFMNES:
     
     def __init__(self, 
-                 dim = None, 
-                 bounds = None,
-                 x0 = None, 
-                 input_sigma = 0.3, 
-                 popsize = 32, 
-                 max_evaluations = 100000, 
-                 stop_fitness = -np.inf, 
-                 is_terminate = None, 
-                 runid = 0, 
-                 normalize = False,
-                 options = {}, 
-                 rg = Generator(MT19937()), 
-                 workers = None, 
-                 fun = lambda x: 0): # used for random offspring  ):
+                dim = None, 
+                bounds: Optional[Bounds] = None, 
+                x0: Optional[ArrayLike] = None,
+                input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.3, 
+                popsize: Optional[int] = 32,  
+                max_evaluations: Optional[int] = 100000, 
+                stop_fitness: Optional[float] = -np.inf, 
+                is_terminate: Optional[bool] = None, 
+                runid: Optional[int] = 0, 
+                normalize: Optional[bool] = False,
+                options: Optional[Dict] = {}, 
+                rg: Optional[Generator] = Generator(MT19937()), 
+                workers: Optional[int] = None, 
+                fun: Optional[Callable[[ArrayLike], float]] = lambda x: 0): 
         
         if popsize is None:
             popsize = 32         
@@ -186,7 +190,7 @@ class CRFMNES:
                 violations[i] += (- min(0, x[j][i] - self.constraint[j][0]) + max(0, x[j][i] - self.constraint[j][1])) * self.penalty_coef
         return violations
 
-    def optimize(self):
+    def optimize(self) -> int:
         # -------------------- Generation Loop --------------------------------
         while True:
             if self.no_of_evals > self.max_evaluations:
@@ -203,7 +207,7 @@ class CRFMNES:
                 self.stop = -1
                 break
 
-    def ask(self):
+    def ask(self) -> np.ndarray:
         d = self.dim
         popsize = self.popsize
         zhalf = self.rg.normal(0,1,(d, int(popsize / 2)))  # dim x popsize/2
@@ -216,7 +220,7 @@ class CRFMNES:
         self.x = self.m + (self.sigma * self.y) * self.D
         return self.x.T
 
-    def tell(self, evals_no_sort):
+    def tell(self, evals_no_sort: np.ndarray) -> int:
         violations = np.zeros(self.popsize)
         if self.use_constraint_violation:
             violations = self.calc_violations(self.x)
@@ -303,10 +307,10 @@ class CRFMNES:
         self.sigma = self.sigma * exp(eta_sigma / 2 * G_s)
         return self.stop
 
-    def population(self):
+    def population(self) -> np.ndarray:
         return self.x
 
-    def result(self):
+    def result(self) -> OptimizeResult:
         return OptimizeResult(x=self.x_best, fun=self.f_best, nfev=self.no_of_evals, 
                               nit=self.g, status=self.stop, success=True)
         

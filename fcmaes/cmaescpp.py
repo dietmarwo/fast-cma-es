@@ -14,27 +14,31 @@ import math
 import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
-from scipy.optimize import OptimizeResult
+from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, _get_bounds, mo_call_back_type, callback_so, callback_par, call_back_par, parallel, libcmalib
+
+import logging
+from typing import Optional, Callable, Union
+from numpy.typing import ArrayLike
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 
-def minimize(fun, 
-             bounds=None, 
-             x0=None, 
-             input_sigma = 0.3, 
-             popsize = 31, 
-             max_evaluations = 100000, 
-             accuracy = 1.0, 
-             stop_fitness = -np.inf, 
-             stop_hist = None,
-             rg = Generator(MT19937()),
-             runid=0,
-             workers = 1, 
-             normalize = True,
-             delayed_update = True,
-             update_gap = None
-             ):
+def minimize(fun: Callable[[ArrayLike], float], 
+             bounds: Optional[Bounds] = None, 
+             x0: Optional[ArrayLike] = None,
+             input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.3,
+             popsize: Optional[int] = 31,
+             max_evaluations: Optional[int]  = 100000,
+             accuracy: Optional[float] = 1.0, 
+             stop_fitness: Optional[float] = -np.inf, 
+             stop_hist: Optional[float] = None,
+             rg: Optional[Generator] = Generator(MT19937()),
+             runid: Optional[int] = 0,
+             workers: Optional[int] = 1, 
+             normalize: Optional[bool] = True,
+             delayed_update: Optional[bool] = True,
+             update_gap: Optional[int] = None
+             ) -> OptimizeResult:
    
     """Minimization of a scalar function of one or more variables using a 
     C++ CMA-ES implementation called via ctypes.
@@ -141,19 +145,19 @@ class ACMA_C:
 
     def __init__(self,
         dim, 
-        bounds=None, 
-        x0=None, 
-        input_sigma = 0.3, 
-        popsize = 31, 
-        max_evaluations = 100000, 
-        accuracy = 1.0, 
-        stop_fitness = -np.inf, 
-        stop_hist = None,
-        rg = Generator(MT19937()),
-        runid=0,
-        normalize = True,
-        delayed_update = True,
-        update_gap = None
+        bounds: Optional[Bounds] = None, 
+        x0: Optional[ArrayLike] = None,
+        input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.3, 
+        popsize: Optional[int] = 31,  
+        max_evaluations: Optional[int] = 100000, 
+        accuracy: Optional[float] = 1.0, 
+        stop_fitness: Optional[float] = -np.inf, 
+        stop_hist: Optional[float] = None,
+        rg: Optional[Generator] = Generator(MT19937()),
+        runid: Optional[int] = 0,
+        normalize: Optional[bool] = True,
+        delayed_update: Optional[bool] = True,
+        update_gap: Optional[int] = None
      ):
        
         """Parameters
@@ -219,7 +223,7 @@ class ACMA_C:
     def __del__(self):
         destroyACMA_C(self.ptr)
             
-    def ask(self):
+    def ask(self) -> np.array:
         try:
             popsize = self.popsize
             n = self.dim
@@ -234,9 +238,11 @@ class ACMA_C:
             print (ex)
             return None
 
-    def tell(self, ys, xs = None):
+    def tell(self, 
+             ys: np.ndarray, 
+             xs: Optional[np.ndarray] = None) -> int:  
         if not xs is None:
-            return self.tell_x(ys, xs)
+            return self.tell_x_(ys, xs)
         try:
             array_type_ys = ct.c_double * len(ys)
             return tellACMA_C(self.ptr, array_type_ys(*ys))
@@ -244,7 +250,7 @@ class ACMA_C:
             print (ex)
             return -1    
 
-    def tell_x(self, ys, xs):
+    def tell_x_(self, ys: np.ndarray, xs: np.ndarray):
         try:
             flat_xs = xs.flatten()
             array_type_xs = ct.c_double * len(flat_xs)
@@ -254,7 +260,7 @@ class ACMA_C:
             print (ex)
             return -1 
         
-    def population(self):
+    def population(self) -> np.array:
         try:
             popsize = self.popsize
             n = self.dim
@@ -269,7 +275,7 @@ class ACMA_C:
             print (ex)
             return None
 
-    def result(self):
+    def result(self) -> OptimizeResult:
         res = np.empty(self.dim+4)
         res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
         try:

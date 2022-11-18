@@ -40,28 +40,32 @@ import math, sys
 from time import time
 import ctypes as ct
 from numpy.random import Generator, MT19937
-from scipy.optimize import OptimizeResult
+from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import Evaluator
 import multiprocessing as mp
 from collections import deque
 
-def minimize(fun, 
-             dim = None,
-             bounds = None, 
-             popsize = 31, 
-             max_evaluations = 100000, 
-             workers = None,
-             stop_fitness = -np.inf, 
-             keep = 200, 
-             f = 0.5, 
-             cr = 0.9, 
-             rg = Generator(MT19937()),
+import logging
+from typing import Optional, Callable, Tuple, Union
+from numpy.typing import ArrayLike
+
+def minimize(fun: Callable[[ArrayLike], float], 
+             dim: Optional[int] = None,
+             bounds: Optional[Bounds] = None,
+             popsize: Optional[int] = 31,
+             max_evaluations: Optional[int] = 100000,
+             workers: Optional[int] = None,
+             stop_fitness: Optional[float] = -np.inf,
+             keep: Optional[int] = 200,
+             f: Optional[float] = 0.5,
+             cr: Optional[float] = 0.9,
+             rg: Optional[Generator] = Generator(MT19937()),
              filter = None,
-             ints = None,
-             min_mutate = 0.1,
-             max_mutate = 0.5, 
-             modifier = None,
-             logger = None):    
+             ints: Optional[ArrayLike] = None,
+             min_mutate: Optional[float] = 0.1,
+             max_mutate: Optional[float] = 0.5,
+             modifier: Optional[Callable] = None,
+             logger: Optional[logging.Logger] = None) -> OptimizeResult: 
     """Minimization of a scalar function of one or more variables using
     Differential Evolution.
      
@@ -144,9 +148,22 @@ def minimize(fun,
 
 class DE(object):
     
-    def __init__(self, dim, bounds, popsize = 31, stop_fitness = -np.inf, keep = 200, 
-                 F = 0.5, Cr = 0.9, rg = Generator(MT19937()), filter = None, ints = None, 
-                 min_mutate = 0.1, max_mutate = 1.0, modifier = None, logger = None):
+    def __init__(self,
+                dim: int,
+                bounds: Bounds,  
+                popsize: Optional[int] = 31, 
+                stop_fitness: Optional[float] = -np.inf, 
+                keep: Optional[int] = 200, 
+                F: Optional[float] = 0.5, 
+                Cr: Optional[float] = 0.9, 
+                rg: Optional[Generator] = Generator(MT19937()),
+                filter: Optional = None,
+                ints: Optional[ArrayLike] = None,
+                min_mutate: Optional[float] = 0.1,
+                max_mutate: Optional[float] = 0.5, 
+                modifier: Optional[Callable] = None,
+                logger: Optional[logging.Logger] = None):    
+        
         self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
         if popsize is None:
             popsize = 31
@@ -179,7 +196,7 @@ class DE(object):
             self.n_evals = mp.RawValue(ct.c_long, 0)
             self.time_0 = time()
      
-    def ask(self):
+    def ask(self) -> np.ndarray:
         """ask for popsize new argument vectors.
             
         Returns
@@ -203,7 +220,10 @@ class DE(object):
         self.asked = xs      
         return xs
  
-    def tell(self, ys, xs = None):      
+    def tell(self, 
+             ys:ArrayLike, 
+             xs:Optional[ArrayLike] = None) -> int:
+              
         """tell function values for the argument lists retrieved by ask().
     
         Parameters
@@ -222,15 +242,15 @@ class DE(object):
             self.tell_one(p, ys[p], xs[p])
         return self.stop
 
-    def population(self):
+    def population(self) -> np.ndarray:
         return self.x
 
-    def result(self):
+    def result(self) -> OptimizeResult:
         return OptimizeResult(x=self.best_x, fun=self.best_value, 
                               nfev=self.iterations*self.popsize, 
                               nit=self.iterations, status=self.stop, success=True)
     
-    def ask_one(self):
+    def ask_one(self) -> Tuple[int, np.ndarray]:
         """ask for one new argument vector.
         
         Returns
@@ -246,7 +266,7 @@ class DE(object):
             self.p = (self.p + 1) % self.popsize
         return p, x
 
-    def tell_one(self, p, y, x):      
+    def tell_one(self, p: int, y:float , x:ArrayLike) -> int:      
         """tell function value for a argument list retrieved by ask_one().
     
         Parameters

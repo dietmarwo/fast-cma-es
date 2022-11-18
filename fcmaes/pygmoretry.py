@@ -24,7 +24,7 @@ def minimize(prob,
              logger = None,
              workers = mp.cpu_count(),
              popsize = 1, 
-             ):   
+             ) -> OptimizeResult:   
     """Minimization of a scalar function of one or more variables using parallel retry.
        Similar to fcmaes.retry but works with pygmo / pagmo problems + algorithms.
        For problems with equality/inequality contraints or multiple objectives fcmaes.retry cannot 
