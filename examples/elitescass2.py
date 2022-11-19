@@ -134,15 +134,16 @@ def plot(name):
 def run_diversifier():
     name = 'cass2div'
     problem = Cassini2_me(Cassini2())
-    opt_params1 = {'solver':'DE_CPP', 'max_evals':2000000, 'popsize':32, 'stall_criterion':200}
-    opt_params2 = {'solver':'CMA_CPP', 'max_evals':2000000, 'popsize':32, 'stall_criterion':200}
+    opt_params1 = {'solver':'DE_CPP', 'max_evals':100000, 'popsize':32, 'stall_criterion':3}
+    opt_params2 = {'solver':'CMA_CPP', 'max_evals':100000, 'popsize':32, 'stall_criterion':3}
     archive = diversifier.minimize(
-         diversifier.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
-         workers = 24, opt_params=[opt_params1, opt_params2])
+         mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
+         opt_params=[opt_params1, opt_params2], retries = 2048)
     diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, problem.bounds, archive, 
                                num_retries=20000)
     archive.save(name)
     plot_archive(archive)
+    print('final archive:', archive.info())
    
 def run_map_elites():
     problem = Cassini2_me(Cassini2())
@@ -154,7 +155,7 @@ def run_map_elites():
     me_params = {'generations':100, 'chunk_size':1000}
     cma_params = {'cma_generations':0, 'best_n':200, 'maxiters':400, 'stall_criterion':3}
 
-    # use the CMA-ES "afterburner"
+    # use CMA-ES 
     # me_params = {'generations':100, 'chunk_size':1000}
     # cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':400, 'stall_criterion':3}
     
@@ -164,19 +165,13 @@ def run_map_elites():
         fitness, problem.bounds, problem.desc_bounds, niche_num = niche_num,
           min_selection = 0.1, selection_reduce = 0.95, iterations = 50, archive = archive, 
           me_params = me_params, cma_params = cma_params)
-    # for i in range(10):
-    #     me_params['best_n'] = 2000
-    #     archive = mapelites.optimize_map_elites(
-    #         fitness, problem.bounds, problem.desc_bounds, niche_num = niche_num,
-    #             min_selection = 0.1, selection_reduce = 0.95, iterations = 50, archive = archive, 
-    #             me_params = me_params, cma_params = cma_params)
-    #     archive.save(name + '.' + str(i))
     archive.save(name)
     plot_archive(archive)
+    print('final archive:', archive.info())
 
 if __name__ == '__main__':
     
-    run_map_elites()
-    #run_diversifier()
+    #run_map_elites()
+    run_diversifier()
     #plot('cass2')
     pass
