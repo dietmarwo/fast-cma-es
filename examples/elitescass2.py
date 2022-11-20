@@ -139,7 +139,8 @@ def run_diversifier():
     opt_params2 = {'solver':'CMA_CPP', 'max_evals':100000, 'popsize':31, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
-         workers = 32, opt_params=[opt_params1, opt_params2], retries=2000)
+         workers = 32, opt_params=[opt_params0, opt_params2], retries=10000)
+         #workers = 32, opt_params=[opt_params1, opt_params2], retries=2000)
          #workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], retries=2000)
     diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, problem.bounds, archive, 
                                num_retries=2000)
