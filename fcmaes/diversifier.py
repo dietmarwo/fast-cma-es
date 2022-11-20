@@ -197,28 +197,65 @@ def minimize_parallel_(archive, fitness, bounds, workers,
                          opt_params, count, retries):
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
+    stopProcess = mp.RawValue(ct.c_bool, False)
     proc=[Process(target=run_minimize_,
             args=(archive, fitness, bounds, rgs[p],
-                  opt_params, count, retries)) for p in range(workers)]
+                  opt_params, count, retries, p, stopProcess)) for p in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
                     
-def run_minimize_(archive, fitness, bounds, rg, opt_params, count, retries):    
+def run_minimize_(archive, fitness, bounds, rg, opt_params, count, retries, p, stopProcess):  
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
-        while count.value < retries:
+        if isinstance(opt_params, (list, tuple, np.ndarray)):
+            for params in opt_params: # call MAP-Elites
+                if 'elites' == params.get('solver') and p % opt_params[0].get('use', 2) == 0:  
+                    #print('elites ' + str(p) + ' started') 
+                    run_map_elites_(archive, fitness, bounds, rg, stopProcess, params)
+                    #print('elites '+ str(p) + ' finished')
+                    return
+        while count.value < retries: # call solvers in loop
             count.value += 1      
             best_x = None
             if isinstance(opt_params, (list, tuple, np.ndarray)):
                 for params in opt_params: # call in sequence
+                    if 'elites' == params.get('solver'):
+                        continue
+        #           print(params.get('solver') + str(p) + ' started')
                     if best_x is None:
-                        best_x = minimize_(archive, fitness, bounds, rg, params)
+                        best_x = minimize_(archive, fitness, bounds, rg, stopProcess, p, params)
                     else:
-                        best_x = minimize_(archive, fitness, bounds, rg, params, x0 = best_x)
+                        best_x = minimize_(archive, fitness, bounds, rg, stopProcess, p, params, x0 = best_x)
+        #           print(params.get('solver') + str(p) + ' finished')
             else:        
-                minimize_(archive, fitness, bounds, rg, opt_params)           
+                    minimize_(archive, fitness, bounds, rg, opt_params) 
+        stopProcess.value = True # stop all processes      
 
-def minimize_(archive, fitness, bounds, rg, opt_params, x0 = None):  
-    es = get_solver_(bounds, opt_params, rg, x0)  
+from fcmaes.mapelites import variation_,  iso_dd_
+                
+def run_map_elites_(archive, fitness, bounds, rg, stopProcess, opt_params = {}):    
+    popsize = opt_params.get('popsize', 32)  
+    use_sbx = opt_params.get('use_sbx', True)     
+    dis_c = opt_params.get('dis_c', 20)   
+    dis_m = opt_params.get('dis_m', 20)  
+    iso_sigma = opt_params.get('iso_sigma', 0.1)
+    line_sigma = opt_params.get('line_sigma', 0.2)
+    select_n = opt_params.get('best_n', archive.capacity)
+    while not stopProcess.value:                
+        if use_sbx:
+            pop = archive.random_xs(select_n, popsize, rg)
+            xs = variation_(pop, bounds.lb, bounds.ub, rg, dis_c, dis_m)
+        else:
+            x1 = archive.random_xs(select_n, popsize, rg)
+            x2 = archive.random_xs(select_n, popsize, rg)
+            xs = iso_dd_(x1, x2, bounds.lb, bounds.ub, rg, iso_sigma, line_sigma)    
+        yds = [fitness(x) for x in xs]
+        descs = np.array([yd[1] for yd in yds])
+        niches = archive.index_of_niches(descs)
+        for i in range(len(yds)):
+            archive.set(niches[i], yds[i], xs[i])      
+
+def minimize_(archive, fitness, bounds, rg, stopProcess, p, opt_params, x0 = None):  
+    es = get_solver_(bounds, opt_params, rg, p, x0) 
     max_evals = opt_params.get('max_evals', 50000)
     stall_criterion = opt_params.get('stall_criterion', 50)
     old_ys = None
@@ -240,16 +277,19 @@ def minimize_(archive, fitness, bounds, rg, opt_params, x0 = None):
                 last_improve = iter          
         if last_improve + stall_criterion < iter:
             break
-        if es.tell(ys) != 0:
+        stop = es.tell(ys)
+        if stop != 0 or stopProcess.value:
+            #print('stop = ', stop)
             break 
         old_ys = np.sort(ys)
     return best_x # real best solution
 
 from fcmaes import cmaes, cmaescpp, crfmnescpp, pgpecpp, decpp, crfmnes, de
 
-def get_solver_(bounds, opt_params, rg, x0 = None):
+def get_solver_(bounds, opt_params, rg, p, x0 = None):
     dim = len(bounds.lb)
-    popsize = opt_params.get('popsize', 32) 
+    popsize = opt_params.get('popsize', 31) 
+    #popsize -= int(p // 2)  
     sigma = opt_params.get('sigma',rg.uniform(0.03, 0.3)**2)
     mean = opt_params.get('mean', rg.uniform(bounds.lb, bounds.ub)) \
                 if x0 is None else x0
