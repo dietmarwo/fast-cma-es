@@ -3,6 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 from __future__ import annotations
+from conda.common._logic import TRUE
 
 """ Numpy based implementation of CVT MAP-Elites including CMA-ES emitter and CMA-ES drilldown. 
 
@@ -587,6 +588,7 @@ class wrapper(object):
     def __init__(self, 
                  fit:Callable[[ArrayLike], Tuple[float, np.ndarray]], 
                  desc_dim: int, 
+                 interval: Optional[int] = 1000000,
                  logger: Optional[logging.Logger] = logger()):
         
         self.fit = fit
@@ -595,22 +597,25 @@ class wrapper(object):
         self.t0 = perf_counter()
         self.desc_dim = desc_dim
         self.logger = logger
+        self.interval = interval
 
-    def __call__(self, x: ArrayLike):
+   def __call__(self, x: ArrayLike):
         try:
             if np.isnan(x).any():
                 return np.inf, np.zeros(self.desc_dim)
             self.evals.value += 1
+            log = self.evals.value % self.interval == 0
             y, desc = self.fit(x)
             if np.isnan(y) or np.isnan(desc).any():
                 return np.inf, np.zeros(self.desc_dim)
             y0 = y if np.isscalar(y) else sum(y)
             if y0 < self.best_y.value:
                 self.best_y.value = y0
-                if not self.logger is None:
-                    archinfo = self.archive.info() if hasattr(self, 'archive') else ''
-                    self.logger.info(
-                        f'{dtime(self.t0)} {archinfo} {self.evals.value:.0f} {self.evals.value/(1E-9 + dtime(self.t0)):.0f} {self.best_y.value:.3f} {list(x)}')
+                log = True 
+            if not self.logger is None and log:
+                archinfo = self.archive.info() if hasattr(self, 'archive') else ''
+                self.logger.info(
+                    f'{dtime(self.t0)} {archinfo} {self.evals.value:.0f} {self.evals.value/(1E-9 + dtime(self.t0)):.0f} {self.best_y.value:.3f} {list(x)}')            
             return y, desc
         except Exception as ex:
             print(str(ex))  
