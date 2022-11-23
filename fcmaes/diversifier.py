@@ -240,7 +240,7 @@ def run_map_elites_(archive, fitness, bounds, rg, stopProcess, opt_params = {}):
         dis_m = opt_params.get('dis_m', 20)  
         iso_sigma = opt_params.get('iso_sigma', 0.1)
         line_sigma = opt_params.get('line_sigma', 0.2)
-        select_n = opt_params.get('best_n', archive.capacity)
+        select_n = archive.capacity
         while not stopProcess.value:                
             if use_sbx:
                 pop = archive.random_xs(select_n, popsize, rg)
@@ -253,7 +253,9 @@ def run_map_elites_(archive, fitness, bounds, rg, stopProcess, opt_params = {}):
             descs = np.array([yd[1] for yd in yds])
             niches = archive.index_of_niches(descs)
             for i in range(len(yds)):
-                archive.set(niches[i], yds[i], xs[i])      
+                archive.set(niches[i], yds[i], xs[i])
+            archive.argsort()   
+            select_n = archive.get_occupied()   
 
 def minimize_(archive, fitness, bounds, rg, stopProcess, p, opt_params, x0 = None):  
     es = get_solver_(bounds, opt_params, rg, p, x0) 
