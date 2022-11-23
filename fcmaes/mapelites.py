@@ -90,8 +90,6 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
                         samples_per_niche: Optional[int] = 20, 
                         workers: Optional[int] = mp.cpu_count(), 
                         iterations: Optional[int] = 100, 
-                        min_selection: Optional[int] = 0.2, 
-                        selection_reduce: Optional[int] = 0.9, 
                         archive: Optional[Archive] = None, 
                         me_params: Optional[Dict] = {}, 
                         cma_params: Optional[Dict] = {}, 
@@ -119,10 +117,6 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
         Number of spawned parallel worker processes.
     iterations : int, optional
         Number of MAP-elites iterations.
-    min_selection : float, optional
-        minimal factor of used niches relative to the archive size.
-    selection_reduce : float, optional
-        Reduction factor for the selection apllied each generation.
     archive : Archive, optional
         If defined MAP-elites is continued for this archive.
     me_params : dictionary, optional 
@@ -139,26 +133,22 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
     archive : Archive
         Resulting archive of niches. Can be stored for later continuation of MAP-elites."""
 
-    dim = len(bounds.lb)
-    desc_dim = len(desc_bounds.lb) 
+    dim = len(bounds.lb) 
     if archive is None: 
         archive = Archive(dim, desc_bounds, niche_num)
         archive.init_niches(samples_per_niche)
         # initialize archive with random values
         archive.set_xs(rng.uniform(bounds.lb, bounds.ub, (niche_num, dim)))        
     t0 = perf_counter() 
-    qd_fitness.archive = archive # attach archive for logging
-    best_n = me_params.get('best_n', niche_num)     
+    qd_fitness.archive = archive # attach archive for logging  
     for iter in range(iterations):
         archive.argsort() # sort archive to select the best_n
-        optimize_map_elites_(archive, qd_fitness, bounds, workers, min_selection,
-                    me_params, cma_params, iter)
+        optimize_map_elites_(archive, qd_fitness, bounds, workers,
+                    me_params, cma_params)
         if not logger is None:
             ys = np.sort(archive.get_ys())[:100] # best 100 fitness values
-            logger.info(f'best 100 iter {iter} num {best_n} best {min(ys):.3f} worst {max(ys):.3f} ' + 
+            logger.info(f'best 100 iter {iter} best {min(ys):.3f} worst {max(ys):.3f} ' + 
                      f'mean {np.mean(ys):.3f} stdev {np.std(ys):.3f} time {dtime(t0)} s')
-        if best_n * selection_reduce > archive.capacity * min_selection:
-            best_n = int(selection_reduce * best_n)
     return archive
 
 def get_index_of_niches(archive: Archive,
@@ -232,30 +222,28 @@ def load_archive(name: str,
     archive.load(name)
     return archive
 
-def optimize_map_elites_(archive, fitness, bounds, workers, min_selection, 
-                         me_params, cma_params, iter):
+def optimize_map_elites_(archive, fitness, bounds, workers,
+                         me_params, cma_params):
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=run_map_elites_,
-            args=(archive, fitness, bounds, rgs[p], min_selection,
-                  me_params, cma_params, iter)) for p in range(workers)]
+            args=(archive, fitness, bounds, rgs[p],
+                  me_params, cma_params)) for p in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
           
-def run_map_elites_(archive, fitness, bounds, rg, min_selection, 
-                    me_params, cma_params, iter): 
+def run_map_elites_(archive, fitness, bounds, rg, 
+                    me_params, cma_params): 
     
     generations = me_params.get('generations', 10) 
     chunk_size = me_params.get('chunk_size', 20)   
     use_sbx = me_params.get('use_sbx', True)     
     dis_c = me_params.get('dis_c', 20)   
     dis_m = me_params.get('dis_m', 20)  
-    iso_sigma = me_params.get('iso_sigma', 0.01)
+    iso_sigma = me_params.get('iso_sigma', 0.02)
     line_sigma = me_params.get('line_sigma', 0.2)
     cma_generations = cma_params.get('cma_generations', 20)
-    select_n = me_params.get('best_n', archive.capacity)
-    # restrict to occupied
-    #select_n = min(select_n, max(int(min_selection*archive.capacity), archive.get_occupied()))  
+    select_n = archive.capacity
     for _ in range(generations):                
         if use_sbx:
             pop = archive.random_xs(select_n, chunk_size, rg)
@@ -268,10 +256,12 @@ def run_map_elites_(archive, fitness, bounds, rg, min_selection,
         descs = np.array([yd[1] for yd in yds])
         niches = archive.index_of_niches(descs)
         for i in range(len(yds)):
-            archive.set(niches[i], yds[i], xs[i])    
-    if iter > 0:    
-        for _ in range(cma_generations):                
-            optimize_cma_(archive, fitness, bounds, rg, cma_params)    
+            archive.set(niches[i], yds[i], xs[i]) 
+        archive.argsort()   
+        select_n = archive.get_occupied()            
+
+    for _ in range(cma_generations):                
+        optimize_cma_(archive, fitness, bounds, rg, cma_params)    
 
 def optimize_cma_(archive, fitness, bounds, rg, cma_params):
     select_n = cma_params.get('best_n', 100)
