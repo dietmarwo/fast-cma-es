@@ -3,7 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 from __future__ import annotations
-from conda.common._logic import TRUE
 
 """ Numpy based implementation of CVT MAP-Elites including CMA-ES emitter and CMA-ES drilldown. 
 
@@ -70,7 +69,7 @@ from multiprocessing import Process
 import multiprocessing as mp
 from sklearn.neighbors import KDTree
 from sklearn.cluster import KMeans
-import math
+from scipy.optimize import Bounds
 from pathlib import Path
 from fcmaes.optimizer import dtime, logger
 from fcmaes import cmaescpp
@@ -143,8 +142,8 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
     dim = len(bounds.lb)
     desc_dim = len(desc_bounds.lb) 
     if archive is None: 
-        archive = Archive(dim, desc_dim, niche_num)
-        archive.init_niches(desc_bounds, samples_per_niche)
+        archive = Archive(dim, desc_bounds, niche_num)
+        archive.init_niches(samples_per_niche)
         # initialize archive with random values
         archive.set_xs(rng.uniform(bounds.lb, bounds.ub, (niche_num, dim)))        
     t0 = perf_counter() 
@@ -190,7 +189,7 @@ def get_index_of_niches(centers:Optional[np.ndarray] = None,
 
     if centers is None:
         dim = len(desc_bounds.lb)
-        descs = rng.uniform(desc_bounds.lb, desc_bounds.ub, (niche_num*samples_per_niche,dim))
+        descs = rng.uniform(0, 1, (niche_num*samples_per_niche,dim))
         # Applies KMeans to the random samples determine the centers of each niche."""
         k_means = KMeans(init='k-means++', n_clusters=niche_num, n_init=1, verbose=1)
         k_means.fit(descs)
@@ -227,8 +226,7 @@ def load_archive(name: str,
         Archive of niches. Can be used for continuation of MAP-elites."""
      
     dim = len(bounds.lb)
-    desc_dim = len(desc_bounds.lb) 
-    archive = Archive(dim, desc_dim, niche_num)
+    archive = Archive(dim, desc_bounds, niche_num, name)
     archive.load(name)
     return archive
 
@@ -303,7 +301,7 @@ def update_archive(archive: Archive, xs: np.ndarray, fitness: np.ndarray):
     # evaluate population, update archive and determine ranking
     popsize = len(xs) 
     yds = [fitness(x) for x in xs]
-    descs = np.array([yd[1] for yd in yds])
+    descs = archive.encode_d(np.array([yd[1] for yd in yds]))
     niches = archive.index_of_niches(descs)
     # real values
     ys = np.array(np.fromiter((yd[0] for yd in yds), dtype=float))
@@ -323,24 +321,6 @@ def update_archive(archive: Archive, xs: np.ndarray, fitness: np.ndarray):
         improvement[empty] = min_valid + norm_ys
     # return both improvement compared to archive elites  and real fitness
     return improvement, ys
-
-# def update_archive_cma_(archive, xs, fitness):
-#     # evaluate population, update archive and determine ranking for cma-es
-#     popsize = len(xs)
-#     yds = [fitness(x) for x in xs]
-#     descs = np.array([yd[1] for yd in yds])
-#     niches = archive.index_of_niches(descs)
-#     ys = np.array(np.fromiter((yd[0] for yd in yds), dtype=float))
-#     oldys = np.array(np.fromiter((archive.get_y(niches[i]) for i in range(popsize)), dtype=float))
-#     diff = ys - oldys
-#     neg = np.argwhere(diff < 0)
-#     if len(neg) > 0:
-#         neg = neg.reshape((len(neg)))
-#         for i in neg:
-#             archive.set(niches[i], yds[i], xs[i])
-#         return diff, False
-#     else: 
-#         return diff, True
         
 class Archive(object):
     """Multi-processing map elites archive. 
@@ -349,13 +329,18 @@ class Archive(object):
        
     def __init__(self, 
                  dim: int,
-                 desc_dim: int,
-                 capacity: int,                 
+                 desc_bounds: Bounds,
+                 capacity: int,    
+                 name: Optional[str] = ""             
                 ):    
         """Creates an empty archive."""
         self.dim = dim
-        self.desc_dim = desc_dim
+        self.desc_dim = len(desc_bounds.lb)
+        self.desc_bounds = desc_bounds
+        self.desc_lb = desc_bounds.lb
+        self.desc_scale = desc_bounds.ub - desc_bounds.lb
         self.capacity = capacity
+        self.name = name
         self.cs = None
         self.index_of_niches = None
         self.reset()
@@ -377,9 +362,10 @@ class Archive(object):
             self.set_stat(i, 2, np.full(self.dim, np.inf)) # min
             self.set_stat(i, 3, np.full(self.dim, -np.inf)) # max
          
-    def init_niches(self, desc_bounds, samples_per_niche = 10): 
+    def init_niches(self, samples_per_niche = 10): 
         """Computes the niche centers using KMeans and builds the KDTree for niche determination.""" 
-        self.index_of_niches, centers = get_index_of_niches(None, self.capacity, desc_bounds, samples_per_niche)
+        self.index_of_niches, centers = get_index_of_niches(None, self.capacity, 
+                                                            self.desc_bounds, samples_per_niche)
         self.cs = mp.RawArray(ct.c_double, self.capacity * self.desc_dim)
         self.set_cs(centers)
     
@@ -490,6 +476,12 @@ class Archive(object):
     def set_xs(self, xs: ArrayLike):
         for i in range(len(xs)):
             self.set_x(i, xs[i])
+            
+    def encode_d(self, d):
+        return (d - self.desc_lb) / self.desc_scale
+
+    def decode_d(self, d):
+        return (d * self.desc_scale) + self.desc_lb 
 
     def get_d(self, i: int) -> float:
         return self.ds[i*self.desc_dim:(i+1)*self.desc_dim]
@@ -498,7 +490,7 @@ class Archive(object):
         return np.array([self.get_d(i) for i in range(self.capacity)])
     
     def set_d(self, i: int, d: float):
-        self.ds[i*self.desc_dim:(i+1)*self.desc_dim] = d[:]
+        self.ds[i*self.desc_dim:(i+1)*self.desc_dim] = self.encode_d(d[:])
  
     def set_ds(self, ds: ArrayLike):
         for i in range(len(ds)):
@@ -528,6 +520,9 @@ class Archive(object):
         
     def get_cs(self) -> np.ndarray:
         return np.array([self.get_c(i) for i in range(self.capacity)])
+
+    def get_cs_decoded(self) -> np.ndarray:
+        return self.decode_d(np.array([self.get_c(i) for i in range(self.capacity)]))
            
     def set_c(self, i: int, c: float):
         self.cs[i*self.desc_dim:(i+1)*self.desc_dim] = c[:]
@@ -589,6 +584,7 @@ class wrapper(object):
                  fit:Callable[[ArrayLike], Tuple[float, np.ndarray]], 
                  desc_dim: int, 
                  interval: Optional[int] = 1000000,
+                 save_interval: Optional[int] = 1E20,
                  logger: Optional[logging.Logger] = logger()):
         
         self.fit = fit
@@ -598,13 +594,15 @@ class wrapper(object):
         self.desc_dim = desc_dim
         self.logger = logger
         self.interval = interval
-
-   def __call__(self, x: ArrayLike):
+        self.save_interval = save_interval
+        
+    def __call__(self, x: ArrayLike):
         try:
             if np.isnan(x).any():
                 return np.inf, np.zeros(self.desc_dim)
             self.evals.value += 1
             log = self.evals.value % self.interval == 0
+            save = self.evals.value % self.save_interval == 0
             y, desc = self.fit(x)
             if np.isnan(y) or np.isnan(desc).any():
                 return np.inf, np.zeros(self.desc_dim)
@@ -616,6 +614,8 @@ class wrapper(object):
                 archinfo = self.archive.info() if hasattr(self, 'archive') else ''
                 self.logger.info(
                     f'{dtime(self.t0)} {archinfo} {self.evals.value:.0f} {self.evals.value/(1E-9 + dtime(self.t0)):.0f} {self.best_y.value:.3f} {list(x)}')            
+            if save and hasattr(self, 'archive'):
+                self.archive.save(f'{self.archive.name}{self.evals.value}')
             return y, desc
         except Exception as ex:
             print(str(ex))  

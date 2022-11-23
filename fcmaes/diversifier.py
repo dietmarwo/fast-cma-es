@@ -104,10 +104,9 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
     if retries is None:
         retries = workers
     dim = len(bounds.lb)
-    desc_dim = len(desc_bounds.lb) 
     if archive is None: 
-        archive = Archive(dim, desc_dim, niche_num)
-        archive.init_niches(desc_bounds, samples_per_niche)       
+        archive = Archive(dim, desc_bounds, niche_num)
+        archive.init_niches(samples_per_niche)       
     t0 = perf_counter()   
     qd_fitness.archive = archive # attach archive for logging
     count = mp.RawValue(ct.c_long, 0)      
@@ -233,26 +232,27 @@ def run_minimize_(archive, fitness, bounds, rg, opt_params, count, retries, p, s
 from fcmaes.mapelites import variation_,  iso_dd_
                 
 def run_map_elites_(archive, fitness, bounds, rg, stopProcess, opt_params = {}):    
-    popsize = opt_params.get('popsize', 32)  
-    use_sbx = opt_params.get('use_sbx', True)     
-    dis_c = opt_params.get('dis_c', 20)   
-    dis_m = opt_params.get('dis_m', 20)  
-    iso_sigma = opt_params.get('iso_sigma', 0.1)
-    line_sigma = opt_params.get('line_sigma', 0.2)
-    select_n = opt_params.get('best_n', archive.capacity)
-    while not stopProcess.value:                
-        if use_sbx:
-            pop = archive.random_xs(select_n, popsize, rg)
-            xs = variation_(pop, bounds.lb, bounds.ub, rg, dis_c, dis_m)
-        else:
-            x1 = archive.random_xs(select_n, popsize, rg)
-            x2 = archive.random_xs(select_n, popsize, rg)
-            xs = iso_dd_(x1, x2, bounds.lb, bounds.ub, rg, iso_sigma, line_sigma)    
-        yds = [fitness(x) for x in xs]
-        descs = np.array([yd[1] for yd in yds])
-        niches = archive.index_of_niches(descs)
-        for i in range(len(yds)):
-            archive.set(niches[i], yds[i], xs[i])      
+    with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+        popsize = opt_params.get('popsize', 32)  
+        use_sbx = opt_params.get('use_sbx', True)     
+        dis_c = opt_params.get('dis_c', 20)   
+        dis_m = opt_params.get('dis_m', 20)  
+        iso_sigma = opt_params.get('iso_sigma', 0.1)
+        line_sigma = opt_params.get('line_sigma', 0.2)
+        select_n = opt_params.get('best_n', archive.capacity)
+        while not stopProcess.value:                
+            if use_sbx:
+                pop = archive.random_xs(select_n, popsize, rg)
+                xs = variation_(pop, bounds.lb, bounds.ub, rg, dis_c, dis_m)
+            else:
+                x1 = archive.random_xs(select_n, popsize, rg)
+                x2 = archive.random_xs(select_n, popsize, rg)
+                xs = iso_dd_(x1, x2, bounds.lb, bounds.ub, rg, iso_sigma, line_sigma)    
+            yds = [fitness(x) for x in xs]
+            descs = np.array([yd[1] for yd in yds])
+            niches = archive.index_of_niches(descs)
+            for i in range(len(yds)):
+                archive.set(niches[i], yds[i], xs[i])      
 
 def minimize_(archive, fitness, bounds, rg, stopProcess, p, opt_params, x0 = None):  
     es = get_solver_(bounds, opt_params, rg, p, x0) 
