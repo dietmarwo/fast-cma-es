@@ -161,7 +161,8 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
             best_n = int(selection_reduce * best_n)
     return archive
 
-def get_index_of_niches(centers:Optional[np.ndarray] = None, 
+def get_index_of_niches(archive: Archive,
+                        centers:Optional[np.ndarray] = None, 
                         niche_num: Optional[int]  = None, 
                         desc_bounds: Optional[Bounds] = None, 
                         samples_per_niche: Optional[int] = 100):   
@@ -170,6 +171,7 @@ def get_index_of_niches(centers:Optional[np.ndarray] = None,
      
     Parameters
     ----------
+    archive: Archive
     centers : ndarray, shape (n,m), optional
         If defined, these behavior vectors are used as niche centers
     niche_num : int, optional
@@ -198,7 +200,7 @@ def get_index_of_niches(centers:Optional[np.ndarray] = None,
        
     # Uses the KDtree to determine the niche indexes.
     def index_of_niches(ds):
-        return kdt.query(ds, k=1, sort_results=False)[1].T[0] 
+        return kdt.query(archive.encode_d(ds), k=1, sort_results=False)[1].T[0] 
          
     return index_of_niches, centers
 
@@ -301,7 +303,7 @@ def update_archive(archive: Archive, xs: np.ndarray, fitness: np.ndarray):
     # evaluate population, update archive and determine ranking
     popsize = len(xs) 
     yds = [fitness(x) for x in xs]
-    descs = archive.encode_d(np.array([yd[1] for yd in yds]))
+    descs = np.array([yd[1] for yd in yds])
     niches = archive.index_of_niches(descs)
     # real values
     ys = np.array(np.fromiter((yd[0] for yd in yds), dtype=float))
@@ -364,7 +366,7 @@ class Archive(object):
          
     def init_niches(self, samples_per_niche = 10): 
         """Computes the niche centers using KMeans and builds the KDTree for niche determination.""" 
-        self.index_of_niches, centers = get_index_of_niches(None, self.capacity, 
+        self.index_of_niches, centers = get_index_of_niches(self, None, self.capacity, 
                                                             self.desc_bounds, samples_per_niche)
         self.cs = mp.RawArray(ct.c_double, self.capacity * self.desc_dim)
         self.set_cs(centers)
@@ -400,7 +402,7 @@ class Archive(object):
         self.dim = xs.shape[1]
         self.desc_dim = ds.shape[1]
         self.capacity = xs.shape[0]
-        self.index_of_niches, _ = get_index_of_niches(self.get_cs(), None, None, None)
+        self.index_of_niches, _ = get_index_of_niches(self, self.get_cs(), None, None, None)
         
     def in_niche_filter(self, 
                         fit: Callable[[ArrayLike], float], 
@@ -490,7 +492,7 @@ class Archive(object):
         return np.array([self.get_d(i) for i in range(self.capacity)])
     
     def set_d(self, i: int, d: float):
-        self.ds[i*self.desc_dim:(i+1)*self.desc_dim] = self.encode_d(d[:])
+        self.ds[i*self.desc_dim:(i+1)*self.desc_dim] = d[:]
  
     def set_ds(self, ds: ArrayLike):
         for i in range(len(ds)):

@@ -26,6 +26,7 @@ about the associated solutions.
 import numpy as np
 from numpy.random import Generator, MT19937, SeedSequence
 from multiprocessing import Process
+from scipy.optimize import Bounds
 from fcmaes.optimizer import logger, dtime, de_cma, Optimizer
 import multiprocessing as mp
 import ctypes as ct
