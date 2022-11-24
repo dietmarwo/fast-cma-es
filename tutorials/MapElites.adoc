@@ -125,7 +125,7 @@ The main ideas contributing the the success of these ideas are:
 - The fitness function is required to additionally return a behavior / description vector which describes
 features of an individual solution used to distinguish them - for instance "start day" and "time of flight"
 for the Cassini2 problem.   
-- Application of Voronoi tessellation to tessalate the behavior space into niches. This works even for higher dimensional behavior spaces. Experiments with
+- Application of Voronoi tessellation to tesselate the behavior space into niches. This works even for higher dimensional behavior spaces. Experiments with
 the Cassini2 problem have shown, that it is advantageous even for two behavior dimensions.
 - Adaption of CMA-ES by sorting solutions not according to their fitness value, but to the fitness-difference to the
 existing elites of their corresponding niche. Since this sorting determines the reshaping of the search space for each generation we "encourage" the algorithm to search for new solutions.    
@@ -434,8 +434,7 @@ def run_map_elites():
 
     archive = mapelites.optimize_map_elites(
         fitness, problem.bounds, problem.desc_bounds, niche_num = niche_num,
-          min_selection = 0.1, selection_reduce = 0.97, iterations = 100, 
-          me_params = me_params, cma_params = cma_params)
+          iterations = 50, me_params = me_params, cma_params = cma_params)
 ----
 
 Here the solution and description space are not normalized, which means that we have to provide the
@@ -455,27 +454,16 @@ overhead is created. Note that because of the Python global interpreter lock mul
 and process creation is quite heavyweight compared to thread creation.
 - The CVT MAP-elite implementation doesn't support CMA-ES update, so there is no direct comparison there.    
 Because of its computationally expensive covariance matrix update CMA-ES may either become very slow
-for higher solution dimensions, or the underlying matrix library may allocate multiple CPU cores for a single   
-optimization which is counterproductive if the whole optimization is already parallelized.
+for higher solution dimensions, or the underlying matrix library may allocate multiple CPU cores for a single optimization which is counterproductive if the whole optimization is already parallelized.
 For extremly high dimensions (> 1000) there is no alternative to a 
-https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[JAX based implementation] where the matrix operations
-are delegated to a GPU/TPU. But as the benchmarks results in 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/EvoJax.adoc[EvoJax.adoc] show: For these high dimensional 
-problems CMA-ES is not the best choice anyway because of its slow convergence. For MAP-Elites which typically is
-applied to problems with dimension < 1000, a fast C++ CMA-ES implementation as the fcmaes one is the best choice, 
-since it is always executed single threaded and integrates well with parallelization at a higher level.   
+https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[JAX based implementation] where the matrix operations are delegated to a GPU/TPU. But as the benchmarks results in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/EvoJax.adoc[EvoJax.adoc] show: For these high dimensional problems CMA-ES is not the best choice anyway because of its slow convergence. For MAP-Elites which typically is applied to problems with dimension < 1000, a fast C++ CMA-ES implementation as the fcmaes one is the best choice, since it is always executed single threaded and integrates well with parallelization at a higher level.   
 
-==== But there is an alternative: Diversifier
+==== There is an alternative: Diversifier
 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[diversifier.py] is a new alternative to MAP-Elites. 
-It generalizes ideas from https://arxiv.org/pdf/1912.02400.pdf[CMA-ME] to other wrapped algorithms. 
-It uses the archive from CVT MAP-Elites (https://arxiv.org/abs/1610.05729) implemented in 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mapelites.py[mapelites.py]. 
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[diversifier.py] is a new alternative to MAP-Elites. It generalizes ideas from https://arxiv.org/pdf/1912.02400.pdf[CMA-ME] to other wrapped algorithms. It uses the archive from CVT MAP-Elites (https://arxiv.org/abs/1610.05729) implemented in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mapelites.py[mapelites.py]. 
 
 Note that there is an equivalent implementation dedicated to the machine learning domain:  
-https://github.com/dietmarwo/evojax/blob/ADD_DIVERSIFY_SOLVER/evojax/algo/diversifier.py[evojax diversifier],
-able to handle many thousand decision variables. It implements parallelism at a different level: At the fitness function and
-the optimization algorithm itself.  
+https://github.com/dietmarwo/evojax/blob/ADD_DIVERSIFY_SOLVER/evojax/algo/diversifier.py[evojax diversifier], able to handle many thousand decision variables. It implements parallelism at a different level: At the fitness function and the optimization algorithm itself.  
 
 Both the parallel retry and the archive based modification of the fitness 
 function enhance the diversification of the optimization result.
@@ -496,9 +484,8 @@ def run_diversifier():
     opt_params2 = {'solver':'CMA_CPP', 'max_evals':2000000, 'popsize':32, 'stall_criterion':200}
     archive = diversifier.minimize(
          diversifier.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
-         workers = 24, opt_params=[opt_params1, opt_params2])
-    diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, problem.bounds, archive, 
-                               num_retries=20000)
+         opt_params=[opt_params1, opt_params2])
+    diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, problem.bounds, archive, num_retries=20000)
     archive.save(name)
     plot_archive(archive)
 ----
@@ -552,26 +539,13 @@ landscapes. Therefore SBX+mutation is the default setting.
 100% of the niches and reduce the selection over time. The whole process may be repeated - starting 
 again with all niches. 
 
-- Candidates for CMA-ES are sampled with a bias to better niches. As for SBX only a subset of the archive is
-used, the worst niches are ignored. 
-
-- Two termination limits are defined for CMA-ES: miniters and maxiters: 
-    * iter <= miniters: Only CMA-ES's internal termination criteria apply
-    * miniters < iter <= maxiter: terminate if no solution improves over the previous generation
-    * maxiter < iter: terminate if no solution improves over the previous niche value
+- Candidates for CMA-ES are sampled with a bias to better niches. 
 
 - There is a CMA-ES drill down for specific niches - in this mode all solutions outside the niche
 are rejected. Restricted solution box bounds are used derived from statistics maintained by the archive
 during the addition of new solution candidates. 
 
-Note that the https://github.com/resibots/pymap_elites[Python reference implementation] of CVT MAP-Elites also
-tesselates the behavior space independent from fitness evaluations of emitted solutions. 
+Note that the https://github.com/resibots/pymap_elites[Python reference implementation] of CVT MAP-Elites also tesselates the behavior space independent from fitness evaluations of emitted solutions. 
 It fills the archive only partly with evaluated random solutions to save time. Difference is, 
-that as input for SBX / ISO+Line only evaluated archive niches are used. The fcmaes approach is different, 
-since the whole archive is filled with random solutions which get `np.inf` as fitness assigned to mark
-the niche as 'empty'. This approach may slightly reduce convergence, but helps a lot to fill many niches fast, 
-since a much larger number of random solutions are fed to the optimizer. fcmaes uses other means to improve
-convergence at later stages: Sorting the archive and reduce the percentage of niches used for offspring creation
-gradually over time. My feeling is, that basing the whole optimization only on a small number of random solutions
-sacrifices too much diversity for gaining convergence which is against the basic idea of QD.  
+that as input for SBX / ISO+Line only evaluated archive niches are used. The fcmaes approach is different, since the whole archive is filled with random solutions which get `np.inf` as fitness assigned to mark the niche as 'empty'. This approach may slightly reduce convergence, but helps a lot to fill many niches fast, since a larger number of random solutions are fed to the optimizer.
  

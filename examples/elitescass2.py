@@ -134,14 +134,13 @@ def plot(name):
 def run_diversifier():
     name = 'cass2div'
     problem = Cassini2_me(Cassini2())
-    opt_params0 = {'solver':'elites', 'popsize':1000, 'use':8}
+    opt_params0 = {'solver':'elites', 'popsize':1000, 'use':2}
     opt_params1 = {'solver':'DE_CPP', 'max_evals':100000, 'popsize':31, 'stall_criterion':3}
     opt_params2 = {'solver':'CMA_CPP', 'max_evals':100000, 'popsize':31, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
-         workers = 32, opt_params=[opt_params0, opt_params2], retries=10000)
-         #workers = 32, opt_params=[opt_params1, opt_params2], retries=2000)
-         #workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], retries=2000)
+         workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], retries=2000)
+    
     diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, problem.bounds, archive, 
                                num_retries=2000)
     archive.save(name)
@@ -152,7 +151,7 @@ def run_map_elites():
     problem = Cassini2_me(Cassini2())
     name = 'cass2me'
     archive = None
-    #archive = mapelites.load_archive("cass2",  problem.bounds, problem.desc_bounds, niche_num)
+    #archive = mapelites.load_archive(name,  problem.bounds, problem.desc_bounds, niche_num)
     
     #fast preview, switches CMA-ES off
     me_params = {'generations':100, 'chunk_size':1000}
@@ -166,15 +165,16 @@ def run_map_elites():
 
     archive = mapelites.optimize_map_elites(
         fitness, problem.bounds, problem.desc_bounds, niche_num = niche_num,
-          min_selection = 0.1, selection_reduce = 1.0, iterations = 50, archive = archive, 
+          iterations = 50, archive = archive, 
           me_params = me_params, cma_params = cma_params)
+    
     archive.save(name)
     plot_archive(archive)
     print('final archive:', archive.info())
 
 if __name__ == '__main__':
     
-    #run_map_elites()
-    run_diversifier()
+    run_map_elites()
+    #run_diversifier()
     #plot('cass2')
     pass
