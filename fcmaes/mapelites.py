@@ -28,13 +28,6 @@ initial population for SBX or Iso+LineDD. Their associated fitness value is set 
 We use b) because this way we: 
 - Avoid computing fitness values for the initial population.
 - Enhance the diversity of initial solutions emitted by SBX or Iso+LineDD.
-- Simplify the ordering used by CMA-ES: We subtract the actual fitness from the niche value. "Empty"
-cells have value math.inf, so the difference is -math.inf in this case. Which means empty cells are
-prioritized.   
-
-Disadvantage is that not only the behavior space but also the solution space needs to have box boundaries.
-This should not be relevant for real world applications were we always can define boundaries of valid
-decision variables.  
 
 3) Iso+LineDD (https://arxiv.org/pdf/1804.03906) is implemented but doesn't work well with extremely ragged solution
 landscapes. Therefore SBX+mutation is the default setting.
@@ -42,25 +35,14 @@ landscapes. Therefore SBX+mutation is the default setting.
 4) SBX (Simulated binary crossover) is taken from mode.py and simplified. It is combined with mutation.
 Both spread factors - for crossover and mutation - are randomized for each application. 
 
-5) Candidates for SBX / Iso+LineDD are generated from a uniformly sampled set of niches, 
-but only from a subset of the archive. 
-The whole archive is sorted each iteration and only the best niches are chosen. We start with
-100% of the niches and reduce the selection over time. The whole process may be repeated - starting 
-again with all niches. 
-
-6) Candidates for CMA-ES are sampled with a bias to better niches. As for SBX only a subset of the archive is
+5) Candidates for CMA-ES are sampled with a bias to better niches. As for SBX only a subset of the archive is
 used, the worst niches are ignored. 
 
-7) Two termination limits are defined for CMA-ES, miniters and maxiters: 
-- iter <= miniters: Only CMA-ES's internal termination criteria apply
-- miniters < iter <= maxiter: terminate if no solution improves over the previous generation
-- maxiter < iter: terminate if no solution improves over the previous niche value
-
-8) There is a CMA-ES drill down for specific niches - in this mode all solutions outside the niche
+6) There is a CMA-ES drill down for specific niches - in this mode all solutions outside the niche
 are rejected. Restricted solution box bounds are used derived from statistics maintained by the archive
 during the addition of new solution candidates. 
 
-9) Our archive uses shared memory to reduce inter-process communication overhead.
+7) The QD-archive uses shared memory to reduce inter-process communication overhead.
 """
 
 import numpy as np

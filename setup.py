@@ -22,7 +22,7 @@ setup(
     license='MIT',
     packages=find_packages(),
     install_requires=[
-          'numpy>=1.20', 'scipy>=1.8', 'sklearn>=1.1'
+          'numpy', 'scipy', 'sklearn'
     ],
     classifiers = [
       "Intended Audience :: Manufacturing",
