@@ -22,7 +22,7 @@ setup(
     license='MIT',
     packages=find_packages(),
     install_requires=[
-          'numpy', 'scipy', 'sklearn'
+          'numpy', 'scipy', 'sklearn', 'threadpoolctl'
     ],
     classifiers = [
       "Intended Audience :: Manufacturing",
