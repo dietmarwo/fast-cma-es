@@ -164,6 +164,10 @@ class fitness(object):
         ys = [-f for f in factors] # higher factor is better
         constraints = [ntr - self.max_trades for ntr in num_trades] # at most max_trades trades
         return np.array(ys + constraints)
+    
+    def ndfun(self, x):
+        y, factors, _ = self.fun(x)
+        return 5+y, factors # we need positive y values for tracking QD-Score
      
     def get_trades(self, ticker, x):
         _, _, log = simulate(self.closes[ticker], int(x[0]), int(x[1]), int(x[2]), int(x[3]), self.dates[ticker])
@@ -245,6 +249,73 @@ def optimize_mo(tickers, start, end, nsga_update = True):
               " trades " + str([int(max_trades+ci) for ci in y[nobj:]]) + 
               " x = " + str([int(xi) for xi in x]))
 
+from fcmaes import diversifier, mapelites
+import matplotlib.pyplot as plt
+    
+bounds = Bounds([20,50,10,10], [50,100,200,200])
+ddim = 4
+desc_bounds = Bounds([0]*ddim, [4]*ddim)
+niche_num = 1000
+
+def bar(tickers, start, end):
+    archive = mapelites.load_archive("crypto_min_cma", bounds, desc_bounds, niche_num)
+    ys, ds, xs = archive.get_occupied_data()
+    ys = 5-ys# convert back to real ROI
+    n = len(xs)
+    m = 201
+    ws = np.zeros((4, m))
+    for i in range(n):
+        for j in range(4):
+            k = int(xs[i][j])
+            ws[j][k] += ys[i]
+    max = np.amax(ws, axis=1)
+    fig, ax = plt.subplots()
+    width = 0.9
+    ok = np.logical_or(ws[0] > max[0]*0.1, \
+         np.logical_or(ws[1] > max[1]*0.05, \
+         np.logical_or(ws[2] > max[2]*0.7, ws[3] > max[3]*0.7)))
+    indices = np.array([i for i in range(m) if ok[i]]) 
+    labels = [str(i) for i in indices]    
+    x = np.arange(len(labels))  # the label locations
+    
+    for j in range(4):
+        rects = ax.bar(x + (j-1.5)*width/4, 
+                       ws[j][indices], width/4, label='parameter '+ str(j))
+        ax.bar_label(rects, padding=3, fmt='%d')
+    
+    ax.set_xticks(x, labels)
+    ax.set_xlabel('Parameter Setting')
+    ax.set_ylabel('Sum of ROI')
+    ax.set_yscale('log')
+    ax.set_title('Parameter Setting / ROI')
+    ax.legend()        
+    fig.tight_layout()
+    plt.show()
+    
+def optimize_nd(tickers, start, end): 
+    fit = fitness(tickers, start, end, None) 
+    opt_params0 = {'solver':'elites', 'popsize':1000, 'use':2}
+    opt_params1 = {'solver':'CMA_CPP', 'max_evals':10000, 'popsize':16, 'stall_criterion':3}
+    archive = diversifier.minimize(
+         mapelites.wrapper(fit.ndfun, ddim, interval=10000, save_interval=100000000), 
+         bounds, desc_bounds, 
+         workers = 32, opt_params=[opt_params0, opt_params1], retries = 3200,
+
+         niche_num = niche_num, samples_per_niche = 20)
+    print("final archive: " + archive.info())
+    archive.save("crypto_min_cma")
+
+    ysi = archive.argsort()
+    ys = archive.get_ys()[ysi]
+    ds = archive.get_ds()[ysi]
+    xs = archive.get_xs()[ysi]
+    occupied = (ys < np.inf)
+        
+    for i, (y, d, x) in enumerate(zip(ys[occupied], ds[occupied], xs[occupied])):
+        print(str(i+1) + ": y " + str(round(5-y,2)) +  
+              " fac " + str([round(di,2) for di in d]) +  
+              " x = " + str([int(xi) for xi in x]))
+
 if __name__ == '__main__':
     
     # ticker names: https://finance.yahoo.com/lookup
@@ -254,9 +325,13 @@ if __name__ == '__main__':
     start="2019-01-01"
     end="2030-04-30" 
     
-    optimize(tickers, start, end)
+    #optimize(tickers, start, end)
     
     #optimize_mo(tickers, start, end)
-    
+   
+    optimize_nd(tickers, start, end)
+    #bar(tickers, start, end)
+
+ 
     # fit = fitness(tickers, start, end) 
     # fit.plot([20,60,10,10])

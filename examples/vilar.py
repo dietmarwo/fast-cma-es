@@ -83,42 +83,6 @@ class VilarOscillator(gillespy2.Model):
         # Timespan
         self.timespan(np.linspace(0,400,401))
 
-def plot3d(xs, ys, name):
-    x = -1*ys[:, 0]; y = -1*ys[:, 1]; z = ys[:, 2]
-    fig = plt.figure()
-    #ax = fig.add_subplot(projection='3d')
-    ax = fig.add_subplot()     
-    img = ax.scatter(x, y, s=4, c=z, cmap=plt.hot())
-    cbar = fig.colorbar(img)
-    plt.xlabel('sdev peak distance')    
-    plt.ylabel('sdev amplitude')
-    cbar.set_label('frequency')
-    fig.set_figheight(8)
-    fig.set_figwidth(8)
-    fig.savefig(name, dpi=300)
-
-    import plotly
-    import plotly.graph_objs as go
-    
-    fig1 = go.Scatter3d(x=x,
-                    y=y,
-                    z=z,
-                    marker=dict(opacity=0.9,
-                                reversescale=True,
-                                colorscale='Blues',
-                                size=5),
-                    line=dict (width=0.02),
-                    mode='markers')
-    mylayout = go.Layout(scene=dict(
-        xaxis=dict(title="sdev peak distance"),
-        yaxis=dict( title="sdev amplitude"),
-        zaxis=dict( title="frequency"),
-    ),)
-    plotly.offline.plot({"data": [fig1],
-                         "layout": mylayout},
-                         auto_open=True,
-                         filename=(name + "3DPlot.html"))
-
 def get_bounds(model, scale):
     lower = []
     upper = []
@@ -186,5 +150,97 @@ def sweep_params():
     moretry.plot("sweep_all", ncon, xs, ys) # plot 2d
     plot3d(xs, ys, "sweep_3d") # plot 3d
 
+from fcmaes import diversifier, mapelites
+import threadpoolctl
+from elitescass2 import plot3d
+
+def run_diversifier():
+    
+    results = mp.Manager().list() 
+    name = "vilar"   
+        
+    class nd_problem():
+     
+        def __init__(self):
+            self.bounds = get_bounds(VilarOscillator(), 100)
+            #self.desc_bounds = Bounds([0.03, 30], [0.05, 300])
+            self.desc_bounds = Bounds([0, 30], [3, 300])
+            self.desc_dim = 2
+            self.dim = len(self.bounds.ub)
+             
+        def fitness(self, x):
+            with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+                model = VilarOscillator()
+                set_params(model, x)
+                res = model.run(algorithm = "SSA")
+                # store params, result tuple
+                #results.append((x, res))
+                R = res['R'] # time series for R
+                r_mean = np.mean(R)
+                r_over = np.array(np.fromiter((r for r in R if r > r_mean), dtype=float))
+                ilocs_max = argrelextrema(r_over, np.greater_equal, order=3)[0]
+                freq = len(ilocs_max) / len(R)
+                peak_dists = np.array(np.fromiter((ilocs_max[i] - ilocs_max[i-1] for i in range(1, len(ilocs_max))), dtype=float))
+                sdev_peak_dist = np.std(peak_dists)
+                peaks = (r_over - r_mean)[ilocs_max]
+                sdev_amp = np.std(peaks)
+                # maximize sdev_peak_dist and sdev_amp
+                #return 3.5 - sdev_peak_dist, np.array([freq, sdev_amp])
+                return freq, np.array([sdev_peak_dist, sdev_amp])
+           
+    problem = nd_problem() 
+
+    opt_params0 = {'solver':'elites', 'popsize':8, 'use':2}
+    opt_params1 = {'solver':'DE_CPP', 'max_evals':200, 'popsize':16, 'stall_criterion':20}
+    opt_params2 = {'solver':'CMA_CPP', 'max_evals':200, 'popsize':16, 'stall_criterion':20}
+    archive = diversifier.minimize(
+         mapelites.wrapper(problem.fitness, 2, interval=100, save_interval=1000), 
+         problem.bounds, problem.desc_bounds, 
+         workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], retries = 320,
+         niche_num = 4000, samples_per_niche = 20)
+    print("final archive: " + archive.info())
+    archive.save(name)
+    plot_archive(archive)
+    
+def plot_archive(archive):
+    cs = archive.get_cs()
+    ds = archive.get_ds()
+    #vplot(cs, ds)
+    
+    si = archive.argsort()
+    ysp = []
+    descriptions = archive.get_ds()[si]
+    ys = archive.get_ys()[si]
+    for i in range(len(si)):
+        desc = descriptions[i]
+        #ysp.append([3.5 - ys[i], desc[1], desc[0]])
+        ysp.append([desc[0], desc[1], ys[i]])
+
+    ysp = np.array(ysp)
+    print(len(ysp))
+    print(ysp)
+    plot3d(ysp, "vilar5", 'sdev peak distance', 'sdev amplitude', 'frequency')
+
+def plot():
+    name = '4601700'
+    bounds = get_bounds(VilarOscillator(), 100)
+    desc_bounds = Bounds([0.03, 30], [0.05, 300])
+    niche_num = 4000
+    plot_archive(mapelites.load_archive(name, bounds, desc_bounds, niche_num))
+
+from scipy.spatial import Voronoi, voronoi_plot_2d
+
+def vplot(cs, ds):    
+    vor = Voronoi(cs)
+    fig,ax = plt.subplots(1,1)
+    voronoi_plot_2d(vor,ax, point_size=10)
+    #xy = ds.T
+    #ax.scatter(xy[0],xy[1],s=1,color='grey')
+    plt.show()
+
 if __name__ == '__main__':
-    sweep_params()
+    #sweep_params()
+    run_diversifier()
+    #plot()
+    
+    

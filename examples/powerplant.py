@@ -169,69 +169,12 @@ class PowerPlant():
             return np.nan
         else:
             return self.nw.busses['power'].P.val / self.nw.busses['heat'].P.val
+
+    def calculate_qd(self, x):
+        y = self.calculate_efficiency(x)
+        desc = [self.nw.busses['power'].P.val, self.nw.busses['heat'].P.val]
+        return y, desc
         
-
-def optimize_pygmo():
-    
-    import pygmo as pg
-    import time, threadpoolctl
-    
-    def dtime(t0):
-        return round(time.perf_counter() - t0, 2)
-
-    model = PowerPlant()    
-    time_0 = time.perf_counter()
-    
-    class optimization_problem():
-        
-        def fitness(self, x):
-            with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
-                f1 = 1 / self.model.calculate_efficiency(x)
-            ci1 = -x[0] + x[1]
-            #print(x)
-            #print(1/f1)
-            return [f1, ci1]
-    
-        def get_nobj(self):
-            """Return number of objectives."""
-            return 1
-    
-        # equality constraints
-        def get_nec(self):
-            return 0
-    
-        # inequality constraints
-        def get_nic(self):
-            return 1
-    
-        def get_bounds(self):
-            """Return bounds of decision variables."""
-            return ([1, 1], [40, 40])
-
-    optimize = optimization_problem()
-    optimize.model = PowerPlant()
-    prob = pg.problem(optimize)
-    num_gen = 150
-
-    pop = pg.population(prob, size=32)
-    algo = pg.algorithm(pg.ihs(gen=10))
-    #algo = pg.algorithm(pg.de1220(gen=10))
-    for gen in range(num_gen):
-        dt = dtime(time_0)
-        evals = pop.problem.get_fevals()
-        print('Evolution: {} Evals {} time {} evals/time {}'.format(gen, evals, dt, 
-                                                                    round(evals/dt,2)))
-        print('Extraction 1: {} bar'.format(round(pop.champion_x[0], 4)))
-        print('Extraction 2: {} bar'.format(round(pop.champion_x[1], 4)))
-        print('Efficiency: {} %'.format(round(100 / pop.champion_f[0], 8)))
-        pop = algo.evolve(pop)
-
-    print()
-    print('Efficiency: {} %'.format(round(100 / pop.champion_f[0], 8)))
-    print('Extraction 1: {} bar'.format(round(pop.champion_x[0], 4)))
-    print('Extraction 2: {} bar'.format(round(pop.champion_x[1], 4)))
-
-
 def optimize_fcmaes():
     
     from fcmaes.optimizer import Bite_cpp, De_cpp, Cma_cpp, Crfmnes_cpp, de_cma, wrapper
@@ -277,7 +220,6 @@ def optimize_fcmaes():
                 return 1000 + x[1] - x[0]
             return -self.efficiency(x)
             
-
     problem = fcmaes_problem()
     
     # Parallel retry of different single-objective optimizers
@@ -328,8 +270,81 @@ def optimize_fcmaes():
     
     #ret = bitecpp.minimize(wrapper(problem.fitness_so), problem.bounds, max_evaluations = 20000)            
     
-    #ret = de_cma(20000).minimize(wrapper(problem.fitness_so), problem.bounds)    
+    #ret = de_cma(20000).minimize(wrapper(problem.fitness_so), problem.bounds)  
+      
 
+def optimize_qd():
+    
+    from fcmaes import diversifier, mapelites
+    from scipy.optimize import Bounds
+    import threadpoolctl, threading
+    
+    class qd_problem():
+        
+        def __init__(self):
+            self.dim = 2
+            self.qd_dim = 2
+            self.bounds = Bounds([1]*self.dim, [40]*self.dim)          
+            self.desc_bounds = Bounds([2.2E8, 5E8], [2.8E8, 6.3E8])          
+            self.local = threading.local()
+        
+        def get_model(self):
+            if not hasattr(self.local, 'model'):
+                self.create_model()
+            return self.local.model
+        
+        def create_model(self):
+            self.local.model = PowerPlant()
+        
+        def efficiency(self, x):   
+            try:
+                with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+                    eff, desc = self.get_model().calculate_qd(x)    
+                if not np.isfinite(eff): # model gets corrupted in case of an error
+                    self.create_model() # we need to recreate the model
+                    return 0, self.desc_bounds.lb
+                #print (eff, desc)
+                return eff, desc
+            except Exception as ex:
+                return 0, self.desc_bounds.lb  
+  
+        def qd_fitness(self, x):
+            y, desc = self.efficiency(x)
+            return 1-y, desc
+
+    problem = qd_problem()
+    name = 'powerplant2'
+    opt_params0 = {'solver':'elites', 'popsize':1000, 'use':4}
+    opt_params1 = {'solver':'DE_CPP', 'max_evals':2000, 'popsize':16, 'stall_criterion':3}
+    opt_params2 = {'solver':'CMA_CPP', 'max_evals':2000, 'popsize':16, 'stall_criterion':3}
+    archive = diversifier.minimize(
+         mapelites.wrapper(problem.qd_fitness, 2, interval=1000), problem.bounds, problem.desc_bounds, 
+         #workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], retries=20000)
+         workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], retries=640, 
+         niche_num = 4000, samples_per_niche = 20)
+    
+    print('final archive:', archive.info())
+    archive.save(name)
+    plot_archive(archive)
+
+from elitescass2 import plot3d
+
+def plot_archive(archive):
+    si = archive.argsort()
+    ysp = []
+    descriptions = archive.get_ds()[si]
+    ys = archive.get_ys()[si]
+    for i in range(len(si)):
+        if ys[i] < 1: # throw out invalid
+            desc = descriptions[i]
+            ysp.append([desc[0], desc[1], ys[i]])
+
+    ysp = np.array(ysp)
+    print(len(ysp))
+    print(ysp)
+    plot3d(ysp, "powerplant2", 'power', 'heat', 'power / heat')
+    
 if __name__ == '__main__':
-    #optimize_pygmo()
-    optimize_fcmaes()
+    #optimize_fcmaes()
+    optimize_qd()
+    
