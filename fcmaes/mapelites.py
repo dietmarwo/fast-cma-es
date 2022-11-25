@@ -336,13 +336,26 @@ class Archive(object):
             self.set_stat(i, 2, np.full(self.dim, np.inf)) # min
             self.set_stat(i, 3, np.full(self.dim, -np.inf)) # max
          
-    def init_niches(self, samples_per_niche = 10): 
+    def init_niches(self, samples_per_niche: int = 10): 
         """Computes the niche centers using KMeans and builds the KDTree for niche determination.""" 
         self.index_of_niches, centers = get_index_of_niches(self, None, self.capacity, 
                                                             self.desc_bounds, samples_per_niche)
         self.cs = mp.RawArray(ct.c_double, self.capacity * self.desc_dim)
         self.set_cs(centers)
     
+    def get_occupied_data(self):
+        ys = self.get_ys()
+        occupied = (ys < np.inf)
+        return ys[occupied], self.get_ds()[occupied], self.get_xs()[occupied]        
+   
+    def join(self, archive: Archive):    
+        ys, ds, xs = archive.get_occupied_data()
+        niches = archive.index_of_niches(ds)
+        yds = np.array([(y, d) for y, d in zip(ys, ds)])
+        for i in range(len(ys)):
+            archive.set(niches[i], yds[i], xs[i]) 
+        archive.argsort()   
+
     def fname(self, name): 
         """Archive file name."""
         return f'arch.{name}.{self.capacity}.{self.dim}.{self.desc_dim}'

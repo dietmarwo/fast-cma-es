@@ -117,7 +117,7 @@ Calling a multi-objective optimizer and plotting the result is easy:
                                     nobj, ncon,
                                     problem.bounds, popsize = popsize, 
                                     max_evaluations = max_evaluations, 
-                                    nsga_update=False, workers=min(popsize, mp.cpu_count()))
+                                    nsga_update=True, workers=min(popsize, mp.cpu_count()))
     # save last population of the evolutionary algorithm
     np.savez_compressed("sweep", xs=xs, ys=ys)     
     # save all evaluations
