@@ -31,7 +31,7 @@ from fcmaes.optimizer import logger, dtime, de_cma, Optimizer
 import multiprocessing as mp
 import ctypes as ct
 from time import perf_counter
-from fcmaes.mapelites import Archive, update_archive
+from fcmaes.mapelites import Archive, update_archive, rng
 from fcmaes import advretry
 import threadpoolctl
 
@@ -107,7 +107,9 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
     dim = len(bounds.lb)
     if archive is None: 
         archive = Archive(dim, desc_bounds, niche_num)
-        archive.init_niches(samples_per_niche)       
+        archive.init_niches(samples_per_niche)   
+        # initialize archive with random values
+        archive.set_xs(rng.uniform(bounds.lb, bounds.ub, (niche_num, dim)))        
     t0 = perf_counter()   
     qd_fitness.archive = archive # attach archive for logging
     count = mp.RawValue(ct.c_long, 0)      
