@@ -107,9 +107,9 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
     dim = len(bounds.lb)
     if archive is None: 
         archive = Archive(dim, desc_bounds, niche_num)
-        archive.init_niches(samples_per_niche)   
+        archive.init_niches(samples_per_niche)
         # initialize archive with random values
-        archive.set_xs(rng.uniform(bounds.lb, bounds.ub, (niche_num, dim)))        
+        archive.set_xs(rng.uniform(bounds.lb, bounds.ub, (niche_num, dim)))         
     t0 = perf_counter()   
     qd_fitness.archive = archive # attach archive for logging
     count = mp.RawValue(ct.c_long, 0)      
@@ -259,42 +259,63 @@ def run_map_elites_(archive, fitness, bounds, rg, stopProcess, opt_params = {}):
             archive.argsort()   
             select_n = archive.get_occupied()   
 
-def minimize_(archive, fitness, bounds, rg, stopProcess, p, opt_params, x0 = None):  
-    es = get_solver_(bounds, opt_params, rg, p, x0) 
-    max_evals = opt_params.get('max_evals', 50000)
-    stall_criterion = opt_params.get('stall_criterion', 50)
-    old_ys = None
-    last_improve = 0
-    max_iters = int(max_evals/es.popsize)
-    best_x = None
-    best_y = np.inf
-    for iter in range(max_iters):
-        xs = es.ask()
-        ys, real_ys = update_archive(archive, xs, fitness)
-        # update best real fitness
-        yi = np.argmin(real_ys)
-        ybest = real_ys[yi] 
-        if ybest < best_y:
-            best_y = ybest
-            best_x = xs[yi]
-        if not old_ys is None:
-            if (np.sort(ys) < old_ys).any():
-                last_improve = iter          
-        if last_improve + stall_criterion < iter:
-            break
-        stop = es.tell(ys)
-        if stop != 0 or stopProcess.value:
-            #print('stop = ', stop)
-            break 
-        old_ys = np.sort(ys)
-    return best_x # real best solution
+def minimize_(archive, fitness, bounds, rg, stopProcess, p, opt_params, x0 = None): 
+    if 'BITE_CPP' == opt_params.get('solver'):
+        return run_bite_(archive, fitness, bounds, rg, stopProcess, p, opt_params, x0 = None)
+    else:
+        es = get_solver_(bounds, opt_params, rg, p, x0) 
+        max_evals = opt_params.get('max_evals', 50000)
+        stall_criterion = opt_params.get('stall_criterion', 20)
+        old_ys = None
+        last_improve = 0
+        max_iters = int(max_evals/es.popsize)
+        best_x = None
+        best_y = np.inf
+        for iter in range(max_iters):
+            xs = es.ask()
+            ys, real_ys = update_archive(archive, xs, fitness)
+            # update best real fitness
+            yi = np.argmin(real_ys)
+            ybest = real_ys[yi] 
+            if ybest < best_y:
+                best_y = ybest
+                best_x = xs[yi]
+            if not old_ys is None:
+                if (np.sort(ys) < old_ys).any():
+                    last_improve = iter          
+            if last_improve + stall_criterion < iter:
+                break
+            stop = es.tell(ys)
+            if stop != 0 or stopProcess.value:
+                #print('stop = ', stop)
+                break 
+            old_ys = np.sort(ys)
+        return best_x # real best solution
 
-from fcmaes import cmaes, cmaescpp, crfmnescpp, pgpecpp, decpp, crfmnes, de
+from fcmaes import cmaes, cmaescpp, crfmnescpp, pgpecpp, decpp, crfmnes, de, bitecpp
+
+def run_bite_(archive, fitness, bounds, rg, stopProcess, p, opt_params, x0 = None):  
+    # BiteOpt doesn't support ask/tell, so we have to "patch" fitness. Note that Voronoi 
+    # tesselation is more expensive if called for single behavior vectors and not for batches. 
+    
+    def fit(x: Callable[[ArrayLike], float]):
+        if stopProcess.value:
+            return np.inf
+        ys, _ = update_archive(archive, [x], fitness)
+        return ys[0]
+    
+    max_evals = opt_params.get('max_evals', 50000)     
+    stall_criterion = opt_params.get('stall_criterion', 20)   
+    popsize = opt_params.get('popsize', 0) 
+    with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):  
+        ret = bitecpp.minimize(fit, bounds, x0 = x0, M = 1, 
+                               stall_criterion = stall_criterion, popsize = popsize,
+                               max_evaluations = max_evals, rg = rg, runid = p)
+    return ret.x   
 
 def get_solver_(bounds, opt_params, rg, p, x0 = None):
     dim = len(bounds.lb)
     popsize = opt_params.get('popsize', 31) 
-    #popsize -= int(p // 2)  
     sigma = opt_params.get('sigma',rg.uniform(0.03, 0.3)**2)
     mean = opt_params.get('mean', rg.uniform(bounds.lb, bounds.ub)) \
                 if x0 is None else x0

@@ -120,7 +120,7 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
         archive = Archive(dim, desc_bounds, niche_num)
         archive.init_niches(samples_per_niche)
         # initialize archive with random values
-        archive.set_xs(rng.uniform(bounds.lb, bounds.ub, (niche_num, dim)))        
+        archive.set_xs(rng.uniform(bounds.lb, bounds.ub, (niche_num, dim))) 
     t0 = perf_counter() 
     qd_fitness.archive = archive # attach archive for logging  
     for iter in range(iterations):
@@ -271,7 +271,8 @@ def optimize_cma_(archive, fitness, bounds, rg, cma_params):
             break 
         old_ys = np.sort(ys)
         
-def update_archive(archive: Archive, xs: np.ndarray, fitness: np.ndarray):
+def update_archive(archive: Archive, xs: np.ndarray, 
+                   fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]]):
     # evaluate population, update archive and determine ranking
     popsize = len(xs) 
     yds = [fitness(x) for x in xs]
@@ -539,8 +540,7 @@ class Archive(object):
         return self.get_xs()[selection]
     
     def random_xs_one(self, best_n: int, rg: Generator) -> Tuple[np.ndarray, float, int]:
-        r = rg.random()
-        i = int(r*r*best_n)
+        i = int(rg.random()*best_n)
         return self.get_x(i), self.get_y(i),  i
         
     def argsort(self) -> np.ndarray:
