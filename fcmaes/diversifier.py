@@ -235,29 +235,28 @@ def run_minimize_(archive, fitness, bounds, rg, opt_params, count, retries, p, s
 from fcmaes.mapelites import variation_,  iso_dd_
                 
 def run_map_elites_(archive, fitness, bounds, rg, stopProcess, opt_params = {}):    
-    with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
-        popsize = opt_params.get('popsize', 32)  
-        use_sbx = opt_params.get('use_sbx', True)     
-        dis_c = opt_params.get('dis_c', 20)   
-        dis_m = opt_params.get('dis_m', 20)  
-        iso_sigma = opt_params.get('iso_sigma', 0.1)
-        line_sigma = opt_params.get('line_sigma', 0.2)
-        select_n = archive.capacity
-        while not stopProcess.value:                
-            if use_sbx:
-                pop = archive.random_xs(select_n, popsize, rg)
-                xs = variation_(pop, bounds.lb, bounds.ub, rg, dis_c, dis_m)
-            else:
-                x1 = archive.random_xs(select_n, popsize, rg)
-                x2 = archive.random_xs(select_n, popsize, rg)
-                xs = iso_dd_(x1, x2, bounds.lb, bounds.ub, rg, iso_sigma, line_sigma)    
-            yds = [fitness(x) for x in xs]
-            descs = np.array([yd[1] for yd in yds])
-            niches = archive.index_of_niches(descs)
-            for i in range(len(yds)):
-                archive.set(niches[i], yds[i], xs[i])
-            archive.argsort()   
-            select_n = archive.get_occupied()   
+    popsize = opt_params.get('popsize', 32)  
+    use_sbx = opt_params.get('use_sbx', True)     
+    dis_c = opt_params.get('dis_c', 20)   
+    dis_m = opt_params.get('dis_m', 20)  
+    iso_sigma = opt_params.get('iso_sigma', 0.1)
+    line_sigma = opt_params.get('line_sigma', 0.2)
+    select_n = archive.capacity
+    while not stopProcess.value:                
+        if use_sbx:
+            pop = archive.random_xs(select_n, popsize, rg)
+            xs = variation_(pop, bounds.lb, bounds.ub, rg, dis_c, dis_m)
+        else:
+            x1 = archive.random_xs(select_n, popsize, rg)
+            x2 = archive.random_xs(select_n, popsize, rg)
+            xs = iso_dd_(x1, x2, bounds.lb, bounds.ub, rg, iso_sigma, line_sigma)    
+        yds = [fitness(x) for x in xs]
+        descs = np.array([yd[1] for yd in yds])
+        niches = archive.index_of_niches(descs)
+        for i in range(len(yds)):
+            archive.set(niches[i], yds[i], xs[i])
+        archive.argsort()   
+        select_n = archive.get_occupied()   
 
 def minimize_(archive, fitness, bounds, rg, stopProcess, p, opt_params, x0 = None): 
     if 'BITE_CPP' == opt_params.get('solver'):
@@ -307,10 +306,9 @@ def run_bite_(archive, fitness, bounds, rg, stopProcess, p, opt_params, x0 = Non
     max_evals = opt_params.get('max_evals', 50000)     
     stall_criterion = opt_params.get('stall_criterion', 20)   
     popsize = opt_params.get('popsize', 0) 
-    with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):  
-        ret = bitecpp.minimize(fit, bounds, x0 = x0, M = 1, 
-                               stall_criterion = stall_criterion, popsize = popsize,
-                               max_evaluations = max_evals, rg = rg, runid = p)
+    ret = bitecpp.minimize(fit, bounds, x0 = x0, M = 1, 
+                           stall_criterion = stall_criterion, popsize = popsize,
+                           max_evaluations = max_evals, rg = rg, runid = p)
     return ret.x   
 
 def get_solver_(bounds, opt_params, rg, p, x0 = None):
