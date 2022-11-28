@@ -314,13 +314,11 @@ def optimize_qd():
 
     problem = qd_problem()
     name = 'powerplant2'
-    opt_params0 = {'solver':'elites', 'popsize':1000, 'use':4}
-    opt_params1 = {'solver':'DE_CPP', 'max_evals':2000, 'popsize':16, 'stall_criterion':3}
-    opt_params2 = {'solver':'CMA_CPP', 'max_evals':2000, 'popsize':16, 'stall_criterion':3}
+    opt_params0 = {'solver':'elites', 'popsize':1000, 'use':2}
+    opt_params1 = {'solver':'CMA_CPP', 'max_evals':2000, 'popsize':16, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(problem.qd_fitness, 2, interval=1000), problem.bounds, problem.desc_bounds, 
-         #workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], retries=20000)
-         workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], retries=640, 
+         workers = 32, opt_params=[opt_params0, opt_params1], retries=640, 
          niche_num = 4000, samples_per_niche = 20)
     
     print('final archive:', archive.info())

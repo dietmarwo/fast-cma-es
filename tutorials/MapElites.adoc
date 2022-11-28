@@ -480,18 +480,26 @@ about the associated solutions.
 def run_diversifier():
     name = 'cass2div'
     problem = Cassini2_me(Cassini2())
-    opt_params1 = {'solver':'DE_CPP', 'max_evals':2000000, 'popsize':32, 'stall_criterion':200}
-    opt_params2 = {'solver':'CMA_CPP', 'max_evals':2000000, 'popsize':32, 'stall_criterion':200}
+    opt_params0 = {'solver':'elites', 'popsize':1000, 'use':2}
+    opt_params1 = {'solver':'DE_CPP', 'max_evals':50000, 'popsize':31, 'stall_criterion':3}
+    opt_params2 = {'solver':'CMA_CPP', 'max_evals':100000, 'popsize':31, 'stall_criterion':3}
     archive = diversifier.minimize(
-         diversifier.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
-         opt_params=[opt_params1, opt_params2])
+         mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
+         workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], retries=2000)
     diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, problem.bounds, archive, num_retries=20000)
     archive.save(name)
     plot_archive(archive)
 ----
 
-As can be seen by the example code above, it supports the application of arbitrary solver-sequences. 
-The optimal solution found is forwarded to the next solver as initial mean of its solution distribution. 
+As can be seen by the example code above, it supports the application of arbitrary combination of solvers.
+Solvers are treated as a sequence with the exception of 'solver':'elites' which is executed in parallel. 
+'use':n means that 1/n of the available parallel threads are allocated to MAP-Elites, the rest to the other
+solvers. In a sequence - here it is DE -> CMA-ES - the optimal solution found is forwarded to the next solver 
+as initial mean of its solution distribution. 
+
+Note that the use of solver-sequences is specific to space flight planning tasks. In most cases a combination
+of CMA-ES and MAP-Elites executed in parallel works very well. 
+
 A resulting niche-archive may further be improved by applying a regular non-QD algorithm: the fcmaes 
 advanced parallel retry / smart boundary management meta-algorithm. Archive-contents are transferred
 to its solution store and then back to the QD-archive. This method is very effective in improving

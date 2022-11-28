@@ -135,7 +135,7 @@ def run_diversifier():
     name = 'cass2div'
     problem = Cassini2_me(Cassini2())
     opt_params0 = {'solver':'elites', 'popsize':1000, 'use':2}
-    opt_params1 = {'solver':'DE_CPP', 'max_evals':100000, 'popsize':31, 'stall_criterion':3}
+    opt_params1 = {'solver':'DE_CPP', 'max_evals':50000, 'popsize':31, 'stall_criterion':3}
     opt_params2 = {'solver':'CMA_CPP', 'max_evals':100000, 'popsize':31, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 

@@ -191,12 +191,11 @@ def run_diversifier():
     problem = nd_problem() 
 
     opt_params0 = {'solver':'elites', 'popsize':8, 'use':2}
-    opt_params1 = {'solver':'DE_CPP', 'max_evals':200, 'popsize':16, 'stall_criterion':20}
-    opt_params2 = {'solver':'CMA_CPP', 'max_evals':200, 'popsize':16, 'stall_criterion':20}
+    opt_params1 = {'solver':'CMA_CPP', 'max_evals':400, 'popsize':16, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(problem.fitness, 2, interval=100, save_interval=1000), 
          problem.bounds, problem.desc_bounds, 
-         workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], retries = 320,
+         workers = 32, opt_params=[opt_params0, opt_params1], retries = 320,
          niche_num = 4000, samples_per_niche = 20)
     print("final archive: " + archive.info())
     archive.save(name)
