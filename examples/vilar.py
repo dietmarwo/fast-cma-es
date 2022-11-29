@@ -163,7 +163,6 @@ def run_diversifier():
      
         def __init__(self):
             self.bounds = get_bounds(VilarOscillator(), 100)
-            #self.desc_bounds = Bounds([0.03, 30], [0.05, 300])
             self.desc_bounds = Bounds([0, 30], [3, 300])
             self.desc_dim = 2
             self.dim = len(self.bounds.ub)
