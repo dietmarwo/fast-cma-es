@@ -227,24 +227,25 @@ def run_map_elites_(archive, fitness, bounds, rg,
     line_sigma = me_params.get('line_sigma', 0.2)
     cma_generations = cma_params.get('cma_generations', 20)
     select_n = archive.capacity
-    for _ in range(generations):                
-        if use_sbx:
-            pop = archive.random_xs(select_n, chunk_size, rg)
-            xs = variation_(pop, bounds.lb, bounds.ub, rg, dis_c, dis_m)
-        else:
-            x1 = archive.random_xs(select_n, chunk_size, rg)
-            x2 = archive.random_xs(select_n, chunk_size, rg)
-            xs = iso_dd_(x1, x2, bounds.lb, bounds.ub, rg, iso_sigma, line_sigma)    
-        yds = [fitness(x) for x in xs]
-        descs = np.array([yd[1] for yd in yds])
-        niches = archive.index_of_niches(descs)
-        for i in range(len(yds)):
-            archive.set(niches[i], yds[i], xs[i]) 
-        archive.argsort()   
-        select_n = archive.get_occupied()            
-
-    for _ in range(cma_generations):                
-        optimize_cma_(archive, fitness, bounds, rg, cma_params)    
+    with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+        for _ in range(generations):                
+            if use_sbx:
+                pop = archive.random_xs(select_n, chunk_size, rg)
+                xs = variation_(pop, bounds.lb, bounds.ub, rg, dis_c, dis_m)
+            else:
+                x1 = archive.random_xs(select_n, chunk_size, rg)
+                x2 = archive.random_xs(select_n, chunk_size, rg)
+                xs = iso_dd_(x1, x2, bounds.lb, bounds.ub, rg, iso_sigma, line_sigma)    
+            yds = [fitness(x) for x in xs]
+            descs = np.array([yd[1] for yd in yds])
+            niches = archive.index_of_niches(descs)
+            for i in range(len(yds)):
+                archive.set(niches[i], yds[i], xs[i]) 
+            archive.argsort()   
+            select_n = archive.get_occupied()            
+    
+        for _ in range(cma_generations):                
+            optimize_cma_(archive, fitness, bounds, rg, cma_params)    
 
 def optimize_cma_(archive, fitness, bounds, rg, cma_params):
     select_n = cma_params.get('best_n', 100)
