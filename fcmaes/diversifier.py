@@ -210,7 +210,7 @@ def run_minimize_(archive, fitness, bounds, rg, opt_params, count, retries, p, s
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
         if isinstance(opt_params, (list, tuple, np.ndarray)):
             for params in opt_params: # call MAP-Elites
-                if 'elites' == params.get('solver') and p % opt_params[0].get('use', 2) == 0:  
+                if 'elites' == params.get('solver') and int(p % opt_params[0].get('use', 2)) == 0:  
                     #print('elites ' + str(p) + ' started') 
                     run_map_elites_(archive, fitness, bounds, rg, stopProcess, params)
                     #print('elites '+ str(p) + ' finished')
