@@ -681,10 +681,13 @@ class wrapper(object):
         self.plot = plot
         self.name = name
         self.logger = logger
+        self.lock = mp.Lock()
     
     def __call__(self, x: ArrayLike) -> np.ndarray:
         try:
             y = self.fun(x)
+            with self.lock:
+                self.evals.value += 1
             if not self.store is None and is_feasible(y, self.nobj):
                 self.store.add_result(x, y[:self.nobj])
             improve = False
@@ -693,7 +696,6 @@ class wrapper(object):
                     improve = True 
                     self.best_y[i] = y[i] 
             improve = improve and self.n_evals.value > 100
-            self.n_evals.value += 1
             if self.n_evals.value % self.interval == 0 or improve:
                 constr = np.maximum(y[self.nobj:], 0) 
                 self.logger.info(

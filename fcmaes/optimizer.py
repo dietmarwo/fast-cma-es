@@ -84,10 +84,12 @@ class wrapper(object):
         self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.t0 = time.perf_counter()
         self.logger = logger
+        self.lock = mp.Lock()
 
     def __call__(self, x: ArrayLike) -> float:
         try:
-            self.evals.value += 1
+            with self.lock:
+                self.evals.value += 1
             y = self.fit(x)
             y0 = y if np.isscalar(y) else sum(y)
             if y0 < self.best_y.value:

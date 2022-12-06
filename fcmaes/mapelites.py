@@ -318,6 +318,7 @@ class Archive(object):
         self.name = name
         self.cs = None
         self.index_of_niches = None
+        self.lock = mp.Lock()
         self.reset()
     
     def reset(self):
@@ -417,12 +418,13 @@ class Archive(object):
                      i: int, 
                      x: np.ndarray):
         """Updates solution statistics."""
-        count = self.counts[i] + 1
+        with self.lock:
+            self.counts[i] += 1
+        count = self.counts[i]
         mean = self.get_x_mean(i)
         diff = x - mean        
         self.set_stat(i, 0, mean + diff * (1./count)) # mean
-        self.set_stat(i, 1, self.get_stat(i, 1) + np.multiply(diff,diff) * ((count-1)/count)) # qmean              
-        self.counts[i] = count # count      
+        self.set_stat(i, 1, self.get_stat(i, 1) + np.multiply(diff,diff) * ((count-1)/count)) # qmean                  
         self.set_stat(i, 2, np.minimum(x, self.get_stat(i, 2))) # min
         self.set_stat(i, 3, np.maximum(x, self.get_stat(i, 3))) # max
  
@@ -582,12 +584,14 @@ class wrapper(object):
         self.logger = logger
         self.interval = interval
         self.save_interval = save_interval
+        self.lock = mp.Lock()
         
     def __call__(self, x: ArrayLike):
         try:
             if np.isnan(x).any():
                 return np.inf, np.zeros(self.desc_dim)
-            self.evals.value += 1
+            with self.lock:
+                self.evals.value += 1
             log = self.evals.value % self.interval == 0
             save = self.evals.value % self.save_interval == 0
             y, desc = self.fit(x)

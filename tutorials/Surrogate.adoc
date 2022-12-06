@@ -171,8 +171,7 @@ to reproduce. Hypervolume 0.45 after 30000 evaluations is really fast, MODE conv
 
 image::Mazda_multi_objective_MODE_32_parallel_retries_hypervolume_popsize_96.png[]
 
-On the other hand: If you for instance really want to produce the three car models using a specific combined
-mass of 2.625, the number of common part thicknesses shown for the best competition results is
+On the other hand: If you for instance really want to produce the three car models using a specific combined mass of 2.625, the number of common part thicknesses shown for the best competition results is
 31. MODEs number is 62, twice as much, although the hypervolume looks similar: 0.49 for MODE, 0.45
 for the best competition results. 62 common part thicknesses compared to 31 has a significant impact
 on production cost, which means the competition results are not really relevant in practice. 
@@ -181,7 +180,7 @@ check if, and with which evaluation/time budged the competition methods can reac
 
 === Reference Solution
 
-The following optimizer configuration was used to produce the `Hypervolume = 0.5133` reference solution below.
+The following optimizer configuration was used to produce the `Hypervolume = 0.4959` reference solution below.
 
 [source,python]
 ---- 

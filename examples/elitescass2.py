@@ -134,18 +134,17 @@ def plot(name):
 def run_diversifier():
     name = 'cass2div'
     problem = Cassini2_me(Cassini2())
-    opt_params0 = {'solver':'elites', 'popsize':1000, 'use':2}
-    opt_params1 = {'solver':'DE_CPP', 'max_evals':50000, 'popsize':31, 'stall_criterion':3}
-    opt_params2 = {'solver':'CMA_CPP', 'max_evals':100000, 'popsize':31, 'stall_criterion':3}
+    opt_params0 = {'solver':'elites', 'popsize':96, 'workers':16}
+    opt_params1 = {'solver':'DE_CPP', 'max_evals':50000, 'popsize':32, 'stall_criterion':3}
+    opt_params2 = {'solver':'CMA_CPP', 'max_evals':100000, 'popsize':32, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
-         workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], retries=2000)
-    
+         workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], max_evals=2000000*32)
     diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, problem.bounds, archive, 
-                               num_retries=2000)
+                               num_retries=40000)
+    print('final archive:', archive.info())
     archive.save(name)
     plot_archive(archive)
-    print('final archive:', archive.info())
    
 def run_map_elites():
     problem = Cassini2_me(Cassini2())
@@ -174,7 +173,7 @@ def run_map_elites():
 
 if __name__ == '__main__':
     
-    run_map_elites()
-    #run_diversifier()
+    #run_map_elites()
+    run_diversifier()
     #plot('cass2')
     pass
