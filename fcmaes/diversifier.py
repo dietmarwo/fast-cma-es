@@ -135,9 +135,7 @@ def apply_advretry(fitness: Callable[[ArrayLike], float],
     to find the global optimum. Finally the updated store is feed back into
     the QD-archive. For this we need a descriptor generating function 
     'descriptors' which may require reevaluation of the new solutions.  
-     
-                         
-     
+        
     Parameters
     ----------
     solver : evolutionary algorithm, needs to support ask/tell 
@@ -310,7 +308,7 @@ def run_bite_(archive, fitness, bounds, rg, evals, max_evals, opt_params, x0 = N
     popsize = opt_params.get('popsize', 0) 
     ret = bitecpp.minimize(fit, bounds, x0 = x0, M = 1, 
                            stall_criterion = stall_criterion,
-                           max_evaluations = max_evals_iter, rg = rg, runid = p)
+                           max_evaluations = max_evals_iter, rg = rg)
     return ret.x   
 
 def get_solver_(bounds, opt_params, rg, x0 = None):
