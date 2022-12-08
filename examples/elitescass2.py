@@ -124,7 +124,7 @@ def cma_elite(problem, archive, num=300):
             pass
     archive.save("cass2archCma")
 
-niche_num = 4000    
+niche_num = 10000    
 
 def plot(name):
     problem = Cassini2_me(Cassini2())
@@ -134,14 +134,14 @@ def plot(name):
 def run_diversifier():
     name = 'cass2div'
     problem = Cassini2_me(Cassini2())
-    opt_params0 = {'solver':'elites', 'popsize':96, 'workers':16}
-    opt_params1 = {'solver':'DE_CPP', 'max_evals':50000, 'popsize':32, 'stall_criterion':3}
-    opt_params2 = {'solver':'CMA_CPP', 'max_evals':100000, 'popsize':32, 'stall_criterion':3}
+    opt_params0 = {'solver':'elites', 'popsize':640}
+    opt_params1 = {'solver':'DE_CPP', 'max_evals':20000, 'popsize':32, 'stall_criterion':3}
+    opt_params2 = {'solver':'CMA_CPP', 'max_evals':50000, 'popsize':32, 'stall_criterion':3}
     archive = diversifier.minimize(
-         mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
-         workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], max_evals=2000000*32)
-    diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, problem.bounds, archive, 
-                               num_retries=40000)
+        mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
+        opt_params=[opt_params0, opt_params1, opt_params2], max_evals=64000000, niche_num=10000)
+    diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, 
+                               problem.bounds, archive, num_retries=40000)
     print('final archive:', archive.info())
     archive.save(name)
     plot_archive(archive)

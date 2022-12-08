@@ -294,13 +294,12 @@ def bar(tickers, start, end):
     
 def optimize_nd(tickers, start, end): 
     fit = fitness(tickers, start, end, None) 
-    opt_params0 = {'solver':'elites', 'popsize':1000, 'use':2}
+    opt_params0 = {'solver':'elites', 'popsize':1000}
     opt_params1 = {'solver':'CMA_CPP', 'max_evals':10000, 'popsize':16, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(fit.ndfun, ddim, interval=10000, save_interval=100000000), 
          bounds, desc_bounds, 
-         workers = 32, opt_params=[opt_params0, opt_params1], retries = 3200,
-
+         opt_params=[opt_params0, opt_params1], max_evals=20000000,
          niche_num = niche_num, samples_per_niche = 20)
     print("final archive: " + archive.info())
     archive.save("crypto_min_cma")
@@ -332,6 +331,5 @@ if __name__ == '__main__':
     optimize_nd(tickers, start, end)
     #bar(tickers, start, end)
 
- 
     # fit = fitness(tickers, start, end) 
     # fit.plot([20,60,10,10])
