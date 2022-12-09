@@ -76,7 +76,9 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
                         archive: Optional[Archive] = None, 
                         me_params: Optional[Dict] = {}, 
                         cma_params: Optional[Dict] = {}, 
-                        logger: Optional[logging.Logger] = logger()) -> Archive:
+                        logger: Optional[logging.Logger] = logger(),
+                        use_stats: Optional[bool] = False,
+                        ) -> Archive:
     
     """Application of CVT-Map Elites with additional CMA-ES emmitter.
      
@@ -110,6 +112,8 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
         logger for log output of the retry mechanism. If None, logging
         is switched off. Default is a logger which logs both to stdout and
         appends to a file ``optimizer.log``.
+    use_stats : bool, optional 
+        If True, archive accumulates statistics of the solutions
         
     Returns
     -------
@@ -118,7 +122,7 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
 
     dim = len(bounds.lb) 
     if archive is None: 
-        archive = Archive(dim, desc_bounds, niche_num)
+        archive = Archive(dim, desc_bounds, niche_num, use_stats)
         archive.init_niches(samples_per_niche)
         # initialize archive with random values
         archive.set_xs(rng.uniform(bounds.lb, bounds.ub, (niche_num, dim))) 
@@ -162,13 +166,8 @@ def get_index_of_niches(archive: Archive,
     centers : ndarray, shape (n,m)
         behavior vectors used as niche centers."""
 
-    if centers is None:
-        dim = len(desc_bounds.lb)
-        descs = rng.uniform(0, 1, (niche_num*samples_per_niche,dim))
-        # Applies KMeans to the random samples determine the centers of each niche."""
-        k_means = KMeans(init='k-means++', n_clusters=niche_num, n_init=1, verbose=1)
-        k_means.fit(descs)
-        centers = k_means.cluster_centers_
+    if centers is None: # cache centers 
+        centers = get_centers_(niche_num, len(desc_bounds.lb), samples_per_niche)
     kdt = KDTree(centers, leaf_size=30, metric='euclidean')  
        
     # Uses the KDtree to determine the niche indexes.
@@ -180,7 +179,9 @@ def get_index_of_niches(archive: Archive,
 def load_archive(name: str, 
                  bounds: Bounds, 
                  desc_bounds: Bounds, 
-                 niche_num: int):
+                 niche_num: int,
+                 use_stats: Optional[bool] = False, 
+                 ) -> Archive:
     
     """Loads an archive from disk.
 
@@ -194,6 +195,8 @@ def load_archive(name: str,
         Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.        
     niche_num : int, optional
         Number of niches.
+    use_stats : bool, optional 
+        If True, archive accumulates statistics of the solutions
         
     Returns
     -------
@@ -201,7 +204,7 @@ def load_archive(name: str,
         Archive of niches. Can be used for continuation of MAP-elites."""
      
     dim = len(bounds.lb)
-    archive = Archive(dim, desc_bounds, niche_num, name)
+    archive = Archive(dim, desc_bounds, niche_num, name, use_stats)
     archive.load(name)
     return archive
 
@@ -306,7 +309,8 @@ class Archive(object):
                  dim: int,
                  desc_bounds: Bounds,
                  capacity: int,    
-                 name: Optional[str] = ""             
+                 name: Optional[str] = "",
+                 use_stats = False             
                 ):    
         """Creates an empty archive."""
         self.dim = dim
@@ -319,6 +323,7 @@ class Archive(object):
         self.cs = None
         self.index_of_niches = None
         self.lock = mp.Lock()
+        self.use_stats = use_stats
         self.reset()
     
     def reset(self):
@@ -327,16 +332,17 @@ class Archive(object):
         self.ds = mp.RawArray(ct.c_double, self.capacity * self.desc_dim)
         self.ys = mp.RawArray(ct.c_double, self.capacity)
         self.counts = mp.RawArray(ct.c_long, self.capacity) # count
-        self.stats = mp.RawArray(ct.c_double, self.capacity * self.dim * 4)
         self.occupied = mp.RawValue(ct.c_long, 0)
+        self.stats = mp.RawArray(ct.c_double, self.capacity * self.dim * 4 if self.use_stats else 0)
         for i in range(self.capacity):
             self.counts[i] = 0
             self.set_y(i, np.inf)  
             self.set_d(i, np.full(self.desc_dim, np.inf))
-            self.set_stat(i, 0, np.zeros(self.dim)) # mean
-            self.set_stat(i, 1, np.zeros(self.dim)) # qmean
-            self.set_stat(i, 2, np.full(self.dim, np.inf)) # min
-            self.set_stat(i, 3, np.full(self.dim, -np.inf)) # max
+            if self.stats:
+                self.set_stat(i, 0, np.zeros(self.dim)) # mean
+                self.set_stat(i, 1, np.zeros(self.dim)) # qmean
+                self.set_stat(i, 2, np.full(self.dim, np.inf)) # min
+                self.set_stat(i, 3, np.full(self.dim, -np.inf)) # max
          
     def init_niches(self, samples_per_niche: int = 10): 
         """Computes the niche centers using KMeans and builds the KDTree for niche determination.""" 
@@ -383,8 +389,10 @@ class Archive(object):
             self.set_ds(ds)
             self.set_ys(data['ys'])
             self.set_cs(data['cs'])
-            self.set_stats(data['stats'])
             self.counts[:] = data['counts']
+            stats = data['stats']
+            if len(stats) == len(self.stats):
+                self.set_stats(stats)
         self.occupied.value = np.count_nonzero(self.get_ys() < np.inf)
         self.dim = xs.shape[1]
         self.desc_dim = ds.shape[1]
@@ -421,12 +429,13 @@ class Archive(object):
         with self.lock:
             self.counts[i] += 1
         count = self.counts[i]
-        mean = self.get_x_mean(i)
-        diff = x - mean        
-        self.set_stat(i, 0, mean + diff * (1./count)) # mean
-        self.set_stat(i, 1, self.get_stat(i, 1) + np.multiply(diff,diff) * ((count-1)/count)) # qmean                  
-        self.set_stat(i, 2, np.minimum(x, self.get_stat(i, 2))) # min
-        self.set_stat(i, 3, np.maximum(x, self.get_stat(i, 3))) # max
+        if self.use_stats:  
+            mean = self.get_x_mean(i)
+            diff = x - mean      
+            self.set_stat(i, 0, mean + diff * (1./count)) # mean
+            self.set_stat(i, 1, self.get_stat(i, 1) + np.multiply(diff,diff) * ((count-1)/count)) # qmean                  
+            self.set_stat(i, 2, np.minimum(x, self.get_stat(i, 2))) # min
+            self.set_stat(i, 3, np.maximum(x, self.get_stat(i, 3))) # max
  
     def get_occupied(self) -> int:
         return self.occupied.value
@@ -669,3 +678,20 @@ def iso_dd_(x1, x2, lower, upper, rg, iso_sigma = 0.01, line_sigma = 0.2):
     b = rg.normal(0, line_sigma, x2.shape) 
     z = x1 + a + np.multiply(b, (x1 - x2))
     return np.clip(z, lower, upper)
+
+def get_centers_(niche_num, dim, samples_per_niche):
+        p = Path('voronoi_cache')
+        p.mkdir(exist_ok=True)
+        fname = f'centers_{niche_num}_{dim}_{samples_per_niche}.npz'
+        files = p.glob(fname)
+        for file in files: # if cached just load
+            with np.load(file) as data:
+                return data['cs']
+        else:
+            descs = rng.uniform(0, 1, (niche_num*samples_per_niche, dim))
+            # Applies KMeans to the random samples determine the centers of each niche."""
+            k_means = KMeans(init='k-means++', n_clusters=niche_num, n_init=1, verbose=1)
+            k_means.fit(descs)
+            centers = k_means.cluster_centers_
+            np.savez_compressed(f'voronoi_cache/centers_{niche_num}_{dim}_{samples_per_niche}', cs=centers)
+            return centers

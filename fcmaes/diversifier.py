@@ -48,7 +48,9 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
             workers: Optional[int] = mp.cpu_count(),
             archive: Optional[Archive] = None,
             opt_params: Optional[Dict] = {},
-            logger: Optional[logging.Logger] = logger()) -> Archive:
+            logger: Optional[logging.Logger] = logger(),
+            use_stats: Optional[bool] = False,            
+            ) -> Archive:
     
     """Wraps an fcmaes optmizer/solver by hijacking its tell function.
     Works as CVT Map-Elites in maintaining an archive of diverse elites. 
@@ -96,7 +98,9 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
         logger for log output of the retry mechanism. If None, logging
         is switched off. Default is a logger which logs both to stdout and
         appends to a file ``optimizer.log``.
-        
+    use_stats : bool, optional 
+        If True, archive accumulates statistics of the solutions
+                
     Returns
     -------
     archive : Archive
@@ -106,7 +110,7 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
         max_evals = workers*50000
     dim = len(bounds.lb)
     if archive is None: 
-        archive = Archive(dim, desc_bounds, niche_num)
+        archive = Archive(dim, desc_bounds, niche_num, use_stats)
         archive.init_niches(samples_per_niche)
         # initialize archive with random values
         archive.set_xs(rng.uniform(bounds.lb, bounds.ub, (niche_num, dim)))         
