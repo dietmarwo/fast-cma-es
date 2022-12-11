@@ -39,7 +39,7 @@ support both parallel fitness function evaluation and a parallel retry mechanism
 - Large collection of 35 tutorials related to real world problems: 
   https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials].
 
-=== Changes from version 1.4.0 to 1.5.0:
+=== Changes from version 1.4.0:
 
 - Python version > 3.7 required, 3.6 is no longer supported.
 - https://peps.python.org/pep-0484/[PEP 0484] compatible type hints useful for IDEs like PyCharm. 
