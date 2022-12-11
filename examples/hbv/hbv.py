@@ -14,6 +14,8 @@ from fcmaes.optimizer import logger, dtime
 from scipy.optimize import Bounds
 from fcmaes.optimizer import de_cma, Bite_cpp, Cma_cpp, LDe_cpp, dtime,  De_cpp, random_search, wrapper, logger
 from fcmaes import moretry, retry, mode, modecpp, decpp, de, moretry#, modec 
+from fcmaes import diversifier, mapelites
+from scipy.optimize import Bounds
 
 basepath = os.path.dirname(os.path.abspath(__file__))
 libhbv = ct.cdll.LoadLibrary(basepath + '/../../fcmaes/lib/libhbv.so')  
@@ -54,7 +56,8 @@ class hbv(object):
     def __init__(self):
         self.bounds = Bounds(lb, ub)
         self.hbv = None
-    
+        self.best_y = mp.RawValue(ct.c_double, np.inf) 
+            
     def __call__(self, x):
         x = np.array(x)
         y = np.empty(nobj)
@@ -64,6 +67,16 @@ class hbv(object):
             self.hbv = hbv_C()   
         fitness_hbv_C(self.hbv, x_p, y_p)
         return np.array(y)
+    
+    def qd_fitness(self, x):      
+        y = self.__call__(x)
+        b = y.copy()
+        y = (y - self.desc_bounds.lb) / (self.desc_bounds.ub - self.desc_bounds.lb)
+        ws = sum(y)
+        if ws < self.best_y.value:
+            self.best_y.value = ws
+            print(f'{ws:.3f} { list(b) }')            
+        return ws, b  
     
 def check_pymoo(index):
 
@@ -129,12 +142,9 @@ def check_pymoo(index):
     plt.savefig('NSGSII256-objective-space'+ str(index) + '.png')
     plt.clf() 
     sys.exit()
-
     
-def main():
+def optimize_mo():
     try:      
-        # check_pymoo(1)
-
         problem = hbv()
         
         store = mode.store(dim, nobj, 2048)
@@ -157,6 +167,51 @@ def main():
     except Exception as ex:
         print(str(ex))  
 
+def plot3d(ys, name, xlabel='', ylabel='', zlabel=''):
+    import matplotlib.pyplot as plt
+    x = ys[:, 0]; y = ys[:, 2]; z = ys[:, 1]
+    fig = plt.figure()
+    ax = fig.add_subplot()     
+    img = ax.scatter(x, y, s=4, c=z, cmap='rainbow')
+    cbar = fig.colorbar(img)
+    plt.xlabel(xlabel)    
+    plt.ylabel(ylabel)
+    cbar.set_label(zlabel)
+    fig.set_figheight(8)
+    fig.set_figwidth(8)
+    fig.savefig(name, dpi=300)
+
+def plot_archive(archive, problem):
+    si = archive.argsort()
+    ysp = []
+    descriptions = archive.get_ds()[si]
+    ys = archive.get_ys()[si]
+    xs = archive.get_xs()[si]
+    yall = []
+    for i in range(len(si)):
+        if ys[i] < np.inf: # throw out invalid
+            ysp.append(descriptions[i])
+    ysp = np.array(ysp)
+    plot3d(ysp, "hbv_nd", 'x', 'y', 'z')
+                
+def optimize_qd():
+    problem = hbv()
+    problem.desc_dim = 4
+    problem.desc_bounds = Bounds([0.2, 0.7, 0, 0], [0.6, 1.3, 0.18, 0.6]) 
+    name = 'hbv2'
+    opt_params0 = {'solver':'elites', 'popsize':64}
+    opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':20000, 'popsize':32, 'stall_criterion':3}
+    archive = diversifier.minimize(
+         mapelites.wrapper(problem.qd_fitness, problem.desc_dim, interval=200000, save_interval=5000000), 
+         problem.bounds, problem.desc_bounds, 
+         workers = 32, opt_params=[opt_params0, opt_params1], max_evals=100000, 
+         niche_num = 4000, samples_per_niche = 20)
+    
+    print('final archive:', archive.info())
+    archive.save(name)
+    plot_archive(archive, problem)
+
 if __name__ == '__main__':
-    main()
+    # optimize_mo()
+    optimize_qd()
      

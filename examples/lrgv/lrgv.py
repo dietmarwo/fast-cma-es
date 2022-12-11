@@ -14,6 +14,8 @@ from fcmaes.optimizer import logger, dtime
 from scipy.optimize import Bounds
 from fcmaes.optimizer import de_cma, Bite_cpp, Cma_cpp, LDe_cpp, dtime,  De_cpp, random_search, wrapper, logger
 from fcmaes import moretry, retry, mode, modecpp, decpp, de, moretry
+from fcmaes import diversifier, mapelites
+from scipy.optimize import Bounds
 
 basepath = os.path.dirname(os.path.abspath(__file__))
 liblrgv = ct.cdll.LoadLibrary(basepath + '/../../fcmaes/lib/liblrgv.so')  
@@ -39,7 +41,8 @@ class lrgv(object):
         self.bounds = Bounds(lb, ub)      
         self.lrgv_p = 0 
         self.name = "lrgvDE"
-        
+        self.best_y = mp.RawValue(ct.c_double, np.inf)
+                
     def __call__(self, x):
         y = np.empty(nobj) # C fitness call returns 6 objectives
         c = np.empty(ncon)
@@ -58,6 +61,20 @@ class lrgv(object):
         except Exception as ex:
             print(str(ex))     
         return np.array(list(y) + list(np.array(c)*-1.0)) # negate constraints
+    
+    def qd_fitness(self, x):      
+        y = self.__call__(x)
+        b = y[:nobj].copy()
+        constr = np.maximum(y[nobj:], 0) # we are only interested in constraint violations       
+        c =  np.amax(constr)
+        if c > 0.001: c += 10 
+        y = (y[:nobj] - self.desc_bounds.lb) / (self.desc_bounds.ub - self.desc_bounds.lb)
+        ws = sum(y) + c
+        if ws < self.best_y.value:
+            self.best_y.value = ws
+            print(f'{ws:.3f} {sum(constr):.3f} { list(b) }')            
+        return ws, b        
+ 
  
 def check_pymoo(index):
 
@@ -68,7 +85,6 @@ def check_pymoo(index):
     from pymoo.algorithms.soo.nonconvex.de import DE
     from pymoo.factory import get_sampling, get_crossover, get_mutation    
     from pymoo.factory import get_termination, get_reference_directions
-    from pymoo.core.problem import starmap_parallelized_eval
     from multiprocessing.pool import ThreadPool
     from pymoo.operators.sampling.lhs import LHS
     
@@ -93,28 +109,7 @@ def check_pymoo(index):
             out["F"] = y[:nobj]
             out["G"] = y[nobj:]
 
-    pool = ThreadPool(8)
-    #pool = multiprocessing.Pool(32)
     problem = MyProblem()
-    #problem = MyProblem(runner=pool.starmap, func_eval=starmap_parallelized_eval)
-
-    #ref_dirs = get_reference_directions("das-dennis", problem.n_obj, n_partitions=12)
-    
-    # algorithm = CTAEA(ref_dirs=ref_dirs,
-    #     sampling=get_sampling("real_random"),
-    #     crossover=get_crossover("real_sbx", prob=0.9, eta=15),
-    #     mutation=get_mutation("real_pm", eta=20),
-    #     eliminate_duplicates=True
-    #                   )
-    #
-    # algorithm = AGEMOEA(
-    #     pop_size=768,
-    #     n_offsprings=10,
-    #     sampling=get_sampling("real_random"),
-    #     crossover=get_crossover("real_sbx", prob=0.9, eta=15),
-    #     mutation=get_mutation("real_pm", eta=20),
-    #     eliminate_duplicates=True        
-    #     )
 
     algorithm = NSGA2(
         pop_size=256,
@@ -140,13 +135,13 @@ def check_pymoo(index):
     plt.scatter(X[:, 0], X[:, 1], s=30, facecolors='none', edgecolors='r')
     plt.figure(figsize=(7, 5))
     plt.scatter(F[:, 0], F[:, 1], s=30, facecolors='none', edgecolors='blue')
-    plt.title("Objective Space")
+    plt.titl10000e("Objective Space")
     #plt.show()
     plt.savefig('NSGSII256-objective-space'+ str(index) + '.png')
     plt.clf() 
     sys.exit()
     
-def main():
+def optimize_mo():
     try: 
         # check_pymoo(1)
   
@@ -175,6 +170,51 @@ def main():
     except Exception as ex:
         print(str(ex))  
 
+def plot3d(ys, name, xlabel='', ylabel='', zlabel=''):
+    import matplotlib.pyplot as plt
+    x = ys[:, 0]; y = ys[:, 4]; z = ys[:, 2]
+    fig = plt.figure()
+    ax = fig.add_subplot()     
+    img = ax.scatter(x, y, s=4, c=z, cmap='rainbow')
+    cbar = fig.colorbar(img)
+    plt.xlabel(xlabel)    
+    plt.ylabel(ylabel)
+    cbar.set_label(zlabel)
+    fig.set_figheight(8)
+    fig.set_figwidth(8)
+    fig.savefig(name, dpi=300)
+    
+def plot_archive(archive, problem):
+    si = archive.argsort()
+    ysp = []
+    descriptions = archive.get_ds()[si]
+    ys = archive.get_ys()[si]
+    xs = archive.get_xs()[si]   
+    for i in range(len(si)):
+        if ys[i] < np.inf: # throw out invalid
+            ysp.append(descriptions[i])
+    ysp = np.array(ysp)
+    plot3d(ysp, "lrgv_nd", 'x', 'y', 'z')        
+
+def optimize_qd():
+
+    problem = lrgv()
+    problem.desc_dim = 5
+    problem.desc_bounds = Bounds([0.85E7, -1, 10000, 0, 0], [1.4E7, -0.985, 65000, 65000, 10]) 
+    name = 'lrgv_qd'
+    opt_params0 = {'solver':'elites', 'popsize':32}
+    opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':800, 'popsize':16, 'stall_criterion':3}
+    archive = diversifier.minimize(
+         mapelites.wrapper(problem.qd_fitness, problem.desc_dim, interval=1000, save_interval=20000), 
+         problem.bounds, problem.desc_bounds, 
+         workers = 32, opt_params=[opt_params0, opt_params1], max_evals=40000, 
+         niche_num = 4000, samples_per_niche = 20)
+    
+    print('final archive:', archive.info())
+    archive.save(name)
+    plot_archive(archive, problem)
+
 if __name__ == '__main__':
-    main()
+    # optimize_mo()
+    optimize_qd()
      
