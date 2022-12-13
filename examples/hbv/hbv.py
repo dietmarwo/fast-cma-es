@@ -71,7 +71,7 @@ class hbv(object):
     def qd_fitness(self, x):      
         y = self.__call__(x)
         b = y.copy()
-        y = (y - self.desc_bounds.lb) / (self.desc_bounds.ub - self.desc_bounds.lb)
+        y = (y - self.qd_bounds.lb) / (self.qd_bounds.ub - self.qd_bounds.lb)
         ws = sum(y)
         if ws < self.best_y.value:
             self.best_y.value = ws
@@ -196,16 +196,14 @@ def plot_archive(archive, problem):
                 
 def optimize_qd():
     problem = hbv()
-    problem.desc_dim = 4
-    problem.desc_bounds = Bounds([0.2, 0.7, 0, 0], [0.6, 1.3, 0.18, 0.6]) 
+    problem.qd_dim = 4
+    problem.qd_bounds = Bounds([0.2, 0.7, 0, 0], [0.6, 1.3, 0.18, 0.6]) 
     name = 'hbv2'
     opt_params0 = {'solver':'elites', 'popsize':64}
     opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':20000, 'popsize':32, 'stall_criterion':3}
     archive = diversifier.minimize(
-         mapelites.wrapper(problem.qd_fitness, problem.desc_dim, interval=200000, save_interval=5000000), 
-         problem.bounds, problem.desc_bounds, 
-         workers = 32, opt_params=[opt_params0, opt_params1], max_evals=100000, 
-         niche_num = 4000, samples_per_niche = 20)
+         mapelites.wrapper(problem.qd_fitness, problem.qd_dim, interval=200000, save_interval=5000000), 
+         problem.bounds, problem.qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=100000)
     
     print('final archive:', archive.info())
     archive.save(name)

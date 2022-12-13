@@ -68,7 +68,7 @@ class lrgv(object):
         constr = np.maximum(y[nobj:], 0) # we are only interested in constraint violations       
         c =  np.amax(constr)
         if c > 0.001: c += 10 
-        y = (y[:nobj] - self.desc_bounds.lb) / (self.desc_bounds.ub - self.desc_bounds.lb)
+        y = (y[:nobj] - self.qd_bounds.lb) / (self.qd_bounds.ub - self.qd_bounds.lb)
         ws = sum(y) + c
         if ws < self.best_y.value:
             self.best_y.value = ws
@@ -199,16 +199,14 @@ def plot_archive(archive, problem):
 def optimize_qd():
 
     problem = lrgv()
-    problem.desc_dim = 5
-    problem.desc_bounds = Bounds([0.85E7, -1, 10000, 0, 0], [1.4E7, -0.985, 65000, 65000, 10]) 
+    problem.qd_dim = 5
+    problem.qd_bounds = Bounds([0.85E7, -1, 10000, 0, 0], [1.4E7, -0.985, 65000, 65000, 10]) 
     name = 'lrgv_qd'
     opt_params0 = {'solver':'elites', 'popsize':32}
     opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':800, 'popsize':16, 'stall_criterion':3}
     archive = diversifier.minimize(
-         mapelites.wrapper(problem.qd_fitness, problem.desc_dim, interval=1000, save_interval=20000), 
-         problem.bounds, problem.desc_bounds, 
-         workers = 32, opt_params=[opt_params0, opt_params1], max_evals=40000, 
-         niche_num = 4000, samples_per_niche = 20)
+         mapelites.wrapper(problem.qd_fitness, problem.qd_dim, interval=1000, save_interval=20000), 
+         problem.bounds, problem.qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=40000)
     
     print('final archive:', archive.info())
     archive.save(name)
