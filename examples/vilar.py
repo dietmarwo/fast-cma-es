@@ -157,7 +157,6 @@ from elitescass2 import plot3d
 def run_diversifier():
     
     results = mp.Manager().list() 
-    name = "vilar"   
         
     class nd_problem():
      
@@ -191,13 +190,12 @@ def run_diversifier():
          mapelites.wrapper(problem.fitness, 2, interval=100, save_interval=4000), 
          problem.bounds, problem.qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=12800)
     print("final archive: " + archive.info())
-    archive.save(name)
+    archive.save("vilar_qd")
     plot_archive(archive)
     
 def plot_archive(archive):
     cs = archive.get_cs()
     ds = archive.get_ds()
-    #vplot(cs, ds)
     
     si = archive.argsort()
     ysp = []
@@ -205,13 +203,12 @@ def plot_archive(archive):
     ys = archive.get_ys()[si]
     for i in range(len(si)):
         desc = descriptions[i]
-        #ysp.append([3.5 - ys[i], desc[1], desc[0]])
         ysp.append([desc[0], desc[1], ys[i]])
 
     ysp = np.array(ysp)
     print(len(ysp))
     print(ysp)
-    plot3d(ysp, "vilar5", 'sdev peak distance', 'sdev amplitude', 'frequency')
+    plot3d(ysp, "vilar_qd", 'sdev peak distance', 'sdev amplitude', 'frequency')
 
 if __name__ == '__main__':
     #sweep_params()

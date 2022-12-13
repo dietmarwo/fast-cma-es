@@ -313,15 +313,13 @@ def optimize_qd():
             return 1-y, desc
 
     problem = qd_problem()
-    name = 'powerplant2'
     opt_params0 = {'solver':'elites', 'popsize':128}
     opt_params1 = {'solver':'CMA_CPP', 'max_evals':200, 'popsize':16, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(problem.qd_fitness, 2, interval=1000), problem.bounds, problem.qd_bounds, 
          opt_params=[opt_params0, opt_params1], max_evals=25600)
-    
     print('final archive:', archive.info())
-    archive.save(name)
+    archive.save('powerplant_qd')
     plot_archive(archive)
 
 from elitescass2 import plot3d
