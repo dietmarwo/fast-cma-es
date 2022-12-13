@@ -203,10 +203,10 @@ def optimize_qd():
     problem.qd_bounds = Bounds([0.85E7, -1, 10000, 0, 0], [1.4E7, -0.985, 65000, 65000, 10]) 
     name = 'lrgv_qd'
     opt_params0 = {'solver':'elites', 'popsize':32}
-    opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':800, 'popsize':16, 'stall_criterion':3}
+    opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':400, 'popsize':16, 'stall_criterion':3}
     archive = diversifier.minimize(
-         mapelites.wrapper(problem.qd_fitness, problem.qd_dim, interval=1000, save_interval=20000), 
-         problem.bounds, problem.qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=40000)
+         mapelites.wrapper(problem.qd_fitness, problem.qd_dim, interval=1000, save_interval=200000), 
+         problem.bounds, problem.qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=400000)
     
     print('final archive:', archive.info())
     archive.save(name)
