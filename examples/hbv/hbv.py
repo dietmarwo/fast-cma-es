@@ -192,19 +192,19 @@ def plot_archive(archive, problem):
         if ys[i] < np.inf: # throw out invalid
             ysp.append(descriptions[i])
     ysp = np.array(ysp)
-    plot3d(ysp, "hbv_nd", 'x', 'y', 'z')
+    plot3d(ysp, "hbv_nd", 'f1', 'f3', 'f2')
                 
 def optimize_qd():
     problem = hbv()
     problem.qd_dim = 4
     problem.qd_bounds = Bounds([0.2, 0.7, 0, 0], [0.6, 1.3, 0.18, 0.6]) 
-    name = 'hbv2'
+    name = 'hbv_nd'
     opt_params0 = {'solver':'elites', 'popsize':64}
     opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':4000, 'popsize':32, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(problem.qd_fitness, problem.qd_dim, interval=200000, save_interval=5000000), 
          problem.bounds, problem.qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=12000000)
-    
+    # archive = mapelites.load_archive(name, problem.bounds, problem.qd_bounds)    
     print('final archive:', archive.info())
     archive.save(name)
     plot_archive(archive, problem)

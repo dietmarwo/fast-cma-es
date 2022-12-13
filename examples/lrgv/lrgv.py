@@ -172,7 +172,7 @@ def optimize_mo():
 
 def plot3d(ys, name, xlabel='', ylabel='', zlabel=''):
     import matplotlib.pyplot as plt
-    x = ys[:, 0]; y = ys[:, 4]; z = ys[:, 2]
+    x = ys[:, 0]; y = ys[:, 3]; z = ys[:, 2]
     fig = plt.figure()
     ax = fig.add_subplot()     
     img = ax.scatter(x, y, s=4, c=z, cmap='rainbow')
@@ -194,7 +194,7 @@ def plot_archive(archive, problem):
         if ys[i] < np.inf: # throw out invalid
             ysp.append(descriptions[i])
     ysp = np.array(ysp)
-    plot3d(ysp, "lrgv_nd", 'x', 'y', 'z')        
+    plot3d(ysp, "lrgv_nd", 'f1', 'f4', 'f3')        
 
 def optimize_qd():
 
@@ -207,9 +207,10 @@ def optimize_qd():
     archive = diversifier.minimize(
          mapelites.wrapper(problem.qd_fitness, problem.qd_dim, interval=1000, save_interval=200000), 
          problem.bounds, problem.qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=400000)
-    
+    # archive = mapelites.load_archive(name, problem.bounds, problem.qd_bounds)
     print('final archive:', archive.info())
     archive.save(name)
+    
     plot_archive(archive, problem)
 
 if __name__ == '__main__':

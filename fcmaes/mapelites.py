@@ -179,7 +179,7 @@ def get_index_of_niches(archive: Archive,
 def load_archive(name: str, 
                  bounds: Bounds, 
                  qd_bounds: Bounds, 
-                 niche_num: int,
+                 niche_num: Optional[int] = 10000,
                  use_stats: Optional[bool] = False, 
                  ) -> Archive:
     
