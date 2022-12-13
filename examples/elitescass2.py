@@ -71,7 +71,7 @@ class Cassini2_me():
     def __init__(self, prob):
         self.problem = prob
         self.dim = len(prob.bounds.lb)
-        self.desc_dim = 2
+        self.qd_dim = 2
         self.bounds = prob.bounds
         
         min_tof = tof(prob.bounds.lb)
@@ -79,7 +79,7 @@ class Cassini2_me():
         min_launch = launch(prob.bounds.lb)
         max_launch = launch(prob.bounds.ub)
 
-        self.desc_bounds = Bounds([min_tof, min_launch], [max_tof, max_launch]) 
+        self.qd_bounds = Bounds([min_tof, min_launch], [max_tof, max_launch]) 
                         
     def qd_fitness(self, x):
         return self.problem.fun(x), np.array([tof(x), launch(x)])
@@ -128,7 +128,7 @@ niche_num = 10000
 
 def plot(name):
     problem = Cassini2_me(Cassini2())
-    archive = mapelites.load_archive(name, problem.bounds, problem.desc_bounds, niche_num)
+    archive = mapelites.load_archive(name, problem.bounds, problem.qd_bounds, niche_num)
     plot_archive(archive)
 
 def run_diversifier():
@@ -138,7 +138,7 @@ def run_diversifier():
     opt_params1 = {'solver':'DE_CPP', 'max_evals':20000, 'popsize':32, 'stall_criterion':3}
     opt_params2 = {'solver':'CMA_CPP', 'max_evals':50000, 'popsize':32, 'stall_criterion':3}
     archive = diversifier.minimize(
-        mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
+        mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.qd_bounds, 
         opt_params=[opt_params0, opt_params1, opt_params2], max_evals=64000000, niche_num=10000)
     diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, 
                                problem.bounds, archive, num_retries=40000)
@@ -150,7 +150,7 @@ def run_map_elites():
     problem = Cassini2_me(Cassini2())
     name = 'cass2me'
     archive = None
-    #archive = mapelites.load_archive(name,  problem.bounds, problem.desc_bounds, niche_num)
+    #archive = mapelites.load_archive(name,  problem.bounds, problem.qd_bounds, niche_num)
     
     #fast preview, switches CMA-ES off
     me_params = {'generations':100, 'chunk_size':1000}
@@ -160,10 +160,10 @@ def run_map_elites():
     # me_params = {'generations':100, 'chunk_size':1000}
     # cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':400, 'stall_criterion':3}
     
-    fitness =  mapelites.wrapper(problem.qd_fitness, problem.desc_dim)
+    fitness =  mapelites.wrapper(problem.qd_fitness, problem.qd_dim)
 
     archive = mapelites.optimize_map_elites(
-        fitness, problem.bounds, problem.desc_bounds, niche_num = niche_num,
+        fitness, problem.bounds, problem.qd_bounds, niche_num = niche_num,
           iterations = 50, archive = archive, 
           me_params = me_params, cma_params = cma_params)
     

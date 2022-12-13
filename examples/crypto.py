@@ -254,11 +254,11 @@ import matplotlib.pyplot as plt
     
 bounds = Bounds([20,50,10,10], [50,100,200,200])
 ddim = 4
-desc_bounds = Bounds([0]*ddim, [4]*ddim)
+qd_bounds = Bounds([0]*ddim, [4]*ddim)
 niche_num = 1000
 
 def bar(tickers, start, end):
-    archive = mapelites.load_archive("crypto_min_cma", bounds, desc_bounds, niche_num)
+    archive = mapelites.load_archive("crypto_min_cma", bounds, qd_bounds, niche_num)
     ys, ds, xs = archive.get_occupied_data()
     ys = 5-ys# convert back to real ROI
     n = len(xs)
@@ -298,7 +298,7 @@ def optimize_nd(tickers, start, end):
     opt_params1 = {'solver':'CMA_CPP', 'max_evals':10000, 'popsize':16, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(fit.ndfun, ddim, interval=10000, save_interval=100000000), 
-         bounds, desc_bounds, 
+         bounds, qd_bounds, 
          opt_params=[opt_params0, opt_params1], max_evals=20000000,
          niche_num = niche_num, samples_per_niche = 20)
     print("final archive: " + archive.info())

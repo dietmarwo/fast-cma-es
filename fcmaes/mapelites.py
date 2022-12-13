@@ -68,7 +68,7 @@ rng = default_rng()
 
 def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]], 
                         bounds: Bounds, 
-                        desc_bounds: Bounds, 
+                        qd_bounds: Bounds, 
                         niche_num: Optional[int] = 4000, 
                         samples_per_niche: Optional[int] = 20, 
                         workers: Optional[int] = mp.cpu_count(), 
@@ -90,7 +90,7 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
         where ``x`` is an 1-D array with shape (n,)
     bounds : `Bounds`
         Bounds on variables. Instance of the `scipy.Bounds` class.
-    desc_bounds : `Bounds`
+    qd_bounds : `Bounds`
         Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.        
     niche_num : int, optional
         Number of niches.
@@ -122,7 +122,7 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
 
     dim = len(bounds.lb) 
     if archive is None: 
-        archive = Archive(dim, desc_bounds, niche_num, use_stats)
+        archive = Archive(dim, qd_bounds, niche_num, use_stats)
         archive.init_niches(samples_per_niche)
         # initialize archive with random values
         archive.set_xs(rng.uniform(bounds.lb, bounds.ub, (niche_num, dim))) 
@@ -141,7 +141,7 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
 def get_index_of_niches(archive: Archive,
                         centers:Optional[np.ndarray] = None, 
                         niche_num: Optional[int]  = None, 
-                        desc_bounds: Optional[Bounds] = None, 
+                        qd_bounds: Optional[Bounds] = None, 
                         samples_per_niche: Optional[int] = 100):   
     
     """Returns a function deciding niche membership.
@@ -153,7 +153,7 @@ def get_index_of_niches(archive: Archive,
         If defined, these behavior vectors are used as niche centers
     niche_num : int, optional
         Number of niches. Required if centers is None.
-    desc_bounds : `Bounds`
+    qd_bounds : `Bounds`
         Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.
         Required if centers is None.
     samples_per_niche : int, optional
@@ -167,7 +167,7 @@ def get_index_of_niches(archive: Archive,
         behavior vectors used as niche centers."""
 
     if centers is None: # cache centers 
-        centers = get_centers_(niche_num, len(desc_bounds.lb), samples_per_niche)
+        centers = get_centers_(niche_num, len(qd_bounds.lb), samples_per_niche)
     kdt = KDTree(centers, leaf_size=30, metric='euclidean')  
        
     # Uses the KDtree to determine the niche indexes.
@@ -178,7 +178,7 @@ def get_index_of_niches(archive: Archive,
 
 def load_archive(name: str, 
                  bounds: Bounds, 
-                 desc_bounds: Bounds, 
+                 qd_bounds: Bounds, 
                  niche_num: int,
                  use_stats: Optional[bool] = False, 
                  ) -> Archive:
@@ -191,7 +191,7 @@ def load_archive(name: str,
         Name of the archive.
     bounds : `Bounds`
         Bounds on variables. Instance of the `scipy.Bounds` class.
-    desc_bounds : `Bounds`
+    qd_bounds : `Bounds`
         Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.        
     niche_num : int, optional
         Number of niches.
@@ -204,7 +204,7 @@ def load_archive(name: str,
         Archive of niches. Can be used for continuation of MAP-elites."""
      
     dim = len(bounds.lb)
-    archive = Archive(dim, desc_bounds, niche_num, name, use_stats)
+    archive = Archive(dim, qd_bounds, niche_num, name, use_stats)
     archive.load(name)
     return archive
 
@@ -307,17 +307,17 @@ class Archive(object):
        
     def __init__(self, 
                  dim: int,
-                 desc_bounds: Bounds,
+                 qd_bounds: Bounds,
                  capacity: int,    
                  name: Optional[str] = "",
                  use_stats = False             
                 ):    
         """Creates an empty archive."""
         self.dim = dim
-        self.desc_dim = len(desc_bounds.lb)
-        self.desc_bounds = desc_bounds
-        self.desc_lb = desc_bounds.lb
-        self.desc_scale = desc_bounds.ub - desc_bounds.lb
+        self.qd_dim = len(qd_bounds.lb)
+        self.qd_bounds = qd_bounds
+        self.desc_lb = qd_bounds.lb
+        self.desc_scale = qd_bounds.ub - qd_bounds.lb
         self.capacity = capacity
         self.name = name
         self.cs = None
@@ -329,7 +329,7 @@ class Archive(object):
     def reset(self):
         """Resets all submitted solutions but keeps the niche centers."""
         self.xs = mp.RawArray(ct.c_double, self.capacity * self.dim)
-        self.ds = mp.RawArray(ct.c_double, self.capacity * self.desc_dim)
+        self.ds = mp.RawArray(ct.c_double, self.capacity * self.qd_dim)
         self.ys = mp.RawArray(ct.c_double, self.capacity)
         self.counts = mp.RawArray(ct.c_long, self.capacity) # count
         self.occupied = mp.RawValue(ct.c_long, 0)
@@ -337,7 +337,7 @@ class Archive(object):
         for i in range(self.capacity):
             self.counts[i] = 0
             self.set_y(i, np.inf)  
-            self.set_d(i, np.full(self.desc_dim, np.inf))
+            self.set_d(i, np.full(self.qd_dim, np.inf))
             if self.stats:
                 self.set_stat(i, 0, np.zeros(self.dim)) # mean
                 self.set_stat(i, 1, np.zeros(self.dim)) # qmean
@@ -347,8 +347,8 @@ class Archive(object):
     def init_niches(self, samples_per_niche: int = 10): 
         """Computes the niche centers using KMeans and builds the KDTree for niche determination.""" 
         self.index_of_niches, centers = get_index_of_niches(self, None, self.capacity, 
-                                                            self.desc_bounds, samples_per_niche)
-        self.cs = mp.RawArray(ct.c_double, self.capacity * self.desc_dim)
+                                                            self.qd_bounds, samples_per_niche)
+        self.cs = mp.RawArray(ct.c_double, self.capacity * self.qd_dim)
         self.set_cs(centers)
     
     def get_occupied_data(self):
@@ -366,7 +366,7 @@ class Archive(object):
 
     def fname(self, name): 
         """Archive file name."""
-        return f'arch.{name}.{self.capacity}.{self.dim}.{self.desc_dim}'
+        return f'arch.{name}.{self.capacity}.{self.dim}.{self.qd_dim}'
            
     def save(self, name: str):
         """Saves the archive to disc.""" 
@@ -381,7 +381,7 @@ class Archive(object):
 
     def load(self, name: str):
         """Loads the archive from disc."""   
-        self.cs = mp.RawArray(ct.c_double, self.capacity * self.desc_dim)
+        self.cs = mp.RawArray(ct.c_double, self.capacity * self.qd_dim)
         with np.load(self.fname(name) + '.npz') as data:
             xs = data['xs']
             ds = data['ds']
@@ -395,7 +395,7 @@ class Archive(object):
                 self.set_stats(stats)
         self.occupied.value = np.count_nonzero(self.get_ys() < np.inf)
         self.dim = xs.shape[1]
-        self.desc_dim = ds.shape[1]
+        self.qd_dim = ds.shape[1]
         self.capacity = xs.shape[0]
         self.index_of_niches, _ = get_index_of_niches(self, self.get_cs(), None, None, None)
         
@@ -483,13 +483,13 @@ class Archive(object):
         return (d * self.desc_scale) + self.desc_lb 
 
     def get_d(self, i: int) -> float:
-        return self.ds[i*self.desc_dim:(i+1)*self.desc_dim]
+        return self.ds[i*self.qd_dim:(i+1)*self.qd_dim]
 
     def get_ds(self) -> np.ndarray:
         return np.array([self.get_d(i) for i in range(self.capacity)])
     
     def set_d(self, i: int, d: float):
-        self.ds[i*self.desc_dim:(i+1)*self.desc_dim] = d[:]
+        self.ds[i*self.qd_dim:(i+1)*self.qd_dim] = d[:]
  
     def set_ds(self, ds: ArrayLike):
         for i in range(len(ds)):
@@ -515,7 +515,7 @@ class Archive(object):
             self.set_y(i, ys[i])
             
     def get_c(self, i: int) -> float:
-        return self.cs[i*self.desc_dim:(i+1)*self.desc_dim]
+        return self.cs[i*self.qd_dim:(i+1)*self.qd_dim]
         
     def get_cs(self) -> np.ndarray:
         return np.array([self.get_c(i) for i in range(self.capacity)])
@@ -524,7 +524,7 @@ class Archive(object):
         return self.decode_d(np.array([self.get_c(i) for i in range(self.capacity)]))
            
     def set_c(self, i: int, c: float):
-        self.cs[i*self.desc_dim:(i+1)*self.desc_dim] = c[:]
+        self.cs[i*self.qd_dim:(i+1)*self.qd_dim] = c[:]
 
     def set_cs(self, cs: ArrayLike):
         for i in range(len(cs)):
@@ -580,7 +580,7 @@ class wrapper(object):
 
     def __init__(self, 
                  fit:Callable[[ArrayLike], Tuple[float, np.ndarray]], 
-                 desc_dim: int, 
+                 qd_dim: int, 
                  interval: Optional[int] = 1000000,
                  save_interval: Optional[int] = 1E20,
                  logger: Optional[logging.Logger] = logger()):
@@ -589,7 +589,7 @@ class wrapper(object):
         self.evals = mp.RawValue(ct.c_int, 0) 
         self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.t0 = perf_counter()
-        self.desc_dim = desc_dim
+        self.qd_dim = qd_dim
         self.logger = logger
         self.interval = interval
         self.save_interval = save_interval
@@ -598,14 +598,14 @@ class wrapper(object):
     def __call__(self, x: ArrayLike):
         try:
             if np.isnan(x).any():
-                return np.inf, np.zeros(self.desc_dim)
+                return np.inf, np.zeros(self.qd_dim)
             with self.lock:
                 self.evals.value += 1
             log = self.evals.value % self.interval == 0
             save = self.evals.value % self.save_interval == 0
             y, desc = self.fit(x)
             if np.isnan(y) or np.isnan(desc).any():
-                return np.inf, np.zeros(self.desc_dim)
+                return np.inf, np.zeros(self.qd_dim)
             y0 = y if np.isscalar(y) else sum(y)
             if y0 < self.best_y.value:
                 self.best_y.value = y0
@@ -619,7 +619,7 @@ class wrapper(object):
             return y, desc
         except Exception as ex:
             print(str(ex))  
-            return np.inf, np.zeros(self.desc_dim)
+            return np.inf, np.zeros(self.qd_dim)
         
 class in_niche_filter(object):
     """Fitness function wrapper rejecting out of niche arguments."""

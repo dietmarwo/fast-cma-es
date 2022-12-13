@@ -421,7 +421,7 @@ class Cassini2_me():
         max_tof = tof(prob.bounds.ub)
         min_launch = launch(prob.bounds.lb)
         max_launch = launch(prob.bounds.ub)
-        self.desc_bounds = Bounds([min_tof, min_launch], [max_tof, max_launch]) 
+        self.qd_bounds = Bounds([min_tof, min_launch], [max_tof, max_launch]) 
                         
     def qd_fitness(self, x):
         return self.problem.fun(x), np.array([tof(x), launch(x)])
@@ -430,15 +430,15 @@ def run_map_elites():
     problem = Cassini2_me(Cassini2())
     me_params = {'generations':100, 'chunk_size':1000}
     cma_params = {'cma_generations':100, 'best_n':200, 'maxiters':1000, 'miniters':200}
-    fitness =  mapelites.wrapper(problem.qd_fitness, problem.desc_dim)
+    fitness =  mapelites.wrapper(problem.qd_fitness, problem.qd_dim)
 
     archive = mapelites.optimize_map_elites(
-        fitness, problem.bounds, problem.desc_bounds, niche_num = niche_num,
+        fitness, problem.bounds, problem.qd_bounds, niche_num = niche_num,
           iterations = 50, me_params = me_params, cma_params = cma_params)
 ----
 
 Here the solution and description space are not normalized, which means that we have to provide the
-boundaries to the algorithm (`problem.bounds, problem.desc_bounds`).
+boundaries to the algorithm (`problem.bounds, problem.qd_bounds`).
 Note that archive objects have a load and save method to save the current status of the optimization 
 to disk. A loaded archive can be forwarded to `mapelites.optimize_map_elites` via the optional 
 `archive` parameter to continue a saved optimization. Reasons for the performance difference 
@@ -484,7 +484,7 @@ def run_diversifier():
     opt_params1 = {'solver':'DE_CPP', 'max_evals':50000, 'popsize':31, 'stall_criterion':3}
     opt_params2 = {'solver':'CMA_CPP', 'max_evals':100000, 'popsize':31, 'stall_criterion':3}
     archive = diversifier.minimize(
-         mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.desc_bounds, 
+         mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.qd_bounds, 
          workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], max_evals=2000000*32)
     diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, problem.bounds, archive, num_retries=20000)
     archive.save(name)

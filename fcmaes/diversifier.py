@@ -41,8 +41,8 @@ from numpy.typing import ArrayLike
 
 def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]], 
             bounds: Bounds,
-            desc_bounds: Bounds,
-            niche_num: Optional[int] = 4000,
+            qd_bounds: Bounds,
+            niche_num: Optional[int] = 10000,
             samples_per_niche: Optional[int] = 20,
             max_evals: Optional[int] = None,
             workers: Optional[int] = mp.cpu_count(),
@@ -71,7 +71,7 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
         where ``x`` is an 1-D array with shape (n,)
     bounds : `Bounds`
         Bounds on variables. Instance of the `scipy.Bounds` class.
-    desc_bounds : `Bounds`
+    qd_bounds : `Bounds`
         Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.        
     niche_num : int, optional
         Number of niches.
@@ -110,7 +110,7 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
         max_evals = workers*50000
     dim = len(bounds.lb)
     if archive is None: 
-        archive = Archive(dim, desc_bounds, niche_num, use_stats)
+        archive = Archive(dim, qd_bounds, niche_num, use_stats)
         archive.init_niches(samples_per_niche)
         # initialize archive with random values
         archive.set_xs(rng.uniform(bounds.lb, bounds.ub, (niche_num, dim)))         
@@ -216,7 +216,6 @@ def run_minimize_(archive, fitness, bounds, rg, opt_params, p, workers, evals, m
                     if p < elites_workers:
                         run_map_elites_(archive, fitness, bounds, rg, evals, max_evals, params)
                         return
-        select_n = archive.capacity
         while evals.value < max_evals: # call solvers in loop     
             best_x = None
             if isinstance(opt_params, (list, tuple, np.ndarray)):
@@ -231,8 +230,7 @@ def run_minimize_(archive, fitness, bounds, rg, opt_params, p, workers, evals, m
                     else:
                         best_x = minimize_(archive, fitness, bounds, rg, evals, max_evals, params, x0 = best_x)
             else:        
-                minimize_(archive, fitness, bounds, rg, evals, opt_params)
-            select_n = archive.get_occupied()     
+                minimize_(archive, fitness, bounds, rg, evals, opt_params) 
 
 from fcmaes.mapelites import variation_,  iso_dd_
                 

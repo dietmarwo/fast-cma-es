@@ -285,7 +285,7 @@ def optimize_qd():
             self.dim = 2
             self.qd_dim = 2
             self.bounds = Bounds([1]*self.dim, [40]*self.dim)          
-            self.desc_bounds = Bounds([2.2E8, 5E8], [2.8E8, 6.3E8])          
+            self.qd_bounds = Bounds([2.2E8, 5E8], [2.8E8, 6.3E8])          
             self.local = threading.local()
         
         def get_model(self):
@@ -302,11 +302,11 @@ def optimize_qd():
                     eff, desc = self.get_model().calculate_qd(x)    
                 if not np.isfinite(eff): # model gets corrupted in case of an error
                     self.create_model() # we need to recreate the model
-                    return 0, self.desc_bounds.lb
+                    return 0, self.qd_bounds.lb
                 #print (eff, desc)
                 return eff, desc
             except Exception as ex:
-                return 0, self.desc_bounds.lb  
+                return 0, self.qd_bounds.lb  
   
         def qd_fitness(self, x):
             y, desc = self.efficiency(x)
@@ -314,12 +314,11 @@ def optimize_qd():
 
     problem = qd_problem()
     name = 'powerplant2'
-    opt_params0 = {'solver':'elites', 'popsize':1000, 'use':2}
-    opt_params1 = {'solver':'CMA_CPP', 'max_evals':2000, 'popsize':16, 'stall_criterion':3}
+    opt_params0 = {'solver':'elites', 'popsize':128}
+    opt_params1 = {'solver':'CMA_CPP', 'max_evals':200, 'popsize':16, 'stall_criterion':3}
     archive = diversifier.minimize(
-         mapelites.wrapper(problem.qd_fitness, 2, interval=1000), problem.bounds, problem.desc_bounds, 
-         workers = 32, opt_params=[opt_params0, opt_params1], retries=640, 
-         niche_num = 4000, samples_per_niche = 20)
+         mapelites.wrapper(problem.qd_fitness, 2, interval=1000), problem.bounds, problem.qd_bounds, 
+         opt_params=[opt_params0, opt_params1], max_evals=25600)
     
     print('final archive:', archive.info())
     archive.save(name)

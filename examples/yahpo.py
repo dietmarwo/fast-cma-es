@@ -36,16 +36,16 @@ def opt_ranger_hardware(task_id, max_evals = 100000):
     upper = [bound[1] for bound in bounds]
     
     if task_id == "41146":
-        desc_bounds = Bounds((1., 0.19), (200., 4.5)) 
+        qd_bounds = Bounds((1., 0.19), (200., 4.5)) 
     elif task_id == "40981":
-        desc_bounds = Bounds((1., 0.10), (40., 0.65)) 
+        qd_bounds = Bounds((1., 0.10), (40., 0.65)) 
     elif task_id == "1489":
-        desc_bounds = Bounds((1., 0.19), (200., 4.5)) 
+        qd_bounds = Bounds((1., 0.19), (200., 4.5)) 
     elif task_id == "1067":
-        desc_bounds = Bounds((1., 0.13), (78., 1.55)) 
+        qd_bounds = Bounds((1., 0.13), (78., 1.55)) 
     
     dim = len(bounds)
-    desc_dim = 2
+    qd_dim = 2
     bounds = Bounds([0]*dim, [1]*dim)
     
     def qd_fun(x): # Only a single fitness is needed. Parallelism is handled by the optimizer.
@@ -58,8 +58,8 @@ def opt_ranger_hardware(task_id, max_evals = 100000):
     opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':200, 'popsize':16, 'stall_criterion':3}
     
     archive = diversifier.minimize(
-         mapelites.wrapper(qd_fun, desc_dim, interval=100000), 
-         bounds, desc_bounds, opt_params=[opt_params0, opt_params1], max_evals=max_evals, archive = arch,
+         mapelites.wrapper(qd_fun, qd_dim, interval=100000), 
+         bounds, qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=max_evals, archive = arch,
          niche_num = niche_num, samples_per_niche = 20)
     
     name = "range_hard" + task_id
@@ -78,16 +78,16 @@ def opt_ranger_interpretability(task_id, max_evals = 100000):
     upper = [bound[1] for bound in bounds]
     
     if task_id == "41146":
-        desc_bounds = Bounds((0., 0.), (20., 1.)) 
+        qd_bounds = Bounds((0., 0.), (20., 1.)) 
     elif task_id == "40981":
-        desc_bounds = Bounds((0., 0.), (14., 1.)) 
+        qd_bounds = Bounds((0., 0.), (14., 1.)) 
     elif task_id == "1489":
-        desc_bounds = Bounds((0., 0.), (5., 1.)) 
+        qd_bounds = Bounds((0., 0.), (5., 1.)) 
     elif task_id == "1067":
-        desc_bounds = Bounds((0., 0.), (21., 1.))   
+        qd_bounds = Bounds((0., 0.), (21., 1.))   
            
     dim = len(bounds)
-    desc_dim = 2
+    qd_dim = 2
     bounds = Bounds([0]*dim, [1]*dim)
     
     def qd_fun(x): # Only a single fitness is needed. Parallelism is handled by the optimizer.
@@ -100,8 +100,8 @@ def opt_ranger_interpretability(task_id, max_evals = 100000):
     opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':200, 'popsize':16, 'stall_criterion':3}
     
     archive = diversifier.minimize(
-         mapelites.wrapper(qd_fun, desc_dim, interval=100000), 
-         bounds, desc_bounds, opt_params=[opt_params0, opt_params1], max_evals=max_evals, archive = arch,
+         mapelites.wrapper(qd_fun, qd_dim, interval=100000), 
+         bounds, qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=max_evals, archive = arch,
          niche_num = niche_num, samples_per_niche = 20)
     
     name = "range" + task_id
@@ -124,14 +124,14 @@ def opt_xgboost(task_id, max_evals = 100000):
     upper = [bound[1] for bound in bounds]
 
     if task_id == "41146":
-        desc_bounds = Bounds((0., 0.), (20., 1.)) 
+        qd_bounds = Bounds((0., 0.), (20., 1.)) 
     elif task_id == "40981":
-        desc_bounds = Bounds((0., 0.), (14., 1.)) 
+        qd_bounds = Bounds((0., 0.), (14., 1.)) 
     elif task_id == "1489":
-        desc_bounds = Bounds((0., 0.), (5., 1.)) 
+        qd_bounds = Bounds((0., 0.), (5., 1.)) 
     elif task_id == "1067":
-        desc_bounds = Bounds((0., 0.), (21., 1.))        
-    desc_dim = 2
+        qd_bounds = Bounds((0., 0.), (21., 1.))        
+    qd_dim = 2
     
     dim = len(defaults)
     bounds = Bounds([0]*dim, [1]*dim)
@@ -146,8 +146,8 @@ def opt_xgboost(task_id, max_evals = 100000):
     opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':200, 'popsize':16, 'stall_criterion':3}
      
     archive = diversifier.minimize(
-         mapelites.wrapper(qd_fun, desc_dim, interval=100000), 
-         bounds, desc_bounds, opt_params=[opt_params0, opt_params1], max_evals=max_evals, archive = arch,
+         mapelites.wrapper(qd_fun, qd_dim, interval=100000), 
+         bounds, qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=max_evals, archive = arch,
          niche_num = niche_num, samples_per_niche = 20)
     
     name = "xgboost_opt" + task_id

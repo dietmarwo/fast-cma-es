@@ -80,7 +80,7 @@ class Plant:
         self.dtime = dtime
         self.dim = len(dtime[0])
         self.bounds = Bounds([1]*self.dim, [50]*self.dim) 
-        self.desc_bounds = self.bounds
+        self.qd_bounds = self.bounds
         self.batch_size = None
         self.reset()
 
