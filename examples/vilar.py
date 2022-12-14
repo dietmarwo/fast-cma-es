@@ -155,15 +155,13 @@ import threadpoolctl
 from elitescass2 import plot3d
 
 def run_diversifier():
-    
-    results = mp.Manager().list() 
         
     class nd_problem():
      
         def __init__(self):
             self.bounds = get_bounds(VilarOscillator(), 100)
-            self.qd_bounds = Bounds([0, 30], [3, 300])
-            self.qd_dim = 2
+            self.qd_bounds = Bounds([0, 30, .035], [3, 300, .050])
+            self.qd_dim = 3
             self.dim = len(self.bounds.ub)
              
         def fitness(self, x):
@@ -180,14 +178,16 @@ def run_diversifier():
                 sdev_peak_dist = np.std(peak_dists)
                 peaks = (r_over - r_mean)[ilocs_max]
                 sdev_amp = np.std(peaks)
-                return freq, np.array([sdev_peak_dist, sdev_amp])
+                ws = sdev_peak_dist/3.0 + sdev_amp/300.0 # weighted sum               
+                #ws = 2 - (sdev_peak_dist/3.0 + sdev_amp/300.0) # maximize sdev               
+                return ws, np.array([sdev_peak_dist, sdev_amp, freq])
            
     problem = nd_problem() 
 
     opt_params0 = {'solver':'elites', 'popsize':8}
-    opt_params1 = {'solver':'CMA_CPP', 'max_evals':200, 'popsize':16, 'stall_criterion':3}
+    opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':200, 'popsize':16, 'stall_criterion':3}
     archive = diversifier.minimize(
-         mapelites.wrapper(problem.fitness, 2, interval=100, save_interval=4000), 
+         mapelites.wrapper(problem.fitness, problem.qd_dim, interval=100, save_interval=4000), 
          problem.bounds, problem.qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=12800)
     print("final archive: " + archive.info())
     archive.save("vilar_qd")
@@ -203,7 +203,7 @@ def plot_archive(archive):
     ys = archive.get_ys()[si]
     for i in range(len(si)):
         desc = descriptions[i]
-        ysp.append([desc[0], desc[1], ys[i]])
+        ysp.append([desc[0], desc[1], desc[2]])
 
     ysp = np.array(ysp)
     print(len(ysp))

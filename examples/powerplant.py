@@ -337,7 +337,7 @@ def plot_archive(archive):
     ysp = np.array(ysp)
     print(len(ysp))
     print(ysp)
-    plot3d(ysp, "powerplant2", 'power', 'heat', 'power / heat')
+    plot3d(ysp, "powerplant_qd", 'power', 'heat', 'power / heat')
     
 if __name__ == '__main__':
     #optimize_fcmaes()
