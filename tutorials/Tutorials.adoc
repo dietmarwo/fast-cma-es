@@ -8,60 +8,58 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 
 image::logo.gif[]
 
-=== Real World Tutorials
-
-==== Quality Diversity
+=== Quality Diversity
 
  - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc[Quality Diversity] Parallel execution of a multi-algorithm improvement emitter and CVT MAP-Elites.
 
  - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[Map Elites] CVT MAP-Elites + adapted CMA-ES.
 
-==== Space Flight Trajectory Design
+=== Space Flight Trajectory Design
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Introduction.adoc[Introduction] Solving simple example problems from space flight dynamics.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SpaceFlight.adoc[Space Flight] Space flight mission design revisited.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PAGMO.adoc[Pagmo results] GTOPX Benchmark results using Pagmo
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PYKEP.adoc[Pykep gym results] Benchmark results for the Pykep gym problems
 
-==== Quantum Computing
+=== Quantum Computing
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc[Variational Qubit] Optimize a Variational Qubit and a Variational Quantum Eigensolver.  
 
-==== Service - Demand Network Planning (p-center problem)
+=== Service - Demand Network Planning (p-center problem)
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/5G.adoc[5G network planning] Solve the p-center-problem for irregular shapes with holes. 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Service.adoc[Service Locations] Solve the α-neighbor p-center optimization problem.  
 
-==== Scheduling
+=== Scheduling
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Employee.adoc[Employee Scheduling] Optimize an employee schedule.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop] Solving the flexible job shop scheduling problem. 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling] Solving a complex scheduling problem, part of the GTOC11 competition.
 
-==== Routing
+=== Routing
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/OneForAll.adoc[One For All] MMKP and VRPTW. 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[Multi-UAV] Multi-UAV Task Assignment.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Routing.adoc[Routing] Capacitated Vehicle Routing.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[Noisy TSP] Solve the noisy Traveling Salesman Problem.
 
-==== Trading
+=== Trading
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[Crypto Trading] Optimize your crypto trading strategy.  
 
-==== Water Management
+=== Water Management
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc[Water Management] Optimize water resource management.  
 
-==== Social Media
+=== Social Media
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Media.adoc[Social Media] Analyzing Social Media User Data.
 
-==== Game Design
+=== Game Design
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc[gbea TopTrumps Benchmark] TopTrumps game optimization benchmark. 
 
-==== Simulation
+=== Simulation
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc[Parameter Sweep] Biochemical stochastic model parameters.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Surrogate.adoc[Surrogate] Optimize the Mazda car design problem.  
@@ -71,18 +69,18 @@ image::logo.gif[]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Vaccination.adoc[Vaccination] Modeling Vaccination.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] Managing hospital resources during a pandemic.  
 
-==== Machine Learning
+=== Machine Learning
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/EvoJax.adoc[EvoJax] Hardware-Accelerated Neuroevolution.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/HyperparameterOptimization.adoc[Hyper Parameters] Hyper parameter optimization.
 
-==== Miscellaneous 
+=== Miscellaneous
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc[Subset selection] Select an optimal subset.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc[Clustering] Out of the box.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ODE.adoc[ODE] Use of differential equation solvers.
 
-==== fcmaes-Details
+=== fcmaes-Details
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[MO-DE] MO-DE, a new multi objective algorithm.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc[Multi-Objective] Solving multi objective problems using variable weights. 
@@ -94,7 +92,7 @@ image::logo.gif[]
 
 The log output of the parallel retry contains the following rows:
 
-===== Parallel retry
+==== Parallel retry
 
 - time (in sec)
 - evaluations / sec
@@ -110,7 +108,7 @@ Mean and standard deviation would be misleading when using coordinated retry, be
 of the retries initiated by crossover. Therefore the rows of the
 log output differ slightly:
  
-===== Smart retry
+==== Smart retry
 
 - time (in sec)
 - evaluations / sec
