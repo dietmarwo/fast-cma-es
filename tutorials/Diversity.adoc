@@ -523,7 +523,6 @@ was slightly modified to be thread safe and to be accessible directly from Pytho
 is essential here, our AMD 5950 16 core CPU can perform around 8000 simulations per second utilizing
 32 parallel threads.
 
-
 === Conclusion
 
 There is not much literature available describing the application of QD methods
