@@ -100,10 +100,9 @@ Differences are:
 solution from the previous one. Helps with extremely rigged fitness landscapes.
 - Improvement emitters are initialized with a random solution instead of a niche elite. Seems to work better this way.
 
-It seems fcmaes diversifier performs very well for QD Hyperparameter Optimization, although a direct comparison is difficult because fcmaes uses Voronoi tesselation where qdo_yahpo uses a grid.
+fcmaes diversifier performs very well for QD Hyperparameter Optimization, although a direct comparison is difficult because fcmaes uses Voronoi tesselation where qdo_yahpo uses a grid.
 
-See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[MapElites.adoc] which includes
-the application of the fcmaes diversifier to a space mission design problem: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py].
+See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[MapElites.adoc] which includes the application of the fcmaes diversifier to a space mission design problem: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py].
 
 If a surrogate model is available, as
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/yahpo.py[yapoo.py].
