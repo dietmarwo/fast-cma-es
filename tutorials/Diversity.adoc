@@ -63,8 +63,7 @@ underestimated. See https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/201
 You may run multiple QD-optimizations on multiple CPUs and join the results/QD-archives afterwards to improve coverage of the behavior space.
 
 ==== Exploration versus Exploitation
-Using QD-algorithms the way solution candidates are generated is determined
-the QD-algorithm parameter settings, where fcmaes offers a lot of flexibility. These
+Using QD-algorithms the way solution candidates are generated is determined by the QD-algorithm parameter settings, where fcmaes offers a lot of flexibility. These
 parameters balance "exploration" versus "exploitation" where the optimal compromise is problem specific. We aim at
 maximal "exploitation" - don't miss the global optimum by a large margin - without sacrificing exploration - full 
 coverage of all niches of the behavior space. Since the "exploration" requirement is easier to fulfill fcmaes emphasises "exploitation".
@@ -77,7 +76,7 @@ default already produces good results. MO-algorithms
 are more sensitive in this regard.
 
 ==== Customization
-But if you really want you have a many parameters for tweaking:
+But if you really want you have many parameters for tweaking:
 
 - You may choose the base algorithm of the improvement emitter (currently CMA-ES, CR-FM-NES, DE, PGPE and BiteOpt). This is important, because CMA-ES, the most popular improvement emitter, is optimal only for a small number of applications.
 - Improvement emitters can be applied in sequence. See for instance https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py], where such a sequence is the optimal configuration.

@@ -212,7 +212,8 @@ def run_minimize_(archive, fitness, bounds, rg, opt_params, p, workers, evals, m
         if isinstance(opt_params, (list, tuple, np.ndarray)):
             for params in opt_params: # call MAP-Elites
                 if 'elites' == params.get('solver'):
-                    elites_workers = params.get('workers', int(workers/2)) 
+                    default_workers = int(workers/2) if len(opt_params) > 1 else workers
+                    elites_workers = params.get('workers', default_workers) 
                     if p < elites_workers:
                         run_map_elites_(archive, fitness, bounds, rg, evals, max_evals, params)
                         return
