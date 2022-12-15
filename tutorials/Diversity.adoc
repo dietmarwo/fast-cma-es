@@ -534,7 +534,7 @@ We found that:
 - Mixing MAP-elites with a CR-FM-NES improvement emitter works very well in most cases and should be tried first.
 - Sharing a QD archive between many parallel MAP-elites and improvement-emitter processes scales better than parallelizing the simulation itself.
 - fcmaes blocks the application of parallelization by the BLAS library to avoid the creation of too many threads. The simulation should be executed single threaded.
-- The default configuration provided by fcmaes work well, but the population size can be
+- The default configuration provided by fcmaes works well, but the population size can be
 adapted dependent on the number of fitness evaluations your budged allows. Higher population size also reduces the overhead for the tesselation because it increases its batch size. Compared with MO-algorithms the population size is less relevant.
 - MAP-elites allows can be configuered to use https://arxiv.org/pdf/1804.03906[Iso+LineDD], but for the problems we tested the default SBX+mutation
 borrowed from NSGA-II works better. You may try Iso+LineDD to further improve existing QD-archives.
