@@ -104,12 +104,9 @@ fcmaes diversifier performs very well for QD Hyperparameter Optimization, althou
 
 See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[MapElites.adoc] which includes the application of the fcmaes diversifier to a space mission design problem: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py].
 
-If a surrogate model is available, as
-https://github.com/dietmarwo/fast-cma-es/blob/master/examples/yahpo.py[yapoo.py].
-for hyperparameter optimization, parallelization is much easier since there is
-no "GPU-bottleneck". Otherwise hyperparameter optimization would often use a
-computing resource which cannot be shared (a GPU/TPU) restricting optimization to
-a single thread.
+If a surrogate model is available, as for
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/yahpo.py[yapoo.py],
+parallelization is much easier since there is no "GPU-bottleneck". Otherwise hyperparameter optimization would often use a computing resource which cannot easily be shared (a GPU/TPU) restricting optimization to a single thread for each GPU.
 
 === Powerplant Simulation
 
