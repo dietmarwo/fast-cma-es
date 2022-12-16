@@ -231,7 +231,7 @@ def run_minimize_(archive, fitness, bounds, rg, opt_params, p, workers, evals, m
                     else:
                         best_x = minimize_(archive, fitness, bounds, rg, evals, max_evals, params, x0 = best_x)
             else:        
-                minimize_(archive, fitness, bounds, rg, evals, opt_params) 
+                minimize_(archive, fitness, bounds, rg, evals, max_evals, opt_params) 
 
 from fcmaes.mapelites import variation_,  iso_dd_
                 

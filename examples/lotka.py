@@ -15,8 +15,6 @@ from scipy.optimize import Bounds
 
 import ctypes as ct
 import multiprocessing as mp 
-import pylab as p
-from numba.tests.test_array_constants import dt
 
 # Definition of parameters from https://scipy-cookbook.readthedocs.io/items/LoktaVolterraTutorial.html
 a = 1.
