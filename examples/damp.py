@@ -67,7 +67,7 @@ class fitness(object):
     def qd_fit(self, x): 
         y = self(x)
         n = int(self.dim/2)
-        dt = max_time *(2./n)
+        dt = 2*max_time/n
         dts = x[:n]*dt 
         alphas = x[n:]*2*max_alpha - max_alpha
         dtsum = np.sum(dts)

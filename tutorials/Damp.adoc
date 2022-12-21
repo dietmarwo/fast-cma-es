@@ -189,9 +189,9 @@ solutions with different time and energy values.
     def qd_fit(self, x):
         y = self(x)
         n = int(self.dim/2)
-        dt = max_time *(2./n)
+        dt = 2*max_time/n
         dts = x[:n]*dt
-        alphas = x[n:]*max_alpha - 0.5*max_alpha
+        alphas = x[n:]*2*max_alpha - max_alpha
         dtsum = np.sum(dts)
         energy = np.sum(np.multiply(dts, abs(alphas)))
         b = np.array([dtsum, energy])
