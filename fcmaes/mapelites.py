@@ -138,7 +138,7 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
                      f'mean {np.mean(ys):.3f} stdev {np.std(ys):.3f} time {dtime(t0)} s')
     return archive
 
-def get_index_of_niches(archive: Archive,
+def set_KDTree(archive: Archive,
                         centers:Optional[np.ndarray] = None, 
                         niche_num: Optional[int]  = None, 
                         qd_bounds: Optional[Bounds] = None, 
@@ -168,13 +168,8 @@ def get_index_of_niches(archive: Archive,
 
     if centers is None: # cache centers 
         centers = get_centers_(niche_num, len(qd_bounds.lb), samples_per_niche)
-    kdt = KDTree(centers, leaf_size=30, metric='euclidean')  
-       
-    # Uses the KDtree to determine the niche indexes.
-    def index_of_niches(ds):
-        return kdt.query(archive.encode_d(ds), k=1, sort_results=False)[1].T[0] 
-         
-    return index_of_niches, centers
+    archive.kdt = KDTree(centers, leaf_size=30, metric='euclidean')  
+    archive.centers = centers         
 
 def load_archive(name: str, 
                  bounds: Bounds, 
@@ -321,7 +316,6 @@ class Archive(object):
         self.capacity = capacity
         self.name = name
         self.cs = None
-        self.index_of_niches = None
         self.lock = mp.Lock()
         self.use_stats = use_stats
         self.reset()
@@ -346,10 +340,9 @@ class Archive(object):
          
     def init_niches(self, samples_per_niche: int = 10): 
         """Computes the niche centers using KMeans and builds the KDTree for niche determination.""" 
-        self.index_of_niches, centers = get_index_of_niches(self, None, self.capacity, 
-                                                            self.qd_bounds, samples_per_niche)
+        set_KDTree(self, None, self.capacity, self.qd_bounds, samples_per_niche)
         self.cs = mp.RawArray(ct.c_double, self.capacity * self.qd_dim)
-        self.set_cs(centers)
+        self.set_cs(self.centers)
     
     def get_occupied_data(self):
         ys = self.get_ys()
@@ -397,7 +390,10 @@ class Archive(object):
         self.dim = xs.shape[1]
         self.qd_dim = ds.shape[1]
         self.capacity = xs.shape[0]
-        self.index_of_niches, _ = get_index_of_niches(self, self.get_cs(), None, None, None)
+        set_KDTree(self, self.get_cs(), None, None, None)
+    
+    def index_of_niches(self, ds):
+        return self.kdt.query(self.encode_d(ds), k=1, sort_results=False)[1].T[0] 
         
     def in_niche_filter(self, 
                         fit: Callable[[ArrayLike], float], 
