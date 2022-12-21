@@ -49,7 +49,6 @@ class fitness(object):
     def __init__(self, dim):
         self.dim = dim 
         self.best_y = mp.RawValue(ct.c_double, np.inf) 
-        self.t0 = time.perf_counter()
         self.bounds = Bounds([0]*dim, [1]*dim)
         self.qd_dim = 2
         self.qd_bounds = Bounds([10, 0.5], [40, 1.5])
