@@ -11,9 +11,9 @@ image::logo.gif[]
 
 === Quality Diversity
 
- - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc[Quality Diversity] Parallel execution of a multi-algorithm improvement emitter and CVT MAP-Elites.
-
- - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[Map Elites] CVT MAP-Elites + adapted CMA-ES.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc[Quality Diversity] Parallel execution of a multi-algorithm improvement emitter and CVT MAP-Elites.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[Map Elites] CVT MAP-Elites + adapted CMA-ES.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Damp.adoc[Map Elites 2] Quality-Diversity applied to ODE based control problems.
 
 === Space Flight Trajectory Design
 

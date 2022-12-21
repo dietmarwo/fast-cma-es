@@ -1,0 +1,238 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Quality-Diversity applied to ODE based control problems
+
+=== This tutorial
+
+- Discusses how to apply QD-algorithms (Quality Diversity) to ODE based control problems.
+- Discusses the history of solving optimization problems involving integrals and control.
+- Compares the analytical approach with the "smart guessing using a feedback loop" one using a simple example: Dampening of a spring.
+
+=== Learning from nature
+
+Lets start citing two important statements from https://dl.acm.org/doi/book/10.5555/2792412[Why Greatness Cannot Be Planned: The Myth of the Objective]:
+
+- "Natural evolution can be seen as a novelty-generating search with local competition".
+- "Global competition naturally leads to
+convergence while local competition naturally enhances diversity and creativity."
+
+The book emphasises that it is not the competitive/"survival of the fittest" aspect of evolution which is able to produce interesting results, since competition tends to diminish diversity.
+Other mechanisms like drift and exaptation (the "usefulness" of a mutation in a different unexpected context) are more important in this regard.
+
+To simulate that in an optimization algorithm costs processing resources, since local competition requires to differentiate and store all the niches enabling local competition and "creativity".
+But there is a level of parallelism where the advantages outweigh the resource consumption issues.
+The number of cores our CPUs/GPUs/TPUs provide grows almost exponentially, and we should
+adapt our algorithms accordingly.
+
+=== History of the "smart guessing approach"
+
+Although existing for some time the "smart guessing approach"
+finally gained a lot of traction with the raise of machine learning based on neural networks. Neural networks do some prediction or classification by analyzing input data and converting them into meaningful output utilizing several connected layers of artificial neurons. These connections have associated weights which form the decision variables of an optimization problem minimizing the prediction/classification error by applying the neural network to a set of test data.
+Although sometimes seen as a kind of https://www.science.org/content/article/ai-researchers-allege-machine-learning-alchemy[alchemy], there is simply no "analytical" way to perform this optimization. Instead, we start with a (often) random guess, apply the network to determine the error, and then use this error as a feedback mechanism to improve our guess in a loop.
+Although gradient based methods dominated the scene for some time,
+recently also evolutionary methods are applied, see https://github.com/google/evojax/tree/main/evojax/algo[EvoJAX].
+The application of neural networks was stuck for a few decades to the point they were regarded as a dead end, until modern GPUs/TPUs enabled the processing of many thousands of neurons in parallel. The perception of a method is largely dependent on the capability of our hardware.
+
+=== History of the analytical approach
+Appendix 2 of
+http://tesi.luiss.it/31693/1/698841_DE%20ANGELIS_FEDERICO.pdf[DEANGELIS_FEDERICO] presents a nice history of the analytical approach solving optimization problems involving integrals and control - called optimal control theory:
+"Optimal control theory can be conceived as the last step of a long journey, which started with geometrical problems of Ancient Greek philosophers, went through the 17th , 18th and 19th centuries when the Calculus of Variations (the “ancestor” of optimal control theory) was developed, ending with the fundamental contributions of Lev Pontryagin and Richard Bellman in the 1950s’". We have to realize that the smart people contributing to the analytical approach during the centuries had very limited "hardware" available, making them rightfully believe
+that their approach was the only one which can solve the problem. But as we have seen with the raise of machine learning, things may change: Instead of a single integral we now can compute a billion of these in a few minutes utilizing a modern many core CPU. As we will see,
+we not only can reproduce the analytical results in seconds ba "smart guessing", we also can analyze and illuminate the problem structure in ways not possible before.
+
+=== Dampening a Vibrating Spring
+
+We use the example from https://math.berkeley.edu/~evans/control.course.pdf[EXAMPLE 2: CONTROL OF A VIBRATING SPRING, page 37].
+
+- x1(t) denotes the position over time t, x2(t), its derivative is the velocity.
+- The derivative of x2(t) is `-x1(t) + alpha(t)`, which means the acceleration pushing the spring back in its original position grows with its extension. Additionally, we apply an additional "force" alpha(t), which is the "control" we have over the dynamic system.
+
+The full example code is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/damp.py[damp.py] and
+https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/ascent.cpp[ascent.cpp].
+
+If no external force is applied we get:
+
+image::damp1.png[]
+
+The blue line represents `abs(x1) + abs(x2)`. This is easy to measure, and when it is 0, the spring is fully damped. We can achieve this by applying specific alpha values over time:
+
+image::damp2.png[]
+
+In https://math.berkeley.edu/~evans/control.course.pdf[EXAMPLE 2] the analytical determination of the optimal control is shown. As in the picture above, the resulting control alpha is
+switching exactly when the velocity (x2) crosses 0. This type control is denoted as "bang bang".
+
+==== Guessing with feedback
+
+To implement the "guessing" approach we first need a fast integrator: https://github.com/AnyarInc/Ascent[Ascent]. The two differential equations have to be coded in {Cpp}:
+
+[source,Cpp]
+----
+struct Damp {
+
+    double alpha;
+
+    void operator()(const state_t &y, state_t &yDot, const double) {
+
+        double x1 = y[0];
+        double x2 = y[1];
+        yDot[0] = x2;
+        yDot[1] = -x1 + alpha;
+    }
+};
+----
+
+Next we create a function `integrateDamp_C` callable via ctypes from Python which
+performs the integration in a loop. We use a fixed alpha, so this function needs to be
+called for repeatedly for each time segment.
+
+[source,Cpp]
+----
+extern "C" {
+double* integrateDamp_C(double *yd, double alpha, double dt, double step) {
+    state_t y(2);
+    for (int i = 0; i < 2; i++)
+        y[i] = yd[i];
+    PC233 integrator;
+    Damp damp;
+    damp.alpha = alpha;
+    int steps = 0;
+    double t = 0.0;
+    while (t < dt) {
+        steps++;
+        if (t + step >= dt) {
+            integrator(damp, y, t, dt - t);
+            break;
+        } else
+            integrator(damp, y, t, step);
+    }
+    double *res = new double[2];
+    for (int i = 0; i < 2; i++)
+        res[i] = y[i];
+    return res;
+}
+
+void free_mem(double *a) {
+    delete[] a;
+}
+----
+
+Creating this code is straightforward, even for much more complex systems of ODEs. For these
+it can be very hard to find an analytical solution. The following Python code calls this {cpp}-function. To avoid a memory leak we have to free the result vector after it is converted into a numpy array. Be careful with all data structures created on the heap like `double *res = new double[2]`).`abs(x1) + abs(x2)` returned to Python.
+
+[source,python]
+----
+def integrate_C(y, dt, alpha, step):
+    array_type = ct.c_double * y.size
+    ry = integrateDamp_C(array_type(*y), alpha, dt, step)
+    y = np.array(np.fromiter(ry, dtype=np.float64, count=y.size))
+    free_mem(ry)
+    return y
+----
+
+It would be easier to use scipy.integrate.ode, but this is about factor 10 slower.
+Next we create a single objective fitness function calling `integrate_C` in a loop thereby
+applying different alpha values for different time intervals all determined by the decision
+vector X. We add a penalty for max_time violations to force the optimizer to finish the dampening process in time. The number of decision variables `self.dim` determines the number of time intervals `n = self.dim/2`. We normalize the possible alpha values to the interval [-max_alpha, +max_alpha].
+
+[source,python]
+----
+   def __call__(self, X):
+        n = int(self.dim/2)
+        dt = 2*max_time/n
+        dts = X[:n]*dt
+        alphas = X[n:]*2*max_alpha - max_alpha
+        y = np.array([1,0])
+        for i in range(n):
+            y = integrate_C(y, dts[i], alphas[i], 0.1)
+        y = abs(y[0])+abs(y[1])
+        t = sum(dts)
+        if t > max_time: # penalty for not finishing in time
+            y += 100 + t
+        return y
+----
+
+A single objective optimizer, for instance parallel retry of differential evolution, can
+easily solve the problem in less than a second:
+
+[source,python]
+----
+def parallel_retry(dim, opt = De_cpp(10000)):
+    fit = fitness(dim)
+    return retry.minimize(fit, fit.bounds, optimizer=opt, num_retries=32)
+----
+
+How does differential evolution work? It starts with random values for the time intervals and the alpha values applied there. As "feedback" it receives `abs(x1) + abs(x2)`, our approximation
+of the final amplitude. Depending on this value new random values are generated. So it is a typical representative of the "smart guessing approach".
+But remember the discussion about natural evolution above. Natural evolution is a
+novelty-generating search with local competition, differential evolution on the other hand uses
+global competition hence it loses diversity and creativity. Therfore we now will investigate
+the application of a QD (Quality-Diverity) algorithm, which better resembles natural evolution in
+creating niches and supporting local evolution.
+
+=== Applying MAP-Elites
+
+First we creat a QD-fitness function 'qd_fit' which is using '__call__' but additionaly
+returns a behavior/feature vector b containing the overall time `np.sum(dts)` and the
+energy consumption `np.sum(np.multiply(dts, abs(alphas)))`. This way we distinguish
+solutions with different time and energy values.
+
+[source,python]
+----
+    def qd_fit(self, x):
+        y = self(x)
+        n = int(self.dim/2)
+        dt = max_time *(2./n)
+        dts = x[:n]*dt
+        alphas = x[n:]*max_alpha - 0.5*max_alpha
+        dtsum = np.sum(dts)
+        energy = np.sum(np.multiply(dts, abs(alphas)))
+        b = np.array([dtsum, energy])
+        return y, b
+----
+
+As QD-algorithm we use `diversifier` which normally executes MAP-Elites and some improvement emitter - usually based on CR-FM-NES - in parallel. We recommend to start with this configuration,
+and it works well ahere. But experiments revealed, that this time it is better to
+avoid using the improvement emitter and only apply MAP-Elites. So we dedicate all parallel processes to this algorithm and limit the number of fitness evaluations to 30 million. This
+means we perform several hundred million integrations, which can be executed in about two minutes
+on an AMD 5950x 16 core CPU.
+
+Note that for this example you need fcmaes version 1.5.6. It is > factor 2 slower on Windows on the same hardware. Better to use the linux subsystem for windows. Python multiprocessing is still poorly implemented on Windows.
+
+[source,python]
+----
+def optimize_qd(dim):
+    problem = fitness(dim)
+    name = 'damp_nd'
+    opt_params0 = {'solver':'elites', 'popsize':512}
+    archive = diversifier.minimize(
+         mapelites.wrapper(problem.qd_fit, problem.qd_dim, interval=200000),
+         problem.bounds, problem.qd_bounds, opt_params=[opt_params0], max_evals=30000000)
+    print('final archive:', archive.info())
+    archive.save(name)
+----
+
+Below you see results for `dim=8` (4 time intervals, left diagram) and `dim=12` (6 time intervals, right diagram)
+
+image::dampND.png[]
+
+Four time intervals is not sufficient for a complete dampening. For each overall time and energy value we see exactly
+the level of dampening which can be achieved. Each of the many thousand dots in both diagrams represent a solution
+finally stored in the QD-archive-file. This kind of insight in what is possible for different energy and time values
+cannot easily be reproduced by the analytical approach.
+
+=== Conclusion
+
+There is not much literature available describing the application of QD methods
+to problems involving integrals and control we can compare with, so our results are preliminary. But they can serve as a baseline for future comparisons.
+
+- Application of https://github.com/AnyarInc/Ascent[Ascent] is easy and can result in a factor 10 speedup compared to scipy.integrate.ode.
+- MAP-Elites is not only able to provide insight into the structure of the problem, it can also find the global optimum in a reasonable amount of time, if all CPU-cores of a modern many-core CPU are utilized.
+- This cannot easily be achieved by the analytical approach.
