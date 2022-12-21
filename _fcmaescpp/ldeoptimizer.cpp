@@ -18,9 +18,9 @@
 #include <Eigen/Core>
 #include <iostream>
 #include <float.h>
+#include <stdint.h>
 #include <ctime>
 #include <random>
-#define EIGEN_VECTORIZE_SSE2
 #include <EigenRand/EigenRand>
 
 using namespace std;
@@ -389,12 +389,11 @@ void optimizeLDE_C(long runid, callback_type func, int dim, double *init,
         double *sigma, int seed, double *lower, double *upper, int maxEvals,
         double keep, double stopfitness, int popsize, double F, double CR, 
         double min_mutate, double max_mutate, bool *ints, double* res) {
-    int n = dim;
-    vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
+    vec guess(dim), lower_limit(dim), upper_limit(dim), inputSigma(dim);
     bool isInt[dim];
     bool useLimit = false;
     bool useIsInt = false;
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < dim; i++) {
         guess[i] = init[i];
         inputSigma[i] = sigma[i];
         lower_limit[i] = lower[i];
@@ -417,12 +416,12 @@ void optimizeLDE_C(long runid, callback_type func, int dim, double *init,
         opt.doOptimize();
         vec bestX = opt.getBestX();
         double bestY = opt.getBestValue();
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < dim; i++)
             res[i] = bestX[i];
-        res[n] = bestY;
-        res[n + 1] = fitfun.getEvaluations();
-        res[n + 2] = opt.getIterations();
-        res[n + 3] = opt.getStop();
+        res[dim] = bestY;
+        res[dim + 1] = fitfun.getEvaluations();
+        res[dim + 2] = opt.getIterations();
+        res[dim + 3] = opt.getStop();
     } catch (std::exception &e) {
         cout << e.what() << endl;
     }
