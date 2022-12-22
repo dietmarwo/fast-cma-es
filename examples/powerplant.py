@@ -10,7 +10,7 @@ Added the application of fcmaes optimizers, both using parallel function evaluat
 Note: tespy doesn't support Python 3.9, tested on anaconda with python 3.8 on linux. 
 
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PowerPlant.adoc for a detailed description.
-
+See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc
 '''
 
 from tespy.networks import Network

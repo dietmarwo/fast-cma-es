@@ -2,6 +2,7 @@
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc
 # See https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2014WR015976
 # See https://github.com/jrkasprzyk/LRGV 
+# See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc
 
 import numpy as np
 import os, sys, time

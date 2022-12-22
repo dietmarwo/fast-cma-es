@@ -2,6 +2,7 @@
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc
 # See http://www.sciencedirect.com/science/article/pii/S0309170812000073
 # See https://github.com/jdherman/awr-hbv-benchmark
+# See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc
 
 import numpy as np
 import os, sys, time
