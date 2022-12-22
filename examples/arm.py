@@ -64,7 +64,7 @@ class fitness(object):
         self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.bounds = Bounds([-np.pi]*dim, [np.pi]*dim)
         self.qd_dim = 2
-        self.qd_bounds = Bounds([-21, -21], [21, 21])
+        self.qd_bounds = Bounds([-dim-1, -dim-1], [dim+1, dim+1])
 
     def __call__(self, X):
         pos = forward_kinematics(X)
