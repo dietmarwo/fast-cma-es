@@ -13,6 +13,7 @@ For each reachable position minimize either:
 - the standard deviation of the joint-angles
 - the sum of the joint-angles
 - the maximal joint-angle
+- in mapelites.wrapper set optional parameter workers=1 to switch to single thread execution
 
 Since all results are stored in the ND archive finally we know for all target positions
 how to adjust all the joint-angles to meet the objective without any further optimization. 
