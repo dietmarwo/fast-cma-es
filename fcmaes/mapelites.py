@@ -501,6 +501,8 @@ class Archive(object):
         ys = self.get_ys()
         occupied = (ys != np.inf)
         ys = ys[occupied]
+        if len(ys) == 0:
+            return 0
         min_y = np.amin(ys)
         if min_y > 0: # if all y > 0 use sum of reciprocal
             return np.sum(np.reciprocal(ys, where = ys!=0)) 
