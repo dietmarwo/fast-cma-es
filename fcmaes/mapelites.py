@@ -501,7 +501,13 @@ class Archive(object):
         ys = self.get_ys()
         occupied = (ys != np.inf)
         ys = ys[occupied]
-        return np.sum(np.reciprocal(ys, where = ys!=0)) 
+        min_y = np.amin(ys)
+        if min_y > 0: # if all y > 0 use sum of reciprocal
+            return np.sum(np.reciprocal(ys, where = ys!=0)) 
+        else: # else use only the negative ones
+            neg = (ys < 0)
+            ys = ys[neg]
+            return np.sum(-ys) 
          
     def set_y(self, i: int, y: float):
         self.ys[i] = y    

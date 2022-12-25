@@ -210,9 +210,9 @@ def minimize_parallel_(archive, fitness, bounds, workers, opt_params, max_evals)
 def run_minimize_(archive, fitness, bounds, rg, opt_params, p, workers, evals, max_evals):  
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
         if isinstance(opt_params, (list, tuple, np.ndarray)):
+            default_workers = int(workers/2) if len(opt_params) > 1 else workers
             for params in opt_params: # call MAP-Elites
                 if 'elites' == params.get('solver'):
-                    default_workers = int(workers/2) if len(opt_params) > 1 else workers
                     elites_workers = params.get('workers', default_workers) 
                     if p < elites_workers:
                         run_map_elites_(archive, fitness, bounds, rg, evals, max_evals, params)
@@ -222,7 +222,7 @@ def run_minimize_(archive, fitness, bounds, rg, opt_params, p, workers, evals, m
             if isinstance(opt_params, (list, tuple, np.ndarray)):
                 for params in opt_params: # call in sequence
                     if 'elites' == params.get('solver'):
-                        continue # is elites thread
+                        continue # ignore in loop
                     if best_x is None:
                         # selecting a niche elite is no improvement over random x0
                         x0 = None#, _, _ = archive.random_xs_one(select_n, rg)
@@ -317,7 +317,9 @@ def run_bite_(archive, fitness, bounds, rg, evals, max_evals, opt_params, x0 = N
 def get_solver_(bounds, opt_params, rg, x0 = None):
     dim = len(bounds.lb)
     popsize = opt_params.get('popsize', 31) 
-    sigma = opt_params.get('sigma',rg.uniform(0.03, 0.3)**2)
+    #sigma = opt_params.get('sigma',rg.uniform(0.03, 0.3)**2)
+    #sigma = opt_params.get('sigma',rg.uniform(0.2, 0.5)**2)
+    sigma = opt_params.get('sigma',rg.uniform(0.1, 0.5))
     mean = opt_params.get('mean', rg.uniform(bounds.lb, bounds.ub)) \
                 if x0 is None else x0
     name = opt_params.get('solver', 'CMA_CPP')
