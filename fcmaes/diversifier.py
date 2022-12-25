@@ -318,8 +318,9 @@ def get_solver_(bounds, opt_params, rg, x0 = None):
     dim = len(bounds.lb)
     popsize = opt_params.get('popsize', 31) 
     #sigma = opt_params.get('sigma',rg.uniform(0.03, 0.3)**2)
+    sigma = opt_params.get('sigma',rg.uniform(0.1, 0.5)**2)
     #sigma = opt_params.get('sigma',rg.uniform(0.2, 0.5)**2)
-    sigma = opt_params.get('sigma',rg.uniform(0.1, 0.5))
+    #sigma = opt_params.get('sigma',rg.uniform(0.1, 0.5))
     mean = opt_params.get('mean', rg.uniform(bounds.lb, bounds.ub)) \
                 if x0 is None else x0
     name = opt_params.get('solver', 'CMA_CPP')
