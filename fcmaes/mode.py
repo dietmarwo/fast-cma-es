@@ -163,7 +163,8 @@ class store():
     nobj : int
         number of objectives
     capacity : int, optional
-        capacity of the result store.
+        capacity of the store collecting all solutions. If full, its content is replaced by its
+        pareto front. 
     """
     
     def __init__(self, dim, nobj, capacity = mp.cpu_count()*512):    

@@ -198,6 +198,7 @@ def retry(mofun: Callable[[ArrayLike], ArrayLike],
             nsga_update: Optional[bool] = False,
             pareto_update: Optional[int] = 0,
             ints: Optional[ArrayLike] = None,
+            capacity: Optional[int] = None,
             logger: Optional[logging.Logger] = None,
             is_terminate: Optional[Callable[[ArrayLike, ArrayLike], bool]] = None):
              
@@ -231,7 +232,16 @@ def retry(mofun: Callable[[ArrayLike], ArrayLike],
     workers : int or None, optional
         If not workers is None, optimization is performed in parallel.  
     nsga_update = boolean, optional
-        Use of NSGA-II/SBX or DE population update. Default is False    
+        Use of NSGA-II/SBX or DE population update. Default is False  
+    pareto_update = float, optional
+        Only applied if nsga_update = False. Favor better solutions for sample generation. Default 0 - 
+        use all population members with the same probability.   
+    ints = list or array of bool, optional
+        indicating which parameters are discrete integer values. If defined these parameters will be
+        rounded to the next integer and some additional mutation of discrete parameters are performed.  
+    capacity : int or None, optional
+        capacity of the store collecting all solutions. If full, its content is replaced by its
+        pareto front.    
     logger : logger, optional
         logger for log output for tell_one, If None, logging
         is switched off. Default is a logger which logs both to stdout and
@@ -240,7 +250,9 @@ def retry(mofun: Callable[[ArrayLike], ArrayLike],
         Callback to be used if the caller of minimize wants to decide when to terminate. """
     
     dim, _, _ = _check_bounds(bounds, None)
-    store = mode.store(dim, nobj + ncon, 100*popsize*2)
+    if capacity is None:
+        capacity = 2048*popsize
+    store = mode.store(dim, nobj + ncon, capacity)
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
@@ -250,10 +262,10 @@ def retry(mofun: Callable[[ArrayLike], ArrayLike],
                 for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
-    xs, ys = store.get_front()   
+    _, ys = store.get_front()   
     if not logger is None:
         logger.info(str([tuple(y) for y in ys]))            
-    return xs, ys
+    return store.get_xs(), store.get_ys()
 
 def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
                 max_evaluations, workers, nsga_update, pareto_update, 
