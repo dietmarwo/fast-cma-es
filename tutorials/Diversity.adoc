@@ -604,7 +604,10 @@ We perform 32 optimizations in parallel using the DE-population update (`nsga_up
 all decision variables as discrete (`ints = np.array([True]*dim)`). Finally we use numpys `savez_compressed`
 to store all results - not just the pareto front.
 
-Hypervolume is better than with the QD, but we get less alternatives to choose from. But MO-algorithms should
+Hypervolume is better than with the QD, but we get less alternatives to choose from. MO-fitness `problem.fun`
+returns the two objectives separately, together with the 54 constraints. We don't need to weight these as with the QD-algorithm, as the optimization algorithms takes care of them.
+
+But MO-algorithms should
 be less seen as competition, but as complement.
 
 ==== Join MO-algorithm results
