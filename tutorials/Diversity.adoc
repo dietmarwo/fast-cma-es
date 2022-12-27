@@ -14,6 +14,12 @@ image::logo.gif[]
 
 - Discusses how to apply QD-algorithms (Quality Diversity) to expensive simulations: Power plant, chemical reactions, stock trade, water management and car design/crash simulation.
 - Discusses how different configurations / solution-emitters may affect the result.
+- Shows how to "zoom in" into QD-archives and how to combine QD-algorithms with MO-algorithms.
+
+=== Remark
+
+If you just want to play around with QD-algorithms, there is a simple example
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/arm.py[arm.py], the simulation of a planar robot arm. Change the parameters / used algorithms to learn how they work.
 
 === Motivation
 
@@ -523,6 +529,105 @@ was slightly modified to be thread safe and to be accessible directly from Pytho
 is essential here, our AMD 5950 16 core CPU can perform around 8000 simulations per second utilizing
 32 parallel threads.
 
+==== Zooming into the QD-archive
+
+image::zoom1.png[]
+
+On the left side we see the QD-result after 200 million fitness evaluations (about 8 hours on a 16 core CPU)
+computed as follows:
+
+[source,python]
+----
+niche_num = 10000
+
+def nd_optimize():
+    problem = madzda_problem()
+    problem.qd_bounds = Bounds([2., -74], [3.5, 0])
+
+    opt_params0 = {'solver':'elites', 'popsize':128}
+    opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':200000, 'popsize':32, 'stall_criterion':3}
+    archive = diversifier.minimize(
+         mapelites.wrapper(problem.qd_fun, 2, problem.bounds, problem.qd_bounds,
+         opt_params=[opt_params0, opt_params1], max_evals=200000000, niche_num = niche_num)
+    archive.save("mazda1")
+----
+
+We used 100x100 niches and `qd_bounds = Bounds([2., -74], [3.5, 0])`. What if we now want to "zoom in"
+to a fraction of the QD-space we are interested in ? We need to load the archive, change the
+boundaries / number of niches, recompute fitness and behavior vectors and continue the computation:
+
+[source,python]
+----
+    niche_num = 160*160
+
+    problem = madzda_problem()
+    problem.qd_bounds = Bounds([2.5, -74], [3.0, -20]) # new qd bounds
+    # load old archive using old niche number
+    arch = mapelites.load_archive('mazda1', problem.bounds, problem.qd_bounds, 10000)
+    # extract solutions
+    xs = arch.get_xs()
+    # change archive capacity / number of niches
+    arch.capacity = niche_num
+    # reset archive / delete all existing solutions
+    arch.reset()
+    # change number samples per niche to avoid memory overflow
+    arch.init_niches(samples_per_niche = 12)
+    # recompute solutions - works even with changed QD-fitness
+    mapelites.update_archive(arch, xs, problem.qd_fun)
+    # continue QD-optimization
+    archive = diversifier.minimize(...,archive=arch,...)
+    archive.save("mazda2")
+----
+
+The result after some more hours of computation is shown in the right diagram. We greatly increased the number
+of good valid solutions for each number of shared part thicknesses. But the increased number of niches slows down the optimization, now we only can compute about 4500 fitness evaluations per second down from about 8000.
+
+Next let us compare what we get from applying a MO-algorithm:
+
+image::zoom2.png[]
+
+On the left we see the result after the same number of fitness evaluations - 200 million. Computation time is slightly lower since there is no QD-archive to be maintained, we get about 8800 evaluations per second.
+
+[source,python]
+----
+    fun = mode.wrapper(problem.fun, problem.nobj, store, plot=False)
+    x, y = modecpp.retry(fun,
+                         problem.nobj, problem.ncon, problem.bounds, popsize = 256,
+                         num_retries = 32, max_evaluations = 6250000, ints = np.array([True]*dim),
+                         nsga_update=False)
+    np.savez_compressed('mo_result', xs=x, ys=y)
+----
+
+We perform 32 optimizations in parallel using the DE-population update (`nsga_update=False`) and declare
+all decision variables as discrete (`ints = np.array([True]*dim)`). Finally we use numpys `savez_compressed`
+to store all results - not just the pareto front.
+
+Hypervolume is better than with the QD, but we get less alternatives to choose from. But MO-algorithms should
+be less seen as competition, but as complement.
+
+==== Join MO-algorithm results
+
+We can just join the MO-result into our QD-archive and continue with the QD-algorithm:
+
+[source,python]
+----
+with np.load('mo_result') as data:
+    xs2 =  np.array(data['xs']))
+    arch = mapelites.load_archive('mazda2', problem.bounds, problem.qd_bounds, niche_num)
+    # extract solutions
+    xs = arch.get_xs()
+    # reset archive / delete all existing solutions
+    arch.reset()
+    # recompute solutions - works even with changed QD-fitness
+    mapelites.update_archive(arch, list(xs) + list(xs2), problem.qd_fun)
+    # continue QD-optimization
+    archive = diversifier.minimize(...,archive=arch,...)
+    archive.save("mazda3")
+----
+
+The final result is shown in the right diagram above. If two machines are available, QD- and MO-optimization
+could be executed in parallel to save time.
+
 === Conclusion
 
 There is not much literature available describing the application of QD methods
@@ -531,7 +636,7 @@ to expensive simulations we can compare with, so our results are preliminary. Bu
 We found that:
 
 - https://arxiv.org/abs/2201.11422[CR-FM-NES] can beat CMA-ES for many problems if used as improvement emitter.
-- Mixing MAP-elites with a CR-FM-NES improvement emitter works very well in most cases and should be tried first.
+- Mixing MAP-elites with the CR-FM-NES improvement emitter works very well in most cases and should be tried first.
 - Sharing a QD archive between many parallel MAP-elites and improvement-emitter processes scales better than parallelizing the simulation itself.
 - fcmaes blocks the application of parallelization by the BLAS library to avoid the creation of too many threads. The simulation should be executed single threaded.
 - The default configuration provided by fcmaes works well, but the population size can be
@@ -540,3 +645,7 @@ adapted dependent on the number of fitness evaluations your budged allows. Highe
 borrowed from NSGA-II works better. You may try Iso+LineDD to further improve existing QD-archives.
 - Improvement emitters often are initialized with niche-elites. We found no
 problem where this worked better than random initialization, so we chose the latter.
+- MO-algorithms are no competition but complement QD-algorithms because they have different strengths and
+weaknesses. We can join MO-algorithm results into an existing QD-archive.
+- fcmaes allows to change the number of niches, the fitness function, behavior limits and other parameters
+before continuing the QD-optimization to "drill down" into interesting subareas of the behavior space.

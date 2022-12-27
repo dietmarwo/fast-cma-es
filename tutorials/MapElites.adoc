@@ -20,6 +20,11 @@ a huge number of local optima.
 maximal scaling with the number of parallel processes. 
 - Shows how CMA-ES can be used to enhance the optimization results or to improve existing solutions. 
 
+=== Remark
+
+If you just want to play around with QD-algorithms, there is a simple example
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/arm.py[arm.py], the simulation of a planar robot arm. Change the parameters / used algorithms to learn how they work.
+
 === Background
 
 Back in 2015 an influential book was published: https://dl.acm.org/doi/book/10.5555/2792412[Why Greatness Cannot Be Planned: The Myth of the Objective], https://engineeringideas.substack.com/p/review-of-why-greatness-cannot-be[review]. It inspired a flurry of research activities in the area of quality diversity (QD): See https://www.frontiersin.org/articles/10.3389/frobt.2016.00040/full[Overview QD], 
