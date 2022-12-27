@@ -627,7 +627,7 @@ with np.load('mo_result') as data:
     archive.save("mazda3")
 ----
 
-The final result is shown in the right diagram above. If two machines are available, QD- and MO-optimization
+The final result is shown at the right diagram above. If two machines are available, QD- and MO-optimization
 could be executed in parallel to save time.
 
 === Conclusion
