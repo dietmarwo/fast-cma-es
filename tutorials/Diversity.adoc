@@ -553,7 +553,7 @@ def nd_optimize():
 ----
 
 We used 100x100 niches and `qd_bounds = Bounds([2., -74], [3.5, 0])`. What if we now want to "zoom in"
-to a fraction of the QD-space we are interested in ? We need to load the archive, change the
+to a subarea of the QD-space we are interested in ? We need to load the archive, change the
 boundaries / number of niches, recompute fitness and behavior vectors and continue the computation:
 
 [source,python]
@@ -579,7 +579,7 @@ boundaries / number of niches, recompute fitness and behavior vectors and contin
     archive.save("mazda2")
 ----
 
-The result after some more hours of computation is shown in the right diagram. We greatly increased the number
+The result after some more hours of computation is shown at the right diagram. We greatly increased the number
 of good valid solutions for each number of shared part thicknesses. But the increased number of niches slows down the optimization, now we only can compute about 4500 fitness evaluations per second down from about 8000.
 
 Next let us compare what we get from applying a MO-algorithm:
