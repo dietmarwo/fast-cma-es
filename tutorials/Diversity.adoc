@@ -582,6 +582,8 @@ boundaries / number of niches, recompute fitness and behavior vectors and contin
 The result after some more hours of computation is shown at the right diagram. We greatly increased the number
 of good valid solutions for each number of shared part thicknesses. But the increased number of niches slows down the optimization, now we only can compute about 4500 fitness evaluations per second down from about 8000.
 
+==== Applying a MO-algorithm
+
 Next let us compare what we get from applying a MO-algorithm:
 
 image::zoom2.png[]
