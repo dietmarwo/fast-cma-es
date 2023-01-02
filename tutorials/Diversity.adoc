@@ -25,7 +25,7 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/examples/arm.py[arm.py], th
 
 In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[MapElites.adoc] we investigated
 QD (Quality-Diversity) optimizations from the perspective of an extremely hard optimization problem to check its
-limits. We found, that even for extremely rugged solution landscapes like https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/img/cass2.10Mb.png[Cassini2] QD methods are applicable if:
+limits. We found, that even for extremely rugged solution landscapes like https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/img/cassBestSun.png[Cassini2] QD methods are applicable if:
 
 - We fully exploit the parallelism provided by modern many-cores CPUs.
 - We integrate evolutionary algorithms like CMA-ES and CR-FM-NES with MAP-Elites.

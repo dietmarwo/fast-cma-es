@@ -73,23 +73,23 @@ The only things we can learn from the results are:
 
 You could try random solutions, which produces beautiful pictures like
 
-image::cass2.10Mb.png[]  
+image::cassSun1Gb.png[]
 
-if you use 10 millions of them. But even the best solutions found this way misses the global optimum
-by factor 3.5. 
+if you use a billion of them. But even the best solutions found this way misses the global optimum by factor 2.8. Even testing a billion random solutions
+doesn't help to identify "areas of opportunity" in the two-dimensional feature space - start time / time of flight. A QD-algorithm can produce a picture like
+
+image::cassBestSun.png[]
+
+where we clearly see we should start around day -800, and it makes no sense to fly shorter than 1900 and longer than 3500 days.
 
 ==== Planning Goal
 
-As a mission planner, what do we really want as the result of an optimization algorithm?
-
-Probably something like this:
+As a mission planner, what do we really want as the result of an optimization algorithm? Perhaps something like this:
 
 image::cassini_2.cma.png[]
 
-This diagram shows 2159 different solutions to the Cassini2 problem with a fitness value `<= 20` . 
-The fitness value of Cassini2 is proportional to the propellant/fuel requirements of the whole mission. 
-We can clearly see for which mission start day and overall mission time we have a valid planning alternative
-to chose from. Additionally, the global optimum around 8.4 is included, so although we computed all these
+This diagram above shows 2159 different solutions to the Cassini2 problem with a fitness value `<= 20`. The fitness value of Cassini2 is proportional to the propellant/fuel requirements of the whole mission.
+We can clearly see for which mission start day and overall mission time we have a valid planning alternative to chose from. Additionally, the global optimum around 8.4 is included, so although we computed all these
 alternatives we still were able to find the real absolute optimum. 
 
 Next we would like to have a "fast preview" looking like this:
