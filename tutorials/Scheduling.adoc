@@ -524,8 +524,9 @@ We configure the algorithm to use CVT-Map-Elites in parallel with a BiteOpt impr
 
 image::scheduling_nd.png[]
 
-The quality of the solutions is indicated by its color. We see no dark red solutions (near and above score 7000)
-for higher delta velocity values.
+The quality of the solutions is indicated by its color. We see no dark red solutions - near and above score 7000 - 
+below delta velocity values of 19. It seems that some delta velocity is required to increase the minimal asteroid mass
+arriving at the dyson station.
 
 The complete code is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/scheduling.py[scheduling.py].
 
