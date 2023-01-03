@@ -522,7 +522,7 @@ def nd_optimize():
 
 We configure the algorithm to use CVT-Map-Elites in parallel with a BiteOpt improvement emitter resulting in:
 
-image::scheduling_nd.png[].
+image::scheduling_nd.png[]
 
 The quality of the solutions is indicated by its color. We see no dark red solutions (near and above score 7000)
 for higher delta velocity values.
