@@ -366,7 +366,7 @@ def plot_archive(archive, problem):
                 print(score, min_mass, dv_val)
     ysp = np.array(ysp)
     print(len(ysp))
-    plot3d(ysp, "scheduling_nd", 'min mass', 'dv val', 'y')
+    plot3d(ysp, "scheduling_nd", 'min mass', 'dv val', 'score')
         
 def nd_optimize():
     problem = get_fitness()
@@ -375,8 +375,8 @@ def nd_optimize():
     niche_num = 10000  
     name = "scheduler_nd"
     arch = None
-    opt_params0 = {'solver':'elites', 'popsize':200, 'use':2}
-    opt_params1 = {'solver':'BITE_CPP', 'max_evals':500000, 'stall_criterion':3}
+    opt_params0 = {'solver':'elites', 'popsize':200}
+    opt_params1 = {'solver':'BITE_CPP', 'max_evals':1000000, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(problem.qd_fun, 2, interval=100000, save_interval=200000000), 
          problem.bounds, problem.qd_bounds, 
