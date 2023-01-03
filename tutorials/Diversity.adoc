@@ -106,9 +106,12 @@ Differences are:
 solution from the previous one. Helps with extremely rigged fitness landscapes.
 - Improvement emitters are initialized with a random solution instead of a niche elite. Seems to work better this way.
 
-fcmaes diversifier performs very well for QD Hyperparameter Optimization, although a direct comparison is difficult because fcmaes uses Voronoi tesselation where qdo_yahpo uses a grid.
+It is important being able to choose the algorithm used for the improvement emitter as supported by the diversifier meta algorithm. The problems discussed here work best either with the CR-FM-NES or the CMA-ES emitter, but in
+ttps://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[MapElites.adoc] (application of the fcmaes diversifier to a space mission design problem: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py]) it is a DE->CMA-ES sequence, and for
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling.adoc (section QD update)] it is BiteOpt. See also https://github.com/google/evojax/pull/52 where I created a PR for evojax
+introducing the same concept to the machine learning domain.
 
-See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[MapElites.adoc] which includes the application of the fcmaes diversifier to a space mission design problem: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py].
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[fcmaes diversifier] performs very well for QD Hyperparameter Optimization, although a direct comparison is difficult because fcmaes uses Voronoi tesselation where https://github.com/slds-lmu/qdo_yahpo[qdo_yahpo] uses a grid.
 
 If a surrogate model is available, as for
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/yahpo.py[yapoo.py],

@@ -23,7 +23,10 @@ maximal scaling with the number of parallel processes.
 === Remark
 
 If you just want to play around with QD-algorithms, there is a simple example
-https://github.com/dietmarwo/fast-cma-es/blob/master/examples/arm.py[arm.py], the simulation of a planar robot arm. Change the parameters / used algorithms to learn how they work.
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/arm.py[arm.py], the simulation of a planar robot arm. Change the parameters / used algorithms to learn how they work. Note that the problem discussed here is "special" because
+of the extreme "ruggedness" of the solution landscape. For other problems we
+recommend applying the https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[fcmaes diversifier] QD meta-algorithm, see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[Diversity.adoc].
+As we see below diversifier also works fine for the problem discussed here.
 
 === Background
 

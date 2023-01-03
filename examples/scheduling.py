@@ -102,7 +102,7 @@ class fitness(object): # the objective function
         self.nobj = 2
         self.ncon = 0
         
-    def __call__(self, x):     
+    def __call__(self, x): # single objective      
         # determine the minimal station mass
         min_mass, slot_mass = select(self.asteroid, self.station, self.trajectory, self.mass, 
                         self.transfer_start, self.transfer_time, x) 
@@ -127,7 +127,7 @@ class fitness(object): # the objective function
                         ))
         return y    
     
-    def fun(self, x):     
+    def fun(self, x): # multiple objectives      
         min_mass, slot_mass = select(self.asteroid, self.station, self.trajectory, self.mass, 
                         self.transfer_start, self.transfer_time, x) 
         sdv = select_dvs(self.trajectory_dv, x)
@@ -150,8 +150,31 @@ class fitness(object): # the objective function
                         str([round(mi,2) for mi in slot_mass*1E-15]),
                         str([round(di,2) for di in sdv])
                         ))
-        return ys   
-
+        return ys  
+    
+    def qd_fun(self, x): # quality diversity    
+        _, slot_mass = select(self.asteroid, self.station, self.trajectory, self.mass, 
+                        self.transfer_start, self.transfer_time, x) 
+        sdv = select_dvs(self.trajectory_dv, x)
+        _, dv_val = score_vals(np.amin(slot_mass), sdv)
+        sc = score(np.amin(slot_mass), sdv)
+        y = -sc
+        self.evals.value += 1
+        d = np.array([np.amin(slot_mass)*1E-15, dv_val])       
+        if y < self.best_y.value:
+            self.best_y.value = y     
+            trajectories = trajectory_selection(x, TRAJECTORY_NUM)[0] 
+            stations = dyson_stations(x, STATION_NUM) 
+            times = timings(x, STATION_NUM) 
+            logger().info("evals = {0}: time = {1:.1f} s = {2:.0f} a = {3:.0f} t = {4:s} s = {5:s} b = {6:s} m = {7:s} dv = {8:s}"
+                .format(self.evals.value, dtime(self.t0), -self.best_y.value, ast_num(x, self.asteroid, self.trajectory), 
+                        str([round(ti,2) for ti in times[1:-1]]), 
+                        str([int(si) for si in stations]),
+                        str([int(ti) for ti in trajectories]),
+                        str([round(mi,2) for mi in slot_mass*1E-15]),
+                        str([round(di,2) for di in sdv])
+                        ))
+        return y, d  
 
 def check_pymoo(dim, fit, lb, ub, is_MO):
 
@@ -230,13 +253,13 @@ def check_pymoo(dim, fit, lb, ub, is_MO):
 def check_de_update(dim, fit):
     fit.bounds.lb[:10] = 0 
     fit.bounds.ub[:10] = TRAJECTORY_NUM-1 # integer variables include upper bound 
-     # mixed integer multi objective optimization 'modecpp' multi threaded, DE population update
+    # mixed integer multi objective optimization 'modecpp' multi threaded, DE population update
     xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 128, 
                   max_evaluations = 3000000, nsga_update = False, 
                   logger = logger(), workers=16, 
                   ints=[True]*10+[False]*(dim-10))
 
-def optimize():    
+def get_fitness():
     name = 'tsin3000.60' # 60 trajectories to choose from
     # name = 'tsin3000.10' # 10 fixed trajectories
     transfers = pd.read_csv('data/' + name + '.xz', sep=' ', usecols=[1,2,3,4,5,6,7], compression='xz',
@@ -260,6 +283,10 @@ def optimize():
     
     fit = fitness(transfers)
     fit.bounds = bounds
+    return fit
+
+def optimize():        
+    fit = get_fitness()
     
     # check_pymoo(dim, fit, lower_bound, upper_bound, False)
     # check_de_update(dim, fit)
@@ -303,6 +330,62 @@ def optimize():
     # scipy differential evolution single threaded
     # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
     # retry.retry(store, Differential_evolution(1000000).minimize, num_retries=320, workers=1)    
+
+# quality diversity
+
+from fcmaes import diversifier, mapelites
+
+def plot3d(ys, name, xlabel='', ylabel='', zlabel=''):
+    import matplotlib.pyplot as plt
+    x = ys[:, 0]; y = ys[:, 1]; z = ys[:, 2]
+    fig = plt.figure()
+    ax = fig.add_subplot()     
+    img = ax.scatter(x, y, s=4, c=z, cmap='rainbow')
+    cbar = fig.colorbar(img)
+    plt.xlabel(xlabel)    
+    plt.ylabel(ylabel)
+    cbar.set_label(zlabel)
+    fig.set_figheight(8)
+    fig.set_figwidth(8)
+    fig.savefig(name, dpi=300)
+
+def plot_archive(archive, problem):   
+    si = archive.argsort()
+    ys = archive.get_ys()[si]
+    xs = archive.get_xs()[si]
+    ds = archive.get_ds()[si]
+    ysp = []
+    si = np.argsort(ys)
+    for i in range(len(si)):
+        if ys[i] < np.inf: # throw out invalid
+            min_mass = ds[i][0]
+            dv_val = ds[i][1]
+            score = problem.score(xs[i])          
+            ysp.append([min_mass, dv_val, score])
+            if score > 5000:
+                print(score, min_mass, dv_val)
+    ysp = np.array(ysp)
+    print(len(ysp))
+    plot3d(ysp, "scheduling_nd", 'min mass', 'dv val', 'y')
+        
+def nd_optimize():
+    problem = get_fitness()
+    problem.qd_dim = 2
+    problem.qd_bounds = Bounds([1.0,15],[2.2,24])
+    niche_num = 10000  
+    name = "scheduler_nd"
+    arch = None
+    opt_params0 = {'solver':'elites', 'popsize':200, 'use':2}
+    opt_params1 = {'solver':'BITE_CPP', 'max_evals':500000, 'stall_criterion':3}
+    archive = diversifier.minimize(
+         mapelites.wrapper(problem.qd_fun, 2, interval=100000, save_interval=200000000), 
+         problem.bounds, problem.qd_bounds, 
+         workers = 32, opt_params=[opt_params0, opt_params1], 
+         max_evals=100000000, archive = arch,
+         niche_num = niche_num, samples_per_niche = 20)   
+    print('final archive:', archive.info())
+    archive.save(name)
+    plot_archive(archive, problem)
 
 # utility functions
 
@@ -389,7 +472,8 @@ def ast_num(x, asteroid, trajectory):
     return np.sum(asts)    
 
 def main():
-   optimize()
+    #optimize()
+    nd_optimize()
     
 if __name__ == '__main__':
     main()

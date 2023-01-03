@@ -476,6 +476,59 @@ masses as minimal mass and the sum of the delta velocities of the trajectory for
 motherships. This somehow represents an upper limit of the score a scheduling algorithm 
 can achieve.
 
+==== QD update
+
+Recently QD-algorithms were added to fcmaes. They provide excellent means to answer the question
+from Dario Izzo about the optimal delta velocity. First we have to define a QD-fitness function which
+returns beside the score a "behavior vector" `d` used to increase diversity. In this case we simply can
+choose values representing minimal mass and delta velocity.
+
+[source,python]
+----
+   def qd_fun(self, x): # quality diversity
+        _, slot_mass = select(self.asteroid, self.station, self.trajectory, self.mass,
+                        self.transfer_start, self.transfer_time, x)
+        sdv = select_dvs(self.trajectory_dv, x)
+        _, dv_val = score_vals(np.amin(slot_mass), sdv)
+        sc = score(np.amin(slot_mass), sdv)
+        y = -sc
+        self.evals.value += 1
+        d = np.array([np.amin(slot_mass)*1E-15, dv_val])
+        return y, d
+----
+
+Now we apply the https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[fcmaes diversifier] QD meta- algorithm and plot the resulting QD-archive representing a diverse set of solutions associated to different minimal
+mass and delta velocity values:
+
+[source,python]
+----
+def nd_optimize():
+    problem = get_fitness()
+    problem.qd_dim = 2
+    problem.qd_bounds = Bounds([1.0,15],[2.2,24])
+    niche_num = 10000
+    name = "scheduler_nd"
+    opt_params0 = {'solver':'elites', 'popsize':200, 'use':2}
+    opt_params1 = {'solver':'BITE_CPP', 'max_evals':500000, 'stall_criterion':3}
+    archive = diversifier.minimize(
+         mapelites.wrapper(problem.qd_fun, 2, interval=100000, save_interval=200000000),
+         problem.bounds, problem.qd_bounds,
+         workers = 32, opt_params=[opt_params0, opt_params1],
+         max_evals=100000000, archive = None,
+         niche_num = niche_num, samples_per_niche = 20)
+    print('final archive:', archive.info())
+    archive.save(name)
+----
+
+We configure the algorithm to use CVT-Map-Elites in parallel with a BiteOpt improvement emitter resulting in:
+
+image::scheduling_nd.png[].
+
+The quality of the solutions is indicated by its color. We see no dark red solutions (near and above score 7000)
+for higher delta velocity values. 
+
+The complete code is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/scheduling.py[scheduling.py].
+
 === How to use this algorithm to produce a GTOC11 solution
 
 The scheduling algorithm presented here is only one step required to produce a valid GTOC11
