@@ -176,6 +176,12 @@ class fitness(object): # the objective function
                         ))
         return y, d  
 
+    def score(self, x):     
+        _, slot_mass = select(self.asteroid, self.station, self.trajectory, self.mass, 
+                        self.transfer_start, self.transfer_time, x)
+        sdv = select_dvs(self.trajectory_dv, x) 
+        return score(np.amin(slot_mass), sdv)
+    
 def check_pymoo(dim, fit, lb, ub, is_MO):
 
     from pymoo.core.problem import ElementwiseProblem 
@@ -375,17 +381,18 @@ def nd_optimize():
     niche_num = 10000  
     name = "scheduler_nd"
     arch = None
+    # mapelites.load_archive('scheduler_nd', problem.bounds, problem.qd_bounds, niche_num) 
     opt_params0 = {'solver':'elites', 'popsize':200}
     opt_params1 = {'solver':'BITE_CPP', 'max_evals':1000000, 'stall_criterion':3}
-    archive = diversifier.minimize(
+    arch = diversifier.minimize(
          mapelites.wrapper(problem.qd_fun, 2, interval=100000, save_interval=200000000), 
          problem.bounds, problem.qd_bounds, 
          workers = 32, opt_params=[opt_params0, opt_params1], 
          max_evals=100000000, archive = arch,
          niche_num = niche_num, samples_per_niche = 20)   
-    print('final archive:', archive.info())
-    archive.save(name)
-    plot_archive(archive, problem)
+    print('final archive:', arch.info())
+    arch.save(name)
+    plot_archive(arch, problem)
 
 # utility functions
 
