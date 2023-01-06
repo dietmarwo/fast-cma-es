@@ -494,7 +494,7 @@ def _dv_mga(pl1, pl2, tof, max_revs, rvt_outs, rvt_ins, rvt_pls, dvs, lps=None):
     rvt_outs.append(rvt_out)
     rvt_in = rvt(r2, lp.get_v2()[0], rvt_pl._t + tof, rvt_pl._mu)
     rvt_ins.append(rvt_in)
-    vr_in = [a - b for a, b in zip(v_in, vpl)]
+    vr_in = [a - b for a, b in zip(vpl, v_in)]
     vr_out = [a - b for a, b in zip(v_out, vpl)]
     dv = fb_vel(vr_in, vr_out, pl1)
     dvs.append(dv)
