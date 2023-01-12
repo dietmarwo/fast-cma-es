@@ -1,8 +1,7 @@
 import math
 
 from pykep.core import epoch, fb_prop, SEC2DAY
-from pykep.trajopt import _resonance
-from pykep.trajopt._rvt import rvt
+from kepler.rvt import rvt
       
 class resonance:    
     """
@@ -19,40 +18,40 @@ class resonance:
             - rvt_pl: (``rvt``): planet orbit.
             - resonances (``list`` of ``int``): resonance options. 
         """
-        assert rvt_in._t == rvt_pl._t # timing must be consistent
+        assert rvt_in.t == rvt_pl.t # timing must be consistent
         
-        self._planet = planet
-        self._rvt_in = rvt_in
-        self._rvt_pl = rvt_pl       
-        self._time = rvt_in._t
-        self._resonances = resonances
-        self._period = planet.compute_period(epoch(self._time * SEC2DAY))
-        self._mu = planet.mu_self
-        self._timing_error = -1
-        self._rvt_out = None
-        self._resonance = None
+        self.planet = planet
+        self.rvt_in = rvt_in
+        self.rvt_pl = rvt_pl       
+        self.time = rvt_in.t
+        self.resonances = resonances
+        self.period = planet.compute_period(epoch(self.time * SEC2DAY))
+        self.mu = planet.mu_self
+        self.timing_error = -1
+        self.rvt_out = None
+        self.resonance = None
  
     # useful for debugging
     def __str__(self):
-        return str(_resonance) + " " + str(self._timing_error * SEC2DAY) + " " + str(self._rvt_out)
+        return str(_resonance) + " " + str(self.timing_error * SEC2DAY) + " " + str(self.rvt_out)
     
     # select a resonance option minimizing the timing error  
     def select_resonance(self, beta, safe_distance):
-        v_out = fb_prop(self._rvt_in._v, self._rvt_pl._v, 
-                        self._planet.radius + safe_distance, beta, self._mu)
-        self._rvt_out = rvt(self._rvt_in._r, v_out, self._time, self._rvt_in._mu)
-        period = self._rvt_out.period()
-        self._timing_error = np.inf
-        for resonance in self._resonances:
-            target = self._period * resonance[1] / resonance[0];
+        v_out = fb_prop(self.rvt_in.v, self.rvt_pl.v, 
+                        self.planet.radius + safe_distance, beta, self.mu)
+        self.rvt_out = rvt(self.rvt_in.r, v_out, self.time, self.rvt_in.mu)
+        period = self.rvt_out.period()
+        self.timing_error = math.inf
+        for resonance in self.resonances:
+            target = self.period * resonance[1] / resonance[0];
             dt = abs(period - target)
-            if dt < self._timing_error:
-                self._resonance = resonance
-                self._timing_error = dt
-        return self._timing_error, self._resonance
+            if dt < self.timing_error:
+                self.resonance = resonance
+                self.timing_error = dt
+        return self.timing_error, self.resonance
     
     # time of flight of the resonance transfer
     def tof(self):
-        if self._resonance is None:
+        if self.resonance is None:
             raise Exception('_resonance is None')
-        return self._resonance[1] * self._period
+        return self.resonance[1] * self.period

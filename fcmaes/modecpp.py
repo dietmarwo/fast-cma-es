@@ -480,9 +480,9 @@ class MODE_C:
         evals = 0
         stop = 0
         while stop == 0 and evals < max_evaluations:
-            xs = es.ask()
+            xs = self.ask()
             ys = fit(xs)
-            stop = es.tell(ys)
+            stop = self.tell(ys)
             evals += self.popsize
         fit.stop()
         return xs, ys

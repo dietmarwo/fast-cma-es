@@ -124,13 +124,16 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
     return archive
 
 def apply_advretry(fitness: Callable[[ArrayLike], float], 
-                   descriptors: Callable[[ArrayLike], np.ndarray], 
+                   qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]], 
                    bounds: Bounds, 
                    archive: Archive, 
                    optimizer: Optional[Optimizer] = None, 
                    num_retries: Optional[int] = 1000, 
                    workers: Optional[int] = mp.cpu_count(),
                    max_eval_fac: Optional[float] = 5.0,
+                   xs: Optional[np.ndarray] = None,
+                   ys: Optional[np.ndarray] = None,
+                   x_conv: Callable[[ArrayLike], ArrayLike] = None,
                    logger: Optional[logging.Logger] = logger()):
         
     """Unifies the QD world with traditional optimization. It converts
@@ -146,7 +149,7 @@ def apply_advretry(fitness: Callable[[ArrayLike], float],
     fitness : callable
         The objective function to be minimized. Returns a fitness value. 
             ``fitness(x) -> float``
-    descriptors : callable
+    qf_fun : callable
         Generates the descriptors for a solution. Returns a behavior vector. 
             ``descriptors(x) -> array``
         where ``x`` is an 1-D array with shape (n,)
@@ -162,6 +165,14 @@ def apply_advretry(fitness: Callable[[ArrayLike], float],
         Number of spawned parallel worker processes.
     max_eval_fac : int, optional
         Final limit of the number of function evaluations = max_eval_fac*min_evaluations  
+    xs : ndarray, optional
+        Used to initialize advretry. If undefined the archive content is used. 
+        If xs is defined, ys must be too
+    ys : ndarray, optional
+        Used to initialize advretry. If undefined the archive content is used.  
+    x_conv : callable, optional
+        If defined converts the x in xs to solutions suitable for the given archive.
+        If undefined it is assumed that the x in xs are valid archive solutons.   
     logger : logger, optional
         logger for log output of the retry mechanism. If None, logging
         is switched off. Default is a logger which logs both to stdout and
@@ -174,20 +185,24 @@ def apply_advretry(fitness: Callable[[ArrayLike], float],
                            max_eval_fac=max_eval_fac, logger=logger)  
                          
     # select only occupied entries
-    ys = archive.get_ys()    
-    valid = (ys < np.inf)
-    ys = ys[valid]
-    xs = archive.get_xs()[valid]
+    if xs is None:
+        ys = archive.get_ys()    
+        valid = (ys < np.inf)
+        ys = ys[valid]
+        xs = archive.get_xs()[valid]
     t0 = perf_counter() 
     # transfer to advretry store
     for i in range(len(ys)):
-        store.add_result(ys[i], xs[i], 0)
+        store.add_result(ys[i], xs[i], 1)
     # perform parallel retry
     advretry.retry(store, optimizer.minimize, workers=workers)
-    # transfer back to archive
-    ys = store.get_ys()    
+    # transfer back to archive 
     xs = store.get_xs()
-    descs = [descriptors(x) for x in xs] # may involve reevaluating fitness
+    if not x_conv is None:
+        xs = [x_conv(x) for x in xs]
+    yds = [qd_fitness(x) for x in xs]
+    descs = np.array([yd[1] for yd in yds])
+    ys = np.array([yd[0] for yd in yds])
     niches = archive.index_of_niches(descs)
     for i in range(len(ys)):
         archive.set(niches[i], (ys[i], descs[i]), xs[i])

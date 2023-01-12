@@ -34,8 +34,8 @@ class solo_mgar_udp:
 
     def __init__(
         self,
-        t0_limits=[7000, 8000],
-        tof_limits=[[50, 420], [50, 400], [50, 400]],
+        t0=[7000, 8000],
+        tof=[[50, 420], [50, 400], [50, 400]],
         max_revs: int=2,
         resonances=
             [[[1, 1], [5, 4], [4, 3]],
@@ -50,8 +50,8 @@ class solo_mgar_udp:
     ):
         """
         Args:
-            - t0_limits (``list`` of ``float``): start time bounds. 
-            - tof_limits (``list`` of ``list`` of ``float``): time of flight bounds. 
+            - t0 (``list`` of ``float``): start time bounds. 
+            - tof (``list`` of ``list`` of ``float``): time of flight bounds. 
             - max_revs (``int``): maximal number of revolutions for Lambert transfer.
             - resonances (``list`` of ``list`` of ``int``): resonance options. 
             - safe_distance: (``float``): safe distance from planet at GA maneuver in m.
@@ -73,8 +73,8 @@ class solo_mgar_udp:
         assert len(self._seq) - 4 == len(resonances) # one resonance option selection for each VV sequence
 
         self._resonances = resonances
-        self._t0 = t0_limits
-        self._tof = tof_limits
+        self._t0 = t0
+        self._tof = tof
         self._max_revs = max_revs       
 
         self._n_legs = len(self._seq) - 1
@@ -157,7 +157,7 @@ class solo_mgar_udp:
             orb = rvt_outs[i]
             tof = orb.tof(rvt_ins[i + 1])
             transfer_a, transfer_e, _, _, _, _ = orb.kepler()
-            transfer_period = 2 * pi * sqrt(transfer_a ** 3 / orb._mu)
+            transfer_period = 2 * pi * sqrt(transfer_a ** 3 / orb.mu)
             perhelion = transfer_a * (1 - transfer_e)
             # update min and max sun distance
             if i >= len(rvt_outs) - 3:
@@ -167,7 +167,7 @@ class solo_mgar_udp:
                 max_sun_distance = max(max_sun_distance, transfer_a * (1 + transfer_e))
                     
         # overall time limit
-        time_all = SEC2DAY * (rvt_ins[-1]._t - rvt_outs[0]._t)
+        time_all = SEC2DAY * (rvt_ins[-1].t - rvt_outs[0].t)
         time_val = time_all
         time_limit = self._max_mission_time  # 11 years
         if time_val > time_limit:
@@ -225,7 +225,7 @@ class solo_mgar_udp:
             orb = rvt_outs[i]
             tof = orb.tof(rvt_ins[i + 1])
             transfer_a, transfer_e, _, _, _, _ = orb.kepler()
-            transfer_period = 2 * pi * sqrt(transfer_a ** 3 / orb._mu)
+            transfer_period = 2 * pi * sqrt(transfer_a ** 3 / orb.mu)
             perhelion = transfer_a * (1 - transfer_e)
             if i >= len(rvt_outs) - 3:
                 emp_perhelion = min(emp_perhelion, perhelion)
@@ -233,7 +233,7 @@ class solo_mgar_udp:
             if tof > transfer_period:
                 max_sun_distance = max(max_sun_distance, transfer_a * (1 + transfer_e))
 
-        time_all = SEC2DAY * (rvt_ins[-1]._t - rvt_outs[0]._t)
+        time_all = SEC2DAY * (rvt_ins[-1].t - rvt_outs[0].t)
         time_val = time_all
         time_limit = self._max_mission_time  # 11 years
         if time_val > time_limit:
@@ -313,16 +313,16 @@ class solo_mgar_udp:
         rvt_ins[1:] = [rvt.rotate(self._rotation_axis, self._theta) for rvt in rvt_ins[1:]]
         rvt_pls = [rvt.rotate(self._rotation_axis, self._theta) for rvt in rvt_pls]
             
-        ep = [epoch(rvt_pl._t * SEC2DAY) for rvt_pl in rvt_pls]
-        b_legs = [[rvt_out._r, rvt_out._v] for rvt_out in rvt_outs]
+        ep = [epoch(rvt_pl.t * SEC2DAY) for rvt_pl in rvt_pls]
+        b_legs = [[rvt_out.r, rvt_out.v] for rvt_out in rvt_outs]
         Vinfx, Vinfy, Vinfz = [
             a - b for a, b in zip(b_legs[0][1], self._seq[0].eph(ep[0])[1])
         ]
-        common_mu = rvt_outs[0]._mu
+        common_mu = rvt_outs[0].mu
       
         lambert_indices = [lam.best_i for lam in lambert_legs]
         
-        transfer_ang = _angle(rvt_outs[0]._r, rvt_outs[1]._r)
+        transfer_ang = _angle(rvt_outs[0].r, rvt_outs[1].r)
   
         print("Multiple Gravity Assist (MGA) + Resonance problem: ")
         print("Planet sequence: ", [pl.name for pl in self._seq])
@@ -347,11 +347,11 @@ class solo_mgar_udp:
             rtv_in = rvt_ins[i]
             rtv_out = rvt_outs[i]
             rtv_pl = rvt_pls[i]
-            vr_in = [a - b for a, b in zip(rtv_in._v, rtv_pl._v)]
-            vr_out = [a - b for a, b in zip(rtv_out._v, rtv_pl._v)]
+            vr_in = [a - b for a, b in zip(rtv_in.v, rtv_pl.v)]
+            vr_out = [a - b for a, b in zip(rtv_out.v, rtv_pl.v)]
             v_inf = np.linalg.norm(vr_out)
             deflection = _angle(vr_in, vr_out)
-            transfer_ang = _angle(rtv_out._r, rvt_outs[i + 1]._r) if i < len(self._seq) - 2 else 0 
+            transfer_ang = _angle(rtv_out.r, rvt_outs[i + 1].r) if i < len(self._seq) - 2 else 0 
             print("Fly-by: ", pl.name)
             print("\tEpoch: ", e, " [mjd2000]")
             print("\tDV: ", dv, "[m/s]")
@@ -367,13 +367,13 @@ class solo_mgar_udp:
                 print("\tLambert Index:", str(lambert_indices[lambert_i]))
                 lambert_i += 1
             else:  # resonance at Venus
-                print("\tResonance:", str(resos[reso_i]._resonance))
+                print("\tResonance:", str(resos[reso_i].resonance))
                 print("\tResonance time error:", str(resos[reso_i]._timing_error) + " sec")
                 reso_i += 1
                
         print("Final Fly-by: ", self._seq[-1].name)
         print("\tEpoch: ", ep[-1], " [mjd2000]")
-        print("\tSpacecraft velocity: ", rvt_outs[-1]._v, "[m/s]")
+        print("\tSpacecraft velocity: ", rvt_outs[-1].v, "[m/s]")
         print("\tBeta: ", x[-1])
         print("\tr_p: ", self._seq[-1].radius + self._safe_distance)
 
@@ -382,7 +382,7 @@ class solo_mgar_udp:
         print("Perihelion: ", (a * (1 - e)) / AU, " AU")
         print("Aphelion: ", (a * (1 + e)) / AU, " AU")
         print("Inclination: ", i * RAD2DEG, " degrees")
-        T = [SEC2DAY * (rvt_outs[i + 1]._t - rvt_outs[i]._t) for i in range(len(rvt_outs) - 1)]
+        T = [SEC2DAY * (rvt_outs[i + 1].t - rvt_outs[i].t) for i in range(len(rvt_outs) - 1)]
         print("Time of flights: ", T, "[days]")
         
     def plot(self, x, axes=None, units=AU, N=60):
@@ -395,7 +395,7 @@ class solo_mgar_udp:
         rvt_ins[1:] = [rvt.rotate(self._rotation_axis, self._theta) for rvt in rvt_ins[1:]]
         rvt_pls = [rvt.rotate(self._rotation_axis, self._theta) for rvt in rvt_pls]
           
-        ep = [epoch(rvt_pl._t * SEC2DAY) for rvt_pl in rvt_pls]
+        ep = [epoch(rvt_pl.t * SEC2DAY) for rvt_pl in rvt_pls]
  
         # Creating the axes if necessary
         if axes is None:
@@ -416,7 +416,7 @@ class solo_mgar_udp:
             # stay at planet: it is a resonance colored black
             is_reso = pl == self._seq[i + 1]
             rvt_out = rvt_outs[i]
-            tof = rvt_ins[i + 1]._t - rvt_out._t
+            tof = rvt_ins[i + 1].t - rvt_out.t
             rvt_out.plot(tof,
                 units=units,
                 N=4 * N,
@@ -427,16 +427,16 @@ class solo_mgar_udp:
     def eph(self, rvts, t):
         for i in range(0, len(rvts)):
             orb = rvts[i]
-            if i == len(rvts) - 1 or rvts[i + 1]._t > t:
-                tof = t - orb._t
+            if i == len(rvts) - 1 or rvts[i + 1].t > t:
+                tof = t - orb.t
                 orb = orb.propagate_lagrangian(tof)
-                return orb._r, orb._v
+                return orb.r, orb.v
                 
     def plot_distance_and_flybys(self, x, axes=None, N=1200, extension=0):
         import matplotlib.pyplot as plt
         rvt_outs, rvt_ins, rvt_pls, _, _ = self._compute_dvs(x)              
-        ep = [rvt_pl._t * SEC2DAY for rvt_pl in rvt_pls]
-        T = [SEC2DAY * (rvt_ins[i + 1]._t - rvt_outs[i]._t) for i in range(len(rvt_outs))]
+        ep = [rvt_pl.t * SEC2DAY for rvt_pl in rvt_pls]
+        T = [SEC2DAY * (rvt_ins[i + 1].t - rvt_outs[i].t) for i in range(len(rvt_outs))]
         timeframe = np.linspace(0, sum(T) + extension, N)            
         earth = self._seq[0]
         venus = self._seq[-1]
@@ -479,20 +479,20 @@ class solo_mgar_udp:
 # propagate rvt_outs, rvt_ins, rvt_pls, dvs using MGA / Lambert
 def _dv_mga(pl1, pl2, tof, max_revs, rvt_outs, rvt_ins, rvt_pls, dvs, lps=None):
     rvt_pl = rvt_pls[-1]  # current planet
-    v_in = rvt_pl._v if rvt_ins[-1] is None else rvt_ins[-1]._v
-    rvt_pl2 = rvt_planet(pl2, rvt_pl._t + tof)        
+    v_in = rvt_pl.v if rvt_ins[-1] is None else rvt_ins[-1].v
+    rvt_pl2 = rvt_planet(pl2, rvt_pl.t + tof)        
     rvt_pls.append(rvt_pl2)
-    r = rvt_pl._r
-    vpl = rvt_pl._v
-    r2 = rvt_pl2._r
-    lp = lambert_problem(r, r2, tof, rvt_pl._mu, False, max_revs)
+    r = rvt_pl.r
+    vpl = rvt_pl.v
+    r2 = rvt_pl2.r
+    lp = lambert_problem(r, r2, tof, rvt_pl.mu, False, max_revs)
     lp = lambert_problem_multirev_ga(v_in, lp, pl1, vpl)
     if not lps is None:
         lps.append(lp)
     v_out = lp.get_v1()[0]
-    rvt_out = rvt(r, v_out, rvt_pl._t, rvt_pl._mu)
+    rvt_out = rvt(r, v_out, rvt_pl.t, rvt_pl.mu)
     rvt_outs.append(rvt_out)
-    rvt_in = rvt(r2, lp.get_v2()[0], rvt_pl._t + tof, rvt_pl._mu)
+    rvt_in = rvt(r2, lp.get_v2()[0], rvt_pl.t + tof, rvt_pl.mu)
     rvt_ins.append(rvt_in)
     vr_in = [a - b for a, b in zip(vpl, v_in)]
     vr_out = [a - b for a, b in zip(v_out, vpl)]
@@ -511,12 +511,12 @@ def compute_resonance(pl, resonances, beta, safe_distance, used_resos, reso_dts,
         resos.append(reso)
     used_resos.append(used_reso)
     reso_dts.append(reso_dt)
-    rvt_outs.append(reso._rvt_out)
+    rvt_outs.append(reso.rvt_out)
     tof = reso.tof()
-    time2 = reso._time + tof
+    time2 = reso.time + tof
     rvt_pl2 = rvt_planet(pl, time2)
     rvt_pls.append(rvt_pl2) 
-    rvt_in2 = rvt(rvt_pl2._r, reso._rvt_out._v, time2, rvt_pl2._mu)  # its a resonance, we arrive with same v as we started
+    rvt_in2 = rvt(rvt_pl2.r, reso.rvt_out.v, time2, rvt_pl2.mu)  # its a resonance, we arrive with same v as we started
     rvt_ins.append(rvt_in2)
     dvs.append(0)  # # its a resonance, we don't need an impulse
 

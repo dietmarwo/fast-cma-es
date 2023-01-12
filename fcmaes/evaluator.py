@@ -227,7 +227,7 @@ class callback(object):
     
     def __call__(self, n: int, x: ArrayLike) -> float:
         try:
-            fit = self.fun(np.array(np.fromiter((x[i] for i in range(n)), dtype=float)))
+            fit = self.fun(np.fromiter((x[i] for i in range(n)), dtype=float))
             return fit if math.isfinite(fit) else sys.float_info.max
         except Exception as ex:
             return sys.float_info.max

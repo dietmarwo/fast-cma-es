@@ -7,4 +7,5 @@ __all__ = [
     'lambert',
     'resonance',
     'rvt',
+    'kepler',
 ]

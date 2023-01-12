@@ -110,7 +110,7 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
         Parameters for the CMA-ES emitter.
     logger : logger, optional
         logger for log output of the retry mechanism. If None, logging
-        is switched off. Default is a logger which logs both to stdout and
+        is switched off. Default is a logger which logs both t -> Archive:o stdout and
         appends to a file ``optimizer.log``.
     use_stats : bool, optional 
         If True, archive accumulates statistics of the solutions
@@ -138,11 +138,40 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
                      f'mean {np.mean(ys):.3f} stdev {np.std(ys):.3f} time {dtime(t0)} s')
     return archive
 
+def empty_archive(dim: int, 
+                  qd_bounds: Bounds, 
+                  niche_num: int, 
+                  samples_per_niche: int, 
+                  use_stats: Optional[bool] = False) -> Archive:
+    
+    """Creates an empty archive.
+     
+    Parameters
+    ----------
+    archive: Archive
+    qd_bounds : `Bounds`
+        Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.        
+    niche_num : int, optional
+        Number of niches.
+    samples_per_niche : int, optional
+        Number of samples used for niche computation.             
+    use_stats : bool, optional 
+        If True, archive accumulates statistics of the solutions
+                 
+    Returns
+    -------
+    archive : Archive
+        Empty archive of niches."""
+
+    archive = Archive(dim, qd_bounds, niche_num, use_stats)
+    archive.init_niches(samples_per_niche)
+    return archive
+
 def set_KDTree(archive: Archive,
                         centers:Optional[np.ndarray] = None, 
                         niche_num: Optional[int]  = None, 
                         qd_bounds: Optional[Bounds] = None, 
-                        samples_per_niche: Optional[int] = 100):   
+                        samples_per_niche: Optional[int] = 20):   
     
     """Returns a function deciding niche membership.
      
@@ -277,8 +306,8 @@ def update_archive(archive: Archive, xs: np.ndarray,
     descs = np.array([yd[1] for yd in yds])
     niches = archive.index_of_niches(descs)
     # real values
-    ys = np.array(np.fromiter((yd[0] for yd in yds), dtype=float))
-    oldys = np.array(np.fromiter((archive.get_y(niches[i]) for i in range(popsize)), dtype=float))
+    ys = np.fromiter((yd[0] for yd in yds), dtype=float)
+    oldys = np.fromiter((archive.get_y(niches[i]) for i in range(popsize)), dtype=float)
     improvement = ys - oldys
     neg = np.argwhere(improvement < 0)
     if len(neg) > 0:
@@ -310,9 +339,9 @@ class Archive(object):
         """Creates an empty archive."""
         self.dim = dim
         self.qd_dim = len(qd_bounds.lb)
-        self.qd_bounds = qd_bounds
-        self.desc_lb = qd_bounds.lb
-        self.desc_scale = qd_bounds.ub - qd_bounds.lb
+        self.qd_bounds = Bounds(np.array(qd_bounds.lb), np.array(qd_bounds.ub))
+        self.desc_lb = self.qd_bounds.lb
+        self.desc_scale = self.qd_bounds.ub - self.qd_bounds.lb
         self.capacity = capacity
         self.name = name
         self.cs = None
@@ -551,7 +580,7 @@ class Archive(object):
     def random_xs(self, best_n: int, chunk_size: int, rg: Generator) -> np.ndarray:
         selection = rg.integers(0, best_n, chunk_size)
         if best_n < self.capacity: 
-            selection = np.array(np.fromiter((self.si[i] for i in selection), dtype=int))
+            selection = np.fromiter((self.si[i] for i in selection), dtype=int)
         return self.get_xs()[selection]
     
     def random_xs_one(self, best_n: int, rg: Generator) -> Tuple[np.ndarray, float, int]:

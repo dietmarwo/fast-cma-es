@@ -435,7 +435,7 @@ class Store(object):
         vals = []
         for i in range(min(20, len(Ys))):
             vals.append(round(Ys[i],2))     
-        dt = dtime(self.t0)            
+        dt = dtime(self.t0)+.000001            
         message = '{0} {1} {2} {3} {4:.6f} {5:.2f} {6} {7} {8!s} {9!s}'.format(
             dt, int(self.count_evals.value / dt), self.count_runs.value, self.count_evals.value, 
             self.best_y.value, self.worst_y.value, self.num_stored.value, int(self.eval_fac.value), 

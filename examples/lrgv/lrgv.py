@@ -136,7 +136,7 @@ def check_pymoo(index):
     plt.scatter(X[:, 0], X[:, 1], s=30, facecolors='none', edgecolors='r')
     plt.figure(figsize=(7, 5))
     plt.scatter(F[:, 0], F[:, 1], s=30, facecolors='none', edgecolors='blue')
-    plt.titl10000e("Objective Space")
+    plt.title("Objective Space")
     #plt.show()
     plt.savefig('NSGSII256-objective-space'+ str(index) + '.png')
     plt.clf() 
@@ -201,10 +201,12 @@ def optimize_qd():
 
     problem = lrgv()
     problem.qd_dim = 5
-    problem.qd_bounds = Bounds([0.85E7, -1, 10000, 0, 0], [1.4E7, -0.985, 65000, 65000, 10]) 
+    problem.qd_bounds = Bounds(np.array([0.85E7, -1, 10000, 0, 0]), 
+                               np.array([1.4E7, -0.985, 65000, 65000, 10])) 
     name = 'lrgv_qd'
     opt_params0 = {'solver':'elites', 'popsize':32}
     opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':400, 'popsize':16, 'stall_criterion':3}
+    #opt_params1 = {'solver':'CMA_CPP', 'max_evals':400, 'popsize':16, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(problem.qd_fitness, problem.qd_dim, interval=1000, save_interval=200000), 
          problem.bounds, problem.qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=400000)

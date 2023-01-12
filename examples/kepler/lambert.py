@@ -18,7 +18,7 @@ class lambert_problem_multirev:
         best_i = 0        
         n = len(lambert_problem.get_v1())
         if n > 0: 
-            best_dv = np.inf
+            best_dv = math.inf
             for i in range(n):
                 dv = np.linalg.norm([a - b for a, b in zip(lambert_problem.get_v1()[i], v_in)])
                 if dv < best_dv:
@@ -68,7 +68,7 @@ class lambert_problem_multirev_ga:
         best_i = 0        
         n = len(lp.get_v1())
         if n > 0: 
-            best_dv = np.inf           
+            best_dv = math.inf           
             for i in range(n):
                 vin = [a - b for a, b in zip(v_in, v_planet)]
                 vout = [a - b for a, b in zip(lp.get_v1()[i], v_planet)]
@@ -128,7 +128,7 @@ class lambert_problem_stochastic:
         best_i = 0        
         n = len(lambert_problem.get_v1())
         if n > 0: 
-            best_dv = np.inf
+            best_dv = math.inf
             for i in range(n):
                 # convert to km/s
                 dv = 0.001 * np.linalg.norm([a - b for a, b in zip(lambert_problem.get_v1()[i], v_in)])

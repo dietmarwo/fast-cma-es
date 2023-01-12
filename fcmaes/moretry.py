@@ -168,7 +168,7 @@ class mo_wrapper(object):
         y = self.fun(np.array(x))
         weighted = _avg_exp(self.weights*y, self.y_exp)
         if self.ncon > 0: # check constraint violations
-            violations = np.array(np.fromiter((i for i in range(self.nobj, self.ny) if y[i] > 0), dtype=int))
+            violations = np.fromiter((i for i in range(self.nobj, self.ny) if y[i] > 0), dtype=int)
             if len(violations) > 0:
                 weighted += sum(self.weights[violations])     
         return weighted
@@ -208,7 +208,7 @@ def plot(name, ncon, xs, ys, eps = 1E-2, all=True, interp=False, plot3d=False):
             ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])  
             con = np.sum(ycon, axis=1)
             nobj = len(ys[0]) - ncon
-            feasible = np.array(np.fromiter((i for i in range(len(ys)) if con[i] < eps), dtype=int))
+            feasible = np.fromiter((i for i in range(len(ys)) if con[i] < eps), dtype=int)
             if len(feasible) > 0:
                 xs, ys = xs[feasible], np.array([y[:nobj] for y in ys[feasible]])
             else:
@@ -239,7 +239,7 @@ def adv_minimize_plot(name: str,
                            num_retries=num_retries, statistic_num = statistic_num) 
     advretry.retry(store, optimizer.minimize, value_limit)
     xs = np.array(store.get_xs())
-    ys = np.array(np.fromiter((fun(x) for x in xs), dtype=float))
+    ys = np.fromiter((fun(x) for x in xs), dtype=float)
     retry.plot(ys, '_all_' + name + '.png', interp=False)
     np.savez_compressed(name , xs=xs, ys=ys)
     xs, front = pareto(xs, ys)

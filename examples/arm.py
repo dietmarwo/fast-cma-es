@@ -117,17 +117,18 @@ def optimize_qd(dim):
     name = 'arm_nd'
     opt_params0 = {'solver':'elites', 'popsize':512}
     opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':4000, 'popsize':32, 'stall_criterion':3}
+    #opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':4000, 'popsize':32, 'sigma':0.2, 'stall_criterion':3}
     opt_params2 = {'solver':'DE_CPP', 'max_evals':4000, 'popsize':32, 'stall_criterion':3}
     opt_params3 = {'solver':'CMA_CPP', 'max_evals':4000, 'popsize':32, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(problem, problem.qd_dim, interval=200000, save_interval=12000000), 
-         problem.bounds, problem.qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=3000000) 
+         problem.bounds, problem.qd_bounds, opt_params=[opt_params0, opt_params3], max_evals=3000000) 
     print('final archive:', archive.info())
     archive.save(name)
     plot_archive(problem, archive)
     
 if __name__ == '__main__':    
-    dim = 20
+    dim = 300
     # apply a QD algorithm
     optimize_qd(dim)
     # plot the result

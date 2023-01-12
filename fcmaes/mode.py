@@ -499,7 +499,7 @@ class MODE(object):
         return x   
     
     def _is_dominated(self, y, p):
-        return np.all(np.array(np.fromiter((y[i] >= self.y[p, i] for i in range(len(y))), dtype=bool)))
+        return np.all(np.fromiter((y[i] >= self.y[p, i] for i in range(len(y))), dtype=bool))
 
                     
 def _check_bounds(bounds, dim):
@@ -556,12 +556,12 @@ def pareto(ys, nobj, ncon):
         popn = len(ys)
         domination = np.zeros(popn)
         # first pareto front of feasible solutions
-        cy = np.array(np.fromiter((i for i in ci if feasible[i]), dtype=int))
+        cy = np.fromiter((i for i in ci if feasible[i]), dtype=int)
         if len(cy) > 0:
             ypar = pareto_levels(yobj[cy])
             domination[cy] += ypar        
         # then constraint violations   
-        ci = np.array(np.fromiter((i for i in ci if not feasible[i]), dtype=int))  
+        ci = np.fromiter((i for i in ci if not feasible[i]), dtype=int) 
         if len(ci) > 0:    
             maxcdom = len(ci)
             cdom = np.arange(maxcdom, 0, -1)
@@ -586,7 +586,7 @@ def pareto_levels(ys):
 
 def crowd_dist(y): # crowd distance for 1st objective
     n = len(y)
-    y0 = np.array(np.fromiter((yi[0] for yi in y), dtype=float))
+    y0 = np.fromiter((yi[0] for yi in y), dtype=float)
     si = np.argsort(y0) # sort 1st objective
     y0_s = y0[si] # sorted
     d = y0_s[1:n] - y0_s[0:n-1] # neighbor distance
@@ -644,7 +644,7 @@ def feasible(xs, ys, ncon, eps = 1E-2):
         ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])  
         con = np.sum(ycon, axis=1)
         nobj = len(ys[0]) - ncon
-        feasible = np.array(np.fromiter((i for i in range(len(ys)) if con[i] < eps), dtype=int))
+        feasible = np.fromiter((i for i in range(len(ys)) if con[i] < eps), dtype=int)
         if len(feasible) > 0:
             xs, ys = xs[feasible], np.array([y[:nobj] for y in ys[feasible]])
         else:

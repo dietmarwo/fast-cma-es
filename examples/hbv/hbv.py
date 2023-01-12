@@ -198,9 +198,12 @@ def plot_archive(archive, problem):
 def optimize_qd():
     problem = hbv()
     problem.qd_dim = 4
-    problem.qd_bounds = Bounds([0.2, 0.7, 0, 0], [0.6, 1.3, 0.18, 0.6]) 
+    problem.qd_bounds = Bounds(np.array([0.2, 0.7, 0, 0]), 
+                               np.array([0.6, 1.3, 0.18, 0.6])) 
     name = 'hbv_nd'
     opt_params0 = {'solver':'elites', 'popsize':64}
+    
+    #opt_params1 = {'solver':'CMA_CPP', 'max_evals':4000, 'popsize':32, 'stall_criterion':3}
     opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':4000, 'popsize':32, 'stall_criterion':3}
     archive = diversifier.minimize(
          mapelites.wrapper(problem.qd_fitness, problem.qd_dim, interval=200000, save_interval=5000000), 
