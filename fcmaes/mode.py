@@ -688,7 +688,7 @@ class wrapper(object):
         try:
             y = self.fun(x)
             with self.lock:
-                self.evals.value += 1
+                self.n_evals.value += 1
             if not self.store is None and is_feasible(y, self.nobj):
                 self.store.add_result(x, y[:self.nobj])
             improve = False
