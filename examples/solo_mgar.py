@@ -124,9 +124,8 @@ def optimize():
     
     logger().info('solar orbiter' + ' BiteOpt parallel retry')    
     ret = retry.minimize(fun, bounds=Bounds(bounds[0], bounds[1]), num_retries = 32000, 
-                         logger = logger(), optimizer=Bite_cpp(1000000, M=16, 
-                                                               popsize=2400, stall_criterion=200))
-        
+                         logger = logger(), optimizer=Bite_cpp(200000, M=6))
+    
     # x, y = modecpp.retry(mode.wrapper(mofun, 3, interval = 1000000000), 3, 3,
     #           Bounds(bounds[0], bounds[1]), popsize = 128, 
     #           max_evaluations = 300000, 
