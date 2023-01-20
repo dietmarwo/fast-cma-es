@@ -8,7 +8,6 @@ from numpy.random import MT19937, Generator
 from scipy.optimize import Bounds, minimize, shgo, differential_evolution, dual_annealing, basinhopping
 import sys
 import time
-import math
 import logging
 import ctypes as ct
 import multiprocessing as mp 
@@ -917,7 +916,7 @@ class LDe_cpp(Optimizer):
         self.f = f
         self.cr = cr
         self.guess = guess
-        self.sdevs = sdevs
+        self.sdevs = sdev
         self.ints = ints
         
     def minimize(self, 
@@ -997,7 +996,7 @@ class LCLDE_cpp(Optimizer):
         self.cr = cr
         self.workers = workers
         self.guess = guess
-        self.sdevs = sdevs
+        self.sdevs = sdev
 
     def minimize(self, 
                 fun: Callable[[ArrayLike], float], 
