@@ -124,11 +124,13 @@ def minimize(fun: Callable[[ArrayLike], float],
     if not parfun is None:
         parfun.stop()
     return res
-      
-optimizeLCLDE_C = libcmalib.optimizeLCLDE_C
-optimizeLCLDE_C.argtypes = [ct.c_long, call_back_par, ct.c_int, 
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_int, \
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
-            ct.c_double, ct.c_double, ct.POINTER(ct.c_double)]
+
+if not libcmalib is None: 
+          
+    optimizeLCLDE_C = libcmalib.optimizeLCLDE_C
+    optimizeLCLDE_C.argtypes = [ct.c_long, call_back_par, ct.c_int, 
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_int, \
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+                ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
+                ct.c_double, ct.c_double, ct.POINTER(ct.c_double)]
        

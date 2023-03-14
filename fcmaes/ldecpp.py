@@ -132,12 +132,14 @@ def minimize(fun: Callable[[ArrayLike], float],
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
-      
-optimizeLDE_C = libcmalib.optimizeLDE_C
-optimizeLDE_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, 
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_int, \
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
-            ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
-            ct.POINTER(ct.c_bool), ct.POINTER(ct.c_double)]
+
+if not libcmalib is None: 
+          
+    optimizeLDE_C = libcmalib.optimizeLDE_C
+    optimizeLDE_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, 
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_int, \
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+                ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
+                ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
+                ct.POINTER(ct.c_bool), ct.POINTER(ct.c_double)]
 

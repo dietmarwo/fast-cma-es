@@ -134,13 +134,6 @@ def minimize(fun: Callable[[ArrayLike], float],
         parfun.stop()
     return res
 
-optimizeACMA_C = libcmalib.optimizeACMA_C
-optimizeACMA_C.argtypes = [ct.c_long, mo_call_back_type, call_back_par, ct.c_int, \
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_double, ct.c_int, ct.c_int, \
-            ct.c_double, ct.c_long, ct.c_bool, ct.c_bool, ct.c_int, 
-            ct.c_int, ct.POINTER(ct.c_double)]
-
 class ACMA_C:
 
     def __init__(self,
@@ -290,30 +283,39 @@ class ACMA_C:
             res = OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
         return res
 
-initACMA_C = libcmalib.initACMA_C
-initACMA_C.argtypes = [ct.c_long, ct.c_int, \
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_double, ct.c_int, 
-            ct.c_int, ct.c_double, ct.c_long, ct.c_bool, ct.c_bool, ct.c_int]
-                
-initACMA_C.restype = ct.c_void_p   
+if not libcmalib is None: 
 
-destroyACMA_C = libcmalib.destroyACMA_C
-destroyACMA_C.argtypes = [ct.c_void_p]
-
-askACMA_C = libcmalib.askACMA_C
-askACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-
-tellACMA_C = libcmalib.tellACMA_C
-tellACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-tellACMA_C.restype = ct.c_int
-
-tellXACMA_C = libcmalib.tellXACMA_C
-tellXACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double)]
-tellXACMA_C.restype = ct.c_int
-
-populationACMA_C = libcmalib.populationACMA_C
-populationACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-
-resultACMA_C = libcmalib.resultACMA_C
-resultACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    optimizeACMA_C = libcmalib.optimizeACMA_C
+    optimizeACMA_C.argtypes = [ct.c_long, mo_call_back_type, call_back_par, ct.c_int, \
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+                ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_double, ct.c_int, ct.c_int, \
+                ct.c_double, ct.c_long, ct.c_bool, ct.c_bool, ct.c_int, 
+                ct.c_int, ct.POINTER(ct.c_double)]
+    
+    initACMA_C = libcmalib.initACMA_C
+    initACMA_C.argtypes = [ct.c_long, ct.c_int, \
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+                ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_double, ct.c_int, 
+                ct.c_int, ct.c_double, ct.c_long, ct.c_bool, ct.c_bool, ct.c_int]
+                    
+    initACMA_C.restype = ct.c_void_p   
+    
+    destroyACMA_C = libcmalib.destroyACMA_C
+    destroyACMA_C.argtypes = [ct.c_void_p]
+    
+    askACMA_C = libcmalib.askACMA_C
+    askACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    
+    tellACMA_C = libcmalib.tellACMA_C
+    tellACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    tellACMA_C.restype = ct.c_int
+    
+    tellXACMA_C = libcmalib.tellXACMA_C
+    tellXACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double)]
+    tellXACMA_C.restype = ct.c_int
+    
+    populationACMA_C = libcmalib.populationACMA_C
+    populationACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    
+    resultACMA_C = libcmalib.resultACMA_C
+    resultACMA_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]

@@ -10,23 +10,25 @@ import ctypes as ct
 from scipy.optimize import Bounds
 from fcmaes.decpp import libcmalib
 
-astro_map = {  
-    "messengerfullC": libcmalib.messengerfullC,
-    "messengerC": libcmalib.messengerC,
-    "gtoc1C": libcmalib.gtoc1C,
-    "cassini1C": libcmalib.cassini1C,
-    "cassini1minlpC": libcmalib.cassini1minlpC,
-    "cassini2C": libcmalib.cassini2C,
-    "rosettaC": libcmalib.rosettaC,
-    "sagasC": libcmalib.sagasC,
-    "tandemC": libcmalib.tandemC,
-    "tandemCu": libcmalib.tandemCu,
-    "cassini2minlpC": libcmalib.cassini2minlpC,
+if not libcmalib is None: 
+    
+    astro_map = {  
+        "messengerfullC": libcmalib.messengerfullC,
+        "messengerC": libcmalib.messengerC,
+        "gtoc1C": libcmalib.gtoc1C,
+        "cassini1C": libcmalib.cassini1C,
+        "cassini1minlpC": libcmalib.cassini1minlpC,
+        "cassini2C": libcmalib.cassini2C,
+        "rosettaC": libcmalib.rosettaC,
+        "sagasC": libcmalib.sagasC,
+        "tandemC": libcmalib.tandemC,
+        "tandemCu": libcmalib.tandemCu,
+        "cassini2minlpC": libcmalib.cassini2minlpC,
     }
 
-freemem = libcmalib.free_mem
-freemem.argtypes = [ct.POINTER(ct.c_double)]
-
+    freemem = libcmalib.free_mem
+    freemem.argtypes = [ct.POINTER(ct.c_double)]    
+    
 class Astrofun(object):
     """Provides access to ESAs GTOP optimization test functions."""
     def __init__(self, name, fun_c, lower, upper):    
@@ -266,4 +268,3 @@ class python_fun(object):
             val = 1E10
         return val 
 
-    

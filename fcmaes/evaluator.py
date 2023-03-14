@@ -20,11 +20,12 @@ import sys, math, os
 from typing import Optional, Callable, Tuple
 from numpy.typing import ArrayLike
 
+pipe_limit = 64 # higher values can cause issues
+
 def eval_parallel(xs: ArrayLike, 
                   evaluator: Evaluator):
     popsize = len(xs)
     ys = np.empty(popsize)
-    pipe_limit = 256
     i0 = 0
     i1 = min(popsize, pipe_limit)
     while True:
@@ -40,7 +41,6 @@ def eval_parallel_mo(xs: ArrayLike,
                      nobj: int):
     popsize = len(xs)
     ys = np.empty((popsize,nobj))
-    pipe_limit = 256
     i0 = 0
     i1 = min(popsize, pipe_limit)
     while True:
@@ -314,13 +314,16 @@ class callback_par(object):
 
 basepath = os.path.dirname(os.path.abspath(__file__))
 
-if sys.platform.startswith('linux'):
-    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.so')  
-elif 'mac' in sys.platform or 'darwin' in sys.platform:
-    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
-else:
-    os.environ['PATH'] = (basepath + '/lib') + os.pathsep + os.environ['PATH']
-    libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')  
+try: 
+    if sys.platform.startswith('linux'):
+        libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.so')  
+    elif 'mac' in sys.platform or 'darwin' in sys.platform:
+        libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dylib')  
+    else:
+        os.environ['PATH'] = (basepath + '/lib') + os.pathsep + os.environ['PATH']
+        libcmalib = ct.cdll.LoadLibrary(basepath + '/lib/libacmalib.dll')
+except Exception as ex:
+    libcmalib = None
     
 mo_call_back_type = ct.CFUNCTYPE(ct.c_bool, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))
   

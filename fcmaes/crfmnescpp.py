@@ -120,13 +120,6 @@ def minimize(fun: Callable[[ArrayLike], float],
         parfun.stop()
     return res
 
-optimizeCRFMNES_C = libcmalib.optimizeCRFMNES_C
-optimizeCRFMNES_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.c_double, ct.c_int, ct.c_double, ct.c_int, 
-            ct.c_long, ct.c_double, 
-            ct.c_bool, ct.c_bool, ct.POINTER(ct.c_double)]
-
 class CRFMNES_C:
 
     def __init__(self,
@@ -247,28 +240,37 @@ class CRFMNES_C:
         except Exception as ex:
             res = OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
         return res
-       
-initCRFMNES_C = libcmalib.initCRFMNES_C
-initCRFMNES_C.argtypes = [ct.c_long, ct.c_int, \
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.c_double, ct.c_int,
-            ct.c_long, ct.c_double, 
-            ct.c_bool, ct.c_bool]
 
-initCRFMNES_C.restype = ct.c_void_p   
+if not libcmalib is None: 
 
-destroyCRFMNES_C = libcmalib.destroyCRFMNES_C
-destroyCRFMNES_C.argtypes = [ct.c_void_p]
-
-askCRFMNES_C = libcmalib.askCRFMNES_C
-askCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-
-tellCRFMNES_C = libcmalib.tellCRFMNES_C
-tellCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-tellCRFMNES_C.restype = ct.c_int
-
-populationCRFMNES_C = libcmalib.populationCRFMNES_C
-populationCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-
-resultCRFMNES_C = libcmalib.resultCRFMNES_C
-resultCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    optimizeCRFMNES_C = libcmalib.optimizeCRFMNES_C
+    optimizeCRFMNES_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+                ct.c_double, ct.c_int, ct.c_double, ct.c_int, 
+                ct.c_long, ct.c_double, 
+                ct.c_bool, ct.c_bool, ct.POINTER(ct.c_double)]
+          
+    initCRFMNES_C = libcmalib.initCRFMNES_C
+    initCRFMNES_C.argtypes = [ct.c_long, ct.c_int, \
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+                ct.c_double, ct.c_int,
+                ct.c_long, ct.c_double, 
+                ct.c_bool, ct.c_bool]
+    
+    initCRFMNES_C.restype = ct.c_void_p   
+    
+    destroyCRFMNES_C = libcmalib.destroyCRFMNES_C
+    destroyCRFMNES_C.argtypes = [ct.c_void_p]
+    
+    askCRFMNES_C = libcmalib.askCRFMNES_C
+    askCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    
+    tellCRFMNES_C = libcmalib.tellCRFMNES_C
+    tellCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    tellCRFMNES_C.restype = ct.c_int
+    
+    populationCRFMNES_C = libcmalib.populationCRFMNES_C
+    populationCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    
+    resultCRFMNES_C = libcmalib.resultCRFMNES_C
+    resultCRFMNES_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]

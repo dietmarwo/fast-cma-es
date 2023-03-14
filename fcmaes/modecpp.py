@@ -320,14 +320,6 @@ class log_mo(object):
             print (ex)
             return False
 
-optimizeMODE_C = libcmalib.optimizeMODE_C
-optimizeMODE_C.argtypes = [ct.c_long, mo_call_back_type, mo_call_back_type, ct.c_int, ct.c_int, \
-            ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
-            ct.c_int, ct.c_int, ct.c_int,\
-            ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
-            ct.c_bool, ct.c_double, ct.c_double, ct.c_double, 
-            ct.c_int, ct.POINTER(ct.c_double)]
-
 class MODE_C:
 
     def __init__(self,
@@ -487,30 +479,40 @@ class MODE_C:
         fit.stop()
         return xs, ys
 
-initMODE_C = libcmalib.initMODE_C
-initMODE_C.argtypes = [ct.c_long, ct.c_int, ct.c_int, \
-            ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
-            ct.c_int, ct.c_int,\
-            ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
-            ct.c_bool, ct.c_double, ct.c_double, ct.c_double]
-
-initMODE_C.restype = ct.c_void_p   
-
-destroyMODE_C = libcmalib.destroyMODE_C
-destroyMODE_C.argtypes = [ct.c_void_p]
-
-askMODE_C = libcmalib.askMODE_C
-askMODE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-
-tellMODE_C = libcmalib.tellMODE_C
-tellMODE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-tellMODE_C.restype = ct.c_int
-
-tellMODE_switchC = libcmalib.tellMODE_switchC
-tellMODE_switchC.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double), ct.c_bool, ct.c_double]
-tellMODE_switchC.restype = ct.c_int
-
-populationMODE_C = libcmalib.populationMODE_C
-populationMODE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+if not libcmalib is None: 
+    
+    optimizeMODE_C = libcmalib.optimizeMODE_C
+    optimizeMODE_C.argtypes = [ct.c_long, mo_call_back_type, mo_call_back_type, ct.c_int, ct.c_int, \
+                ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
+                ct.c_int, ct.c_int, ct.c_int,\
+                ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
+                ct.c_bool, ct.c_double, ct.c_double, ct.c_double, 
+                ct.c_int, ct.POINTER(ct.c_double)]
+    
+    initMODE_C = libcmalib.initMODE_C
+    initMODE_C.argtypes = [ct.c_long, ct.c_int, ct.c_int, \
+                ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
+                ct.c_int, ct.c_int,\
+                ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
+                ct.c_bool, ct.c_double, ct.c_double, ct.c_double]
+    
+    initMODE_C.restype = ct.c_void_p   
+    
+    destroyMODE_C = libcmalib.destroyMODE_C
+    destroyMODE_C.argtypes = [ct.c_void_p]
+    
+    askMODE_C = libcmalib.askMODE_C
+    askMODE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    
+    tellMODE_C = libcmalib.tellMODE_C
+    tellMODE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    tellMODE_C.restype = ct.c_int
+    
+    tellMODE_switchC = libcmalib.tellMODE_switchC
+    tellMODE_switchC.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double), ct.c_bool, ct.c_double]
+    tellMODE_switchC.restype = ct.c_int
+    
+    populationMODE_C = libcmalib.populationMODE_C
+    populationMODE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
 
 

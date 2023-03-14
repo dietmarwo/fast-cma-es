@@ -139,15 +139,6 @@ def minimize(fun: Callable[[ArrayLike], float],
         parfun.stop()
     return res
 
-optimizePGPE_C = libcmalib.optimizePGPE_C
-optimizePGPE_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_int, 
-            ct.c_long, ct.c_int, 
-            ct.c_bool, ct.c_double, ct.c_double, ct.c_double, 
-            ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
-            ct.c_bool, ct.POINTER(ct.c_double)]
-
 class PGPE_C:
 
     def __init__(self,
@@ -311,29 +302,40 @@ class PGPE_C:
         except Exception as ex:
             res = OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
         return res
-            
-initPGPE_C = libcmalib.initPGPE_C
-initPGPE_C.argtypes = [ct.c_long, ct.c_int, ct.POINTER(ct.c_double), 
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), 
-            ct.c_int, ct.c_long, ct.c_int, 
-            ct.c_bool, ct.c_double, ct.c_double, ct.c_double, 
-            ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
-            ct.c_bool]
 
-initPGPE_C.restype = ct.c_void_p   
+if not libcmalib is None: 
 
-destroyPGPE_C = libcmalib.destroyPGPE_C
-destroyPGPE_C.argtypes = [ct.c_void_p]
-
-askPGPE_C = libcmalib.askPGPE_C
-askPGPE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-
-tellPGPE_C = libcmalib.tellPGPE_C
-tellPGPE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-tellPGPE_C.restype = ct.c_int
-
-populationPGPE_C = libcmalib.populationPGPE_C
-populationPGPE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-
-resultPGPE_C = libcmalib.resultPGPE_C
-resultPGPE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    optimizePGPE_C = libcmalib.optimizePGPE_C
+    optimizePGPE_C.argtypes = [ct.c_long, call_back_par, ct.c_int, \
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+                ct.POINTER(ct.c_double), ct.c_int, ct.c_double, ct.c_int, 
+                ct.c_long, ct.c_int, 
+                ct.c_bool, ct.c_double, ct.c_double, ct.c_double, 
+                ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
+                ct.c_bool, ct.POINTER(ct.c_double)]
+                
+    initPGPE_C = libcmalib.initPGPE_C
+    initPGPE_C.argtypes = [ct.c_long, ct.c_int, ct.POINTER(ct.c_double), 
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), 
+                ct.c_int, ct.c_long, ct.c_int, 
+                ct.c_bool, ct.c_double, ct.c_double, ct.c_double, 
+                ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
+                ct.c_bool]
+    
+    initPGPE_C.restype = ct.c_void_p   
+    
+    destroyPGPE_C = libcmalib.destroyPGPE_C
+    destroyPGPE_C.argtypes = [ct.c_void_p]
+    
+    askPGPE_C = libcmalib.askPGPE_C
+    askPGPE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    
+    tellPGPE_C = libcmalib.tellPGPE_C
+    tellPGPE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    tellPGPE_C.restype = ct.c_int
+    
+    populationPGPE_C = libcmalib.populationPGPE_C
+    populationPGPE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    
+    resultPGPE_C = libcmalib.resultPGPE_C
+    resultPGPE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]

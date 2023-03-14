@@ -8,6 +8,7 @@ import numpy as np
 from scipy.optimize import OptimizeResult
 from fcmaes.testfun import Wrapper, Rosen, Rastrigin, Eggholder
 from fcmaes import cmaes, de, decpp, cmaescpp, gcldecpp, retry, advretry
+from fcmaes.optimizer import de_cma_py
 
 def almost_equal(X1, X2, eps = 1E-5):
     if np.isscalar(X1):
@@ -347,6 +348,43 @@ def test_eggholder_advanced_retry():
         wrapper = Wrapper(testfun.fun, dim)
         ret = advretry.minimize(wrapper.eval, testfun.bounds, 
                                 num_retries=300)
+        if limit > ret.fun:
+            break
+
+    assert(limit > ret.fun) # optimization target not reached
+    assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
+    assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
+    assert(almost_equal(ret.fun, wrapper.get_best_y())) # wrong best y returned
+
+def test_eggholder_retry_python():
+    dim = 2
+    testfun = Eggholder()
+    
+    optimizer = de_cma_py(10000)
+    limit = -956   
+    for _ in range(5):
+        wrapper = Wrapper(testfun.fun, dim)
+
+        ret = retry.minimize(wrapper.eval, testfun.bounds, 
+                             num_retries=32, optimizer = optimizer)
+        if limit > ret.fun:
+            break
+
+    assert(limit > ret.fun) # optimization target not reached
+    assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
+    assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
+    assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
+
+def test_eggholder_advanced_retry_python():
+    dim = 2
+    testfun = Eggholder()
+
+    optimizer = de_cma_py(10000)
+    limit = -956   
+    for _ in range(5):
+        wrapper = Wrapper(testfun.fun, dim)
+        ret = advretry.minimize(wrapper.eval, testfun.bounds, 
+                                num_retries=32, optimizer = optimizer)
         if limit > ret.fun:
             break
 

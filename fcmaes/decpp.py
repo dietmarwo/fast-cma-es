@@ -156,15 +156,6 @@ def minimize(fun: Callable[[ArrayLike], float],
     except Exception as ex:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
       
-optimizeDE_C = libcmalib.optimizeDE_C
-optimizeDE_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, ct.c_int, \
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_double, \
-            ct.POINTER(ct.c_bool), \
-            ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
-            ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
-            ct.c_int, ct.POINTER(ct.c_double)]
-
 class DE_C:
 
     def __init__(self,                
@@ -268,30 +259,41 @@ class DE_C:
         except Exception as ex:
             res = OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
         return res
+
+if not libcmalib is None: 
     
-initDE_C = libcmalib.initDE_C
-initDE_C.argtypes = [ct.c_long, ct.c_int, ct.c_int, \
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-            ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_double, \
-            ct.POINTER(ct.c_bool), \
-            ct.c_double, ct.c_int, \
-            ct.c_double, ct.c_double, ct.c_double, ct.c_double]
-
-initDE_C.restype = ct.c_void_p   
-
-destroyDE_C = libcmalib.destroyDE_C
-destroyDE_C.argtypes = [ct.c_void_p]
-
-askDE_C = libcmalib.askDE_C
-askDE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-
-tellDE_C = libcmalib.tellDE_C
-tellDE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-tellDE_C.restype = ct.c_int
-
-populationDE_C = libcmalib.populationDE_C
-populationDE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
-
-resultDE_C = libcmalib.resultDE_C
-resultDE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    optimizeDE_C = libcmalib.optimizeDE_C
+    optimizeDE_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, ct.c_int, \
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_double, \
+                ct.POINTER(ct.c_bool), \
+                ct.c_int, ct.c_double, ct.c_double, ct.c_int, \
+                ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
+                ct.c_int, ct.POINTER(ct.c_double)]
+        
+    initDE_C = libcmalib.initDE_C
+    initDE_C.argtypes = [ct.c_long, ct.c_int, ct.c_int, \
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
+                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.c_double, \
+                ct.POINTER(ct.c_bool), \
+                ct.c_double, ct.c_int, \
+                ct.c_double, ct.c_double, ct.c_double, ct.c_double]
+    
+    initDE_C.restype = ct.c_void_p   
+    
+    destroyDE_C = libcmalib.destroyDE_C
+    destroyDE_C.argtypes = [ct.c_void_p]
+    
+    askDE_C = libcmalib.askDE_C
+    askDE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    
+    tellDE_C = libcmalib.tellDE_C
+    tellDE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    tellDE_C.restype = ct.c_int
+    
+    populationDE_C = libcmalib.populationDE_C
+    populationDE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
+    
+    resultDE_C = libcmalib.resultDE_C
+    resultDE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
 
