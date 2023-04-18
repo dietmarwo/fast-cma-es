@@ -77,7 +77,7 @@ def minimize(fun: Callable[[ArrayLike], float],
     res : scipy.OptimizeResult
         The optimization result is represented as an ``OptimizeResult`` object"""
 
-    cr = CRFMNES(bounds, x0, input_sigma, popsize, 
+    cr = CRFMNES(None, bounds, x0, input_sigma, popsize, 
                  max_evaluations, stop_fitness, is_terminate, runid, normalize, options, rg, workers, fun)
     
     cr.optimize()
