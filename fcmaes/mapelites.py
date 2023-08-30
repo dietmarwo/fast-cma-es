@@ -110,7 +110,7 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
         Parameters for the CMA-ES emitter.
     logger : logger, optional
         logger for log output of the retry mechanism. If None, logging
-        is switched off. Default is a logger which logs both t -> Archive:o stdout and
+        is switched off. Default is a logger which logs both to stdout and
         appends to a file ``optimizer.log``.
     use_stats : bool, optional 
         If True, archive accumulates statistics of the solutions
@@ -171,7 +171,7 @@ def set_KDTree(archive: Archive,
                         centers:Optional[np.ndarray] = None, 
                         niche_num: Optional[int]  = None, 
                         qd_bounds: Optional[Bounds] = None, 
-                        samples_per_niche: Optional[int] = 20):   
+                        samples_per_niche: Optional[int] = 100):   
     
     """Returns a function deciding niche membership.
      
@@ -299,10 +299,12 @@ def optimize_cma_(archive, fitness, bounds, rg, cma_params):
         old_ys = np.sort(ys)
         
 def update_archive(archive: Archive, xs: np.ndarray, 
-                   fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]]):
+                   fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
+                   yds: Optional(ArrayLike) = None):
     # evaluate population, update archive and determine ranking
-    popsize = len(xs) 
-    yds = [fitness(x) for x in xs]
+    popsize = len(xs)
+    if yds is None: 
+        yds = [fitness(x) for x in xs]
     descs = np.array([yd[1] for yd in yds])
     niches = archive.index_of_niches(descs)
     # real values

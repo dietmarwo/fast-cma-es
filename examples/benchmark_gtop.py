@@ -20,6 +20,10 @@ def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 10
 def main():
     numRuns = 100
     min_evals = 1500
+    
+    _test_optimizer(de_cma(min_evals), MessFull(), num_retries = 50000, num = numRuns, 
+                    value_limit = 12.0, stop_val = 1.960)
+    
     _test_optimizer(de_cma(min_evals), Gtoc1(), num_retries = 10000, num = numRuns, 
                     value_limit = -300000.0, stop_val = -1581949)
     _test_optimizer(de_cma(min_evals), Cassini1(), num_retries = 4000, num = numRuns, 

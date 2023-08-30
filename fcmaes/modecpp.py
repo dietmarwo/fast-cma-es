@@ -451,15 +451,15 @@ class MODE_C:
  
     def population(self) -> np.ndarray:
         try:
-            lamb = self.popsize
+            popsize = self.popsize
             n = self.dim
-            res = np.empty(lamb*n)
+            res = np.empty(popsize*n)
             res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
             populationMODE_C(self.ptr, res_p)
-            xs = np.array(lamb, n)
-            for p in range(self.popsize):
-                xs[p] = res[p*n : (p+1)*n]
-                return xs
+            xs = np.empty((popsize, n))
+            for p in range(popsize):
+                xs[p,:] = res[p*n : (p+1)*n]
+            return xs
         except Exception as ex:
             print (ex)
             return None

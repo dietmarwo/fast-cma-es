@@ -290,7 +290,7 @@ class MODE(object):
         else:
             self.modifier = modifier
         self._init()
-                
+               
     def ask(self) -> Tuple[int, np.ndarray]:
         """ask for one new argument vector.
         
@@ -340,6 +340,16 @@ class MODE(object):
                 self.pop_update()
         return self.stop 
 
+    def ask_all(self):
+        for p in range(self.popsize):
+            self.x[p + self.popsize] = self._next_x(p)
+        return self.x[self.popsize:]
+                
+    def tell_all(self, ys):
+        for p in range(self.popsize):
+            self.y[p + self.popsize] = ys[p]
+        self.pop_update()
+                          
     def _init(self):
         self.x = np.empty((2*self.popsize, self.dim))
         self.y = np.empty((2*self.popsize, self.nobj + self.ncon))
@@ -563,11 +573,10 @@ def pareto(ys, nobj, ncon):
         # then constraint violations   
         ci = np.fromiter((i for i in ci if not feasible[i]), dtype=int) 
         if len(ci) > 0:    
-            maxcdom = len(ci)
-            cdom = np.arange(maxcdom, 0, -1)
+            cdom = np.arange(len(ci), 0, -1)
             domination[ci] += cdom
             if len(cy) > 0: # priorize feasible solutions
-                domination[cy] += maxcdom + 1
+                domination[cy] += popn + 1
     return domination   
  
 def pareto_levels(ys):
@@ -696,7 +705,7 @@ class wrapper(object):
                 if y[i] < self.best_y[i]:
                     improve = True 
                     self.best_y[i] = y[i] 
-            improve = improve and self.n_evals.value > 100
+            improve = improve# and self.n_evals.value > 10000
             if self.n_evals.value % self.interval == 0 or improve:
                 constr = np.maximum(y[self.nobj:], 0) 
                 self.logger.info(

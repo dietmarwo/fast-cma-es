@@ -693,4 +693,13 @@ int resultACMA_C(uintptr_t ptr, double* res) {
     res[n + 3] = opt->getStop();
     return opt->getStop();
 }
+
+int testACMA_C(int n, double* res) {
+    for (int i = 0; i < n; i++) {
+        cout << i << ": " << res[i] << endl;
+        res[i] = -res[i];
+    }
+    return 7;
+}
+
 }

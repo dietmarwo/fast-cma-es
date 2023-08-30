@@ -353,14 +353,8 @@ public:
         popY = vec(popsize);
         meanHist = mean.replicate(1,10);
         meanHistIndex = 0;
-        if (fitfun->hasBounds()) {
-            sigma = sigma.array() * fitfun->scale().array();
-            maxSigma = 0.5 * fitfun->scale();
-            minSigma = minSigmaVal * fitfun->scale();
-        } else {
-            maxSigma = constant(dim, 0.5);
-            minSigma = constant(dim, minSigmaVal);
-        }
+        maxSigma = sigma / (.1 + minSigmaVal);
+        minSigma = minSigmaVal * sigma;
         for (int p = 0; p < popsize; p++) {
             popX0.col(p) = popX.col(p) = sample();
             popY[p] = DBL_MAX; 
@@ -529,7 +523,7 @@ uintptr_t initDE_C(long runid, int dim, int seed,
     DeOptimizer* opt = new DeOptimizer(runid, fitfun, dim, seed, popsize, 0, keep,
             -DBL_MAX, F, CR, min_mutate, max_mutate,
             useIsInt ? isInt : NULL, guess, inputSigma, minSigma);
-     return (uintptr_t) opt;
+    return (uintptr_t) opt;
 }
 
 void destroyDE_C(uintptr_t ptr) {

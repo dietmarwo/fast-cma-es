@@ -316,7 +316,7 @@ class Store(object):
         return numStored        
             
     def add_result(self, y: float, xs: ArrayLike, evals: int, limit=np.inf):
-        """registers an optimization result at the score."""
+        """registers an optimization result at the store."""
         with self.add_mutex:
             self.incr_count_evals(evals)
             if y < limit:  

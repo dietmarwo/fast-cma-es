@@ -17,6 +17,93 @@
 
 using namespace asc;
 
+struct PVThrust {
+
+    double _veff;
+    double _mu;
+    double _ux;
+    double _uy;
+    double _uz;
+    double _unorm;
+
+    void operator()(const state_t &pv, state_t &yDot, const double) {
+
+        double x = pv[0];  // position
+        double y = pv[1];
+        double z = pv[2];
+        double m = pv[6];
+        double r = sqrt(x * x + y * y + z * z);
+        double rrr = r * r * r;
+        yDot[0] = pv[3]; // velocity
+        yDot[1] = pv[4];
+        yDot[2] = pv[5];
+        yDot[3] = -_mu * x / (rrr);
+        yDot[4] = -_mu * y / (rrr);
+        yDot[5] = -_mu * z / (rrr);
+        if (m > 0) {
+            yDot[3] += _ux / m;
+            yDot[4] += _uy / m;
+            yDot[5] += _uz / m;
+        }
+        yDot[6] = -_unorm / _veff;
+    }
+};
+
+extern "C" {
+double* integratePVthrust(double *yd, double mu, double ux, double uy, double uz, double veff, double dt, double step) {
+
+    state_t y(7);
+    for (int i = 0; i < 7; i++)
+        y[i] = yd[i];
+
+      RK4 integrator;
+//    DOPRI45 integrator;
+//    ABM4 integrator;
+//    PC233 integrator;
+//    VABM integrator;
+
+    PVThrust pvt;
+    pvt._veff = veff;
+    pvt._mu = mu;
+    pvt._ux = ux;
+    pvt._uy = uy;
+    pvt._uz = uz;
+    pvt._unorm = sqrt(ux * ux + uy * uy + uz * uz);
+
+//    Recorder recorder;
+
+    int steps = 0;
+    double t = 0.0;
+    if (dt > 0) {
+        while (t < dt) {
+    //      recorder({ t, y[0], y[1], y[2], y[3], y[4], y[5], y[6] });
+            steps++;
+            if (t + step >= dt) {
+                integrator(pvt, y, t, dt - t);
+                break;
+            } else
+                integrator(pvt, y, t, step);
+    //      recorder.csv("PVThrust", { "t", "x", "y", "z", "vx", "vy", "vz", "m" });
+        }   
+    } else {
+        while (t > dt) {
+            steps++;
+            if (t - step <= dt) {
+                integrator(pvt, y, t, dt - t);
+                break;
+            } else
+                integrator(pvt, y, t, -step);
+        }
+    }
+
+    double *res = new double[7];
+    for (int i = 0; i < 7; i++)
+        res[i] = y[i];
+    return res;
+}
+;
+}
+
 struct Damp {
 
     double alpha;

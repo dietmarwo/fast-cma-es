@@ -115,6 +115,7 @@ public:
         isInt = isInt_;
         stop = 0;
         init();
+        //std::cout << popX.leftCols(popsize) << std::endl;
     }
 
     ~MoDeOptimizer() {
@@ -297,6 +298,7 @@ public:
             while (!mask[index] && index < n)
                 index++;
         }
+        //std::cout << "ypar " << domination.transpose() << std::endl;
         return domination;
     }
 
@@ -339,47 +341,49 @@ public:
     vec pareto(const mat &ys) {
         if (ncon == 0)
             return pareto_levels(ys);
+
         int popn = ys.cols();
         mat yobj = ys(Eigen::seqN(0, nobj), Eigen::indexing::all);
         mat ycon = ys(Eigen::indexing::lastN(ncon), Eigen::indexing::all);
         vec csum = ranks(ycon);
         bool feasible[ys.cols()];
-        bool hasFeasible = false;
-        for (int i = 0; i < ys.cols(); i++) {
+        bool hasFeasable = false;
+        bool hasInfeasable = false;
+        for (int i = 0; i < popn; i++) {
             feasible[i] = ycon.col(i).maxCoeff() <= 0;
             if (feasible[i])
-                hasFeasible = true;
+            	hasFeasable = true;
+            else
+                hasInfeasable = true;
         }
-        if (hasFeasible)
-            csum += objranks(yobj);
-        // first pareto front of feasible solutions
         vec domination = zeros(popn);
-        std::vector<int> cyv;
-        for (int i = 0; i < ys.cols(); i++) // collect feasibles
-            if (feasible[i])
-                cyv.push_back(i);
-        ivec cy = Eigen::Map<ivec, Eigen::Unaligned>(cyv.data(), cyv.size());
-        if (hasFeasible) { // compute pareto levels only for feasible
-            vec ypar = pareto_levels(yobj(Eigen::indexing::all, cy));
-            domination(cy) += ypar;
+        if (hasFeasable)
+            csum += objranks(yobj);
+
+//        std::cout << "csum " << csum.transpose() << std::endl;
+//        std::cout << "ranks " << ranks(ycon).transpose() << std::endl;
+//        std::cout << "objranks " << objranks(yobj).transpose() << std::endl;
+
+        ivec ci = sort_index(csum);
+        std::vector<int> fiv;
+        std::vector<int> viv;
+        for (int i = 0; i < ci.size(); i++) // collect feasibles
+            if (feasible[ci[i]])
+            	fiv.push_back(ci[i]);
+            else
+            	viv.push_back(ci[i]);
+        if (hasFeasable) { // compute pareto levels only for feasible
+            ivec fi = Eigen::Map<ivec, Eigen::Unaligned>(fiv.data(), fiv.size());
+            vec ypar = pareto_levels(yobj(Eigen::indexing::all, fi));
+            domination(fi) += ypar;
         }
         // then constraint violations
-        ivec ci = sort_index(csum);
-        std::vector<int> civ;
-        for (int i = 0; i < ci.size(); i++)
-            if (!feasible[ci(i)])
-                civ.push_back(ci(i));
-        if (civ.size() > 0) {
-            ivec ci = Eigen::Map<ivec, Eigen::Unaligned>(civ.data(),
-                    civ.size());
-            int maxcdom = ci.size();
-            // higher constraint violation level gets lower domination level assigned
-            for (int i = 0; i < ci.size(); i++)
-                domination(ci(i)) += maxcdom - i;
-            if (cy.size() > 0) { // priorize feasible solutions
-                for (int i = 0; i < cy.size(); i++)
-                    domination(cy(i)) += maxcdom + 1;
-            }
+        if (hasInfeasable) {
+             // higher constraint violation level gets lower domination level assigned
+            for (int i = 0; i < viv.size(); i++)
+                domination(viv[i]) += viv.size() - i;
+            for (int i = 0; i < fiv.size(); i++) // feasible first
+                domination(fiv[i]) += popn + 1;
         } // higher dominates lower
         return domination;
     }
@@ -421,8 +425,6 @@ public:
                     y.push_back(domy.col(i));
                 }
             } else {
-                std::vector<int> si;
-                si.push_back(0);
                 if (domy.cols() > 1) {
                     vec cd = crowd_dist(domy);
                     ivec si = sort_index(cd).reverse();
@@ -432,8 +434,11 @@ public:
                         x.push_back(domx.col(si(i)));
                         y.push_back(domy.col(si(i)));
                     }
+                } else {
+                    x.push_back(domx.col(0));
+                    y.push_back(domy.col(0));
                 }
-                break;
+                break; // we have filled popsize members
             }
         }
         for (int i = 0; i < popsize; i++) {
@@ -441,7 +446,8 @@ public:
             popY.col(i) = y[i];
         }
         if (nsga_update)
-            vX = variation(popX(Eigen::indexing::all, Eigen::seqN(0, popsize)));
+            //vX = variation(popX(Eigen::indexing::all, Eigen::seqN(0, popsize)));
+        	vX = variation(popX.leftCols(popsize));
     }
 
     vec ask(int &p) {
@@ -719,7 +725,6 @@ void askMODE_C(uintptr_t ptr, double* xs) {
     int n = opt->getDim();
     int popsize = opt->getPopsize();
     mat pop = opt->askAll();
-    Fitness* fitfun = opt->getFitfun();
     for (int p = 0; p < popsize; p++) {
         vec x = pop.col(p);
         for (int i = 0; i < n; i++)
@@ -730,7 +735,7 @@ void askMODE_C(uintptr_t ptr, double* xs) {
 int tellMODE_C(uintptr_t ptr, double* ys) {
     MoDeOptimizer *opt = (MoDeOptimizer*) ptr;
     int popsize = opt->getPopsize();
-    int nobj = opt->getNobj();
+    int nobj = opt->getNobj() + opt->getNcon();
     mat vals(nobj, popsize);
     for (int p = 0; p < popsize; p++) {
         vec y(nobj);
@@ -744,7 +749,7 @@ int tellMODE_C(uintptr_t ptr, double* ys) {
 int tellMODE_switchC(uintptr_t ptr, double* ys, bool nsga_update, double pareto_update) {
     MoDeOptimizer *opt = (MoDeOptimizer*) ptr;
     int popsize = opt->getPopsize();
-    int nobj = opt->getNobj();
+    int nobj = opt->getNobj() + opt->getNcon();
     mat vals(nobj, popsize);
     for (int p = 0; p < popsize; p++) {
         vec y(nobj);
@@ -757,13 +762,13 @@ int tellMODE_switchC(uintptr_t ptr, double* ys, bool nsga_update, double pareto_
 
 int populationMODE_C(uintptr_t ptr, double* xs) {
     MoDeOptimizer *opt = (MoDeOptimizer*) ptr;
-    int dim = opt->getDim();
-    int lamb = opt->getPopsize();
-    mat popX = opt->getPopulation();
-    for (int p = 0; p < lamb; p++) {
-        vec x = popX.col(p);
-        for (int i = 0; i < dim; i++)
-            x[i] = xs[p * dim + i];
+    int n = opt->getDim();
+    int popsize = opt->getPopsize();
+    mat pop = opt->getPopulation();
+    for (int p = 0; p < popsize; p++) {
+        vec x = pop.col(p);
+        for (int i = 0; i < n; i++)
+            xs[p * n + i] = x[i];
     }
     return opt->getStop();
 }
