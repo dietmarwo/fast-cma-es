@@ -154,7 +154,8 @@ def minimize_plot(name: str,
 def plot(front: ArrayLike, fname: str, interp: Optional[bool] = True, 
          label: Optional[str] = r'$\chi$', 
          xlabel: Optional[str] = r'$f_1$', ylabel:Optional[str] = r'$f_2$', 
-         zlabel: Optional[str] = r'$f_3$', plot3d: Optional[bool] = False):
+         zlabel: Optional[str] = r'$f_3$', plot3d: Optional[bool] = False, 
+         s = 1, dpi=300):
     if len(front[0]) == 3 and plot3d:
         plot3(front, fname, label, xlabel, ylabel, zlabel)
         return
@@ -181,12 +182,12 @@ def plot(front: ArrayLike, fname: str, interp: Optional[bool] = True,
         tck = interpolate.InterpolatedUnivariateSpline(x,y,k=1)
         x = np.linspace(min(x),max(x),1000)
         y = [tck(xi) for xi in x]
-    ax.scatter(x, y, label=label, s=1)
+    ax.scatter(x, y, label=label, s=s)
     ax.grid()
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.legend()
-    fig.savefig(fname, dpi=300)
+    fig.savefig(fname, dpi=dpi)
     pl.close('all')
 
 def plot3(front: ArrayLike, fname: str, label: Optional[str] =r'$\chi$', 

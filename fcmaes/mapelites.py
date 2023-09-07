@@ -59,6 +59,7 @@ from numpy.random import default_rng
 import ctypes as ct
 from time import perf_counter
 import threadpoolctl
+from numba import njit
 
 import logging
 from typing import Optional, Callable, Tuple, Dict
@@ -186,7 +187,8 @@ def set_KDTree(archive: Archive,
         Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.
         Required if centers is None.
     samples_per_niche : int, optional
-        Number of samples used for niche computation. Required if centers is None.          
+        Number of samples used for niche computation. 
+        If samples_per_niche > 0 cvt-clustering is used, else grid-clustering is used.        
          
     Returns
     -------
@@ -299,8 +301,8 @@ def optimize_cma_(archive, fitness, bounds, rg, cma_params):
         old_ys = np.sort(ys)
         
 def update_archive(archive: Archive, xs: np.ndarray, 
-                   fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
-                   yds: Optional(ArrayLike) = None):
+                   fitness: Optional[Callable[[ArrayLike], Tuple[float, np.ndarray]]] = None,
+                   yds: Optional[ArrayLike] = None):
     # evaluate population, update archive and determine ranking
     popsize = len(xs)
     if yds is None: 
@@ -309,6 +311,9 @@ def update_archive(archive: Archive, xs: np.ndarray,
     niches = archive.index_of_niches(descs)
     # real values
     ys = np.fromiter((yd[0] for yd in yds), dtype=float)
+    
+    #print(len(archive.ys), np.amax(niches), np.amin(niches))
+    
     oldys = np.fromiter((archive.get_y(niches[i]) for i in range(popsize)), dtype=float)
     improvement = ys - oldys
     neg = np.argwhere(improvement < 0)
@@ -325,6 +330,20 @@ def update_archive(archive: Archive, xs: np.ndarray,
         improvement[empty] = min_valid + norm_ys
     # return both improvement compared to archive elites  and real fitness
     return improvement, ys
+
+@njit()
+def get_grid_indices(ds, capacity, lb, ub):
+    rdim = capacity ** (1/ds.shape[1])
+    ds_norm = rdim * (ds - lb) / (ub - lb)
+    indices = np.empty(len(ds), dtype=np.int32)   
+    for i, d in enumerate(ds_norm):
+        index = 0
+        f = 1
+        for di in d:
+            index += f*di
+            f *= rdim
+        indices[i] = max(0, min(capacity-1, int(index)))    
+    return indices
         
 class Archive(object):
     """Multi-processing map elites archive. 
@@ -370,10 +389,13 @@ class Archive(object):
                 self.set_stat(i, 3, np.full(self.dim, -np.inf)) # max
          
     def init_niches(self, samples_per_niche: int = 10): 
-        """Computes the niche centers using KMeans and builds the KDTree for niche determination.""" 
-        set_KDTree(self, None, self.capacity, self.qd_bounds, samples_per_niche)
-        self.cs = mp.RawArray(ct.c_double, self.capacity * self.qd_dim)
-        self.set_cs(self.centers)
+        """Computes the niche centers using KMeans and builds the KDTree for niche determination."""
+        # If samples_per_niche > 0 cvt-clustering is used, else grid-clustering is used.   
+        self.cvt_clustering = samples_per_niche > 0
+        if self.cvt_clustering:
+            set_KDTree(self, None, self.capacity, self.qd_bounds, samples_per_niche)
+            self.cs = mp.RawArray(ct.c_double, self.capacity * self.qd_dim)
+            self.set_cs(self.centers)
     
     def get_occupied_data(self):
         ys = self.get_ys()
@@ -398,7 +420,7 @@ class Archive(object):
                             xs=self.get_xs(), 
                             ds=self.get_ds(), 
                             ys=self.get_ys(), 
-                            cs=self.get_cs(),
+                            cs=self.get_cs() if self.cvt_clustering else np.empty(0),
                             stats=self.get_stats(),
                             counts=self.get_counts()
                             )
@@ -407,12 +429,14 @@ class Archive(object):
         """Loads the archive from disc."""   
         self.cs = mp.RawArray(ct.c_double, self.capacity * self.qd_dim)
         with np.load(self.fname(name) + '.npz') as data:
+            self.cvt_clustering = len(data['cs']) > 0
             xs = data['xs']
             ds = data['ds']
             self.set_xs(xs)
             self.set_ds(ds)
             self.set_ys(data['ys'])
-            self.set_cs(data['cs'])
+            if self.cvt_clustering:
+                self.set_cs(data['cs'])
             self.counts[:] = data['counts']
             stats = data['stats']
             if len(stats) == len(self.stats):
@@ -421,10 +445,14 @@ class Archive(object):
         self.dim = xs.shape[1]
         self.qd_dim = ds.shape[1]
         self.capacity = xs.shape[0]
-        set_KDTree(self, self.get_cs(), None, None, None)
-    
+        if self.cvt_clustering:
+            set_KDTree(self, self.get_cs(), None, None, None)
+      
     def index_of_niches(self, ds):
-        return self.kdt.query(self.encode_d(ds), k=1, sort_results=False)[1].T[0] 
+        if hasattr(self, "kdt"): # use k-means clusters
+            return self.kdt.query(self.encode_d(ds), k=1, sort_results=False)[1].T[0] 
+        else: # use grid based clustering
+            return get_grid_indices(ds, self.capacity, self.qd_bounds.lb, self.qd_bounds.ub)
         
     def in_niche_filter(self, 
                         fit: Callable[[ArrayLike], float], 

@@ -76,7 +76,8 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
     niche_num : int, optional
         Number of niches.
     samples_per_niche : int, optional
-        Number of samples used for niche computation.  
+        Number of samples used for niche computation. 
+        If samples_per_niche > 0 cvt-clustering is used, else grid-clustering is used. 
     max_evals : int, optional
         Number of fitness evaluations.
     workers : int, optional

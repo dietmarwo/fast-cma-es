@@ -481,7 +481,7 @@ class MODE(object):
         x[tr] = xp[tr]    
         if not self.modifier is None:
             x = self.modifier(x)   
-        return x
+        return x.clip(self.lower, self.upper)
     
     def _sample(self):
         if self.upper is None:

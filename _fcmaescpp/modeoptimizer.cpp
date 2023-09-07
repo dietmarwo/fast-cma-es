@@ -217,8 +217,8 @@ public:
         for (int j = 0; j < dim; j++)
             if (j != r && rand01(*rs) > CR)
                 x[j] = xp[j];
-        x = fitfun->getClosestFeasible(x);
         modify(x);
+        x = fitfun->getClosestFeasible(x);
         return x;
     }
 
