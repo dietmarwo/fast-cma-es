@@ -333,14 +333,14 @@ def update_archive(archive: Archive, xs: np.ndarray,
 
 @njit()
 def get_grid_indices(ds, capacity, lb, ub):
-    rdim = capacity ** (1/ds.shape[1])
-    ds_norm = rdim * (ds - lb) / (ub - lb)
+    rdim = int(capacity ** (1/ds.shape[1]) + 0.5)
+    ds_norm = (ds - lb) / (ub - lb)
     indices = np.empty(len(ds), dtype=np.int32)   
     for i, d in enumerate(ds_norm):
         index = 0
         f = 1
         for di in d:
-            index += f*di
+            index += f * int(rdim*di)
             f *= rdim
         indices[i] = max(0, min(capacity-1, int(index)))    
     return indices
