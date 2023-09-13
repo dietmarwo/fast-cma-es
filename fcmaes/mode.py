@@ -144,7 +144,7 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
             f, cr, pro_c, dis_c, pro_m, dis_m, nsga_update, pareto_update, rg, ints, min_mutate, max_mutate, modifier)
         mode.set_guess(guess, mofun)
         if workers <= 1:
-            x, y, = mode.minimize_ser(mofun, max_evaluations, workers)
+            x, y, = mode.minimize_ser(mofun, max_evaluations)
         else:
             x, y = mode.minimize_par(mofun, max_evaluations, workers)
         if not store is None:
