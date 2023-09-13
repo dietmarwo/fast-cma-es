@@ -3,9 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-""" Wraps an Eigen based C++ implementation of Fast Moving Natural Evolution Strategy 
-    for High-Dimensional Problems (CR-FM-NES), see https://arxiv.org/abs/2201.11422 .
-    Derived from https://github.com/nomuramasahir0/crfmnes .
+""" Wraps an SCMA implementation in C++.
 """
 
 import sys

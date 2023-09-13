@@ -311,9 +311,6 @@ def update_archive(archive: Archive, xs: np.ndarray,
     niches = archive.index_of_niches(descs)
     # real values
     ys = np.fromiter((yd[0] for yd in yds), dtype=float)
-    
-    #print(len(archive.ys), np.amax(niches), np.amin(niches))
-    
     oldys = np.fromiter((archive.get_y(niches[i]) for i in range(popsize)), dtype=float)
     improvement = ys - oldys
     neg = np.argwhere(improvement < 0)

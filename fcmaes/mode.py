@@ -45,7 +45,8 @@ import os, sys, time
 import ctypes as ct
 from numpy.random import Generator, MT19937
 from scipy.optimize import Bounds
-from fcmaes.evaluator import Evaluator
+
+from fcmaes.evaluator import Evaluator, parallel_mo
 from fcmaes import moretry
 import multiprocessing as mp
 from fcmaes.optimizer import logger, dtime
@@ -60,9 +61,10 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
              nobj: int,
              ncon: int,
              bounds: Bounds,
+             guess: Optional[ArrayLike] = None,
              popsize: Optional[int] = 64,
              max_evaluations: Optional[int] = 100000,
-             workers: Optional[int] = None,
+             workers: Optional[int] = 1,
              f: Optional[float] = 0.5,
              cr: Optional[float] = 0.9,
              pro_c: Optional[float] = 1.0,
@@ -100,9 +102,9 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
     popsize : int, optional
         Population size.
     max_evaluations : int, optional
-        Forced termination after ``max_evaluations`` function evaluations.
+        Forced termination after ``max_evaluations`` function evaluations. 
     workers : int or None, optional
-        If not workers is None, function evaluation is performed in parallel for the whole population. 
+        workers > 1, function evaluation is performed in parallel for the whole population. 
         Useful for costly objective functions     
     f = float, optional
         The mutation constant. In the literature this is also known as differential weight, 
@@ -137,13 +139,14 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
     -------
     x, y: list of argument vectors and corresponding value vectors of the optimization results. """
 
-    mode = MODE(nobj, ncon, bounds, popsize, workers if not workers is None else 0, 
+    try:    
+        mode = MODE(nobj, ncon, bounds, popsize,
             f, cr, pro_c, dis_c, pro_m, dis_m, nsga_update, pareto_update, rg, ints, min_mutate, max_mutate, modifier)
-    try:
-        if workers and workers > 1:
-            x, y, evals, iterations, stop = mode.do_optimize_delayed_update(mofun, max_evaluations, workers)
-        else:      
-            x, y, evals, iterations, stop = mode.do_optimize(mofun, max_evaluations)
+        mode.set_guess(guess, mofun)
+        if workers <= 1:
+            x, y, = mode.minimize_ser(mofun, max_evaluations, workers)
+        else:
+            x, y = mode.minimize_par(mofun, max_evaluations, workers)
         if not store is None:
             store.add_results(x, y)
         return x, y
@@ -241,7 +244,6 @@ class MODE(object):
                 ncon: int, 
                 bounds: Bounds,
                 popsize: Optional[int] = 64, 
-                workers: Optional[int] = 0,
                 F: Optional[float] = 0.5, 
                 Cr: Optional[float] = 0.9, 
                 pro_c: Optional[float] = 1.0,
@@ -263,7 +265,6 @@ class MODE(object):
         if popsize % 2 == 1 and nsga_update: # nsga update requires even popsize
             popsize += 1
         self.popsize = popsize
-        self.workers = workers 
         self.rg = rg
         self.F0 = F
         self.Cr0 = Cr
@@ -291,129 +292,62 @@ class MODE(object):
             self.modifier = modifier
         self._init()
                
-    def ask(self) -> Tuple[int, np.ndarray]:
-        """ask for one new argument vector.
-        
-        Returns
-        -------
-        p : int population index 
-        x : dim sized argument ."""
-        
-        p = self.p
-        x = self._next_x(p)
-        self.p = (self.p + 1) % self.popsize
-        return p, x
-
-    def tell(self, p: int, y: np.ndarray, x: np.ndarray) -> int:      
-        """tell function value for a argument list retrieved by ask_one().
-    
-        Parameters
-        ----------
-        p : int population index 
-        y : function value
-        x : dim sized argument list
- 
-        Returns
-        -------
-        stop : int termination criteria, if != 0 loop should stop."""
-        if self._is_dominated(y, p):
-            return self.stop
-        
-        with self.mutex:  
-            for dp in range(len(self.done)):
-                if not self.done[dp]:
-                    break
-            self.nx[dp] = x
-            self.ny[dp] = y      
-            self.done[dp] = True
-            if sum(self.done) >= self.popsize:
-                done_p = np.arange(len(self.ny))
-                done_p = done_p[self.done]
-                p = self.popsize
-                for dp in done_p:
-                    self.x[p] = self.nx[dp]
-                    self.y[p] = self.ny[dp]
-                    self.done[dp] = False
-                    if p >= len(self.y):
-                        break
-                    p += 1
-                self.pop_update()
-        return self.stop 
-
-    def ask_all(self):
+    def set_guess(self, guess, mofun):
+        if not guess is None:
+            ys = np.array([mofun(x) for x in guess])
+            choice = np.random.choice(len(guess), self.popsize)
+            self.tell(ys[choice], guess[choice])
+                   
+    def ask(self) -> np.ndarray:
         for p in range(self.popsize):
             self.x[p + self.popsize] = self._next_x(p)
         return self.x[self.popsize:]
                 
-    def tell_all(self, ys):
+    def tell(self, ys: np.ndarray, xs: Optional[np.ndarray] = None):
+        if not xs is None:
+            for p in range(self.popsize):
+                self.x[p + self.popsize] = xs[p]
         for p in range(self.popsize):
             self.y[p + self.popsize] = ys[p]
         self.pop_update()
-                          
+                         
     def _init(self):
         self.x = np.empty((2*self.popsize, self.dim))
         self.y = np.empty((2*self.popsize, self.nobj + self.ncon))
         for i in range(self.popsize):
             self.x[i] = self._sample()
             self.y[i] = np.array([1E99]*(self.nobj + self.ncon))
-        
-        next_size = 2*(max(self.workers, self.popsize))
-        self.done = np.zeros(next_size, dtype=bool)
-        self.nx = np.empty((next_size, self.dim))
-        self.ny = np.empty((next_size, self.nobj + self.ncon))
         self.vx = self.x.copy()
         self.vp = 0
+        self.ycon = None
+        self.eps = 0
+
+    def minimize_ser(self, 
+                     fun: Callable[[ArrayLike], ArrayLike], 
+                     max_evaluations: Optional[int] = 100000) -> Tuple[np.ndarray, np.ndarray]:
+        evals = 0
+        while evals < max_evaluations:
+            xs = self.ask()
+            ys = np.array([fun(x) for x in xs])
+            self.tell(ys)
+            evals += self.popsize
+        return xs, ys
+
+        
+    def minimize_par(self, 
+                     fun: Callable[[ArrayLike], ArrayLike], 
+                     max_evaluations: Optional[int] = 100000, 
+                     workers: Optional[int] = mp.cpu_count()) -> Tuple[np.ndarray, np.ndarray]:
+        fit = parallel_mo(fun, self.nobj + self.ncon, workers)
+        evals = 0
+        while evals < max_evaluations:
+            xs = self.ask()
+            ys = fit(xs)
+            self.tell(ys)
+            evals += self.popsize
+        fit.stop()
+        return xs, ys
                                     
-    def do_optimize(self, fun: Callable[[ArrayLike], ArrayLike], max_evals: int) \
-                                    -> Tuple[np.ndarray, np.ndarray, int, int, int]:
-        self.fun = fun
-        self.max_evals = max_evals    
-        self.iterations = 0
-        self.evals = 0
-        while self.evals < self.max_evals:
-            for p in range(self.popsize):
-                x = self._next_x(p)
-                self.y[self.popsize + p] = self.fun(x)
-                self.x[self.popsize + p] = x
-                self.evals += 1
-            self.pop_update()
-        x, y = _filter(self.x, self.y)
-        return x, y, self.evals, self.iterations, self.stop
-
-    def do_optimize_delayed_update(self, fun: Callable[[ArrayLike], ArrayLike], max_evals: int, 
-                                   workers: Optional[int] = mp.cpu_count()) \
-                                    -> Tuple[np.ndarray, np.ndarray, int, int, int]:
-        self.fun = fun
-        self.max_evals = max_evals    
-        evaluator = Evaluator(self.fun)
-        evaluator.start(workers)
-        evals_x = {}
-        self.iterations = 0
-        self.evals = 0
-        self.p = 0
-        for _ in range(workers): # fill queue with initial population
-            p, x = self.ask()
-            evaluator.pipe[0].send((self.evals, x))
-            evals_x[self.evals] = p, x # store x
-            self.evals += 1
-            
-        while True: # read from pipe, tell de and create new x
-            evals, y = evaluator.pipe[0].recv()            
-            p, x = evals_x[evals] # retrieve evaluated x
-            del evals_x[evals]
-            self.tell(p, y, x) # tell evaluated x
-            if self.stop != 0 or self.evals >= self.max_evals:
-                break # shutdown worker if stop criteria met
-            
-            p, x = self.ask() # create new x          
-            evaluator.pipe[0].send((self.evals, x))       
-            evals_x[self.evals] = p, x  # store x
-            self.evals += 1
-            
-        evaluator.stop()
-        x, y = _filter(self.x, self.y)
-        return x, y, self.evals, self.iterations, self.stop
-
     def pop_update(self):
         y0 = self.y
         x0 = self.x
@@ -421,7 +355,7 @@ class MODE(object):
             yi = np.flip(np.argsort(self.y[:,0]))
             y0 = self.y[yi]
             x0 = self.x[yi]    
-        domination = pareto(y0, self.nobj, self.ncon)
+        domination, self.ycon, self.eps = pareto_domination(y0, self.nobj, self.ncon, self.ycon, self.eps)
         x = []
         y = []
         maxdom = int(max(domination))
@@ -519,7 +453,7 @@ def _check_bounds(bounds, dim):
         return dim, None, None
     else:
         return len(bounds.ub), np.asarray(bounds.lb), np.asarray(bounds.ub)
- 
+
 def _filter(x, y):
     ym = np.amax(y,axis=1)
     sorted = np.argsort(ym)
@@ -538,46 +472,57 @@ def objranks(objs):
     rank = np.sum(rank, axis=1)
     return rank
 
-def ranks(cons):
-    feasible = np.less_equal(cons, 0)
+def ranks(cons, feasible, eps):
     ci = cons.argsort(axis=0)
     rank = np.empty_like(ci)
     ar = np.arange(cons.shape[0])
     for i in range(cons.shape[1]): 
         rank[ci[:,i], i] = ar
     rank[feasible] = 0
-    alpha = np.sum(np.greater(cons, 0), axis=1) / cons.shape[1] # violations
+    alpha = np.sum(np.greater(cons, eps), axis=1) / cons.shape[1] # violations
     alpha = np.tile(alpha, (cons.shape[1],1)).T
     rank = rank*alpha
     rank = np.sum(rank, axis=1)
     return rank
-     
-def pareto(ys, nobj, ncon):
+
+
+def pareto_domination(ys, nobj, ncon, last_ycon = None, last_eps = 0):
     if ncon == 0:
-        return pareto_levels(ys)
+        return pareto_levels(ys), None, 0
     else:
+        eps = 0 # adjust tolerance to small constraint violations
+        if not last_ycon is None and np.amax(last_ycon) < 1E90:
+            eps = 0.5*(last_eps + 0.5*np.mean(last_ycon, axis=0))
+            if np.amax(eps) < 1E-8: # ignore small eps
+                eps = 0
+        
         yobj = np.array([y[:nobj] for y in ys])
-        ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])    
-        csum = ranks(ycon)
-        feasible = np.less_equal(csum, 0)
+        ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])  
+        popn = len(ys)              
+        feasible = np.less_equal(ycon, eps).all(axis=1)
+        
+        csum = ranks(ycon, feasible, eps)
         if sum(feasible) > 0:
             csum += objranks(yobj)
+        
         ci = np.argsort(csum)
-        popn = len(ys)
         domination = np.zeros(popn)
         # first pareto front of feasible solutions
         cy = np.fromiter((i for i in ci if feasible[i]), dtype=int)
         if len(cy) > 0:
             ypar = pareto_levels(yobj[cy])
-            domination[cy] += ypar        
+            domination[cy] = ypar        
+
         # then constraint violations   
         ci = np.fromiter((i for i in ci if not feasible[i]), dtype=int) 
         if len(ci) > 0:    
             cdom = np.arange(len(ci), 0, -1)
             domination[ci] += cdom
             if len(cy) > 0: # priorize feasible solutions
-                domination[cy] += popn + 1
-    return domination   
+                domination[cy] += len(ci) + 1
+                
+        return domination, ycon, eps         
+    return domination, ycon, eps   
  
 def pareto_levels(ys):
     popn = len(ys)
@@ -646,7 +591,6 @@ def variation(pop, lower, upper, rg, pro_c = 1, dis_c = 20, pro_m = 1, dis_m = 2
                                1. / (dis_m + 1.)))
     offspring = np.clip(offspring, lower, upper)
     return offspring
-
 
 def feasible(xs, ys, ncon, eps = 1E-2):
     if ncon > 0: # select feasible

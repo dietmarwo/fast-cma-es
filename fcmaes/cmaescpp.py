@@ -273,11 +273,11 @@ class ACMA_C:
         res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
         try:
             resultACMA_C(self.ptr, res_p)
-            x = res[:dim]
-            val = res[dim]
-            evals = int(res[dim+1])
-            iterations = int(res[dim+2])
-            stop = int(res[dim+3])
+            x = res[:self.dim]
+            val = res[self.dim]
+            evals = int(res[self.dim+1])
+            iterations = int(res[self.dim+2])
+            stop = int(res[self.dim+3])
             res = OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
         except Exception as ex:
             res = OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)

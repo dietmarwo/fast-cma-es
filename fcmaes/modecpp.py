@@ -67,6 +67,7 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
              nobj: int,
              ncon: int,
              bounds: Bounds,
+             guess: Optional[ArrayLike] = None,
              popsize: Optional[int] = 64,
              max_evaluations: Optional[int] = 100000,
              workers: Optional[int] = 1,
@@ -81,11 +82,8 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
              ints: Optional[ArrayLike] = None,
              min_mutate: Optional[float] = 0.1,
              max_mutate: Optional[float] = 0.5,           
-             log_period: Optional[int] = 10000000,
              rg: Optional[Generator] = Generator(MT19937()),
-             plot_name: Optional[str] = None,
              store: Optional[store] = None,
-             is_terminate: Optional[Callable[[ArrayLike, ArrayLike], bool]] = None,
              runid: Optional[int] = 0) -> Tuple[np.ndarray, np.ndarray]:
      
     """Minimization of a multi objjective function of one or more variables using
@@ -110,9 +108,9 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
     popsize : int, optional
         Population size.
     max_evaluations : int, optional
-        Forced termination after ``max_evaluations`` function evaluations.
+        Forced termination after ``max_evaluations`` function evaluations. 
     workers : int or None, optional
-        If not workers is None, function evaluation is performed in parallel for the whole population. 
+        if workers > 1, function evaluation is performed in parallel for the whole population. 
         Useful for costly objective functions     
     f = float, optional
         The mutation constant. In the literature this is also known as differential weight, 
@@ -139,10 +137,8 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     store : result store, optional
-        if defined the optimization results are added to the result store. For multi threaded execution.
-        use workers=1 if you call minimize from multiple threads
-    is_terminate : callable, optional
-        Callback to be used if the caller of minimize wants to decide when to terminate.
+        if defined the optimization results are added to the result store.
+
     runid : int, optional
         id used to identify the run for debugging / logging. 
 
@@ -150,37 +146,14 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
     -------
     x, y: list of argument vectors and corresponding value vectors of the optimization results. """
     
-    dim, lower, upper = _check_bounds(bounds, None)
-    if popsize is None:
-        popsize = 64
-    if popsize % 2 == 1 and nsga_update: # nsga update requires even popsize
-        popsize += 1
-    if lower is None:
-        lower = [0]*dim
-        upper = [0]*dim  
-    if ints is None or nsga_update: # nsga update doesn't support mixed integer
-        ints = [False]*dim
-    if workers is None:
-        workers = 0        
-    array_type = ct.c_double * dim   
-    bool_array_type = ct.c_bool * dim 
-    c_callback = mo_call_back_type(callback_mo(mofun, dim, nobj + ncon, is_terminate))
-    c_log = mo_call_back_type(log_mo(plot_name, dim, nobj, ncon))
-    seed = int(rg.uniform(0, 2**32 - 1))
-    res = np.empty(2*dim*popsize) # stores the resulting pareto front parameters
-    res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
-        optimizeMODE_C(runid, c_callback, c_log, dim, nobj, ncon, seed,
-                           array_type(*lower), array_type(*upper), bool_array_type(*ints), 
-                           max_evaluations, popsize, workers, f, cr, 
-                           pro_c, dis_c, pro_m, dis_m,
-                           nsga_update, pareto_update, min_mutate, max_mutate, 
-                           log_period, res_p)
-        x = np.empty((2*popsize,dim))
-        for p in range(2*popsize):
-            x[p] = res[p*dim : (p+1)*dim]
-        y = np.array([mofun(xi) for xi in x])
-        x, y = _filter(x, y)
+        mode = MODE_C(nobj, ncon, bounds, popsize, max_evaluations, f, cr, pro_c, dis_c, pro_m, dis_m, 
+                        nsga_update, pareto_update, ints, min_mutate, max_mutate, rg, runid)
+        mode.set_guess(guess, mofun)     
+        if workers <= 1:
+            x, y = mode.minimize_ser(mofun, max_evaluations)           
+        else:
+            x, y = mode.minimize_par(mofun, max_evaluations, workers)             
         if not store is None:
             store.add_results(x, y)
         return x, y
@@ -279,46 +252,10 @@ def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize,
             minimize(mofun, nobj, ncon, bounds, popsize,
                         max_evaluations = max_evaluations, 
                         nsga_update=nsga_update, pareto_update=pareto_update,
-                        workers = 1, rg = rgs[pid], store = store, is_terminate=is_terminate, ints=ints) 
+                        rg = rgs[pid], store = store, is_terminate=is_terminate, ints=ints) 
             if not logger is None:
                 logger.info("retries = {0}: time = {1:.1f} i = {2}"
                             .format(store.num_added.value, dtime(t0), store.num_stored.value))
-
-class log_mo(object):
-    
-    def __init__(self, name, dim, nobj, ncon):
-        self.name = name
-        self.dim = dim
-        self.nobj = nobj + ncon
-        self.ncon = ncon
-        self.calls = 0
-    
-    def __call__(self, n, x, y):
-        try:
-            if not self.name is None:
-                self.calls += 1
-                arrTypeX = ct.c_double*(self.dim*n)
-                arrTypeY = ct.c_double*(self.nobj*n)
-                xaddr = ct.addressof(x.contents)
-                yaddr = ct.addressof(y.contents)            
-                xbuf = np.frombuffer(arrTypeX.from_address(xaddr))
-                ybuf = np.frombuffer(arrTypeY.from_address(yaddr))
-                xs = []; ys = []
-                for p in range(n):
-                    x = xbuf[p*self.dim : (p+1)*self.dim]
-                    xs.append(x)
-                    y = ybuf[p*self.nobj : (p+1)*self.nobj]
-                    ys.append(y)
-                xs = np.array(xs)
-                ys = np.array(ys)
-                print("callback", np.min(ys[:,0]), np.min(ys[:,1]))
-                name = self.name + '_' + str(self.calls)
-                np.savez_compressed(name, xs=xs, ys=ys)
-                moretry.plot(name, self.ncon, xs, ys)
-            return False # don't terminate optimization
-        except Exception as ex:
-            print (ex)
-            return False
 
 class MODE_C:
 
@@ -413,7 +350,13 @@ class MODE_C:
      
     def __del__(self):
         destroyMODE_C(self.ptr)
-            
+        
+    def set_guess(self, guess, mofun):
+        if not guess is None:
+            ys = np.array([mofun(x) for x in guess])
+            choice = np.random.choice(len(guess), self.popsize)
+            self.tell(ys[choice], guess[choice])
+          
     def ask(self) -> np.ndarray:
         try:
             popsize = self.popsize
@@ -429,14 +372,19 @@ class MODE_C:
             print (ex)
             return None
 
-    def tell(self, ys: np.ndarray) -> int:
+    def tell(self, ys: np.ndarray, xs: Optional[np.ndarray] = None) -> int:
         try:
             flat_ys = ys.flatten()
-            array_type_ys = ct.c_double * len(flat_ys)
-            return tellMODE_C(self.ptr, array_type_ys(*flat_ys))
+            array_type_ys = ct.c_double * len(flat_ys)           
+            if xs is None:
+                return tellMODE_C(self.ptr, array_type_ys(*flat_ys))
+            else:            
+                flat_xs = xs.flatten()
+                array_type_xs = ct.c_double * len(flat_xs)
+                return setPopulationMODE_C(self.ptr, array_type_xs(*flat_xs), array_type_ys(*flat_ys))
         except Exception as ex:
             print (ex)
-            return -1       
+            return -1          
     
     def tell_switch(self, ys: np.ndarray, 
                         nsga_update: Optional[bool] = True,
@@ -463,12 +411,24 @@ class MODE_C:
         except Exception as ex:
             print (ex)
             return None
+
+    def minimize_ser(self, 
+                     fun: Callable[[ArrayLike], ArrayLike], 
+                     max_evaluations: Optional[int] = 100000) -> Tuple[np.ndarray, np.ndarray]:
+        evals = 0
+        stop = 0
+        while stop == 0 and evals < max_evaluations:
+            xs = self.ask()
+            ys = np.array([fun(x) for x in xs])
+            stop = self.tell(ys)
+            evals += self.popsize
+        return xs, ys
         
     def minimize_par(self, 
                      fun: Callable[[ArrayLike], ArrayLike], 
                      max_evaluations: Optional[int] = 100000, 
                      workers: Optional[int] = mp.cpu_count()) -> Tuple[np.ndarray, np.ndarray]:
-        fit = parallel_mo(fun, self.nobj, workers)
+        fit = parallel_mo(fun, self.nobj + self.ncon, workers)
         evals = 0
         stop = 0
         while stop == 0 and evals < max_evaluations:
@@ -478,17 +438,9 @@ class MODE_C:
             evals += self.popsize
         fit.stop()
         return xs, ys
-
+    
 if not libcmalib is None: 
-    
-    optimizeMODE_C = libcmalib.optimizeMODE_C
-    optimizeMODE_C.argtypes = [ct.c_long, mo_call_back_type, mo_call_back_type, ct.c_int, ct.c_int, \
-                ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
-                ct.c_int, ct.c_int, ct.c_int,\
-                ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
-                ct.c_bool, ct.c_double, ct.c_double, ct.c_double, 
-                ct.c_int, ct.POINTER(ct.c_double)]
-    
+        
     initMODE_C = libcmalib.initMODE_C
     initMODE_C.argtypes = [ct.c_long, ct.c_int, ct.c_int, \
                 ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
@@ -515,4 +467,7 @@ if not libcmalib is None:
     populationMODE_C = libcmalib.populationMODE_C
     populationMODE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
 
+    setPopulationMODE_C = libcmalib.setPopulationMODE_C
+    setPopulationMODE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double)]
+    setPopulationMODE_C.restype = ct.c_int
 
