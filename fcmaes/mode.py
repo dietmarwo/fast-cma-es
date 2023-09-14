@@ -61,15 +61,15 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
              nobj: int,
              ncon: int,
              bounds: Bounds,
-             guess: Optional[ArrayLike] = None,
+             guess: Optional[np.ndarray] = None,
              popsize: Optional[int] = 64,
              max_evaluations: Optional[int] = 100000,
              workers: Optional[int] = 1,
              f: Optional[float] = 0.5,
              cr: Optional[float] = 0.9,
-             pro_c: Optional[float] = 1.0,
+             pro_c: Optional[float] = 0.5,
              dis_c: Optional[float] = 20.0,
-             pro_m: Optional[float] = 1.0,
+             pro_m: Optional[float] = 0.9,
              dis_m: Optional[float] = 20.0,
              nsga_update: Optional[bool] = True,
              pareto_update: Optional[int] = 0,
@@ -99,6 +99,8 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
             1. Instance of the `scipy.Bounds` class.
             2. Sequence of ``(min, max)`` pairs for each element in `x`. None
                is used to specify no bound.
+    guess : ndarray, shape (popsize,dim) or Tuple
+        Initial guess. 
     popsize : int, optional
         Population size.
     max_evaluations : int, optional
@@ -139,10 +141,10 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
     -------
     x, y: list of argument vectors and corresponding value vectors of the optimization results. """
 
-    try:    
+    try:   
         mode = MODE(nobj, ncon, bounds, popsize,
             f, cr, pro_c, dis_c, pro_m, dis_m, nsga_update, pareto_update, rg, ints, min_mutate, max_mutate, modifier)
-        mode.set_guess(guess, mofun)
+        mode.set_guess(guess, mofun, rg)
         if workers <= 1:
             x, y, = mode.minimize_ser(mofun, max_evaluations)
         else:
@@ -292,10 +294,14 @@ class MODE(object):
             self.modifier = modifier
         self._init()
                
-    def set_guess(self, guess, mofun):
+    def set_guess(self, guess, mofun, rg):
         if not guess is None:
-            ys = np.array([mofun(x) for x in guess])
-            choice = np.random.choice(len(guess), self.popsize)
+            if isinstance(guess, np.ndarray):
+                ys = np.array([mofun(x) for x in guess])
+            else:
+                guess, ys = guess
+            choice = rg.choice(len(ys), self.popsize, 
+                                    replace = (len(ys) < self.popsize))
             self.tell(ys[choice], guess[choice])
                    
     def ask(self) -> np.ndarray:
@@ -361,6 +367,8 @@ class MODE(object):
         maxdom = int(max(domination))
         for dom in range(maxdom, -1, -1):
             domlevel = [p for p in range(len(domination)) if domination[p] == dom]
+            if len(domlevel) == 0:
+                continue
             if len(x) + len(domlevel) <= self.popsize:
                 # whole level fits
                 x = [*x, *x0[domlevel]]
@@ -485,6 +493,29 @@ def ranks(cons, feasible, eps):
     rank = np.sum(rank, axis=1)
     return rank
 
+def get_valid(xs, ys, nobj):
+    valid = (ys.T[nobj:].T <= 0).all(axis=1)
+    return xs[valid], ys[valid]
+
+def pareto_sort(x0, y0, nobj, ncon):
+    domination, _, _ = pareto_domination(y0, nobj, ncon)
+    x = []
+    y = []
+    maxdom = int(max(domination))
+    for dom in range(maxdom, -1, -1):
+        domlevel = [p for p in range(len(domination)) if domination[p] == dom]
+        if len(domlevel) == 0:
+            continue
+        nx = x0[domlevel]
+        ny = y0[domlevel]    
+        si = [0]
+        if len(ny) > 1:                
+            cd = crowd_dist(ny)
+            si = np.flip(np.argsort(cd))
+        for p in si:
+            x.append(nx[p])
+            y.append(ny[p])                             
+    return np.array(x), np.array(y)
 
 def pareto_domination(ys, nobj, ncon, last_ycon = None, last_eps = 0):
     if ncon == 0:
@@ -521,8 +552,7 @@ def pareto_domination(ys, nobj, ncon, last_ycon = None, last_eps = 0):
             if len(cy) > 0: # priorize feasible solutions
                 domination[cy] += len(ci) + 1
                 
-        return domination, ycon, eps         
-    return domination, ycon, eps   
+        return domination, ycon, eps
  
 def pareto_levels(ys):
     popn = len(ys)

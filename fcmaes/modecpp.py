@@ -67,15 +67,15 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
              nobj: int,
              ncon: int,
              bounds: Bounds,
-             guess: Optional[ArrayLike] = None,
+             guess: Optional[np.ndarray] = None,
              popsize: Optional[int] = 64,
              max_evaluations: Optional[int] = 100000,
              workers: Optional[int] = 1,
              f: Optional[float] = 0.5,
              cr: Optional[float] = 0.9,
-             pro_c: Optional[float] = 1.0,
+             pro_c: Optional[float] = 0.5,
              dis_c: Optional[float] = 20.0,
-             pro_m: Optional[float] = 1.0,
+             pro_m: Optional[float] = 0.9,
              dis_m: Optional[float] = 20.0,
              nsga_update: Optional[bool] = True,
              pareto_update: Optional[int] = 0,
@@ -105,6 +105,8 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
             1. Instance of the `scipy.Bounds` class.
             2. Sequence of ``(min, max)`` pairs for each element in `x`. None
                is used to specify no bound.
+    guess : ndarray, shape (popsize,dim) or Tuple
+        Initial guess. 
     popsize : int, optional
         Population size.
     max_evaluations : int, optional
@@ -147,9 +149,9 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
     x, y: list of argument vectors and corresponding value vectors of the optimization results. """
     
     try:
-        mode = MODE_C(nobj, ncon, bounds, popsize, max_evaluations, f, cr, pro_c, dis_c, pro_m, dis_m, 
+        mode = MODE_C(nobj, ncon, bounds, popsize, f, cr, pro_c, dis_c, pro_m, dis_m, 
                         nsga_update, pareto_update, ints, min_mutate, max_mutate, rg, runid)
-        mode.set_guess(guess, mofun)     
+        mode.set_guess(guess, mofun, rg)     
         if workers <= 1:
             x, y = mode.minimize_ser(mofun, max_evaluations)           
         else:
@@ -158,6 +160,7 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
             store.add_results(x, y)
         return x, y
     except Exception as ex:
+        print(str(ex))  
         return None, None
   
 def retry(mofun: Callable[[ArrayLike], ArrayLike], 
@@ -264,7 +267,6 @@ class MODE_C:
              ncon: int, 
              bounds: Bounds,
              popsize: Optional[int] = 64, 
-             max_evaluations: Optional[int] = 100000, 
              f: Optional[float] = 0.5, 
              cr: Optional[float] = 0.9, 
              pro_c: Optional[float] = 1.0,
@@ -293,8 +295,6 @@ class MODE_C:
                    is used to specify no bound.
         popsize : int, optional
             Population size.
-        max_evaluations : int, optional
-            Forced termination after ``max_evaluations`` function evaluations.
         f = float, optional
             The mutation constant. In the literature this is also known as differential weight, 
             being denoted by F. Should be in the range [0, 2], usually leave at default.  
@@ -336,7 +336,7 @@ class MODE_C:
         try:
             self.ptr = initMODE_C(runid, dim, nobj, ncon, seed,
                                array_type(*lower), array_type(*upper), bool_array_type(*ints), 
-                               max_evaluations, popsize, f, cr, 
+                               popsize, f, cr, 
                                pro_c, dis_c, pro_m, dis_m,
                                nsga_update, pareto_update, min_mutate, max_mutate)
             self.popsize = popsize
@@ -345,16 +345,20 @@ class MODE_C:
             self.ncon = ncon
             self.bounds = bounds        
         except Exception as ex:
-            print (ex)
+            print (str(ex))
             pass
      
     def __del__(self):
         destroyMODE_C(self.ptr)
         
-    def set_guess(self, guess, mofun):
+    def set_guess(self, guess, mofun, rg):
         if not guess is None:
-            ys = np.array([mofun(x) for x in guess])
-            choice = np.random.choice(len(guess), self.popsize)
+            if isinstance(guess, np.ndarray):
+                ys = np.array([mofun(x) for x in guess])
+            else:
+                guess, ys = guess
+            choice = rg.choice(len(ys), self.popsize, 
+                                    replace = (len(ys) < self.popsize))
             self.tell(ys[choice], guess[choice])
           
     def ask(self) -> np.ndarray:
@@ -369,7 +373,7 @@ class MODE_C:
                 xs[p,:] = res[p*n : (p+1)*n]
             return xs
         except Exception as ex:
-            print (ex)
+            print (str(ex))
             return None
 
     def tell(self, ys: np.ndarray, xs: Optional[np.ndarray] = None) -> int:
@@ -381,9 +385,10 @@ class MODE_C:
             else:            
                 flat_xs = xs.flatten()
                 array_type_xs = ct.c_double * len(flat_xs)
-                return setPopulationMODE_C(self.ptr, array_type_xs(*flat_xs), array_type_ys(*flat_ys))
+                return setPopulationMODE_C(self.ptr, len(ys), 
+                                            array_type_xs(*flat_xs), array_type_ys(*flat_ys))
         except Exception as ex:
-            print (ex)
+            print (str(ex))
             return -1          
     
     def tell_switch(self, ys: np.ndarray, 
@@ -409,7 +414,7 @@ class MODE_C:
                 xs[p,:] = res[p*n : (p+1)*n]
             return xs
         except Exception as ex:
-            print (ex)
+            print (str(ex))
             return None
 
     def minimize_ser(self, 
@@ -444,8 +449,7 @@ if not libcmalib is None:
     initMODE_C = libcmalib.initMODE_C
     initMODE_C.argtypes = [ct.c_long, ct.c_int, ct.c_int, \
                 ct.c_int, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_bool), \
-                ct.c_int, ct.c_int,\
-                ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
+                ct.c_int, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, ct.c_double, 
                 ct.c_bool, ct.c_double, ct.c_double, ct.c_double]
     
     initMODE_C.restype = ct.c_void_p   
@@ -468,6 +472,6 @@ if not libcmalib is None:
     populationMODE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double)]
 
     setPopulationMODE_C = libcmalib.setPopulationMODE_C
-    setPopulationMODE_C.argtypes = [ct.c_void_p, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double)]
+    setPopulationMODE_C.argtypes = [ct.c_void_p, ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double)]
     setPopulationMODE_C.restype = ct.c_int
 

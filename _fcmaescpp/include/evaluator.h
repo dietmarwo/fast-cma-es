@@ -285,7 +285,7 @@ public:
     double norm_i(int i, double x) const {
         if (_lower.size() == 0)
             std::cout << "no bounds error" << std::endl;
-        return (x - _lower[i]) / _scale[i];
+        return std::max(0.0, std::min(1.0, (x - _lower[i]) / _scale[i])); // avoid Nan errors
     }
 
     bool feasible(int i, double x) {

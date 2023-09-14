@@ -57,7 +57,7 @@ class MoDeOptimizer {
 public:
 
     MoDeOptimizer(long runid_, Fitness *fitfun_, int dim_,
-            int nobj_, int ncon_, int seed_, int popsize_, int maxEvaluations_,
+            int nobj_, int ncon_, int seed_, int popsize_,
             double F_, double CR_, double pro_c_, double dis_c_, double pro_m_,
             double dis_m_, bool nsga_update_, double pareto_update_,
             double min_mutate_, double max_mutate_,
@@ -74,8 +74,6 @@ public:
         ncon = ncon_;
         // Population size
         popsize = popsize_ > 0 ? popsize_ : 128;
-        // maximal number of evaluations allowed.
-        maxEvaluations = maxEvaluations_ > 0 ? maxEvaluations_ : 500000;
         // DE population update parameters, ignored if nsga_update == true
         F = F0 = F_ > 0 ? F_ : 0.5;
         CR = CR0 = CR_ > 0 ? CR_ : 0.9;
@@ -150,7 +148,6 @@ public:
         offspring2 -= delta;
         mat offspring = mat(dim, n);
         offspring << offspring1, offspring2;
-
         double limit = pro_m / dim;
         vec scale = fitfun->scale();
         for (int p = 0; p < n; p++) {
@@ -160,15 +157,15 @@ public:
                     double norm = fitfun->norm_i(i, offspring(i, p));
                     if (mu <= 0.5) // temp
                         offspring(i, p) += scale(i) *
-                        (pow(2. * mu + (1. - 2. * mu) * pow(1. - norm, dis_m_ + 1.),
-                                1. / (dis_m_ + 1.)) - 1.);
+                        		(pow(2. * mu + (1. - 2. * mu) * pow(1. - norm, dis_m_ + 1.),
+                        					1. / (dis_m_ + 1.)) - 1.);
                     else
                         offspring(i, p) += scale(i) *
-                        (1. - pow(2. * (1. - mu) + 2. * (mu - 0.5) * pow(1. - norm, dis_m_ + 1.),
-                                1. / (dis_m_ + 1.)));
+                        		(1. - pow(2. * (1. - mu) + 2. * (mu - 0.5) * pow(1. - norm, dis_m_ + 1.),
+                        					1. / (dis_m_ + 1.)));
                 }
             }
-        }
+    	}
         fitfun->setClosestFeasible(offspring);
         return offspring;
     }
@@ -416,6 +413,8 @@ public:
             for (int i = 0; i < domination.size(); i++)
                 if (domination(i) == dom)
                     level.push_back(i);
+            if (level.size() == 0)
+            	continue;
             ivec domlevel = Eigen::Map<ivec, Eigen::Unaligned>(level.data(),
                     level.size());
             mat domx = x0(Eigen::indexing::all, domlevel);
@@ -439,6 +438,7 @@ public:
                 } else {
                     x.push_back(domx.col(0));
                     y.push_back(domy.col(0));
+//                    std::cerr << "XXXXXXXX " << level.size()  << " " << domy.col(0) << std::endl;
                 }
                 break; // we have filled popsize members
             }
@@ -448,8 +448,8 @@ public:
             popY.col(i) = y[i];
         }
         if (nsga_update)
-            //vX = variation(popX(Eigen::indexing::all, Eigen::seqN(0, popsize)));
         	vX = variation(popX.leftCols(popsize));
+
     }
 
     mat ask() {
@@ -535,6 +535,11 @@ public:
         return popsize;
     }
 
+    void setPopsize(int size) {
+    	popsize = size;
+    	init();
+    }
+
 private:
     long runid;
     Fitness *fitfun;
@@ -542,7 +547,6 @@ private:
     int dim;
     int nobj;
     int ncon;
-    int maxEvaluations;
     double keep;
     double stopfitness;
     int iterations;
@@ -580,7 +584,7 @@ extern "C" {
 
 uintptr_t initMODE_C(int64_t  runid, int dim,
        int nobj, int ncon, int seed, double *lower, double *upper, bool *ints,
-       int maxEvals, int popsize, double F, double CR,
+       int popsize, double F, double CR,
        double pro_c, double dis_c, double pro_m, double dis_m,
        bool nsga_update, double pareto_update,
        double min_mutate, double max_mutate) {
@@ -596,7 +600,7 @@ uintptr_t initMODE_C(int64_t  runid, int dim,
     }
     Fitness* fitfun = new Fitness(noop_callback, noop_callback_par, dim, nobj + ncon, lower_limit, upper_limit);
     MoDeOptimizer* opt = new MoDeOptimizer(runid, fitfun, dim, nobj, ncon, seed, popsize,
-            maxEvals, F, CR, pro_c, dis_c, pro_m, dis_m, nsga_update,
+            F, CR, pro_c, dis_c, pro_m, dis_m, nsga_update,
             pareto_update, min_mutate, max_mutate, useIsInt ? isInt : NULL);
     return (uintptr_t) opt;
 }
@@ -634,9 +638,13 @@ int tellMODE_C(uintptr_t ptr, double* ys) {
     return opt->tell(vals);
 }
 
-int setPopulationMODE_C(uintptr_t ptr, double* xs, double* ys) {
+int setPopulationMODE_C(uintptr_t ptr, int size, double* xs, double* ys) {
     MoDeOptimizer *opt = (MoDeOptimizer*) ptr;
     int popsize = opt->getPopsize();
+    if (size != popsize) {
+    	opt->setPopsize(size);
+    	popsize = size;
+    }
     int nobj = opt->getNobj() + opt->getNcon();
     int dim = opt->getDim();
     mat pop(dim, popsize);
