@@ -29,12 +29,21 @@ Play around with the parameters of the experiment:
 and check the resulting plot.  
 """
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 from fcmaes import diversifier, mapelites
 import numpy as np
 from scipy.optimize import Bounds
 
 import ctypes as ct
 import multiprocessing as mp 
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 def forward_kinematics(q):
     """

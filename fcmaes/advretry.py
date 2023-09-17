@@ -2,6 +2,8 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
+
+
 from __future__ import annotations
 
 import time
@@ -19,11 +21,10 @@ import multiprocessing as mp
 from multiprocessing import Process
 from numpy.random import Generator, MT19937, SeedSequence
 from scipy.optimize import OptimizeResult, Bounds
-
+from loguru import logger
 from fcmaes.retry import _convertBounds, plot
-from fcmaes.optimizer import Optimizer, dtime, fitting, de_cma, logger
+from fcmaes.optimizer import Optimizer, dtime, fitting, de_cma
 
-import logging
 from typing import Optional, Callable, List
 from numpy.typing import ArrayLike
 
@@ -35,7 +36,6 @@ def minimize(fun: Callable[[ArrayLike], float],
              bounds: Bounds,
              value_limit: Optional[float] = np.inf,
              num_retries: Optional[int] = 5000,
-             logger: Optional[logging.Logger] = None,
              workers: Optional[int] = mp.cpu_count(),
              popsize: Optional[int] = 31,
              min_evaluations: Optional[int] = 1500,
@@ -69,10 +69,6 @@ def minimize(fun: Callable[[ArrayLike], float],
         cause the algorithm to get stuck at local minima.   
     num_retries : int, optional
         Number of optimization retries.    
-    logger : logger, optional
-        logger for log output of the retry mechanism. If None, logging
-        is switched off. Default is a logger which logs both to stdout and
-        appends to a file ``optimizer.log``.
     workers : int, optional
         number of parallel processes used. Default is mp.cpu_count()
     popsize = int, optional
@@ -110,7 +106,7 @@ def minimize(fun: Callable[[ArrayLike], float],
         optimizer = de_cma(min_evaluations, popsize, stop_fitness)     
     if max_eval_fac is None:
         max_eval_fac = int(min(50, 1 + num_retries // check_interval))
-    store = Store(fun, bounds, max_eval_fac, check_interval, capacity, logger, num_retries, 
+    store = Store(fun, bounds, max_eval_fac, check_interval, capacity, num_retries, 
                   statistic_num, datafile)
     if not datafile is None:
         try:
@@ -144,14 +140,13 @@ def minimize_plot(name: str,
                   plot_limit: Optional[float] = np.inf, 
                   num_retries: Optional[int] = 1024, 
                   workers: Optional[int] = mp.cpu_count(), 
-                  logger: Optional[logging.Logger] = logger(),
                   stop_fitness: Optional[float] = -np.inf, 
                   statistic_num: Optional[int] = 5000) -> OptimizeResult:
     
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
     logger.info('optimize ' + name)       
-    store = Store(fun, bounds, capacity = 500, logger = logger, statistic_num = statistic_num, 
+    store = Store(fun, bounds, capacity = 500, statistic_num = statistic_num, 
                   num_retries=num_retries)
     ret = retry(store, optimizer.minimize, value_limit, workers, stop_fitness)
     impr = store.get_improvements()
@@ -173,15 +168,13 @@ class Store(object):
                  max_eval_fac: Optional[int] = None, # maximal number of evaluations factor
                  check_interval: Optional[int] = 100, # sort evaluation store after check_interval iterations
                  capacity: Optional[int] = 500, # capacity of the evaluation store
-                 logger: Optional[logging.Logger] = None, # if None logging is switched off
                  num_retries: Optional[int] = None,
                  statistic_num: Optional[int] = 0,
                  datafile: Optional[str] = None
                ):
         self.fun = fun
         self.lower, self.upper = _convertBounds(bounds)
-        self.delta = self.upper - self.lower
-        self.logger = logger        
+        self.delta = self.upper - self.lower      
         self.capacity = capacity
         if max_eval_fac is None:
             if num_retries is None:
@@ -234,11 +227,10 @@ class Store(object):
                 self.si.value = si + 1
             self.time[si] = dtime(self.t0)
             self.val[si] = y  
-            if not self.logger is None:
-                self.logger.info(str(self.time[si]) + ' '  + 
-                          str(self.sevals.value) + ' ' + 
-                          str(y) + ' ' + 
-                          str(list(x)))
+            logger.info(str(self.time[si]) + ' '  + 
+                      str(self.sevals.value) + ' ' + 
+                      str(y) + ' ' + 
+                      str(list(x)))
         return y
                     
     # persist store
@@ -429,8 +421,6 @@ class Store(object):
 
     def dump(self):
         """logs the current status of the store if logger defined."""
-        if self.logger is None:
-            return
         Ys = self.get_ys()
         vals = []
         for i in range(min(20, len(Ys))):
@@ -440,14 +430,10 @@ class Store(object):
             dt, int(self.count_evals.value / dt), self.count_runs.value, self.count_evals.value, 
             self.best_y.value, self.worst_y.value, self.num_stored.value, int(self.eval_fac.value), 
             vals, self.best_x[:])
-        self.logger.info(message)
+        logger.info(message)
    
 def _retry_loop(pid, rgs, store, optimize, value_limit, stop_fitness = -np.inf):    
-    fun = store.wrapper if store.statistic_num > 0 else store.fun
-    #reinitialize logging config for windows -  multi threading fix
-    if 'win' in sys.platform and not store.logger is None:
-        store.logger = logger()
-    
+    fun = store.wrapper if store.statistic_num > 0 else store.fun    
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):    
         while store.get_runs_compare_incr(store.num_retries) and store.best_y.value > stop_fitness:               
             if _crossover(fun, store, optimize, rgs[pid]):

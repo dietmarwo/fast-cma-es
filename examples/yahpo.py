@@ -18,12 +18,21 @@
 # Requires yahpo_gym, please follow the installation instuctions at 
 # https://github.com/slds-lmu/yahpo_gym/tree/main/yahpo_gym
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
+
 from yahpo_gym import benchmark_set
 import yahpo_gym.benchmarks.iaml
 import numpy as np
 import pandas as pd
 from fcmaes import diversifier, mapelites
 from scipy.optimize import Bounds
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 def opt_ranger_hardware(task_id, max_evals = 100000):
     bench = benchmark_set.BenchmarkSet("iaml_ranger", check = False)

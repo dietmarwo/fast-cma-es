@@ -18,7 +18,6 @@
     
 import sys
 import os
-import math
 import ctypes as ct
 import numpy as np
 from numpy.random import MT19937, Generator
@@ -26,7 +25,6 @@ from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import mo_call_back_type, callback_so, libcmalib
 from fcmaes.de import _check_bounds
 
-import logging
 from typing import Optional, Callable, Tuple, Union
 from numpy.typing import ArrayLike
 

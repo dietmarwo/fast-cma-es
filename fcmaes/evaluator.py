@@ -16,11 +16,20 @@ import multiprocessing as mp
 import ctypes as ct
 import numpy as np
 import sys, math, os  
-
+from loguru import logger
 from typing import Optional, Callable, Tuple
 from numpy.typing import ArrayLike
 
 pipe_limit = 64 # higher values can cause issues
+
+def is_debug_active():
+    try: # nasty but currently there is no other way
+        for handler in logger._core.handlers.values():
+            if handler['level'].no <= logger.level("DEBUG").no:
+                return True
+    except Exception as ex:   
+        pass
+    return False
 
 def eval_parallel(xs: ArrayLike, 
                   evaluator: Evaluator):

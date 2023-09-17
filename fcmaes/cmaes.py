@@ -18,9 +18,9 @@ import multiprocessing as mp
 from scipy import linalg
 from scipy.optimize import OptimizeResult, Bounds
 from numpy.random import MT19937, Generator
-from fcmaes.evaluator import Evaluator, serial, _check_bounds, _fitness
+from fcmaes.evaluator import Evaluator, serial, _check_bounds, _fitness, is_debug_active
 
-import logging
+from loguru import logger
 from typing import Optional, Callable, Union
 from numpy.typing import ArrayLike
 
@@ -40,8 +40,7 @@ def minimize(fun: Callable[[ArrayLike], float],
              rg: Optional[Generator] = Generator(MT19937()),
              runid: Optional[int] = 0,
              normalize: Optional[bool] = True,
-             update_gap: Optional[int] = None,
-             logger: Optional[logging.Logger] = None) -> OptimizeResult:
+             update_gap: Optional[int] = None) -> OptimizeResult:
     """Minimization of a scalar function of one or more variables using CMA-ES.
      
     Parameters
@@ -84,10 +83,6 @@ def minimize(fun: Callable[[ArrayLike], float],
         pheno -> if true geno transformation maps arguments to interval [-1,1] 
     update_gap : int, optional
         number of iterations without distribution update
-    logger : logger, optional
-        logger for log output for tell_one, If None, logging
-        is switched off. Default is a logger which logs both to stdout and
-        appends to a file ``optimizer.log``.
    
     Returns
     -------
@@ -105,7 +100,7 @@ def minimize(fun: Callable[[ArrayLike], float],
                       max_evaluations, max_iterations, 
                       accuracy, stop_fitness, 
                       is_terminate, rg, np.random.randn, runid, normalize, 
-                      update_gap, fun, logger)        
+                      update_gap, fun)        
     if workers and workers > 1:
         x, val, evals, iterations, stop = cmaes.do_optimize_delayed_update(fun, workers=workers)
     else:      
@@ -130,8 +125,7 @@ class Cmaes(object):
                         runid: Optional[int] = 0,
                         normalize: Optional[bool] = True,
                         update_gap: Optional[int] = None,
-                        fun: Optional[Callable[[ArrayLike], float]] = None,
-                        logger: Optional[logging.Logger] = None
+                        fun: Optional[Callable[[ArrayLike], float]] = None
                         ):
                         
     # runid used in is_terminate callback to identify a specific run at different iteration
@@ -189,9 +183,8 @@ class Cmaes(object):
     # selection strategy parameters
     # Number of parents/points for recombination.
         self.mu = int(self.popsize/2)
-    # logger / timing / global best value    
-        if not logger is None:
-            self.logger = logger
+    # timing / global best value    
+        if is_debug_active():
             self.best_y = mp.RawValue(ct.c_double, 1E99)
             self.n_evals = mp.RawValue(ct.c_long, 0)
             self.time_0 = time()
@@ -355,7 +348,7 @@ class Cmaes(object):
             self.arx = []
             self.fitness = []
         
-        if hasattr(self, 'logger'):
+        if is_debug_active():
             self.n_evals.value += 1
             if y < self.best_y.value or self.n_evals.value % 1000 == 999:           
                 if y < self.best_y.value: self.best_y.value = y
@@ -363,7 +356,7 @@ class Cmaes(object):
                 c = self.n_evals.value
                 message = '"c/t={0:.2f} c={1:d} t={2:.2f} y={3:.5f} yb={4:.5f} x={5!s}'.format(
                     c/t, c, t, y, self.best_y.value, x)
-                self.logger.info(message)
+                logger.debug(message)
         return self.stop                
            
     def newArgs(self):

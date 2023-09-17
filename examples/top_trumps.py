@@ -17,11 +17,20 @@
 
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc for a detailed description.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
+
 import sys
 import os
 import numpy as np
 import ctypes as ct
 from scipy.optimize import Bounds
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 basepath = os.path.dirname(os.path.abspath(__file__))
 if sys.platform.startswith('linux'):
@@ -135,7 +144,7 @@ def main():
     # mode.minimize_plot(name, problem.fun, problem.bounds, 2, popsize = 200, nsga_update=True, max_eval = 100000, workers=16)
     # mode.minimize_plot(name, problem.fun, problem.bounds, 2, popsize = 200, nsga_update=False, max_eval = 100000, workers=16)
     modecpp.minimize(mode.wrapper(problem.fun, 2), 2, 0, problem.bounds, popsize = 200, nsga_update=True, max_evaluations = 100000, 
-                     log_period=100, plot_name=name, workers=16)
+                     workers=16)
     # modecpp.minimize(problem.fun, 2, 0, problem.bounds, popsize = 200, nsga_update=False, max_evaluations = 100000, 
     #                  log_period=100, plot_name=name, workers=16)
 

@@ -2,6 +2,8 @@
 # Material flow planning for a simple a plant consisting of 2 machines.
 # See https://ecosystem.siemens.com/softwareforinnovators/plant-simulation-challenge-task-3/overview
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 from fcmaes import retry, decpp, bitecpp
 from fcmaes.optimizer import wrapper, logger, Bite_cpp
 from scipy.optimize import Bounds
@@ -9,6 +11,13 @@ import ctypes as ct
 import multiprocessing as mp 
 import numpy as np
 from collections import deque
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 # The buffer between the two machines has a capacity of 8 parts. 
 # It can be filled and parts can be removed without any loss of time.
@@ -21,11 +30,11 @@ setup_time = 10
 class Machine:
     
     def __init__(self, type, dtime):
-       self.product = -1
-       self.last_product = -1
-       self.time = 0
-       self.type = type
-       self.dtime = dtime
+        self.product = -1
+        self.last_product = -1
+        self.time = 0
+        self.type = type
+        self.dtime = dtime
     
     def process(self, time, product):
         #print(f'process p{product} {self}')
@@ -156,7 +165,7 @@ def optimize_de(plant):
 
 def optimize_bite(plant): 
     fit = wrapper(plant.fitness)
-    store = retry.Store(fit, plant.bounds, logger=logger()) 
+    store = retry.Store(fit, plant.bounds) 
     retry.retry(store, Bite_cpp(500).minimize, num_retries=64)  
     plot3d(store, "plant")  
    

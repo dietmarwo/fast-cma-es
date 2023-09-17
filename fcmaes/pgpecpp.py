@@ -17,7 +17,6 @@ from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, _get_bounds, callback_par, parallel, call_back_par, libcmalib
 
-import logging
 from typing import Optional, Callable, Union
 from numpy.typing import ArrayLike
 
@@ -150,8 +149,8 @@ class PGPE_C:
         rg: Optional[Generator] = Generator(MT19937()),
         runid: Optional[int] = 0,
         normalize: Optional[bool] = True,
-        lr_decay_stepse: Optional[int] = 1000,
-        use_rankinge: Optional[bool] = False, 
+        lr_decay_steps: Optional[int] = 1000,
+        use_ranking: Optional[bool] = False, 
         center_learning_rate: Optional[float] = 0.15,
         stdev_learning_rate: Optional[float] = 0.1, 
         stdev_max_change: Optional[float] = 0.2, 
@@ -293,11 +292,11 @@ class PGPE_C:
         res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
         try:
             resultPGPE_C(self.ptr, res_p)
-            x = res[:dim]
-            val = res[dim]
-            evals = int(res[dim+1])
-            iterations = int(res[dim+2])
-            stop = int(res[dim+3])
+            x = res[:self.dim]
+            val = res[self.dim]
+            evals = int(res[self.dim+1])
+            iterations = int(res[self.dim+2])
+            stop = int(res[self.dim+3])
             res = OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
         except Exception as ex:
             res = OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)

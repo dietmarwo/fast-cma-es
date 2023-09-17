@@ -7,6 +7,8 @@
 
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/HyperparameterOptimization.adoc for a detailed description.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import xgboost
@@ -20,6 +22,13 @@ from fcmaes.optimizer import dtime
 import multiprocessing as mp
 import ctypes as ct
 import math, time
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 # download data from https://www.kaggle.com/c/house-prices-advanced-regression-techniques/data
 train_dataset=pd.read_csv('../input/train.csv', header=0)
@@ -118,8 +127,6 @@ if grid_search:
     #visualize the best couple of parameters
     print (gsearch.best_params_) 
 
-from fcmaes.optimizer import logger
-logger = logger("house.log")
 
 # Optimization objective 
 

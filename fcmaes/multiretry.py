@@ -13,7 +13,8 @@ from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.optimizer import de_cma, eprint, Optimizer
 from fcmaes import advretry
 
-import logging
+from fcmaes.evaluator import is_debug_active
+from loguru import logger
 from typing import Optional, Callable, Tuple, List
 from numpy.typing import ArrayLike
 
@@ -23,7 +24,6 @@ def minimize(problems: ArrayLike,
              num_retries: Optional[int] = 10000,
              keep: Optional[float] = 0.7, 
              optimizer: Optional[Optimizer] = de_cma(1500), 
-             logger = None, 
              datafile = None) -> List:
       
     """Minimization of a list of optimization problems by first applying parallel retry
@@ -58,11 +58,6 @@ def minimize(problems: ArrayLike,
     optimizer: optimizer.Optimizer, optional
         optimizer to use for the problem filter.
         
-    logger, optional
-        logger for log output. If None, logging
-        is switched off. Default is a logger which logs both to stdout and
-        appends to a file.  
-        
     datafile, optional
         file to persist / retrieve the internal state of the optimizations. 
      
@@ -74,12 +69,12 @@ def minimize(problems: ArrayLike,
         ``fun`` the best function value, ``nfev`` the number of function evaluations,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
 
-    solver = multiretry(logger)
+    solver = multiretry()
     n = len(problems)
         
     for i in range(n):    
         id = str(i+1) if ids is None else ids[i]   
-        solver.add(problem_stats(problems[i], id, i, retries_inc, num_retries, logger))
+        solver.add(problem_stats(problems[i], id, i, retries_inc, num_retries))
     
     if not datafile is None:
         solver.load(datafile)
@@ -99,8 +94,8 @@ def minimize(problems: ArrayLike,
         
 class problem_stats:
 
-    def __init__(self, prob, id, index, retries_inc = 64, num_retries = 10000, logger = None):
-        self.store = advretry.Store(prob.fun, prob.bounds, logger = logger, num_retries=num_retries)
+    def __init__(self, prob, id, index, retries_inc = 64, num_retries = 10000):
+        self.store = advretry.Store(prob.fun, prob.bounds, num_retries=num_retries)
         self.prob = prob
         self.name = prob.name
         self.fun = prob.fun
@@ -118,10 +113,9 @@ class problem_stats:
  
 class multiretry:
     
-    def __init__(self, logger = None):
+    def __init__(self):
         self.problem_stats = []
         self.all_stats = []
-        self.logger = logger
     
     def add(self, stats):
         self.problem_stats.append(stats)
@@ -129,8 +123,8 @@ class multiretry:
     
     def retry(self, optimizer):
         for ps in self.problem_stats:
-            if not self.logger is None:
-                self.logger.info("problem " + ps.prob.name + ' ' + str(ps.id))
+            if is_debug_active():
+                logger.debug("problem " + ps.prob.name + ' ' + str(ps.id))
             ps.retry(optimizer)
     
     def values(self):
@@ -146,18 +140,18 @@ class multiretry:
         return len(self.problem_stats)
                     
     def dump(self):
-        if not self.logger is None:
+        if is_debug_active():
             for i in range(self.size()):
                 ps = self.problem_stats[i]
-                self.logger.info(str(ps.id) + ' ' + str(ps.value))
+                logger.debug(str(ps.id) + ' ' + str(ps.value))
                 
     def dump_all(self):
-        if not self.logger is None:
+        if is_debug_active():
             idx = self.values_all().argsort()
             self.all_stats = list(np.asarray(self.all_stats)[idx])
             for i in range(len(self.all_stats)):
                 ps = self.all_stats[i]
-                self.logger.info(str(ps.id) + ' ' + str(ps.value))
+                logger.debug(str(ps.id) + ' ' + str(ps.value))
 
     def values_all(self):
         return np.fromiter((ps.value for ps in self.all_stats), dtype=float)

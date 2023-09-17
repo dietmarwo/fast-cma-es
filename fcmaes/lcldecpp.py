@@ -19,7 +19,6 @@ from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, callback_par, call_back_par, parallel, libcmalib
 
-import logging
 from typing import Optional, Callable, Union
 from numpy.typing import ArrayLike
 

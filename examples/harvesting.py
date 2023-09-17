@@ -25,13 +25,15 @@
 
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc for a detailed description.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import math
 import pandas as pd
 import numpy as np
 import sys, math, time
 from pathlib import Path
 from fcmaes import retry, advretry, mode, modecpp, moretry
-from fcmaes.optimizer import logger, Bite_cpp, Cma_cpp, De_cpp, de_cma, dtime, Differential_evolution
+from fcmaes.optimizer import Bite_cpp, Cma_cpp, De_cpp, de_cma, dtime, Differential_evolution
 from scipy.optimize import Bounds
 import ctypes as ct
 import multiprocessing as mp 
@@ -41,10 +43,17 @@ from numpy.random import Generator, MT19937, SeedSequence
 from jobshop import gantt, read_fjs, job_indices, filter_tasks, reorder 
 import jobshop
 
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
+
 def scheduling(tasks, n_jobs, n_machines, max_active, start, duration):
     success, start, stop = adjust_timing(start, duration, max_active)
     if not success:
-        logger().info("timing error")
+        logger.info("timing error")
     machine_time = start # we initialize with the machine startup times
     job_time = np.zeros(n_jobs)
     fails = 0
@@ -65,12 +74,12 @@ def scheduling(tasks, n_jobs, n_machines, max_active, start, duration):
         solution['end'].append(int(end))
         solution['job'].append(int(job))
         solution['task'].append(int(task[1]))
-    logger().info('fails = ' + str(fails))
+    logger.info('fails = ' + str(fails))
     return solution
     
 def chart(tasks, n_jobs, n_machines, max_active, start, duration):
     solution = scheduling(tasks, n_jobs, n_machines, max_active, start, duration)
-    logger().info(solution)
+    logger.info(solution)
     gantt(solution)
     
 @njit(fastmath=True)     
@@ -191,7 +200,7 @@ class fitness:
         self.evals.value += 1
         if y < self.best_y.value:
             self.best_y.value = y  
-            logger().info("evals = {0}: time = {1:.1f} t = {2:.0f} f = {3:.0f} y = {4:.2f} s = {5:.2f} w = {6:.0f} m = {7:.0f} m= {8:s} j= {9:s} w= {10:s}"
+            logger.info("evals = {0}: time = {1:.1f} t = {2:.0f} f = {3:.0f} y = {4:.2f} s = {5:.2f} w = {6:.0f} m = {7:.0f} m= {8:s} j= {9:s} w= {10:s}"
                 .format(self.evals.value, dtime(self.t0), max_time, fails, y, span, work, wmax,
                         str([int(si) for si in machine_time]),
                         str([int(oi) for oi in job_time]),
@@ -204,9 +213,9 @@ class fitness:
         return sum(self.weights*ys) # weighted sum  
 
 def retry_modecpp(fit, retry_num = 32, popsize = 48, max_eval = 500000, 
-                  nsga_update = True, logger = logger(), workers=mp.cpu_count()):
-    xf, yf = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, retry_num, popsize, 
-                  max_evaluations = 960000, nsga_update = nsga_update, logger = logger, workers=workers)
+                  nsga_update = True, workers=mp.cpu_count()):
+    xf, yf = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, None, retry_num, popsize, 
+                  max_evaluations = 960000, nsga_update = nsga_update, workers=workers)
     xs = []; ys = []
     for i in range(len(yf)):
         if yf[i][-1] == 0: # filter valid solutions
@@ -234,12 +243,12 @@ def optimize(bi, max_active, multi_objective = True):
     
     if multi_objective:
         xs, front = retry_modecpp(fit, retry_num = 32, popsize = 48, max_eval = 500000, 
-                  nsga_update = True, logger = logger(), workers=16)
-        logger().info(name + " modecpp.retry(num_retries=32, popsize = 48, max_evals = 960000, nsga_update = True, workers=16" )
-        logger().info(str([tuple(y) for y in front]))
+                  nsga_update = True, workers=16)
+        logger.info(name + " modecpp.retry(num_retries=32, popsize = 48, max_evals = 960000, nsga_update = True, workers=16" )
+        logger.info(str([tuple(y) for y in front]))
     else:    
-        store = retry.Store(fit, bounds, logger=logger()) 
-        logger().info(name + " Bite_cpp(960000,M=1).minimize, num_retries=256)" )
+        store = retry.Store(fit, bounds) 
+        logger.info(name + " Bite_cpp(960000,M=1).minimize, num_retries=256)" )
         retry.retry(store, Bite_cpp(960000,M=1).minimize, num_retries=256)    
         
     return fit, xs

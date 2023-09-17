@@ -5,11 +5,20 @@
 
 # Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import numpy as np
 from scipy.optimize import Bounds
 from fcmaes import mapelites, diversifier
 from fcmaes.astro import Cassini2
 from fcmaes.optimizer import wrapper
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 def plot3d(ys, name, xlabel='', ylabel='', zlabel=''):
     import matplotlib.pyplot as plt
@@ -111,8 +120,8 @@ def cma_elite(problem, archive, num=300):
             bounds = Bounds(np.maximum(problem.bounds.lb, lb), 
                             np.minimum(problem.bounds.ub, ub)) 
             from fcmaes import retry
-            from fcmaes.optimizer import logger, Cma_cpp
-            res = retry.minimize(fun, bounds, num_retries=24*8, logger=logger(), 
+            from fcmaes.optimizer import Cma_cpp
+            res = retry.minimize(fun, bounds, num_retries=24*8, 
                            optimizer=Cma_cpp(guess=guess, sdevs=0.001, workers=24)
                            )       
             y, d = problem.qd_fitness(res.x) 

@@ -13,6 +13,8 @@ See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PowerPlant.ad
 See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc
 '''
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 from tespy.networks import Network
 from tespy.components import (
     Turbine, Splitter, Merge, Condenser, Pump, Sink, Source,
@@ -24,6 +26,13 @@ import logging
 import numpy as np
 
 logger.define_logging(screen_level=logging.ERROR)
+
+import sys 
+from loguru import logger as log
+
+log.remove()
+log.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+log.add("log_{time}.txt")
 
 class PowerPlant():
 

@@ -15,17 +15,33 @@
 #
 # See https://www.esa.int/Science_Exploration/Space_Science/Solar_Orbiter
 
+# Requires pykep which needs python 3.8, 
+# Create an python 3.8 environment:
+
+# mamba create -n env38 python=3.8
+# conda activate env38
+
+# Install dependencies:
+# pip install pykep 
+
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
+
 import math
 from math import cos, pi, sin, sqrt
 from fcmaes import retry, advretry, modecpp, mode
-from fcmaes.optimizer import logger, de_cma, single_objective, de, Bite_cpp
-
+from fcmaes.optimizer import de_cma, single_objective, de, Bite_cpp
+import numpy as np
 import matplotlib.pyplot as plt
 from pykep import RAD2DEG, AU
 
 from solo_mgar_udp import solo_mgar_udp
 
-logger("solarorbiter.log")
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 def read_solutions(fname):
     ys = []
@@ -117,14 +133,14 @@ def optimize():
 
     bounds = solo_mgar.get_bounds()
         
-    # logger().info('solar orbiter' + ' de -> cmaes c++ smart retry')
+    # logger.info('solar orbiter' + ' de -> cmaes c++ smart retry')
     # ret = advretry.minimize(fun, bounds=Bounds(bounds[0], bounds[1]), num_retries = 60000, 
-    #     logger = logger(), optimizer=de_cma(2000))
-        #logger = logger(), optimizer=bite_cma(2000))
+    #     optimizer=de_cma(2000))
+        #optimizer=bite_cma(2000))
     
-    logger().info('solar orbiter' + ' BiteOpt parallel retry')    
+    logger.info('solar orbiter' + ' BiteOpt parallel retry')    
     ret = retry.minimize(fun, bounds=Bounds(bounds[0], bounds[1]), num_retries = 32000, 
-                         logger = logger(), optimizer=Bite_cpp(200000, M=6))
+                         optimizer=Bite_cpp(200000, M=6))
     
     # x, y = modecpp.retry(mode.wrapper(mofun, 3, interval = 1000000000), 3, 3,
     #           Bounds(bounds[0], bounds[1]), popsize = 128, 

@@ -22,6 +22,13 @@ from fcmaes.optimizer import Bite_cpp, Cma_cpp, wrapper, logger
 from fcmaes import retry
 from scipy.optimize import Bounds  
 
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
+
 @njit(fastmath=True)
 def calc_distance_(users, facilities_x, facilities_y):
     distance = np.zeros((len(users), len(facilities_x)))

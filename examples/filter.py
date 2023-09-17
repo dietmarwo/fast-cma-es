@@ -10,12 +10,20 @@
 
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Filter.adoc for a detailed description.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import numpy as np
-from fcmaes.optimizer import logger
 from fcmaes import de
 import xgboost
 from collections import deque    
 from noisy_tsp import TSP, load_tsplib
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 # do 'pip install tsplib95'
 

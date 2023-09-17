@@ -5,9 +5,11 @@
 
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc for a detailed description.
 
-# do
+# Install dependencies:
 # pip install yfinance
 # pip install finplot
+
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 
 import yfinance as yf
 import finplot as fplt
@@ -17,12 +19,19 @@ import math, time
 from pathlib import Path
 
 from fcmaes import retry, modecpp
-from fcmaes.optimizer import logger, Bite_cpp, De_cpp, dtime
+from fcmaes.optimizer import Bite_cpp, De_cpp, dtime
 from scipy.optimize import Bounds
 import ctypes as ct
 import multiprocessing as mp 
 from numba import njit
 from numba.typed import List
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 START_CASH = 1000000.0
 
@@ -130,7 +139,7 @@ class fitness(object):
             self.dates[ticker] = np.array([d.strftime('%Y.%m.%d') for d in self.histories[ticker].index])
             self.hodls[ticker] = hodl(self.closes[ticker].to_numpy(), START_CASH)   
         hodls = list(self.hodls.values())                    
-        logger().info("hodl = {0:.3f} {1:s}"
+        logger.info("hodl = {0:.3f} {1:s}"
                 .format(np.prod(hodls) ** (1.0/len(hodls)), str([round(fi,1) for fi in hodls])))
         
     def fun(self, x):
@@ -148,7 +157,7 @@ class fitness(object):
         self.evals.value += 1
         if y < self.best_y.value:
             self.best_y.value = y       
-            logger().info("nsim = {0}: time = {1:.1f} fac = {2:.3f} {3:s} ntr = {4:s} x = {5:s}"
+            logger.info("nsim = {0}: time = {1:.1f} fac = {2:.3f} {3:s} ntr = {4:s} x = {5:s}"
                 .format(self.evals.value, dtime(self.t0), -y, 
                         str([round(fi,1) for fi in factors]),
                         str([int(ntr) for ntr in num_trades]),  
@@ -181,8 +190,8 @@ class fitness(object):
                 'num_coins': int(l[6]), 
                 'price': int(l[8])/1000}
             trades.append(trade)
-        logger().info('\n' + ticker)
-        for l in log: logger().info(l)
+        logger.info('\n' + ticker)
+        for l in log: logger.info(l)
         return trades
 
     def get_values(self, ticker, x):

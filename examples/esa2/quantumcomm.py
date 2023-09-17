@@ -1,19 +1,11 @@
-# Basic imports
-import pykep as pk
-import numpy as np
-import scipy
-import os, time
-from matplotlib import pyplot as plt
 # See original code at
 # https://optimize.esa.int/challenge/spoc-2-quantum-communications-constellations/About
 # https://optimize.esa.int/challenge/spoc-2-quantum-communications-constellations/p/quantum-communications-constellations
 # 
 # Changes: 
 # - Factor 30 speedup using numba and igraph
-# - Added algorithms sufficient to win the competition (fcmaes is currently ranked 1st)
-# - See corresponding tutorial (TBD)
-
-# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+# - Added competitive algorithms
+# - See corresponding tutorial 
 
 # Requires pykep which needs python 3.8, 
 # Create an python 3.8 environment:
@@ -24,11 +16,30 @@ from matplotlib import pyplot as plt
 # Install dependencies:
 
 # mamba install pykep
+# mamba install pygmo
 # pip install networkx
 # pip install sgp4
 # pip install seaborn
 # pip install matplotlib
 # pip install igraph
+# pip install pymoo
+
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
+# Basic imports
+import pykep as pk
+import pygmo as pg
+import numpy as np
+import scipy
+import os, time
+from matplotlib import pyplot as plt
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 import seaborn as sns
 # SGP4 - we use SPG4 to propagate orbits around New Mars as a proxy
@@ -39,6 +50,13 @@ from sgp4.api import WGS72
 # Networkx
 import igraph as ig # for speed
 import networkx as nx
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 # Static data
 def get_mothership_satellites():
@@ -248,6 +266,7 @@ class constellation_udp:
         """
         lb = [1.06, 0., 0., 0., 1.0] + [2.0, 0., 0., 0., 1.0] + [4, 2, 0] + [4, 2, 0] + [0, 0, 0, 0]
         #ub = [1.8, 0.02, np.pi, 2*np.pi, 1000.0] + [3.5, 0.1, np.pi, 2*np.pi, 1000.0] + [10, 10, 9] + [10, 10, 9] + [99, 99, 99, 99]
+        # we adapt the boundaries so that they work with a continuous optimizer
         ub = [1.8, 0.02, np.pi, 2*np.pi, 1000.0] + [3.5, 0.1, np.pi, 2*np.pi, 1000.0] + \
                 [10.9999, 10.9999, 9.9999] + [10.9999, 10.9999, 9.9999] + [99.9999, 99.9999, 99.9999, 99.9999]
         return (lb, ub)
@@ -373,7 +392,7 @@ class constellation_udp:
             eta (tuple): satellite quality indicator for each Walker constellation
 
         Returns:
-            networkx graph: nodes are motherships/Walker satellites/rovers; links are distances when there is LOS
+            igraph graph: nodes are motherships/Walker satellites/rovers; links are distances when there is LOS
         """
         N = pos[:, ep_idx, :].shape[0] # number of vertices
         adjmatrix, d_min = get_adjmatrix(pos, ep_idx, eta, num_w1_sats, self.LOS, N, self.eps_z, self.n_rovers)
@@ -735,8 +754,6 @@ class constellation_udp:
         ax.set_box_aspect([ub - lb for lb, ub in (getattr(ax, f'get_{a}lim')() for a in 'xyz')])
         return ax, path
 
-import pygmo as pg
-
 def combine_scores(points):
     """ Function for aggregating single solutions into one score using hypervolume indicator """
 
@@ -752,20 +769,28 @@ def combine_scores(points):
         #return -hv.computborderse(ref_point) * 10000
         return -hv.compute(ref_point) * 10000
 
-
-def test_udp():      
-    udp = constellation_udp() 
-    udp.pretty(udp.example())
-    
-
 from fcmaes.optimizer import wrapper, dtime, Bite_cpp, De_cpp, Crfmnes_cpp
 import fcmaes
 from fcmaes import retry, mode, modecpp, moretry
-from scipy.optimize import Bounds
-    
-
+from scipy.optimize import Bounds    
 from os import walk
-import pygmo as pg
+import multiprocessing as mp
+import ctypes as ct
+from functools import partial
+from fcmaes import bitecpp
+from multiprocessing import Manager
+
+udp = constellation_udp() 
+nobj = 2
+ncon = 2
+dim = 20
+ref_point = np.array([1.2, 1.4])
+ubs = udp.get_bounds()
+bounds = Bounds(ubs[0], ubs[1]) 
+    
+def fitness(x): # fitness wrapper converting the last ten arguments into integer values
+    x[10:] = x[10:].astype(int)
+    return np.array(udp.fitness(x))
 
 def select_valid(xs, ys):
     cv = np.array([np.amax(y[2:], 0) for y in ys])
@@ -782,7 +807,6 @@ def read_solution(fname):
         ys = data['ys']                      
     xs, ys = select_valid(xs, ys) # filter solutions not violating the constraints                         
     xs, ys = moretry.pareto(xs, ys)
-    ref_point = np.array([1.2, 1.4])
     valid = np.array([pg.pareto_dominance(y, ref_point) for y in ys])
     ys = ys[valid] # filter valid solutions < reference point
     xs = xs[valid]                        
@@ -790,329 +814,287 @@ def read_solution(fname):
 
 from fcmaes.evaluator import parallel_mo
 
+#+++++++ Apply fcmaes multi objective optimization using NSGA-II population update ++++++++++++++++++++++++
+# Uses fcmaes multi objective optimization to optimize the pareto front
+# Uses parallel function evaluation, but cannot pass score 6400 even when executed many times, 
+# using a large number of iterations and a big population. 
+# Which is the reason only one single team - "ML Actonauts" achieved this goal during the GECCO competition 
+# https://www.esa.int/gsp/ACT/projects/spoc-2023/ 
+
 def mo_par():
-           
-    udp = constellation_udp()
-    dim = 20
-    ubs = udp.get_bounds()
-    bounds = Bounds(ubs[0], ubs[1]) 
-    ints = udp.get_ints()
-    nobj = 2
-    ncon = 2
-    ref_point = np.array([1.2, 1.4])
-    #xs0, _ = read_solution("res2/nsga_on2000k700_1b.npz")    
-    popsize = 300
+            
+    guess = None
+    #guess, _ = read_solution("res2/nsga_on2000k700_1b.npz") # inject an existing pareto front   
+    popsize = 256
     
-    def fit(x):
-        ints = x[10:]
-        x[10:] = ints.astype(int)
-        f1, f2, c1, c2 = udp.fitness(x)
-        if c1 > 0: 
-            c1 += 10000
-        else: c1 = 0
-        if c2 > 0: 
-            c2 += 10000
-        else: c2 = 0
-        return np.array([f1, f2, c1, c2])
-    
-    es = mode.MODE(nobj, ncon, bounds, popsize = popsize, nsga_update=True, dis_c=10, dis_m=10)
-    #es = mode.MODE(nobj, ncon, bounds, popsize = popsize, ints=ints, nsga_update=False)
-    
-    fit = parallel_mo(fit, nobj+ncon, workers = mp.cpu_count())
+    es = mode.MODE(nobj, ncon, bounds, popsize = popsize, nsga_update=True) # Python MOO optimizer
+    #es = modecpp.MODE_C(nobj, ncon, bounds, popsize = popsize, nsga_update=True) # C++ MOO optimizer
+   
+    fit = parallel_mo(fitness, nobj+ncon, workers = mp.cpu_count())
     iters = 0
     stop = 0
     max_hv = 0
     time_0 = time.perf_counter()
+    if not guess is None:
+        es.set_guess(guess, fitness)
 
-    xs = np.empty((popsize, dim))
-    while stop == 0 and iters < 100000:
-               
-        for p in range(popsize):
-            _, x = es.ask() #if iters > 0 else _, xs0[np.random.choice(len(xs0))]
-            xs[p] = x
+    while stop == 0 and iters < 1000:               
+        xs = es.ask()
         ys = fit(xs)
-        for p in range(popsize):
-            es.tell(p, ys[p], xs[p]) # tell evaluated x  
-            
+        es.tell(ys) # tell evaluated x             
         iters += 1
-        
         valid = [y[:2] for y in ys if np.less_equal(y , np.array([1.2, 1.4, 0, 0])).all()]
         hv = pg.hypervolume(valid).compute(ref_point)
         if hv > max_hv:
             max_hv = hv
-            print("time: ", dtime(time_0), " iter: ", iters, " hv: ", hv * 10000)
+            logger.info(f'time: {dtime(time_0)} iter: {iters} hv: {hv * 10000}')
             if hv * 10000 > 6320:
                 np.savez_compressed("quantcomm_" + str(int(hv * 10000)), xs=xs, ys=ys)
-       
     fit.stop()
     return xs, ys
 
-
-import multiprocessing as mp
-import ctypes as ct
-from functools import partial
-from fcmaes import bitecpp, decpp
-from multiprocessing import Manager
-import sys
+#++++++++++++++++++++++ Apply BiteOpt Single-Objective Optimization ++++++++++++++++++++++++++++++++++++++++
+# Uses https://github.com/avaneev/biteopt applied to a fitness function maximizing the hypervolume
+# to find the best target_num solutions maximizing the pareto front
+# Easily surpasses score 6400 when given enough time. The final result needs to be reduced to 100 solutions. 
 
 def so_par():
-           
-    udp = constellation_udp()
-    ubs = udp.get_bounds()
-    bounds = Bounds(ubs[0], ubs[1]) 
-    ref_point = np.array([1.2, 1.4])
-    
-    def fit_mo(x):
-        ints = x[10:]
-        x[10:] = ints.astype(int)
-        f1, f2, c1, c2 = udp.fitness(x)
-        if c1 > 0: 
-            c1 += 10000
-        else: c1 = 0
-        if c2 > 0: 
-            c2 += 10000
-        else: c2 = 0
-        return np.array([f1, f2, c1, c2])  
-        
-    def fit_hyper(i, ys, x):
-        f1, f2, c1, c2 = fit_mo(x)
-        if c1 + c1 > 0:
-            return c1 + c1
-        y = [f1, f2]
-        if pg.pareto_dominance(y, ref_point):           
-            ys[i] = y
-            hv = pg.hypervolume(ys)
-            return -hv.compute(ref_point) * 10000   
-        else:
-            return 10000
 
+    target_num = 512 # desired size of the pareto front  
+
+    # hypervolume replacing one solution of the pareto front  
+    def fit_hyper(i, ys, x):
+        y = fitness(x)
+        c = sum([10000 + c for c in y[2:] if c > 0])
+        if c > 0: # constraint violation
+            return c
+        if pg.pareto_dominance(y[:2], ref_point):           
+            ys[i] = y[:2]
+            return -pg.hypervolume(ys).compute(ref_point) * 10000  
+        else:
+            return 0
+    
+    # parallel optimization of the whole pareto front    
     class OptSo(object):
            
         def __init__(self, 
-                     inc_val,
                      max_evals,
                      xs,
                      ys
                     ): 
-            self.inc_val = inc_val
             self.max_evals = max_evals  
-            self.xs = xs
-            self.ys = ys
-            self.manager = Manager()      
-            self.result = self.manager.dict() 
-            self.n = len(xs)
+            self.manager = Manager()   
+            self.ys = self.manager.list(ys)
+            self.ys0 = list(ys)
+            self.xs = self.manager.list(xs)
             self.min_ys = np.amin(ys, axis=0)
-            self.weight = [(y[1]-self.min_ys[1])  / (y[0]- self.min_ys[0]) for y in ys]
             self.count = mp.RawValue(ct.c_int, 0) 
             self.mutex = mp.Lock() 
+            self.n = len(ys)
         
         def incr(self):
             with self.mutex:
                 next = self.count.value
-                self.count.value += self.inc_val
+                self.count.value += 1
                 return next
     
         def eval(self, workers=mp.cpu_count()):
             proc=[mp.Process(target=self.eval_loop) for pid in range(workers)]
             [p.start() for p in proc]
-            [p.join() for p in proc]
-            xs = []
-            ys = []
-            for i in self.result:
-                x, y = self.result[i]
-                xs.append(x)
-                ys.append(y)              
-            return np.array(xs), np.array(ys)
+            [p.join() for p in proc]             
+            return np.array(self.xs), np.array(self.ys)
         
         def eval_loop(self):
             while True:
                 i = self.incr()
                 if i >= self.n:
                     return
-                print("optimizing solution ", i, file=sys.stderr)
-                fit = wrapper(partial(fit_hyper, i, list(self.ys)))                              
+                logger.info(f'optimizing solution {i}')
+                fit = wrapper(partial(fit_hyper, i, list(self.ys)))
                 x0 = self.xs[i]                                
                 ret = bitecpp.minimize(fit, bounds, x0, max_evaluations = self.max_evals)
-                if ret.fun < 10000:
-                    self.result[i] = (ret.x, fit_mo(ret.x)[:2])
-    
-    def opt_so(incr, max_evals, xs, ys, workers=mp.cpu_count()):
-        eval = OptSo(incr, max_evals, xs, ys)
+                if ret.fun < 0: # no constraint violation?
+                    y = fitness(ret.x)[:2]
+                    self.ys[i] = y
+                    self.xs[i] = ret.x
+     
+    def opt_so(max_evals, xs, ys, workers=mp.cpu_count()):
+        eval = OptSo(max_evals, xs, ys)
         return eval.eval(workers)
     
-    inc_val = 1
-    max_evals = 2000
-    xs0, ys0 = read_solution("res2/nsga_on2000k700_1b.npz")  
-    xs = xs0.copy()
-    ys = ys0.copy()
+    max_evals = 2000    
+      
+    # random initialization
+    # rg = Generator(MT19937()) 
+    # xs = [rg.uniform(ubs[0], ubs[1]) for _ in range(target_num)]
+    # ys = [ref_point-0.000001 for _ in range(target_num)]
+
+    # initialization with a given pareto front 
+    xs, ys = read_solution("res2/nsga_on2000k700_1b.npz") # inject an existing pareto front
+  
+    last_xs = []
+    last_ys = []
     for i in range(1, 1000):
-        xs, ys = opt_so(inc_val, max_evals, xs, ys)
-        xs, ys = moretry.pareto(np.array(list(xs) + list(xs0)), np.array(list(ys) + list(ys0)))
-        np.savez_compressed("quantcomm_2k." + str(i), xs=xs, ys=ys)
+        xs, ys = opt_so(max_evals, xs, ys)
+        xs, ys = moretry.pareto(np.array(list(xs) + last_xs), 
+                                    np.array(list(ys) + last_ys))
+        if len(ys) > target_num:
+            xs, ys = reduce(xs, ys, target_num)        
+        hv = int(pg.hypervolume(ys).compute(ref_point) * 10000000)  
+
+        np.savez_compressed("quantcomm_" + str(i) + "_" + str(len(ys)) + "_" 
+                            + str(max_evals) + "_" + str(hv), xs=xs, ys=ys)
+        last_xs = list(xs)
+        last_ys = list(ys)
+        
     return xs
-       
-def test(): 
-    name = "res2b5000.26"
-    xs, ys = read_solution(name + ".npz")
-    #xs, ys = read_data("res2")
-    print(ys)
-    hv = combine_scores(ys)
-    print (hv)
-    
-    moretry.plot(name, 0, xs, ys)
-    
-    dim = 100
-    
-    bounds = Bounds([0]*dim, [len(ys)-.0001]*dim)
-    
-    def fit(x):
-        x = x.astype(int) 
-        points = ys[x]      
-        ref_point = np.array([1.2, 1.4])
-        filtered_points = [s[:2] for s in points if pg.pareto_dominance(s[:2], ref_point)]  
-        if len(filtered_points) == 0:
-            return 0.0
-        else:
-            hv = pg.hypervolume(filtered_points)
-            return -hv.compute(ref_point) * 10000
 
-    res = fcmaes.retry.minimize(wrapper(fit), 
-                         bounds, 
-                         optimizer=Bite_cpp(10000000,M=16), 
-                         #optimizer=De_cpp(500000, popsize=128, ints = [True]*dim), 
-                         #optimizer=Crfmnes_cpp(1000000, popsize=64), 
-                         num_retries=32)
-    
-    x = res.x.astype(int)
-    points = ys[x]  
-    ref_point = np.array([1.2, 1.4])
-    filtered_points = [s[:2] for s in points if pg.pareto_dominance(s[:2], ref_point)] 
-    xs = xs[x] 
-    
-    udp = constellation_udp()
-    cs = [udp.fitness(x) for x in xs]
-    print(combine_scores(cs))
 
-#++++++++++++++++++++++ PYMOO ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    
+#++++++++++++++++++++++ Apply PYMOO NSGA-II ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Uses PYMOO and https://github.com/avaneev/biteopt to find the best target_num solutions
+# maximizing the pareto front.
+# Easily surpasses score 6400 when given enough time. The result is already reduced to 100 solutions. 
+# Note that instead of relying on PYMOOs parallelization mechanisms (partial) optimization runs
+# are executed in parallel achieving maximal scaling with the number of cores. 
+# The fitness function is "hijacked" collecting solutions later joined for the resulting pareto front.
 
-def pym_optimize():
-    
+def pymoo_par():
+
     from pymoo.core.problem import ElementwiseProblem 
     from pymoo.algorithms.moo.nsga2 import NSGA2 
-    from pymoo.factory import get_termination
+    from pymoo.termination import get_termination
     from pymoo.operators.crossover.sbx import SBX
     from pymoo.operators.mutation.pm import PM
     from pymoo.operators.sampling.rnd import FloatRandomSampling
     from pymoo.constraints.eps import AdaptiveEpsilonConstraintHandling
-    from pymoo.core.problem import StarmapParallelization
-    from multiprocessing.pool import ThreadPool
     from pymoo.optimize import minimize
-    import matplotlib.pyplot as plt
+    from itertools import chain
 
-    udp = constellation_udp()
-    dim = 20
-    nobj = 2
-    ncon = 2
-    lb, ub = udp.get_bounds()
+    target_num = 100 # desired size of the pareto front 
+    n_eval = 20000
+    popsize = 300
+    time_0 = time.perf_counter()
+    guess = None
+    guess, _ = read_solution("res2/nsga_on2000k700_1b.npz") # inject an existing pareto front
     
-    class fitness():
+    class fitness_wrapper():
         
-        max_hv = 0
-        pop_y = []
-        time_0 = time.perf_counter()
-        iters = 0
-        ref_point = np.array([1.2, 1.4])
+        def __init__(self, 
+                     pid,
+                     xs_out,
+                     ys_out
+                    ): 
+            self.max_hv = 0
+            self.xs = []
+            self.ys = []
+            self.count = 1
+            self.evals = 0
+            self.pid = pid
+            self.xs_out = xs_out
+            self.ys_out = ys_out
         
+        # fitness accumulates valid solutions and monitors their hypervolume
         def __call__(self, x):
-            ints = x[10:]
-            x[10:] = ints.astype(int)
-            f1, f2, c1, c2 = udp.fitness(x)
-            if c1 > 0: 
-                c1 += 10000
-            else: c1 = 0
-            if c2 > 0: 
-                c2 += 10000
-            else: c2 = 0
-    
-            self.pop_y.append([f1, f2, c1, c2])
-            if len(self.pop_y) >= 3000:
-                self.iters += 1             
-                valid = [y[:2] for y in self.pop_y if np.less_equal(y , np.array([1.2, 1.4, 0, 0])).all()]
-                hv = pg.hypervolume(valid).compute(self.ref_point)
-                if hv > self.max_hv:
+            y = fitness(x)
+            self.evals += 1    
+            if np.amax(y[2:]) <= 0 and np.less_equal(y[:2], ref_point).all() : # add only valid solutions
+                self.ys.append(y[:2]) # exclude constraint values because solution is valid
+                self.xs.append(x)
+            if len(self.ys) >= 2*popsize:
+                self.count += 1      
+                xs, ys = moretry.pareto(np.array(self.xs), np.array(self.ys)) # reduce to pareto front
+                self.xs, self.ys = list(xs), list(ys)
+                hv = pg.hypervolume(self.ys).compute(ref_point)
+                if hv > self.max_hv * 1.0001: # significant improvement: register solutions at managed dicts
                     self.max_hv = hv
-                    print("time: ", dtime(self.time_0), " iter: ", self.iters, " hv: ", hv * 10000)
-                self.pop_y = self.pop_y[300:]
-    
-            return np.array([f1, f2, c1, c2])
-           
-    fit = fitness()    
-            
-    class MyProblem(ElementwiseProblem):
-    
-        def __init__(self, **kwargs):                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-            super().__init__(n_var=dim,
-                             n_obj=2,
-                             n_constr=ncon,
-                             xl=np.array(lb),
-                             xu=np.array(ub), **kwargs)
-    
-        def _evaluate(self, x, out, *args, **kwargs):   
-            y = fit(x)
-            out["F"] = y[:2]
-            out["G"] = y[2:]
-
-
-    #Multithreading slows the optimization down
-    #pool = ThreadPool(8)
-    #runner = StarmapParallelization(pool.starmap)
-    #problem = MyProblem(elementwise_runner=runner)
-    
-    #single threaded optimization
-    problem = MyProblem()
-    
-    algorithm = NSGA2(
-        pop_size=300,
-        n_offsprings=10,
-        sampling=FloatRandomSampling(),
-        crossover=SBX(prob=0.9, eta=15),
-        mutation=PM(eta=20),        
-        eliminate_duplicates=True
-    )    
-    algorithm = AdaptiveEpsilonConstraintHandling(algorithm, perc_eps_until=0.5)
+                    self.xs_out[self.pid] = self.xs
+                    self.ys_out[self.pid] = self.ys
+                    logger.info(f'time: {dtime(time_0)} ev: {self.evals} hv: {hv * 10000} n: {len(ys)}')
+            return y    
+      
+    class OptPymoo(object):
         
-    res = minimize(problem,
-                   algorithm,
-                   get_termination("n_gen", 120000),
-                   #seed=1,
-                   #save_history=True,
-                   verbose=False)
+        def eval_loop(self, workers=mp.cpu_count()):
+            xs = guess
+            for i in range(1, 1000):
+                xs, ys = self.eval(i, xs, workers)
+            return xs, ys
+            
+        def eval(self, i, guess, workers):
+            manager = Manager()
+            xs_out = manager.dict() # for inter process communication
+            ys_out = manager.dict() # collects solutions generated in the sub processes
+            fits = [fitness_wrapper(pid, xs_out, ys_out) for pid in range(workers)]
+            proc=[mp.Process(target=self.optimize, args=(guess, fits[pid], pid)) for pid in range(workers)]
+            [p.start() for p in proc] # spawn NSGAII optimization workers
+            [p.join() for p in proc]    
+            xs = np.array(list(chain.from_iterable(xs_out.values()))) # join collected solutions
+            ys = np.array(list(chain.from_iterable(ys_out.values()))) # we ignore the pymoo optimization result
+            xs, ys = moretry.pareto(xs, ys)
+            if len(ys) > target_num:
+                xs, ys = reduce(xs, ys, target_num, evals = 200000)        
+            hv = int(pg.hypervolume(ys).compute(ref_point) * 10000000)  
+            np.savez_compressed("quantcomm_" + str(i) + "_" + str(len(ys)) + 
+                                "_" + str(hv), xs=xs, ys=ys)       
+            return xs, ys
+        
+        def optimize(self, guess, fit, pid):
+            
+            class MyProblem(ElementwiseProblem):
+    
+                def __init__(self, **kwargs):                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+                    super().__init__(n_var=dim,
+                                     n_obj=nobj,
+                                     n_constr=ncon,
+                                     xl=np.array(bounds.lb),
+                                     xu=np.array(bounds.ub), **kwargs)
+            
+                def _evaluate(self, x, out, *args, **kwargs):   
+                    y = fit(x)
+                    out["F"] = y[:nobj]
+                    out["G"] = y[nobj:]
 
-    X = res.X
-    F = res.F
+            problem = MyProblem()
+            algorithm = NSGA2(
+                pop_size=popsize,
+                n_offsprings=10,
+                sampling=FloatRandomSampling() if guess is None else guess,
+                crossover=SBX(prob=0.9, eta=15), # simulated binary crossover
+                mutation=PM(eta=20), # polynomial mutation     
+                eliminate_duplicates=True,
+            )    
+            algorithm = AdaptiveEpsilonConstraintHandling(algorithm, perc_eps_until=0.5)        
+            minimize(problem, algorithm, get_termination("n_eval", n_eval), verbose=False, seed=pid*677)
     
-    name = "res120knsga2"
-    np.savez_compressed(name, xs=X, fs=F)
-    
-    plt.figure(figsize=(7, 5))
-    plt.scatter(X[:, 0], X[:, 1], s=30, facecolors='none', edgecolors='r')
+    opt = OptPymoo()
+    return opt.eval_loop()
 
-    plt.figure(figsize=(7, 5))
-    plt.scatter(F[:, 0], F[:, 1], s=30, facecolors='none', edgecolors='blue')
-    plt.title("Objective Space")
-    plt.show()
-    # plt.savefig('NSGSII768.400bk-objective-space'+ str(index) + '.png')
-    # plt.clf() 
+#++++++++++++++++++++++ Reduction to 100 solutions ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Uses https://github.com/avaneev/biteopt / parallel optimization to find the best num solutions
+# maximizing the pareto front
+   
+def reduce(xs, ys, num, evals = 50000, retries = mp.cpu_count()): 
+    if len(ys) <= num:
+        return xs, ys
+    bounds = Bounds([0]*num, [len(ys)-1E-9]*num) # select best num from xs, ys
     
+    def fit(x): # selects 100 solutions and returns the negated pareto front of this selection
+        selected = x.astype(int) 
+        ys_sel = ys[selected]      
+        hv = pg.hypervolume(ys_sel)
+        return -hv.compute(ref_point) * 10000
+
+    res = fcmaes.retry.minimize(wrapper(fit), # parallel optimization restart / retry
+                         bounds, 
+                         optimizer=Bite_cpp(evals), 
+                         num_retries=retries)
     
+    selected = res.x.astype(int)
+    return xs[selected], ys[selected]
+  
 if __name__ == '__main__':
 
-    #pym_optimize()
-
-    #test()
-    #test_udp()
-
+    pymoo_par()
     #so_par()    
-    mo_par()
+    #mo_par()
 

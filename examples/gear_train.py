@@ -18,12 +18,21 @@
 # is modeled as boxed boundary. By incrementally increasing the bounds on the teeth number
 # the whole pareto front is listed. 
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 from fcmaes import retry, advretry
 import math
 import time
 import numpy as np
 from scipy.optimize import Bounds
 from fcmaes.optimizer import dtime
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 fac = 1.0
 lowerbound = [12, 12, 12, 12]

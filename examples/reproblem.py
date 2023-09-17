@@ -9,12 +9,21 @@
 # https://github.com/ryojitanabe/reproblems/blob/master/doc/re-supplementary_file.pdf
 # https://arxiv.org/abs/2009.12867
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import sys
 import math
 import os
 import numpy as np
 import ctypes as ct
 from scipy.optimize import Bounds
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 basepath = os.path.dirname(os.path.abspath(__file__))
 if sys.platform.startswith('linux'):

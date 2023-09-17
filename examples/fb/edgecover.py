@@ -5,6 +5,8 @@
 
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Media.adoc for a detailed description.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import networkx as nx
 import numpy as np
 from numba import njit
@@ -16,6 +18,13 @@ import time, math
 from multiprocessing import Pool
 import multiprocessing as mp
 import ctypes as ct
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 def plot_graph(g):
     import matplotlib.pyplot as plt

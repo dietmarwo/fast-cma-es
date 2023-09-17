@@ -8,7 +8,7 @@ from numpy.random import MT19937, Generator
 from scipy.optimize import Bounds, minimize, shgo, differential_evolution, dual_annealing, basinhopping
 import sys
 import time
-import logging
+from loguru import logger
 import ctypes as ct
 import multiprocessing as mp 
 from fcmaes.evaluator import serial, parallel
@@ -16,25 +16,6 @@ from fcmaes import crfmnes, crfmnescpp, pgpecpp, cmaes, de, cmaescpp, decpp, dac
 
 from typing import Optional, Callable, Tuple, Union
 from numpy.typing import ArrayLike
-
-_logger = None
-
-def logger(logfile: Optional[str] = 'optimizer.log') -> logging.Logger:
-    '''default logger used by the parallel retry. Logs both to stdout and into a file.'''
-    global _logger
-    if _logger is None:
-        formatter = logging.Formatter('%(message)s')
-        file_handler = logging.FileHandler(filename=logfile)
-        file_handler.setLevel(logging.INFO)
-        stdout_handler = logging.StreamHandler(sys.stdout)
-        stdout_handler.setLevel(logging.INFO)
-        file_handler.setFormatter(formatter)
-        stdout_handler.setFormatter(formatter) 
-        _logger = logging.getLogger('optimizer')
-        _logger.addHandler(file_handler)
-        _logger.addHandler(stdout_handler)
-        _logger.setLevel(logging.INFO)
-    return _logger
 
 def eprint(*args, **kwargs):
     """print message to stderr."""
@@ -76,13 +57,11 @@ class wrapper(object):
     """Fitness function wrapper for use with parallel retry."""
 
     def __init__(self, 
-                 fit: Callable[[ArrayLike], float], 
-                 logger: Optional[logging.Logger] = logger()):
+                 fit: Callable[[ArrayLike], float]):
         self.fit = fit
         self.evals = mp.RawValue(ct.c_int, 0) 
         self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.t0 = time.perf_counter()
-        self.logger = logger
 
     def __call__(self, x: ArrayLike) -> float:
         try:
@@ -91,8 +70,7 @@ class wrapper(object):
             y0 = y if np.isscalar(y) else sum(y)
             if y0 < self.best_y.value:
                 self.best_y.value = y0
-                if not self.logger is None:
-                    self.logger.info(str(dtime(self.t0)) + ' '  + 
+                logger.info(str(dtime(self.t0)) + ' '  + 
                               str(self.evals.value) + ' ' + 
                               str(round(self.evals.value/(1E-9 + dtime(self.t0)),0)) + ' ' + 
                               str(self.best_y.value) + ' ' + 

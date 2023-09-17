@@ -13,10 +13,19 @@ specific selection/subset represented as boolean array to a value to be minimize
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc for a detailed description.
 """
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
+
 import numpy as np
 from scipy.optimize import Bounds 
 from fcmaes import retry
 from fcmaes.optimizer import wrapper, Bite_cpp
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 # replace with your mapping selection -> value
 class transaction_value():

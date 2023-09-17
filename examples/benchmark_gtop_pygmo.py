@@ -6,20 +6,36 @@
 # Test for fcmaes coordinated retry applied to https://www.esa.int/gsp/ACT/projects/gtop/
 # using https://github.com/esa/pygmo2 / pagmo2 optimization algorithms.
 # 
-# Please install pygmo before executing this test:
+# Requires pygmo which needs python 3.8, 
+# Create an python 3.8 environment:
+
+# mamba create -n env38 python=3.8
+# conda activate env38
+
+# Install dependencies:
 # pip install pygmo 
+
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 
 import math
 
 from fcmaes.advretry import minimize
 from fcmaes.astro import Messenger, Cassini2, Rosetta, Gtoc1, Cassini1, Sagas, Tandem, MessFull
-from fcmaes.optimizer import logger, dtime, Optimizer, Sequence, De_cpp, Cma_cpp
+from fcmaes.optimizer import dtime, Optimizer, Sequence, De_cpp, Cma_cpp
 from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
 import multiprocessing as mp
 import numpy as np
 import pygmo as pg
 import time
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 class pygmo_udp(object):
     """Wraps a fcmaes fitness function as pygmo udp."""
@@ -121,7 +137,7 @@ class De_pyg(Optimizer):
 
 def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 100.0, 
                     stop_val = -1E99, log = logger()):
-    log.info("Testing coordinated retry " + opt.name +  ' ' + problem.name )
+    logger.info("Testing coordinated retry " + opt.name +  ' ' + problem.name )
     for _ in range(num):
         ret = minimize(problem.fun, problem.bounds, value_limit, num_retries, log, 
                        optimizer=opt, stop_fitness = stop_val)
@@ -146,7 +162,7 @@ def _test_archipelago(algo, problem, num = 10000, stop_val = -1E99, log = logger
                 best_x = archi.get_champions_x()[sort[0]]
                 message = '{0} {1} {2} {3!s}'.format(
                     problem.name, dtime(t0), best_y, list(best_x))
-                log.info(message)
+                logger.info(message)
                 if best_y < stop_val: 
                     break
     return OptimizeResult(x=best_x, fun=best_y, success=True)

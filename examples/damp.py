@@ -5,6 +5,8 @@
 
 # See  https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Damp.adoc 
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import time, sys, warnings, math
 
 from fcmaes import retry
@@ -16,6 +18,13 @@ from scipy.optimize import Bounds
 
 import ctypes as ct
 import multiprocessing as mp 
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 # Numpy based integration
 def spring(t, y):

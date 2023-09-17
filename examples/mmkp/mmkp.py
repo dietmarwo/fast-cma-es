@@ -12,9 +12,16 @@ import os
 from numba import njit
 import numba
 from datetime import datetime
-from fcmaes.optimizer import crfmnes_bite, wrapper, logger
+from fcmaes.optimizer import crfmnes_bite, wrapper
 from fcmaes import retry
 from scipy.optimize import Bounds
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 @njit(fastmath=True)
 def fitness_(x, n, l, avail, values, resources):
@@ -91,10 +98,10 @@ class MMKP():
             ' Deviation = ' + str(round(self.deviation(vsum),2)) + " %\n")
         lines.append('Solution\n')
         lines.append(' '.join([str(xi) for xi in x]))
-        filename = 'solutions/' + self.problem + '.txt'
+        filename = 'solutions_co/' + self.problem + '.txt'
         with open(filename, 'w') as f:
             f.writelines(lines)
-        logger().info(''.join(lines))
+        logger.info(''.join(lines))
        
 def optimize(mmkp, opt, num_retries = 32):
     ret = retry.minimize(wrapper(mmkp.fitness), 
@@ -112,7 +119,6 @@ def opt_dir(dir):
         dim = mmkp.dim
         popsize = 500#100 + dim
         max_evaluations = 10000000#popsize*20000
-        stop_fitness = 2.0 # stop at 2% deviance to optimum
         opt = crfmnes_bite(max_evaluations, popsize=popsize, M=4, stop_fitness = 1E-12)
         optimize(mmkp, opt, num_retries = 1024)
 

@@ -41,11 +41,10 @@ from time import time
 import ctypes as ct
 from numpy.random import Generator, MT19937
 from scipy.optimize import OptimizeResult, Bounds
-from fcmaes.evaluator import Evaluator
+from fcmaes.evaluator import Evaluator, is_debug_active
 import multiprocessing as mp
 from collections import deque
-
-import logging
+from loguru import logger
 from typing import Optional, Callable, Tuple, Union
 from numpy.typing import ArrayLike
 
@@ -64,8 +63,7 @@ def minimize(fun: Callable[[ArrayLike], float],
              ints: Optional[ArrayLike] = None,
              min_mutate: Optional[float] = 0.1,
              max_mutate: Optional[float] = 0.5,
-             modifier: Optional[Callable] = None,
-             logger: Optional[logging.Logger] = None) -> OptimizeResult: 
+             modifier: Optional[Callable] = None) -> OptimizeResult: 
     """Minimization of a scalar function of one or more variables using
     Differential Evolution.
      
@@ -118,10 +116,6 @@ def minimize(fun: Callable[[ArrayLike], float],
     modifier = callable, optional
         used to overwrite the default behaviour induced by ints. If defined, the ints parameter is
         ignored. Modifies all generated x vectors.
-    logger : logger, optional
-        logger for log output for tell_one, If None, logging
-        is switched off. Default is a logger which logs both to stdout and
-        appends to a file ``optimizer.log``.
             
     Returns
     -------
@@ -135,7 +129,7 @@ def minimize(fun: Callable[[ArrayLike], float],
 
     
     de = DE(dim, bounds, popsize, stop_fitness, keep, f, cr, rg, filter, ints,  
-            min_mutate, max_mutate, modifier, logger)
+            min_mutate, max_mutate, modifier)
     try:
         if workers and workers > 1:
             x, val, evals, iterations, stop = de.do_optimize_delayed_update(fun, max_evaluations, workers)
@@ -161,8 +155,7 @@ class DE(object):
                 ints: Optional[ArrayLike] = None,
                 min_mutate: Optional[float] = 0.1,
                 max_mutate: Optional[float] = 0.5, 
-                modifier: Optional[Callable] = None,
-                logger: Optional[logging.Logger] = None):    
+                modifier: Optional[Callable] = None):    
         
         self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
         if popsize is None:
@@ -190,8 +183,7 @@ class DE(object):
         else:
             self.modifier = modifier
         self._init()                     
-        if not logger is None:
-            self.logger = logger
+        if is_debug_active():
             self.best_y = mp.RawValue(ct.c_double, 1E99)
             self.n_evals = mp.RawValue(ct.c_long, 0)
             self.time_0 = time()
@@ -302,7 +294,7 @@ class DE(object):
                 self.x[p] = self._sample()
                 self.y[p] = np.inf
         
-        if hasattr(self, 'logger'):
+        if is_debug_active():
             self.n_evals.value += 1
             if y < self.best_y.value or self.n_evals.value % 1000 == 999:           
                 if y < self.best_y.value: self.best_y.value = y
@@ -310,7 +302,7 @@ class DE(object):
                 c = self.n_evals.value
                 message = '"c/t={0:.2f} c={1:d} t={2:.2f} y={3:.5f} yb={4:.5f} x={5!s}'.format(
                     c/t, c, t, y, self.best_y.value, x)
-                self.logger.info(message)
+                logger.debug(message)
 
         return self.stop 
 

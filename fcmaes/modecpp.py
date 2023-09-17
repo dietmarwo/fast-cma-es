@@ -56,8 +56,8 @@ from numpy.random import Generator, MT19937, SeedSequence
 from fcmaes.optimizer import dtime
 from fcmaes.evaluator import mo_call_back_type, callback_mo, parallel_mo, libcmalib
 from fcmaes.de import _check_bounds
-
-import logging
+from fcmaes.evaluator import is_debug_active
+from loguru import logger
 from typing import Optional, Callable, Tuple
 from numpy.typing import ArrayLike
 
@@ -74,7 +74,7 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
              f: Optional[float] = 0.5,
              cr: Optional[float] = 0.9,
              pro_c: Optional[float] = 0.5,
-             dis_c: Optional[float] = 20.0,
+             dis_c: Optional[float] = 15.0,
              pro_m: Optional[float] = 0.9,
              dis_m: Optional[float] = 20.0,
              nsga_update: Optional[bool] = True,
@@ -134,8 +134,6 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
         Determines the minimal mutation rate for discrete integer parameters.
     max_mutate = float, optional
         Determines the maximal mutation rate for discrete integer parameters.   
-    log_period = int, optional
-        The log callback is called each log_period iterations. As default the callback is never called.
     rg = numpy.random.Generator, optional
         Random generator for creating random guesses.
     store : result store, optional
@@ -167,6 +165,7 @@ def retry(mofun: Callable[[ArrayLike], ArrayLike],
             nobj: int,
             ncon: int, 
             bounds: Bounds,
+            guess: Optional[np.ndarray] = None,
             num_retries: Optional[int] = 64,
             popsize: Optional[int] = 64, 
             max_evaluations: Optional[int] = 100000, 
@@ -174,9 +173,7 @@ def retry(mofun: Callable[[ArrayLike], ArrayLike],
             nsga_update: Optional[bool] = False,
             pareto_update: Optional[int] = 0,
             ints: Optional[ArrayLike] = None,
-            capacity: Optional[int] = None,
-            logger: Optional[logging.Logger] = None,
-            is_terminate: Optional[Callable[[ArrayLike, ArrayLike], bool]] = None):
+            capacity: Optional[int] = None):
              
     """Minimization of a multi objjective function of one or more variables using parallel 
      optimization retry.
@@ -199,6 +196,8 @@ def retry(mofun: Callable[[ArrayLike], ArrayLike],
             1. Instance of the `scipy.Bounds` class.
             2. Sequence of ``(min, max)`` pairs for each element in `x`. None
                is used to specify no bound.
+    guess : ndarray, shape (popsize,dim) or Tuple
+        Initial guess. 
     num_retries : int, optional
         Number of optimization retries. 
     popsize : int, optional
@@ -217,13 +216,7 @@ def retry(mofun: Callable[[ArrayLike], ArrayLike],
         rounded to the next integer and some additional mutation of discrete parameters are performed.  
     capacity : int or None, optional
         capacity of the store collecting all solutions. If full, its content is replaced by its
-        pareto front.    
-    logger : logger, optional
-        logger for log output for tell_one, If None, logging
-        is switched off. Default is a logger which logs both to stdout and
-        appends to a file ``optimizer.log``.
-    is_terminate : callable, optional
-        Callback to be used if the caller of minimize wants to decide when to terminate. """
+        pareto front """
     
     dim, _, _ = _check_bounds(bounds, None)
     if capacity is None:
@@ -232,32 +225,28 @@ def retry(mofun: Callable[[ArrayLike], ArrayLike],
     sg = SeedSequence()
     rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
-           args=(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
+           args=(num_retries, pid, rgs, mofun, nobj, ncon, bounds, guess, popsize, 
                  max_evaluations, workers, nsga_update, pareto_update, 
-                 is_terminate, store, logger, ints))
+                 store, ints))
                 for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
-    _, ys = store.get_front()   
-    if not logger is None:
-        logger.info(str([tuple(y) for y in ys]))            
+    _, ys = store.get_front()            
     return store.get_xs(), store.get_ys()
 
-def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, popsize, 
+def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, guess, popsize, 
                 max_evaluations, workers, nsga_update, pareto_update, 
-                is_terminate, store, logger, ints):
+                store, ints):
     t0 = time.perf_counter()
     num = max(1, num_retries - workers)
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
         while store.num_added.value < num: 
-            if not is_terminate is None and hasattr(is_terminate, 'reinit'):
-                is_terminate.reinit()
-            minimize(mofun, nobj, ncon, bounds, popsize,
+            minimize(mofun, nobj, ncon, bounds, guess, popsize,
                         max_evaluations = max_evaluations, 
                         nsga_update=nsga_update, pareto_update=pareto_update,
-                        rg = rgs[pid], store = store, is_terminate=is_terminate, ints=ints) 
-            if not logger is None:
-                logger.info("retries = {0}: time = {1:.1f} i = {2}"
+                        rg = rgs[pid], store = store, ints=ints) 
+            if is_debug_active():
+                logger.debug("retries = {0}: time = {1:.1f} i = {2}"
                             .format(store.num_added.value, dtime(t0), store.num_stored.value))
 
 class MODE_C:
@@ -269,9 +258,9 @@ class MODE_C:
              popsize: Optional[int] = 64, 
              f: Optional[float] = 0.5, 
              cr: Optional[float] = 0.9, 
-             pro_c: Optional[float] = 1.0,
-             dis_c: Optional[float] = 20.0,
-             pro_m: Optional[float] = 1.0,
+             pro_c: Optional[float] = 0.5,
+             dis_c: Optional[float] = 15.0,
+             pro_m: Optional[float] = 0.9,
              dis_m: Optional[float] = 20.0,
              nsga_update: Optional[bool] = True,
              pareto_update: Optional[int] = 0,
@@ -351,12 +340,14 @@ class MODE_C:
     def __del__(self):
         destroyMODE_C(self.ptr)
         
-    def set_guess(self, guess, mofun, rg):
+    def set_guess(self, guess, mofun, rg = None):
         if not guess is None:
             if isinstance(guess, np.ndarray):
                 ys = np.array([mofun(x) for x in guess])
             else:
                 guess, ys = guess
+            if rg is None:
+                rg = Generator(MT19937())
             choice = rg.choice(len(ys), self.popsize, 
                                     replace = (len(ys) < self.popsize))
             self.tell(ys[choice], guess[choice])

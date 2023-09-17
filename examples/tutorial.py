@@ -5,20 +5,29 @@
 
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc for a detailed description.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
+
 import math
 import time
 import numpy as np
 import multiprocessing as mp
 from scipy.optimize import minimize, differential_evolution, dual_annealing
 from fcmaes import astro, advretry, retry, cmaes, cmaescpp
-from fcmaes.optimizer import logger, dtime, random_x, Cma_python, wrapper
+from fcmaes.optimizer import dtime, random_x, Cma_python, wrapper
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 def test_advretry(problem, value_limit, num):
     best = np.inf
     t0 = time.perf_counter();    
     for i in range(num):
         ret = advretry.minimize(problem.fun, bounds = problem.bounds, num_retries = 4000, 
-                   value_limit = value_limit, statistic_num=5000, logger=logger())
+                   value_limit = value_limit, statistic_num=5000)
         best = min(ret.fun, best)
         print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
               .format(i+1, dtime(t0), best, ret.fun))
@@ -29,7 +38,7 @@ def test_advretry_cma_python(problem, value_limit, num):
     for i in range(num):
         ret = advretry.minimize(problem.fun, bounds = problem.bounds, num_retries = 4000, 
                    optimizer = Cma_python(2000), value_limit = value_limit,
-                   statistic_num=5000, logger=logger())
+                   statistic_num=5000)
         best = min(ret.fun, best)
         print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
               .format(i+1, dtime(t0), best, ret.fun))
@@ -40,7 +49,7 @@ def test_retry(problem, num):
     for i in range(num):
         ret = retry.minimize(problem.fun, bounds = problem.bounds, 
                 num_retries = 2000, max_evaluations = 100000, 
-                statistic_num=5000, logger=logger())
+                statistic_num=5000)
         best = min(ret.fun, best)
         print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
               .format(i+1, dtime(t0), best, ret.fun))
@@ -51,7 +60,7 @@ def test_retry_cma_python(problem, num):
     for i in range(num):
         ret = retry.minimize(problem.fun, bounds = problem.bounds, 
                 num_retries = 2000, optimizer = Cma_python(100000),
-                statistic_num=5000, logger=logger())
+                statistic_num=5000)
         best = min(ret.fun, best)
         print("{0}: time = {1:.1f} best = {2:.1f} f(xmin) = {3:.1f}"
               .format(i+1, dtime(t0), best, ret.fun))

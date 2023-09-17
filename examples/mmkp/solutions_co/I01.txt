@@ -1,5 +1,5 @@
 Instance Name : I01
-Date : 2022-07-25
+Date : 2023-09-17
 Score = 173.0 Deviation = 0.0 %
 Solution
 3 4 1 2 3

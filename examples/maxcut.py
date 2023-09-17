@@ -18,10 +18,13 @@ Added two optimizer wrappers:
 These packages need to be installed before executing the code:
 pip install quiskit
 pip install quiskit-optimization
+pip install -U qiskit-aer
 pip install fcmaes
 
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc for a detailed description.
 '''
+
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 
 import numpy as np
 import networkx as nx
@@ -46,6 +49,13 @@ import multiprocessing as mp
     
 from fcmaes.optimizer import Optimizer, Crfmnes_cpp, Crfmnes, Cma_python, wrapper, logger 
 from fcmaes import retry
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 # wraps SPSA as fcmaes optimizer
 class fcmaes_SPSA(Optimizer):
@@ -192,14 +202,14 @@ if __name__ == '__main__':
     # 1 run CR-FM-NES parallel fitness evaluation with noise
     # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator", add_noise=True)
     # 32 parallel runs SPSA 
-    # maxcut(fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator")
+    # maxcut(fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32, use_wrapper=True), n, "aer_simulator")
     # 32 parallel runs CR-FM-NES
-    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
+    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16), max_retries = 16, use_wrapper=True), n, "aer_simulator")
     # 32 parallel runs CR-FM-NES increased population size
-    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
+    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 16, use_wrapper=True), n, "aer_simulator")
     # 32 parallel runs SPSA with noise
-    # maxcut(fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+    # maxcut(fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32, use_wrapper=True), n, "aer_simulator", add_noise=True)
     # 32 parallel runs CR-FM-NES with noise
-    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16), max_retries = 32, use_wrapper=True), n, "aer_simulator", add_noise=True)
     # 32 parallel runs CR-FM-NES increased population size with noise
-    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)    
+    # maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 32, use_wrapper=True), n, "aer_simulator", add_noise=True)    

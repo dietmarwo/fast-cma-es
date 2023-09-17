@@ -12,16 +12,21 @@
 #
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Vaccination.adoc for a detailed description.
 # 
-# fcmaes adaption:
-#
-# Copyright 2022 Dietmar Wolz
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
 
 import matplotlib.pyplot as plt
 import numpy as np    
 from numpy import linspace, exp
 import pandas as pd    
 from numba import njit, numba
-import sys    
+import sys
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 @njit(fastmath=True)
 def fast_update(s, i, r, beta, gamma):
@@ -353,7 +358,7 @@ def execute(task):
 if __name__ == '__main__':
     # execute('vaccine2dmode')
     execute('vaccine2dretry')
-    # execute('vaccine3dmode')
-    # execute('vaccine3dretry')
+    #execute('vaccine3dmode')
+    #execute('vaccine3dretry')
 
 

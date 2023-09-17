@@ -5,6 +5,8 @@
 
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Employee.adoc for a detailed description.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import json
 import numpy as np
 from dateutil.parser import parse
@@ -13,6 +15,13 @@ import numba
 from fcmaes.optimizer import Bite_cpp, De_cpp, Crfmnes_cpp, wrapper
 from fcmaes import retry, moretry, modecpp, mode
 from scipy.optimize import Bounds    
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 def shift_indices(shifts):
     shift_to_index = {}

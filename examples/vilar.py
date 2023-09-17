@@ -11,6 +11,7 @@ See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc fo
 See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc
 
 '''
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
 
 import gillespy2
 import numpy as np
@@ -20,6 +21,13 @@ from scipy.optimize import Bounds
 import matplotlib.pyplot as plt    
 import multiprocessing as mp
 import matplotlib.pyplot as plt
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 class VilarOscillator(gillespy2.Model):
     def __init__(self, parameter_values=None):

@@ -9,6 +9,8 @@
 # for this and two other solo models.
 # See https://www.esa.int/Science_Exploration/Space_Science/Solar_Orbiter
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 from math import pi, sqrt
 import math
 from typing import Any, List, Tuple
@@ -26,6 +28,12 @@ from kepler.lambert import lambert_problem_multirev_ga
 
 bval = mp.RawValue(ct.c_double, 1E99)
 
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 class solo_mgar_udp:
     """

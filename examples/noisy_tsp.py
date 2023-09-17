@@ -12,6 +12,8 @@
 
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc for a detailed description.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import numpy as np
 import tsplib95
 import networkx
@@ -21,8 +23,15 @@ import time
 import math
 import ctypes as ct
 import multiprocessing as mp 
-from fcmaes.optimizer import logger, Bite_cpp, Cma_cpp, De_cpp, De_python, dtime
+from fcmaes.optimizer import Bite_cpp, Cma_cpp, De_cpp, De_python, dtime
 from fcmaes import retry, modecpp, de  
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 # do 'pip install tsplib95'
 
@@ -56,7 +65,7 @@ class TSP:
         self.evals.value += 1
         if y < self.best_y.value:
             self.best_y.value = y            
-            logger().info("evals = {0}: time = {1:.1f} y = {2:.5f} x= {3:s}"
+            logger.info("evals = {0}: time = {1:.1f} y = {2:.5f} x= {3:s}"
                           .format(self.evals.value, dtime(self.t0), y, 
                                   '[' + ", ".join([f"{xi:.16f}" for xi in x]) + ']'
                     ))

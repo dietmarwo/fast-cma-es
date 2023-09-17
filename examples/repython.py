@@ -7,11 +7,19 @@
 # Returns constraints unmodified, not as weighted sum
 # On an AMD 5950x all problems are solved in < 2 sec 
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import numpy as np    
 from fcmaes import mode, modecpp, decpp, de, moretry
 from scipy.optimize import Bounds
-import sys
 from numba import njit
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 @njit(fastmath=True)  
 def closest_value(arr, val):

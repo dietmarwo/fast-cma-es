@@ -10,6 +10,8 @@
 # https://repo.anaconda.com/archive/ using Python 3.8 on Linux
 # The test image used is here: https://api.optimize.esa.int/data/interferometry/orion.jpg
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import math
 from time import time
 
@@ -22,6 +24,13 @@ from skimage.transform import resize
 import ctypes as ct
 import multiprocessing as mp
 import numpy as np
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 @njit(fastmath=True)
 def _get_observed(n_points, im_ft, chromosome):

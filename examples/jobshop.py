@@ -16,19 +16,28 @@
 # See https://www.honda-ri.de/pubs/pdf/3949.pdf for an alternative implementation of the same problem.
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc for a detailed description.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import math
 import pandas as pd
 import numpy as np
 import sys, math, time
 from pathlib import Path
 from fcmaes import retry, advretry, mode, modecpp, moretry
-from fcmaes.optimizer import logger, Bite_cpp, Cma_cpp, De_cpp, de_cma, dtime, Differential_evolution
+from fcmaes.optimizer import Bite_cpp, Cma_cpp, De_cpp, de_cma, dtime, Differential_evolution
 from scipy.optimize import Bounds
 import ctypes as ct
 import multiprocessing as mp 
 from numba import njit, numba
 import seaborn as sns
 import matplotlib.pyplot as plt
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 def read_fjs(filename):
     inf = 1000000
@@ -122,7 +131,7 @@ def scheduling(tasks, n_jobs, n_machines):
 
 def chart(tasks, n_jobs, n_machines):
     solution = scheduling(tasks, n_jobs, n_machines)
-    logger().info(solution)
+    logger.info(solution)
     gantt(solution)
        
 @njit(fastmath=True)        
@@ -232,7 +241,7 @@ class fitness:
         self.evals.value += 1
         if y < self.best_y.value:
             self.best_y.value = y  
-            logger().info("evals = {0}: time = {1:.1f} y = {2:.2f} s = {3:.0f} w = {4:.0f} m = {5:.0f} m= {6:s} j= {7:s} w= {8:s}"
+            logger.info("evals = {0}: time = {1:.1f} y = {2:.2f} s = {3:.0f} w = {4:.0f} m = {5:.0f} m= {6:s} j= {7:s} w= {8:s}"
                 .format(self.evals.value, dtime(self.t0), y, span, work, wmax,
                         str([int(si) for si in machine_time]),
                         str([int(oi) for oi in job_time]),
@@ -262,12 +271,12 @@ def optimize(bi, multi_objective = True):
     fit = fitness(tasks, bounds, n_jobs, n_operations, n_machines, name)
     if multi_objective:
         xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=32, popsize = 48, 
-                  max_evaluations = 960000, nsga_update = True, logger = logger(), workers=16)
-        logger().info(name + " modecpp.retry(num_retries=32, popsize = 48, max_evals = 960000, nsga_update = True, workers=16" )
-        logger().info(str([tuple(y) for y in front]))
+                  max_evaluations = 960000, nsga_update = True, workers=16)
+        logger.info(name + " modecpp.retry(num_retries=32, popsize = 48, max_evals = 960000, nsga_update = True, workers=16" )
+        logger.info(str([tuple(y) for y in front]))
     else:    
-        store = retry.Store(fit, bounds, logger=logger()) 
-        logger().info(name + " Bite_cpp(960000,M=1).minimize, num_retries=256)" )
+        store = retry.Store(fit, bounds) 
+        logger.info(name + " Bite_cpp(960000,M=1).minimize, num_retries=256)" )
         retry.retry(store, Bite_cpp(960000,M=1).minimize, num_retries=256)    
     
     return fit, xs

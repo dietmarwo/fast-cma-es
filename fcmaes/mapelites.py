@@ -53,15 +53,16 @@ from sklearn.neighbors import KDTree
 from sklearn.cluster import KMeans
 from scipy.optimize import Bounds
 from pathlib import Path
-from fcmaes.optimizer import dtime, logger
+from fcmaes.optimizer import dtime
 from fcmaes import cmaescpp
 from numpy.random import default_rng
 import ctypes as ct
 from time import perf_counter
 import threadpoolctl
 from numba import njit
+from fcmaes.evaluator import is_debug_active
+from loguru import logger
 
-import logging
 from typing import Optional, Callable, Tuple, Dict
 from numpy.typing import ArrayLike
 
@@ -77,7 +78,6 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
                         archive: Optional[Archive] = None, 
                         me_params: Optional[Dict] = {}, 
                         cma_params: Optional[Dict] = {}, 
-                        logger: Optional[logging.Logger] = logger(),
                         use_stats: Optional[bool] = False,
                         ) -> Archive:
     
@@ -109,10 +109,6 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
         Parameters for MAP-elites.
     cma_params : dictionary, optional 
         Parameters for the CMA-ES emitter.
-    logger : logger, optional
-        logger for log output of the retry mechanism. If None, logging
-        is switched off. Default is a logger which logs both to stdout and
-        appends to a file ``optimizer.log``.
     use_stats : bool, optional 
         If True, archive accumulates statistics of the solutions
         
@@ -133,9 +129,9 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
         archive.argsort() # sort archive to select the best_n
         optimize_map_elites_(archive, qd_fitness, bounds, workers,
                     me_params, cma_params)
-        if not logger is None:
+        if is_debug_active():
             ys = np.sort(archive.get_ys())[:100] # best 100 fitness values
-            logger.info(f'best 100 iter {iter} best {min(ys):.3f} worst {max(ys):.3f} ' + 
+            logger.debug(f'best 100 iter {iter} best {min(ys):.3f} worst {max(ys):.3f} ' + 
                      f'mean {np.mean(ys):.3f} stdev {np.std(ys):.3f} time {dtime(t0)} s')
     return archive
 
@@ -642,15 +638,13 @@ class wrapper(object):
                  fit:Callable[[ArrayLike], Tuple[float, np.ndarray]], 
                  qd_dim: int, 
                  interval: Optional[int] = 1000000,
-                 save_interval: Optional[int] = 1E20,
-                 logger: Optional[logging.Logger] = logger()):
+                 save_interval: Optional[int] = 1E20):
         
         self.fit = fit
         self.evals = mp.RawValue(ct.c_int, 0) 
         self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.t0 = perf_counter()
         self.qd_dim = qd_dim
-        self.logger = logger
         self.interval = interval
         self.save_interval = save_interval
         self.lock = mp.Lock()
@@ -670,9 +664,9 @@ class wrapper(object):
             if y0 < self.best_y.value:
                 self.best_y.value = y0
                 log = True 
-            if not self.logger is None and log:
+            if log:
                 archinfo = self.archive.info() if hasattr(self, 'archive') else ''
-                self.logger.info(
+                logger.info(
                     f'{dtime(self.t0)} {archinfo} {self.evals.value:.0f} {self.evals.value/(1E-9 + dtime(self.t0)):.0f} {self.best_y.value:.3f} {list(x)}')            
             if save and hasattr(self, 'archive'):
                 self.archive.save(f'{self.evals.value}')

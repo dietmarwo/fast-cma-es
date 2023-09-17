@@ -2,11 +2,13 @@
 # See https://arxiv.org/pdf/1706.01445.pdf
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc for a detailed description.
 
-# On anaconda execute:
+# Install dependencies:
 # pip install more-itertools
 # pip install pygame
-# conda install swig
-# pip install box2d-py
+# mamba install swig
+# mamba install box2d-py
+
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 
 import numpy as np
 
@@ -308,11 +310,11 @@ def main():
     f = PushReward()
     bounds = Bounds(f.xmin, f.xmax) 
   
-    logger().info("push retry.minimize(wrap(f, dim), bounds, De_cpp(10000), num_retries=32)")
+    logger.info("push retry.minimize(wrap(f, dim), bounds, De_cpp(10000), num_retries=32)")
     for i in range(20):
         retry.minimize(wrapper(f), bounds, optimizer=De_cpp(10000), num_retries=32)
 
-    logger().info("push retry.minimize(wrap(f, dim), bounds, Bite_cpp(10000), num_retries=32)")
+    logger.info("push retry.minimize(wrap(f, dim), bounds, Bite_cpp(10000), num_retries=32)")
     for i in range(20):
         retry.minimize(wrapper(f), bounds, optimizer=Bite_cpp(10000), num_retries=32)
 

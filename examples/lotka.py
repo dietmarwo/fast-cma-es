@@ -3,10 +3,12 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import time, sys, warnings, math
 
 from fcmaes import retry, advretry
-from fcmaes.optimizer import logger, de_cma, Bite_cpp, De_cpp, Cma_cpp, LDe_cpp, Minimize, dtime
+from fcmaes.optimizer import de_cma, Bite_cpp, De_cpp, Cma_cpp, LDe_cpp, Minimize, dtime
 from fcmaes.de import DE
 from fcmaes.cmaes import Cmaes
 import numpy as np
@@ -15,6 +17,13 @@ from scipy.optimize import Bounds
 
 import ctypes as ct
 import multiprocessing as mp 
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 # Definition of parameters from https://scipy-cookbook.readthedocs.io/items/LoktaVolterraTutorial.html
 a = 1.
@@ -69,7 +78,7 @@ class fitness(object):
         self.evals.value += 1
         if y < self.best_y.value:
             self.best_y.value = y
-            logger().info("nfev = {0}: t = {1:.1f} fval = {2:.3f} fox kill at {3:s} x = {4:s}"
+            logger.info("nfev = {0}: t = {1:.1f} fval = {2:.3f} fox kill at {3:s} x = {4:s}"
                 .format(self.evals.value, dtime(self.t0), y, str([round(t,2) for t in ts[:-1]]), str(list(X))))
         return y     
 

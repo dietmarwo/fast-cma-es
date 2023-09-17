@@ -11,12 +11,19 @@ from numpy.random import Generator, MT19937
 from fcmaes.evaluator import Evaluator
 from fcmaes import moretry
 import multiprocessing as mp
-from fcmaes.optimizer import logger, dtime
+from fcmaes.optimizer import dtime
 from scipy.optimize import Bounds
 from fcmaes.optimizer import de_cma, Bite_cpp, Cma_cpp, LDe_cpp, dtime,  De_cpp, random_search, wrapper, logger
 from fcmaes import moretry, retry, mode, modecpp, decpp, de, moretry
 from fcmaes import diversifier, mapelites
 from scipy.optimize import Bounds
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 basepath = os.path.dirname(os.path.abspath(__file__))
 liblrgv = ct.cdll.LoadLibrary(basepath + '/../../fcmaes/lib/liblrgv.so')  
@@ -217,6 +224,6 @@ def optimize_qd():
     plot_archive(archive, problem)
 
 if __name__ == '__main__':
-    # optimize_mo()
-    optimize_qd()
+    optimize_mo()
+    #optimize_qd()
      

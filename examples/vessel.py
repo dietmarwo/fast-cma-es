@@ -22,12 +22,21 @@
 
 # This example is taken from https://www.sciencedirect.com/science/article/abs/pii/S0096300306015098
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
+
 import math
 import time
 import numpy as np
 from scipy.optimize import Bounds, minimize
 from fcmaes import retry, advretry
 from fcmaes.optimizer import dtime, random_x, logger
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 fac = 0.0625
 bounds = Bounds([1.1, 0.6, 0, 0], [240, 240, 240, 240]) # six inequalities
@@ -105,6 +114,6 @@ if __name__ == '__main__':
     # test_minimize_SLSQP(cost_int_penalty, 10000)
     
     t0 = time.perf_counter();
-    ret = advretry.minimize(feasable_cost_penalty, bounds, logger = logger(), num_retries=320)
+    ret = advretry.minimize(feasable_cost_penalty, bounds, num_retries=320)
     #ret = retry.minimize(feasable_cost_penalty, bounds, logger = logger(), num_retries=32)
     print_result(ret, 10000, t0, 0)

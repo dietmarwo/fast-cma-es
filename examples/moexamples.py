@@ -6,6 +6,8 @@
 # multi objective optimization experiments
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc for a detailed description.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import numpy as np
 import random
 import math
@@ -13,13 +15,20 @@ import time
 import glob
 import sys
 from scipy.optimize import Bounds
-from fcmaes.optimizer import de_cma, Bite_cpp, random_search, dtime, logger
+from fcmaes.optimizer import de_cma, Bite_cpp, random_search, dtime
 from fcmaes import moretry, retry, mode, modecpp
 from deap import base
 from deap import creator
 from deap import tools
 import array
 import deap.benchmarks as db
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 from fcmaes.astro import Cassini1, Cassini2, Tandem
 
@@ -198,10 +207,10 @@ def nsgaII(NObj, objective, pbounds, seed=None, NGEN=20000, MU=400, CXPB=0.9):
 def nsgaII_test(problem, fname, NGEN=2000, MU=100, value_limits = None):
     time0 = time.perf_counter() # optimization start time
     name = problem.name 
-    logger().info('optimize ' + name + ' nsgaII') 
+    logger.info('optimize ' + name + ' nsgaII') 
     pbounds = np.array(list(zip(problem.bounds.lb, problem.bounds.ub)))
     pop, logbook, front = nsgaII(2, problem.fun, pbounds, NGEN=NGEN, MU=MU) 
-    logger().info(name + ' nsgaII time ' + str(dtime(time0)))    
+    logger.info(name + ' nsgaII time ' + str(dtime(time0)))    
     name = 'nsgaII_' + str(NGEN) + '_' + str(MU) + name + '_' + fname
     np.savez_compressed(name, xs=pop, ys=front)
     if not value_limits is None:

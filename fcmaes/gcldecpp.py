@@ -18,7 +18,6 @@ from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import callback_par, call_back_par, parallel, libcmalib
 from fcmaes.de import _check_bounds
 
-import logging
 from typing import Optional, Callable, Union
 from numpy.typing import ArrayLike
 

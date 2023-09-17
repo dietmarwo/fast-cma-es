@@ -6,16 +6,28 @@
 # This code was posted on https://gitter.im/pagmo2/Lobby by 
 # Markus Märtens @CoolRunning and is extended here by a 
 # fcmaes parallel differential evolution solver for comparison with the pagmo island concept.
-# Tested with Anaconda 2020.11 https://repo.anaconda.com/archive/ using Python 3.8 on Linux
+# Tested with miniconda using Python 3.8/3.10 on Linux
 # Corresponds to the equivalent python example
 # https://github.com/dietmarwo/fcmaes-java/blob/master/src/main/java/fcmaes/examples/Interferometry.java
 # The test image used is here: https://api.optimize.esa.int/data/interferometry/orion.jpg
+
+# Install dependencies:
+# do "pip install scikit-image"
+
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 
 import pygmo as pg
 from time import time
 from interferometry_udp import Interferometry
 from fcmaes import de, cmaes, retry, advretry
 from fcmaes.optimizer import single_objective, de_cma_py, Cma_python, De_python, Cma_cpp, De_cpp, de_cma, Bite_cpp
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 udp = Interferometry(11, './img/orion.jpg', 512) 
 #udp = Interferometry(5, './img/orion.jpg', 32)

@@ -18,6 +18,13 @@ from fcmaes.optimizer import Bite_cpp, wrapper, logger
 from fcmaes import retry
 from scipy.optimize import Bounds  
 
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
+
 @njit(fastmath=True) 
 def next_free_(used, p):
     while used[p]:

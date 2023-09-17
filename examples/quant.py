@@ -5,11 +5,13 @@ https://qiskit.org/textbook/ch-applications/vqe-molecules.html#Example-with-a-Si
 
 Read https://qiskit.org/documentation/getting_started.html about setting up your environment
 
+Install dependencies:
 pip install qiskit
 pip install qiskit-aer-gpu (doesn't work on AMD GPUs and is not required for executing this file)
 
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc for a detailed description.
 '''
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 
 from qiskit import QuantumCircuit, assemble, Aer, transpile, ClassicalRegister, QuantumRegister
 from qiskit.algorithms.optimizers import COBYLA
@@ -21,6 +23,13 @@ from fcmaes import retry, de, cmaes, bitecpp, cmaescpp, decpp
 
 backend = Aer.get_backend("qasm_simulator", max_parallel_threads=1)
 #backend.set_options(device='GPU') # if you switch GPU on, parallel simulation will crash
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 NUM_SHOTS = 10000
 
@@ -100,7 +109,7 @@ def opt_biteopt_loop(fits):
     t0 = perf_counter()
     distances = []
     for fit in fits:  
-        ret = retry.minimize(fit, fit.bounds, logger = None, 
+        ret = retry.minimize(fit, fit.bounds,
                               num_retries=16, optimizer=Bite_cpp(100), workers=16)
         print("bite time", dtime(t0), "distance", ret.fun)
         distances.append(ret.fun)

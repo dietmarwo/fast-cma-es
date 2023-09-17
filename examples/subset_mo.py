@@ -13,10 +13,18 @@ specific selection/subset represented as boolean array to a list of values to be
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc for a detailed description.
 """
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
+
 import numpy as np
 from scipy.optimize import Bounds 
 from fcmaes import mode, modecpp
-from fcmaes.optimizer import logger
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 # replace with your mapping selection -> value
 class transaction_value():
@@ -48,7 +56,7 @@ def optimize(fitness, num_retries = 32):
     xs, ys = modecpp.retry(mode.wrapper(fitness, nobj), nobj, ncon, 
                            fit.bounds, num_retries=num_retries, popsize = 500, 
                            max_evaluations = 100000, nsga_update = True, 
-                           logger = logger(), workers=32)    
+                           workers=32)    
     # show the best results
     for i in range(len(xs)):
         if ys[i][0] > 10: break

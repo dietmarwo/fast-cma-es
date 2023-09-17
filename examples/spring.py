@@ -17,12 +17,21 @@
 
 # This example is taken from https://www.sciencedirect.com/science/article/abs/pii/S0096300306015098
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
+
 import math
 import time
 import numpy as np
 from scipy.optimize import Bounds, minimize
 from fcmaes.optimizer import dtime, random_x, logger
 from fcmaes import retry, advretry
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 bounds = Bounds([0.01, 0.01, 0.01], [20, 20, 20])
 
@@ -78,6 +87,6 @@ if __name__ == '__main__':
     # test_minimize_SLSQP(weight, 10000)
     
     t0 = time.perf_counter();
-    ret = advretry.minimize(weight_penalty, bounds, logger = logger(), num_retries = 320)
-    #ret = retry.minimize(weight_penalty, bounds, logger = logger(), num_retries=32)
+    ret = advretry.minimize(weight_penalty, bounds, num_retries = 320)
+    #ret = retry.minimize(weight_penalty, bounds, num_retries=32)
     print_result(ret, 10000, t0, 0)

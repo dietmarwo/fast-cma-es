@@ -6,15 +6,24 @@
 # Test for fcmaes coordinated retry applied to https://www.esa.int/gsp/ACT/projects/gtop/
 # Generates the log files used to produce the tables in the README. 
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 from fcmaes.astro import Messenger, Cassini2, Rosetta, Gtoc1, Cassini1, Sagas, Tandem, MessFull
-from fcmaes.optimizer import logger, de_cma
+from fcmaes.optimizer import de_cma
 from fcmaes.advretry import minimize
 
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
+
 def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 100.0, 
-                    stop_val = -1E99, log = logger()):
-    log.info("Testing coordinated retry " + opt.name +  ' ' + problem.name )
+                    stop_val = -1E99):
+    logger.info("Testing coordinated retry " + opt.name +  ' ' + problem.name )
     for _ in range(num):
-        ret = minimize(problem.fun, problem.bounds, value_limit, num_retries, log, 
+        ret = minimize(problem.fun, problem.bounds, value_limit, num_retries,
                        optimizer=opt, stop_fitness = stop_val)
 
 def main():

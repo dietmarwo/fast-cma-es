@@ -16,17 +16,25 @@
 # Compare with the F8 results 
 # given in http://www.midaco-solver.com/data/pub/The_Oracle_Penalty_Method.pdf
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 from scipy.integrate import ode
 from scipy.optimize import Bounds
 import numpy as np
 import multiprocessing as mp
 import ctypes as ct
-import math
 import warnings
 import time 
-from fcmaes.optimizer import logger, Sequence, Cma_cpp, GCLDE_cpp, de_cma, dtime
+from fcmaes.optimizer import Sequence, Cma_cpp, GCLDE_cpp, de_cma, dtime
 from fcmaes import advretry, retry, gcldecpp, csmacpp
 from fcmaes.cmaescpp import libcmalib
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 ksi = 0.05236
     
@@ -109,7 +117,7 @@ class f8_problem(object):
         y = self.f8fun(x)
         if y < self.best_y.value:
             self.best_y.value = y
-            logger().info(str(dtime(self.t0)) + ' '  + 
+            logger.info(str(dtime(self.t0)) + ' '  + 
                           str(self.evals.value) + ' ' + 
                           str(self.best_y.value) + ' ' + 
                           str(list(x)))
@@ -117,24 +125,24 @@ class f8_problem(object):
     
 def test_default_cordinated_retry(problem):
     # coordinated retry with default optimizer
-    return advretry.minimize(problem.fun, problem.bounds, logger=logger()) 
+    return advretry.minimize(problem.fun, problem.bounds) 
 
 def test_gclde_cordinated_retry(problem):
     # coordinated retry with GCLDE->CMA sequence optimizer
-    return advretry.minimize(problem.fun, problem.bounds, logger=logger(), 
+    return advretry.minimize(problem.fun, problem.bounds, 
                              optimizer=Sequence([GCLDE_cpp(750), Cma_cpp(750, popsize=13)])) 
 
 def test_cma_cordinated_retry(dim = 6):
     # coordinated retry with CMA-ES optimizer with reduced popsize
     # faster for small dimension, use default for dim > 12
-    return advretry.minimize(problem.fun, problem.bounds, logger=logger(), optimizer=Cma_cpp(2000, popsize=13))
+    return advretry.minimize(problem.fun, problem.bounds, optimizer=Cma_cpp(2000, popsize=13))
         
 def test_de_cma_parallel_retry(problem):
     # parallel optimization retry using a DE -> CMA-ES sequence
     t0 = time.perf_counter();
     evals = 0
     for i in range(1000):
-        ret = retry.minimize(problem.fun, problem.bounds, logger=logger(), optimizer=de_cma(50000), 
+        ret = retry.minimize(problem.fun, problem.bounds, optimizer=de_cma(50000), 
                              value_limit = 10)
 
         evals += ret.nfev

@@ -3,11 +3,20 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import math
 from fcmaes import multiretry
 from fcmaes.astro import cassini2multi
 from fcmaes.optimizer import de_cma, logger
 from scipy.optimize import Bounds
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 def cassini1(x):
     y = cassini2multi(x)

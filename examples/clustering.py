@@ -5,9 +5,9 @@ Derived from https://github.com/google/or-tools/blob/stable/examples/python/clus
 Please also try the original with 200 cities. 
 
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc for a detailed description.
+"""
 
-# do
-# pip install numba
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 
 """
 
@@ -17,6 +17,13 @@ import numba
 from fcmaes.optimizer import Bite_cpp, wrapper
 from fcmaes import retry
 from scipy.optimize import Bounds
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
    
 distance_matrix = [
     [0, 10938, 4542, 2835, 29441, 2171, 1611, 9208, 9528, 11111, 16120, 22606, 22127, 20627, 21246, 23387, 16697, 33609, 26184, 24772, 22644, 20655, 30492, 23296, 32979, 18141, 19248, 17129, 17192, 15645, 12658, 11210, 12094, 13175, 18162, 4968, 12308, 10084, 13026, 15056],

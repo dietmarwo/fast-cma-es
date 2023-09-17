@@ -11,10 +11,10 @@ import multiprocessing as mp
 from multiprocessing import Process
 from scipy.optimize import Bounds
 from numpy.random import Generator, MT19937, SeedSequence
-from fcmaes.optimizer import de_cma, logger, dtime, Optimizer
+from fcmaes.optimizer import de_cma, dtime, Optimizer
 from fcmaes import retry, advretry
+from loguru import logger
 
-import logging
 from typing import Optional, Callable, Tuple
 from numpy.typing import ArrayLike
 
@@ -25,7 +25,6 @@ def minimize(fun: Callable[[ArrayLike], float],
              value_exp: Optional[float] = 2.0,
              value_limits: Optional[ArrayLike] = None,
              num_retries: Optional[int] = 1024,
-             logger: Optional[logging.Logger] = None,
              workers: Optional[int] = mp.cpu_count(),
              popsize: Optional[int] = 31, 
              max_evaluations: Optional[int] = 50000, 
@@ -58,10 +57,6 @@ def minimize(fun: Callable[[ArrayLike], float],
         Upper limit for optimized objective values to be stored. 
     num_retries : int, optional
         Number of optimization retries.    
-    logger : logger, optional
-        logger for log output of the retry mechanism. If None, logging
-        is switched off. Default is a logger which logs both to stdout and
-        appends to a file ``optimizer.log``.
     workers : int, optional
         number of parallel processes used. Default is mp.cpu_count()
     popsize = int, optional
@@ -87,7 +82,7 @@ def minimize(fun: Callable[[ArrayLike], float],
         optimizer = de_cma(max_evaluations, popsize)  
     if capacity is None: 
         capacity = num_retries
-    store = retry.Store(fun, bounds, capacity = capacity, logger = logger, 
+    store = retry.Store(fun, bounds, capacity = capacity, 
                         statistic_num = statistic_num, plot_name = plot_name)
     xs = np.array(mo_retry(fun, weight_bounds, ncon, value_exp, 
                            store, optimizer.minimize, num_retries, value_limits, workers))
@@ -117,9 +112,7 @@ def mo_retry(fun: Callable[[ArrayLike], float],
 
 def _retry_loop(pid, rgs, fun, weight_bounds, ncon, y_exp, 
                 store, optimize, num_retries, value_limits):
-    
-    if 'win' in sys.platform and not store.logger is None:
-        store.logger = logger()       
+         
     lower = store.lower
     wlb = np.array(weight_bounds.lb)
     wub = np.array(weight_bounds.ub)
@@ -185,8 +178,8 @@ def minimize_plot(name: str,
                   value_limits: Optional[ArrayLike] = None, 
                   num_retries: Optional[int] = 1024, 
                   exp: Optional[float] = 2.0, 
-                  workers: Optional[int] = mp.cpu_count(), 
-             logger=logger(), statistic_num = 0, plot_name = None):
+                  workers: Optional[int] = mp.cpu_count(),
+                  statistic_num = 0, plot_name = None):
     
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
@@ -197,7 +190,7 @@ def minimize_plot(name: str,
              num_retries = num_retries,              
              optimizer = optimizer,
              workers = workers,
-             logger=logger, statistic_num = statistic_num, plot_name = plot_name)
+             statistic_num = statistic_num, plot_name = plot_name)
     logger.info(name + ' time ' + str(dtime(time0))) 
     np.savez_compressed(name, xs=xs, ys=ys) 
     plot(name, ncon, xs, ys)
@@ -229,13 +222,12 @@ def adv_minimize_plot(name: str,
                       bounds: Optional[Bounds],
                       value_limit: Optional[float] = np.inf, 
                       num_retries: Optional[int] = 1024, 
-                      logger: Optional[logging.Logger] = logger(), 
                       statistic_num: Optional[int] = 0):
     
     time0 = time.perf_counter() # optimization start time
     name += '_smart_' + optimizer.name
     logger.info('smart optimize ' + name) 
-    store = advretry.Store(lambda x:fun(x)[0], bounds, capacity=5000, logger=logger, 
+    store = advretry.Store(lambda x:fun(x)[0], bounds, capacity=5000,
                            num_retries=num_retries, statistic_num = statistic_num) 
     advretry.retry(store, optimizer.minimize, value_limit)
     xs = np.array(store.get_xs())

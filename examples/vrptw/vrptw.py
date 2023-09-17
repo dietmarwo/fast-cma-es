@@ -8,13 +8,22 @@
 # See http://web.cba.neu.edu/~msolomon/problems.htm
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Oneforall.adoc for a detailed description.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import numpy as np
 import os
 from numba import njit
 from datetime import datetime
-from fcmaes.optimizer import crfmnes_bite, wrapper, logger
+from fcmaes.optimizer import crfmnes_bite, wrapper
 from fcmaes import retry
 from scipy.optimize import Bounds
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 def parse_problem(filename):
     with open(filename) as csvfile:

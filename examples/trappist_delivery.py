@@ -6,12 +6,21 @@ import matplotlib.pyplot as plt
 from scipy.optimize import Bounds
 from fcmaes import retry
 from fcmaes.optimizer import Bite_cpp, wrapper, logger
-from fcmaes.optimizer import Crfmnes_cpp, Crfmnes, de_cma, Bite_cpp, Cma_cpp, LDe_cpp, dtime,  De_cpp, random_search, wrapper, logger
+from fcmaes.optimizer import Crfmnes_cpp, Crfmnes, de_cma, Bite_cpp, Cma_cpp, LDe_cpp, dtime,  De_cpp, random_search, wrapper
 import ctypes as ct
 import multiprocessing as mp  
  
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
+
 # see https://optimize.esa.int/challenge/spoc-delivery-scheduling/About
 # see https://optimize.esa.int/challenge/spoc-delivery-scheduling/p/delivery-scheduling
+
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
 
 """
     Extends ESAs verification code for the SpOC: Delivery Scheduling competition held in 2022.

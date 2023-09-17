@@ -5,16 +5,24 @@
 
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc for a detailed description.
 
-import math
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import pandas as pd
 import numpy as np
-import sys, math, time
+import math, time
 from fcmaes import retry, advretry, mode, modecpp
-from fcmaes.optimizer import logger, Bite_cpp, Cma_cpp, De_cpp, de_cma, dtime, Dual_annealing, Differential_evolution, Minimize
+from fcmaes.optimizer import Bite_cpp, Cma_cpp, De_cpp, de_cma, dtime, Dual_annealing, Differential_evolution, Minimize
 from scipy.optimize import Bounds
 import ctypes as ct
 import multiprocessing as mp 
 from numba import njit, numba
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 STATION_NUM = 12 # number of dyson ring stations
 TRAJECTORY_NUM = 50 # we select 10 mothership trajectories from these trajectories
@@ -302,39 +310,39 @@ def optimize():
     #               max_evaluations = 3000000, nsga_update = True, logger = logger(), workers=16)
     
     # smart boundary management (SMB) with DE->CMA
-    # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
+    # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0) 
     # advretry.retry(store, de_cma(10000).minimize)    
 
     # smart boundary management (SMB) with CMA-ES
-    # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger()) 
+    # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0) 
     # advretry.retry(store, Cma_cpp(10000).minimize)    
 
     # BiteOpt algorithm multi threaded
-    store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    store = retry.Store(fitness(transfers), bounds) 
     retry.retry(store, Bite_cpp(1000000, M=1).minimize, num_retries=3200)    
 
     # CMA-ES multi threaded
-    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # store = retry.Store(fitness(transfers), bounds) 
     # retry.retry(store, Cma_cpp(1000000).minimize, num_retries=3200)    
 
     # scipy minimize algorithm multi threaded
-    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # store = retry.Store(fitness(transfers), bounds) 
     # retry.retry(store, Minimize(1000000).minimize, num_retries=3200)    
     
     # fcmaes differential evolution multi threaded
-    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # store = retry.Store(fitness(transfers), bounds) 
     # retry.retry(store, De_cpp(1000000).minimize, num_retries=3200)    
 
     # scipy differential evolution multi threaded
-    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # store = retry.Store(fitness(transfers), bounds) 
     # retry.retry(store, Differential_evolution(1000000).minimize, num_retries=3200) 
     
     # scipy dual annealing multi threaded
-    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # store = retry.Store(fitness(transfers), bounds) 
     # retry.retry(store, Dual_annealing(1000000).minimize, num_retries=3200) 
  
     # scipy differential evolution single threaded
-    # store = retry.Store(fitness(transfers), bounds, logger=logger()) 
+    # store = retry.Store(fitness(transfers), bounds) 
     # retry.retry(store, Differential_evolution(1000000).minimize, num_retries=320, workers=1)    
 
 # quality diversity

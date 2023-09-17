@@ -7,13 +7,22 @@
 # MINLP problem solved here. 
 # Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MINLP.adoc
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 from fcmaes.astro import Cassini1minlp, Cassini1multi, cassini1minlp
-from fcmaes.optimizer import logger, de_cma
+from fcmaes.optimizer import de_cma
 from fcmaes import advretry, multiretry
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 # minlp approach, planet sequence is additional arguments
 def test_optimizer(opt, problem, num_retries = 120000, num = 100, value_limit = 10.0, log = logger()):
-    log.info(problem.name + ' ' + opt.name)
+    logger.info(problem.name + ' ' + opt.name)
     for _ in range(num):
         ret = advretry.minimize(problem.fun, problem.bounds, value_limit, 
                                 num_retries, log, optimizer=opt)

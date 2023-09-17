@@ -6,17 +6,26 @@
 # Examples for fcmaes coordinated retry from https://www.esa.int/gsp/ACT/projects/gtop/
 # Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Results.adoc
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 from fcmaes.astro import MessFull, Messenger, Cassini2, Rosetta, Gtoc1, Cassini1, Tandem, Sagas, Cassini1minlp
-from fcmaes.optimizer import logger, de_cma, de_cma_py, da_cma, Cma_cpp, De_cpp, Da_cpp, Dual_annealing, Differential_evolution
+from fcmaes.optimizer import de_cma, de_cma_py, da_cma, Cma_cpp, De_cpp, Da_cpp, Dual_annealing, Differential_evolution
 from fcmaes import advretry
 
-def messengerFullLoop(opt, num = 1, log = logger()):    
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
+
+def messengerFullLoop(opt, num = 1,):    
     for i in range(num):
         problem = MessFull()
-        log.info(problem.name + ' ' + opt.name)
+        logger.info(problem.name + ' ' + opt.name)
         name = str(i+1) + ' ' + problem.name if num > 1 else problem.name
         advretry.minimize_plot(name, opt, problem.fun, 
-                               problem.bounds, 12.0, 12.0, 50000, logger=log)
+                               problem.bounds, 12.0, 12.0, 50000)
         
 problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), MessFull(), Sagas(), Cassini1minlp()]
 
@@ -30,12 +39,12 @@ def test_all(num_retries = 1000, num = 1):
         for algo in algos:
             _test_optimizer(algo, problem, num_retries, num, value_limit = 1E99) 
 
-def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 100.0, log = logger()):
-    log.info(problem.name + ' ' + opt.name)
+def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 100.0):
+    logger.info(problem.name + ' ' + opt.name)
     for i in range(num):
         name = str(i+1) + ' ' + problem.name if num > 1 else problem.name
         advretry.minimize_plot(name, opt, problem.fun, 
-                               problem.bounds, value_limit, 10.0, num_retries, logger=log)
+                               problem.bounds, value_limit, 10.0, num_retries)
 
 def main():
     test_all()

@@ -27,15 +27,16 @@ import numpy as np
 from numpy.random import Generator, MT19937, SeedSequence
 from multiprocessing import Process
 from scipy.optimize import Bounds
-from fcmaes.optimizer import logger, dtime, de_cma, Optimizer
+from fcmaes.optimizer import dtime, de_cma, Optimizer
 import multiprocessing as mp
 import ctypes as ct
 from time import perf_counter
 from fcmaes.mapelites import Archive, update_archive, rng
 from fcmaes import advretry
+from fcmaes.evaluator import is_debug_active
+from loguru import logger
 import threadpoolctl
 
-import logging
 from typing import Optional, Callable, Tuple, Dict
 from numpy.typing import ArrayLike
 
@@ -48,7 +49,6 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
             workers: Optional[int] = mp.cpu_count(),
             archive: Optional[Archive] = None,
             opt_params: Optional[Dict] = {},
-            logger: Optional[logging.Logger] = logger(),
             use_stats: Optional[bool] = False,            
             ) -> Archive:
     
@@ -95,10 +95,6 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
         'stall_criterion' - how many iterations without progress allowed, default = 50 iterations 
         If a list/tuple/array of parameters are given, the corresponding solvers are called in a 
         sequence.      
-    logger : logger, optional
-        logger for log output of the retry mechanism. If None, logging
-        is switched off. Default is a logger which logs both to stdout and
-        appends to a file ``optimizer.log``.
     use_stats : bool, optional 
         If True, archive accumulates statistics of the solutions
                 
@@ -118,9 +114,9 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
     t0 = perf_counter()   
     qd_fitness.archive = archive # attach archive for logging     
     minimize_parallel_(archive, qd_fitness, bounds, workers, opt_params, max_evals)
-    if not logger is None:
+    if is_debug_active():
         ys = np.sort(archive.get_ys())[:min(100, archive.capacity)] # best fitness values
-        logger.info(f'best {min(ys):.3f} worst {max(ys):.3f} ' + 
+        logger.debug(f'best {min(ys):.3f} worst {max(ys):.3f} ' + 
                  f'mean {np.mean(ys):.3f} stdev {np.std(ys):.3f} time {dtime(t0)} s')
     return archive
 
@@ -134,8 +130,7 @@ def apply_advretry(fitness: Callable[[ArrayLike], float],
                    max_eval_fac: Optional[float] = 5.0,
                    xs: Optional[np.ndarray] = None,
                    ys: Optional[np.ndarray] = None,
-                   x_conv: Callable[[ArrayLike], ArrayLike] = None,
-                   logger: Optional[logging.Logger] = logger()):
+                   x_conv: Callable[[ArrayLike], ArrayLike] = None):
         
     """Unifies the QD world with traditional optimization. It converts
     a QD-archive into a multiprocessing store used by the fcmaes smart
@@ -174,16 +169,13 @@ def apply_advretry(fitness: Callable[[ArrayLike], float],
     x_conv : callable, optional
         If defined converts the x in xs to solutions suitable for the given archive.
         If undefined it is assumed that the x in xs are valid archive solutons.   
-    logger : logger, optional
-        logger for log output of the retry mechanism. If None, logging
-        is switched off. Default is a logger which logs both to stdout and
-        appends to a file ``optimizer.log``."""
+    """
 
     if optimizer is None:
         optimizer = de_cma(1500)
     # generate advretry store
     store = advretry.Store(fitness, bounds, num_retries=num_retries, 
-                           max_eval_fac=max_eval_fac, logger=logger)  
+                           max_eval_fac=max_eval_fac)  
                          
     # select only occupied entries
     if xs is None:
@@ -208,9 +200,9 @@ def apply_advretry(fitness: Callable[[ArrayLike], float],
     for i in range(len(ys)):
         archive.set(niches[i], (ys[i], descs[i]), xs[i])
     archive.argsort()
-    if not logger is None:
+    if is_debug_active():
         ys = np.sort(archive.get_ys())[:min(100, archive.capacity)] # best fitness values
-        logger.info(f'best {min(ys):.3f} worst {max(ys):.3f} ' + 
+        logger.debug(f'best {min(ys):.3f} worst {max(ys):.3f} ' + 
                  f'mean {np.mean(ys):.3f} stdev {np.std(ys):.3f} time {dtime(t0)} s')    
 
 def minimize_parallel_(archive, fitness, bounds, workers, opt_params, max_evals):

@@ -17,9 +17,9 @@ from scipy.optimize._constraints import new_bounds_to_old
 from scipy.optimize import OptimizeResult, Bounds
 import multiprocessing as mp
 from multiprocessing import Process
-from fcmaes.optimizer import de_cma, dtime, logger
-
-import logging
+from fcmaes.optimizer import de_cma, dtime, Optimizer
+from fcmaes.evaluator import is_debug_active
+from loguru import logger
 from typing import Optional, Callable, List
 from numpy.typing import ArrayLike
 
@@ -31,7 +31,6 @@ def minimize(fun: Callable[[ArrayLike], float],
              bounds: Bounds, 
              value_limit: Optional[float] = np.inf,
              num_retries: Optional[int] = 1024,
-             logger: Optional[logging.Logger] = None,
              workers: Optional[int] = mp.cpu_count(),
              popsize: Optional[int] = 31, 
              max_evaluations: Optional[int] = 50000, 
@@ -59,10 +58,6 @@ def minimize(fun: Callable[[ArrayLike], float],
         Upper limit for optimized function values to be stored. 
     num_retries : int, optional
         Number of optimization retries.    
-    logger : logger, optional
-        logger for log output of the retry mechanism. If None, logging
-        is switched off. Default is a logger which logs both to stdout and
-        appends to a file ``optimizer.log``.
     workers : int, optional
         number of parallel processes used. Default is mp.cpu_count()
     popsize = int, optional
@@ -96,7 +91,7 @@ def minimize(fun: Callable[[ArrayLike], float],
 
     if optimizer is None:
         optimizer = de_cma(max_evaluations, popsize, stop_fitness)        
-    store = Store(fun, bounds, capacity = capacity, logger = logger, statistic_num = statistic_num, 
+    store = Store(fun, bounds, capacity = capacity, statistic_num = statistic_num, 
                   plot_name = plot_name)
     return retry(store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
 
@@ -126,7 +121,6 @@ def minimize_plot(name: str,
                   plot_limit: Optional[float] = np.inf, 
                   num_retries: Optional[int] = 1024, 
                   workers: Optional[int] = mp.cpu_count(), 
-                  logger: Optional[logging.Logger] = logger(),
                   stop_fitness: Optional[float] = -np.inf, 
                   statistic_num: Optional[int] = 5000, 
                   plot_name:str = None) -> OptimizeResult:
@@ -134,7 +128,7 @@ def minimize_plot(name: str,
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
     logger.info('optimize ' + name)       
-    store = Store(fun, bounds, capacity = 500, logger = logger, 
+    store = Store(fun, bounds, capacity = 500,
                   statistic_num = statistic_num, plot_name = plot_name)
     ret = retry(store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
     impr = store.get_improvements()
@@ -215,13 +209,11 @@ class Store(object):
                  bounds: Bounds, # bounds of the objective function arguments
                  check_interval: Optional[int] = 10, # sort evaluation memory after check_interval iterations
                  capacity: Optional[int] = 500, # capacity of the evaluation store
-                 logger:Optional[logging.Logger] = None, # if None logging is switched off
                  statistic_num: Optional[int] = 0,
                  plot_name: Optional[str] = None # requires statistic_num > 500
                 ):    
         self.fun = fun
         self.lower, self.upper = _convertBounds(bounds)
-        self.logger = logger
         self.capacity = capacity
         self.check_interval = check_interval
         self.dim = len(self.lower)
@@ -245,9 +237,9 @@ class Store(object):
         self.best_x = mp.RawArray(ct.c_double, self.dim)
         self.statistic_num = statistic_num
         self.plot_name = plot_name
-        # statistics                            
+        # statistics   
+        self.statistic_num = statistic_num                         
         if statistic_num > 0:  # enable statistics                          
-            self.statistic_num = statistic_num
             self.time = mp.RawArray(ct.c_double, self.statistic_num)
             self.val = mp.RawArray(ct.c_double, self.statistic_num)
             self.si = mp.RawValue(ct.c_int, 0)
@@ -265,12 +257,11 @@ class Store(object):
                 self.si.value = si + 1
             self.time[si] = dtime(self.t0)
             self.val[si] = y  
-            if not self.logger is None:
-                self.logger.info(str(self.time[si]) + ' '  + 
-                          str(self.sevals.value) + ' ' + 
-                          str(int(self.sevals.value / self.time[si])) + ' ' + 
-                          str(y) + ' ' + 
-                          str(list(x)))
+            logger.info(str(self.time[si]) + ' '  + 
+                      str(self.sevals.value) + ' ' + 
+                      str(int(self.sevals.value / self.time[si])) + ' ' + 
+                      str(y) + ' ' + 
+                      str(list(x)))
         return y
          
     def get_improvements(self):
@@ -388,25 +379,21 @@ class Store(object):
             
     def dump(self):
         """logs the current status of the store if logger defined."""
-        if self.logger is None:
+        if not is_debug_active():
             return
         Ys = self.get_ys()
         vals = []
         for i in range(min(20, len(Ys))):
             vals.append(round(Ys[i],4))     
-        dt = dtime(self.t0)   
-                 
+        dt = dtime(self.t0)                   
         message = '{0} {1} {2} {3} {4:.6f} {5:.2f} {6:.2f} {7!s} {8!s}'.format(
             dt, int(self.count_evals.value / dt), self.count_runs.value, self.count_evals.value, \
                 self.best_y.value, self.get_y_mean(), self.get_y_standard_dev(), vals, self.best_x[:])
-        self.logger.info(message)
+        logger.debug(message)
 
         
 def _retry_loop(pid, rgs, store, optimize, num_retries, value_limit, stop_fitness = -np.inf):
     fun = store.wrapper if store.statistic_num > 0 else store.fun
-    #reinitialize logging config for windows -  multi threading fix
-    if 'win' in sys.platform and not store.logger is None:
-        store.logger = logger()
         
     lower = store.lower
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):

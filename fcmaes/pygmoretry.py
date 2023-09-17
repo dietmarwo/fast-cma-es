@@ -6,12 +6,12 @@
 import math
 import os
 import sys
+import numpy as np
 from numpy.random import Generator, MT19937, SeedSequence
 from scipy.optimize import OptimizeResult, Bounds
 import multiprocessing as mp
 from multiprocessing import Process
 from fcmaes.retry import Store
-from fcmaes.optimizer import logger
 
 os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -21,7 +21,6 @@ def minimize(prob,
              algo,
              value_limit = np.inf,
              num_retries = 100*mp.cpu_count(),
-             logger = None,
              workers = mp.cpu_count(),
              popsize = 1, 
              ) -> OptimizeResult:   
@@ -44,10 +43,6 @@ def minimize(prob,
         Upper limit for optimized function values to be stored. 
     num_retries : int, optional
         Number of optimization retries.    
-    logger : logger, optional
-        logger for log output of the retry mechanism. If None, logging
-        is switched off. Default is a logger which logs both to stdout and
-        appends to a file ``optimizer.log``.
     workers : int, optional
         number of parallel processes used. Default is mp.cpu_count()
     popsize = int, optional
@@ -63,7 +58,7 @@ def minimize(prob,
 
     lb, ub = prob.get_bounds()
     bounds = Bounds(lb, ub)
-    store = Store(bounds, logger = logger)
+    store = Store(bounds)
     return retry(store, prob, algo, num_retries, value_limit, popsize, workers)
                  
 def retry(store, prob, algo, num_retries, value_limit = np.inf, popsize=1, workers=mp.cpu_count()):
@@ -83,10 +78,6 @@ def retry(store, prob, algo, num_retries, value_limit = np.inf, popsize=1, worke
                           nfev=store.get_count_evals(), success=True)
         
 def _retry_loop(pid, rgs, store, prob, algo, num_retries, value_limit, popsize, pg):
-
-   #reinitialize logging config for windows -  multi threading fix
-    if 'win' in sys.platform and not store.logger is None:
-        store.logger = logger()
     
     while store.get_runs_compare_incr(num_retries):      
         try:            

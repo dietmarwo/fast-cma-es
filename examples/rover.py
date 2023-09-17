@@ -2,8 +2,17 @@
 # See https://arxiv.org/pdf/1706.01445.pdf
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc for a detailed description.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import numpy as np
 import scipy.interpolate as si
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 class Trajectory:
 
@@ -586,11 +595,11 @@ def main():
     def negated(x): # negation because we minimize
         return -f(x)
     
-    logger().info("rover retry.minimize(wrap(f, dim), bounds, De_cpp(10000), num_retries=32)")
+    logger.info("rover retry.minimize(wrap(f, dim), bounds, De_cpp(10000), num_retries=32)")
     for i in range(20):
         retry.minimize(wrapper(negated), bounds, optimizer=De_cpp(10000), num_retries=32)
 
-    logger().info("rover retry.minimize(wrap(f, dim), bounds, Bite_cpp(10000), num_retries=32)")
+    logger.info("rover retry.minimize(wrap(f, dim), bounds, Bite_cpp(10000), num_retries=32)")
     for i in range(20):
         retry.minimize(wrapper(negated), bounds, optimizer=Bite_cpp(10000), num_retries=32)
 

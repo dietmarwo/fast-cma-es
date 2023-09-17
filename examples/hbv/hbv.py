@@ -4,6 +4,8 @@
 # See https://github.com/jdherman/awr-hbv-benchmark
 # See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import numpy as np
 import os, sys, time
 import ctypes as ct
@@ -11,12 +13,19 @@ from numpy.random import Generator, MT19937
 from fcmaes.evaluator import Evaluator
 from fcmaes import moretry
 import multiprocessing as mp
-from fcmaes.optimizer import logger, dtime
+from fcmaes.optimizer import dtime
 from scipy.optimize import Bounds
 from fcmaes.optimizer import de_cma, Bite_cpp, Cma_cpp, LDe_cpp, dtime,  De_cpp, random_search, wrapper, logger
 from fcmaes import moretry, retry, mode, modecpp, decpp, de, moretry#, modec 
 from fcmaes import diversifier, mapelites
 from scipy.optimize import Bounds
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 basepath = os.path.dirname(os.path.abspath(__file__))
 libhbv = ct.cdll.LoadLibrary(basepath + '/../../fcmaes/lib/libhbv.so')  

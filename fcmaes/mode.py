@@ -49,9 +49,8 @@ from scipy.optimize import Bounds
 from fcmaes.evaluator import Evaluator, parallel_mo
 from fcmaes import moretry
 import multiprocessing as mp
-from fcmaes.optimizer import logger, dtime
-
-import logging
+from fcmaes.optimizer import dtime
+from loguru import logger
 from typing import Optional, Callable, Tuple
 from numpy.typing import ArrayLike
 
@@ -68,7 +67,7 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
              f: Optional[float] = 0.5,
              cr: Optional[float] = 0.9,
              pro_c: Optional[float] = 0.5,
-             dis_c: Optional[float] = 20.0,
+             dis_c: Optional[float] = 15.0,
              pro_m: Optional[float] = 0.9,
              dis_m: Optional[float] = 20.0,
              nsga_update: Optional[bool] = True,
@@ -248,9 +247,9 @@ class MODE(object):
                 popsize: Optional[int] = 64, 
                 F: Optional[float] = 0.5, 
                 Cr: Optional[float] = 0.9, 
-                pro_c: Optional[float] = 1.0,
-                dis_c: Optional[float] = 20.0,
-                pro_m: Optional[float] = 1.0,
+                pro_c: Optional[float] = 0.5,
+                dis_c: Optional[float] = 15.0,
+                pro_m: Optional[float] = 0.9,
                 dis_m: Optional[float] = 20.0,
                 nsga_update: Optional[bool] = True,
                 pareto_update: Optional[int] = 0,
@@ -294,12 +293,14 @@ class MODE(object):
             self.modifier = modifier
         self._init()
                
-    def set_guess(self, guess, mofun, rg):
+    def set_guess(self, guess, mofun, rg = None):
         if not guess is None:
             if isinstance(guess, np.ndarray):
                 ys = np.array([mofun(x) for x in guess])
             else:
                 guess, ys = guess
+            if rg is None:
+                rg = Generator(MT19937())
             choice = rg.choice(len(ys), self.popsize, 
                                     replace = (len(ys) < self.popsize))
             self.tell(ys[choice], guess[choice])
@@ -651,8 +652,7 @@ class wrapper(object):
                  store: Optional[store] = None, 
                  interval: Optional[int] = 100000, 
                  plot: Optional[bool] = False, 
-                 name: Optional[str] = None, 
-                 logger: Optional[logging.Logger] = logger()):
+                 name: Optional[str] = None):
         self.fun = fun
         self.nobj = nobj
         self.n_evals = mp.RawValue(ct.c_long, 0)
@@ -664,7 +664,6 @@ class wrapper(object):
         self.interval = interval
         self.plot = plot
         self.name = name
-        self.logger = logger
         self.lock = mp.Lock()
     
     def __call__(self, x: ArrayLike) -> np.ndarray:
@@ -682,7 +681,7 @@ class wrapper(object):
             improve = improve# and self.n_evals.value > 10000
             if self.n_evals.value % self.interval == 0 or improve:
                 constr = np.maximum(y[self.nobj:], 0) 
-                self.logger.info(
+                logger.info(
                     str(dtime(self.time_0)) + ' ' + 
                     str(self.n_evals.value) + ' ' + 
                     str(round(self.n_evals.value/(1E-9 + dtime(self.time_0)),0)) + ' ' + 
@@ -691,8 +690,6 @@ class wrapper(object):
                     try:
                         xs, ys = self.store.get_front()
                         num = self.store.num_stored.value
-                        # self.logger.info(str(num) + ' ' + 
-                        #               ', '.join(['(' + ', '.join([str(round(yi,3)) for yi in y]) + ')' for y in ys]))
                         name = self.name + '_' + str(num)
                         np.savez_compressed(name, xs=xs, ys=ys)
                         if self.plot:
@@ -714,8 +711,7 @@ def minimize_plot(name: str,
                  nsga_update: Optional[bool] = True,
                  pareto_update: Optional[int] = 0,
                  ints: Optional[ArrayLike] = None,
-                 workers: Optional[int] = mp.cpu_count(),
-                 logger: Optional[logging.Logger] = logger()) -> Tuple[np.ndarray, np.ndarray]:     
+                 workers: Optional[int] = mp.cpu_count()) -> Tuple[np.ndarray, np.ndarray]:     
     name += '_mode_' + str(popsize) + '_' + \
                 ('nsga_update' if nsga_update else ('de_update_' + str(pareto_update)))
     logger.info('optimize ' + name) 

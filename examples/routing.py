@@ -1,11 +1,20 @@
 # see https://github.com/krishna-praveen/Capacitated-Vehicle-Routing-Problem
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Routing.adoc for a detailed description.
 
+# Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
+
 import numpy as np
 from numba import njit
-from fcmaes.optimizer import Bite_cpp, De_cpp, Crfmnes_cpp, Crfmnes, Cma_cpp, de_cma, wrapper, logger
+from fcmaes.optimizer import Bite_cpp, De_cpp, Crfmnes_cpp, Crfmnes, Cma_cpp, de_cma, wrapper
 from fcmaes import mode, modecpp, moretry, retry
 from scipy.optimize import Bounds
+
+import sys 
+from loguru import logger
+
+logger.remove()
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
+logger.add("log_{time}.txt")
 
 @njit(fastmath=True)
 def fitness_(seq, distance, demands, capacity):
@@ -122,7 +131,7 @@ def optimize_so(filename, capacity, opt, num_retries = 320):
     routing = Routing(filename, capacity)
     name = "routing." + str(opt.max_evaluations)    
     ret = retry.minimize_plot(name, opt, wrapper(routing.fitness_so), 
-                               routing.bounds, num_retries = num_retries, logger=logger())
+                               routing.bounds, num_retries = num_retries)
     routing.dump(np.argsort(ret.x), ret.fun)
    
 def dump(filename, capacity, seq):

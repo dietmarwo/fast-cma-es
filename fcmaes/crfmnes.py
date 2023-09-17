@@ -6,7 +6,6 @@ from scipy.optimize import OptimizeResult, Bounds
 from numpy.random import MT19937, Generator
 from fcmaes.evaluator import _get_bounds, _fitness, serial, parallel
 
-import logging
 from typing import Optional, Callable, Union, Dict
 from numpy.typing import ArrayLike
 
