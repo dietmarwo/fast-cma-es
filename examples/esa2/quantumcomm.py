@@ -769,6 +769,10 @@ def combine_scores(points):
         #return -hv.computborderse(ref_point) * 10000
         return -hv.compute(ref_point) * 10000
 
+    
+import warnings
+warnings.filterwarnings("ignore")
+
 from fcmaes.optimizer import wrapper, dtime, Bite_cpp, De_cpp, Crfmnes_cpp
 import fcmaes
 from fcmaes import retry, mode, modecpp, moretry
@@ -793,9 +797,9 @@ def fitness(x): # fitness wrapper converting the last ten arguments into integer
     return np.array(udp.fitness(x))
 
 def select_valid(xs, ys):
-    cv = np.array([np.amax(y[2:], 0) for y in ys])
+    cv = np.array([np.amax(y[nobj:], 0) for y in ys])
     valid = (cv <= 0)
-    ys = ys.T[:2].T
+    ys = ys.T[:nobj].T
     ys = ys[valid]
     xs = xs[valid]                        
     xs, ys = moretry.pareto(xs, ys)
@@ -805,11 +809,6 @@ def read_solution(fname):
     with np.load(fname) as data:
         xs = data['xs']
         ys = data['ys']                      
-    xs, ys = select_valid(xs, ys) # filter solutions not violating the constraints                         
-    xs, ys = moretry.pareto(xs, ys)
-    valid = np.array([pg.pareto_dominance(y, ref_point) for y in ys])
-    ys = ys[valid] # filter valid solutions < reference point
-    xs = xs[valid]                        
     return xs, ys
 
 from fcmaes.evaluator import parallel_mo
@@ -824,7 +823,7 @@ from fcmaes.evaluator import parallel_mo
 def mo_par():
             
     guess = None
-    #guess, _ = read_solution("res2/nsga_on2000k700_1b.npz") # inject an existing pareto front   
+    #guess, _ = read_solution("res/quantcomm_1_100_6372134.npz") # inject an existing pareto front   
     popsize = 256
     
     es = mode.MODE(nobj, ncon, bounds, popsize = popsize, nsga_update=True) # Python MOO optimizer
@@ -930,8 +929,8 @@ def so_par():
     # ys = [ref_point-0.000001 for _ in range(target_num)]
 
     # initialization with a given pareto front 
-    xs, ys = read_solution("res2/nsga_on2000k700_1b.npz") # inject an existing pareto front
-  
+    xs, ys = read_solution("res/quantcomm_1_100_6372134.npz") # inject an existing pareto front
+    
     last_xs = []
     last_ys = []
     for i in range(1, 1000):
@@ -971,11 +970,12 @@ def pymoo_par():
     from itertools import chain
 
     target_num = 100 # desired size of the pareto front 
-    n_eval = 20000
+    n_eval = 10000
     popsize = 300
     time_0 = time.perf_counter()
     guess = None
-    guess, _ = read_solution("res2/nsga_on2000k700_1b.npz") # inject an existing pareto front
+    guess, ys = read_solution("res/quantcomm_1_100_6372134.npz") # inject an existing pareto front
+    guess, ys = reduce(guess, ys, target_num)   
     
     class fitness_wrapper():
         
@@ -1032,7 +1032,7 @@ def pymoo_par():
             ys = np.array(list(chain.from_iterable(ys_out.values()))) # we ignore the pymoo optimization result
             xs, ys = moretry.pareto(xs, ys)
             if len(ys) > target_num:
-                xs, ys = reduce(xs, ys, target_num, evals = 200000)        
+                xs, ys = reduce(xs, ys, target_num)        
             hv = int(pg.hypervolume(ys).compute(ref_point) * 10000000)  
             np.savez_compressed("quantcomm_" + str(i) + "_" + str(len(ys)) + 
                                 "_" + str(hv), xs=xs, ys=ys)       
