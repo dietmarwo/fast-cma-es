@@ -39,6 +39,14 @@ support both parallel fitness function evaluation and a parallel retry mechanism
 - Large collection of 35 tutorials related to real world problems: 
   https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials].
 
+=== Changes from version 1.6.3:
+
+- Logging now based on loguru. All examples are adapted.
+- New dependencies: loguru + numba.
+- New tutorial related to the https://www.esa.int/gsp/ACT/projects/spoc-2023/[GECCO 2023] Space Optimization Competition:
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ESAChallenge.adoc[ESAChallenge].
+- You can define an initial population as guess for multi objective optimization.
+
 === Changes from version 1.4.0:
 
 - Pure Python versions of the algorithms are now usable also for parallel retry. Pure Python features: 
@@ -105,7 +113,19 @@ Not only the single objective algorithms above, but also scipy and NLopt optimiz
  
 * `pip install fcmaes`. 
 
-* Recommended Python environment: https://github.com/conda-forge/miniforge[Miniforge] . At least Python 3.7 is required.
+To use the {cpp} optimizers a gcc-9.3 (or newer) runtime is required. This is the default on newer Linux versions. 
+If you are on an old Linux distribution you need to install gcc-9 or a newer 
+version. On ubuntu this is: 
+
+- sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+- sudo apt update
+- sudo apt install gcc-9
+
+Alternatively if you use Anaconda:
+
+- conda install -c conda-forge gxx_linux-64==9.5.0
+
+* Recommended Python environment: https://repo.anaconda.com/archive/Anaconda3-2022.05-Linux-x86_64.sh[Anaconda3-2022.05] or newer. At least Python 3.7 is required.
 
 ==== Windows
 
@@ -113,7 +133,7 @@ Not only the single objective algorithms above, but also scipy and NLopt optimiz
 
 * Install {cpp} runtime libraries https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads
 
-* Recommended Python environment: https://github.com/conda-forge/miniforge[Miniforge] .
+* Recommended Python environment: https://repo.anaconda.com/archive/Anaconda3-2022.05-Windows-x86_64.exe[Anaconda3-2022.05] or newer.
 
 For parallel fitness function evaluation use the native Python optimizers
 or the ask/tell interface of the {cpp} ones. Python multiprocessing works better on Linux. 

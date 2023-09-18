@@ -99,7 +99,7 @@ Differences are:
 
 - fcmaes uses a QD archive shared between parallel processes each running either CVT MAP-Elites or an improvement emitter.
 - fcmaes uses Voronoi tesselation (see CVT MAP-Elites https://arxiv.org/abs/1610.05729)
-- Instead of gaussian distribution fcmaes can use simulated binary crossover + mutation as NSGA-II
+- Instead of gaussian distribution fcmaes can use simulated binary crossover + polynomial mutation as NSGA-II
 - The number of parallel processes allocated to each emitter is configurable
 - Improvement emitters not necessarily use CMA-ES (CR-FM-NES, DE, BiteOpt and PGPE being the current alternatives)
 - Improvement emitters can be chained (like DE -> CMA) where the following emitter is initialized with the

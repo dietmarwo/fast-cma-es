@@ -6,6 +6,7 @@
 # - Factor 30 speedup using numba and igraph
 # - Added competitive algorithms
 # - See corresponding tutorial 
+#   https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ESAChallenge.adoc
 
 # Requires pykep which needs python 3.8, 
 # Create an python 3.8 environment:
@@ -775,7 +776,7 @@ warnings.filterwarnings("ignore")
 
 from fcmaes.optimizer import wrapper, dtime, Bite_cpp, De_cpp, Crfmnes_cpp
 import fcmaes
-from fcmaes import retry, mode, modecpp, moretry
+from fcmaes import retry, mode, modecpp, moretry, mapelites, diversifier
 from scipy.optimize import Bounds    
 from os import walk
 import multiprocessing as mp
@@ -817,15 +818,15 @@ from fcmaes.evaluator import parallel_mo
 # Uses fcmaes multi objective optimization to optimize the pareto front
 # Uses parallel function evaluation, but cannot pass score 6400 even when executed many times, 
 # using a large number of iterations and a big population. 
-# Which is the reason only one single team - "ML Actonauts" achieved this goal during the GECCO competition 
+# Which is the reason only one team - "ML Actonauts" achieved this goal during the GECCO competition 
 # https://www.esa.int/gsp/ACT/projects/spoc-2023/ 
 
 def mo_par():
             
     guess = None
-    #guess, _ = read_solution("res/quantcomm_1_100_6372134.npz") # inject an existing pareto front   
-    popsize = 256
-    
+    guess, _ = read_solution("res/quantcomm_1_100_6372134.npz") # inject an existing pareto front   
+    popsize = 512
+
     es = mode.MODE(nobj, ncon, bounds, popsize = popsize, nsga_update=True) # Python MOO optimizer
     #es = modecpp.MODE_C(nobj, ncon, bounds, popsize = popsize, nsga_update=True) # C++ MOO optimizer
    
@@ -837,21 +838,64 @@ def mo_par():
     if not guess is None:
         es.set_guess(guess, fitness)
 
-    while stop == 0 and iters < 1000:               
+    while stop == 0 and iters < 100000:               
         xs = es.ask()
-        ys = fit(xs)
+        ys = fit(xs)        
         es.tell(ys) # tell evaluated x             
         iters += 1
         valid = [y[:2] for y in ys if np.less_equal(y , np.array([1.2, 1.4, 0, 0])).all()]
         hv = pg.hypervolume(valid).compute(ref_point)
         if hv > max_hv:
             max_hv = hv
+        if hv > 0.9999*max_hv: # show stagnation
             logger.info(f'time: {dtime(time_0)} iter: {iters} hv: {hv * 10000}')
-            if hv * 10000 > 6320:
-                np.savez_compressed("quantcomm_" + str(int(hv * 10000)), xs=xs, ys=ys)
+            np.savez_compressed("quantcomm_" + str(int(hv * 1000000)), xs=xs, ys=ys)
     fit.stop()
     return xs, ys
 
+#+++++++ Apply fcmaes diversifier quality diversity algorithm ++++++++++++++++++++++++
+# The initial archive is created using an existing pareto front. This way the QD-algorithm
+# dosn't need to find this "hard to reach" area of the solution space by its own. 
+
+def mo_to_qd(y):
+    f1, f2, c1, c2 = y
+    if c1 > 0: # penalize constraint violations
+        c1 += 1000
+    else: c1 = 0 # set to 0 if no violation
+    if c2 > 0:
+        c2 += 1000
+    else: c2 = 0
+    return f1 + f2 + c1 + c2, \
+           np.minimum(ref_point, np.array([f1, f2])) # use the objectives as descriptive space
+
+def qd_fun(x):
+    return mo_to_qd(fitness(x)) # convert the MO result into a QD result
+
+def get_arch(qd_bounds, niche_num, samples_per_niche):
+    xs, _ = read_solution("res/quantcomm_1_100_6372134.npz") # inject an existing pareto front      
+    arch = mapelites.empty_archive(dim, qd_bounds, niche_num, samples_per_niche)
+    mapelites.update_archive(arch, xs, qd_fun)
+    return arch
+
+def nd_par(niche_num = 10000):
+    udp = constellation_udp()
+    ubs = udp.get_bounds()
+    qd_bounds = Bounds([0.7, 0.], [1.2, 1.4])
+    samples_per_niche = 20
+    arch = get_arch(qd_bounds, niche_num, samples_per_niche)
+    opt_params0 = {'solver':'elites', 'popsize':100, 'use':2}
+    opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':2000, 'popsize':32, 'stall_criterion':3}
+    archive = diversifier.minimize(
+         mapelites.wrapper(qd_fun, 2, interval=10000, save_interval=100000),
+         bounds, qd_bounds,
+         workers = 32, opt_params=[opt_params0, opt_params1], archive = arch,
+         niche_num = niche_num, samples_per_niche = samples_per_niche,
+         max_evals = 1000000)
+
+    print('final archive:', archive.info())
+    archive.save('final archive')
+    
+    
 #++++++++++++++++++++++ Apply BiteOpt Single-Objective Optimization ++++++++++++++++++++++++++++++++++++++++
 # Uses https://github.com/avaneev/biteopt applied to a fitness function maximizing the hypervolume
 # to find the best target_num solutions maximizing the pareto front
@@ -1094,7 +1138,8 @@ def reduce(xs, ys, num, evals = 50000, retries = mp.cpu_count()):
   
 if __name__ == '__main__':
 
-    pymoo_par()
+    #pymoo_par()
     #so_par()    
-    #mo_par()
+    mo_par()
+    #nd_par()
 
