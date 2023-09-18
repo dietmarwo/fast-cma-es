@@ -22,7 +22,7 @@ setup(
     license='MIT',
     packages=find_packages(),
     install_requires=[
-          'numpy', 'scipy', 'scikit-learn', 'threadpoolctl'
+          'numpy', 'scipy', 'scikit-learn', 'threadpoolctl', 'numba', 'loguru'
     ],
     classifiers = [
       "Intended Audience :: Manufacturing",
