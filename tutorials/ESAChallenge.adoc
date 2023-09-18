@@ -557,6 +557,6 @@ def nd_par(niche_num = 10000):
     archive.save('final archive')
 ----
 
-As QD-algorithm we use is a - configurable - combination of Map-Elites using Voronoi tessellation with CR-FM-NES.
+As QD-algorithm we use a - configurable - combination of Map-Elites using Voronoi tessellation with CR-FM-NES.
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc[Quality Diversity] for a detailed description of this
 algorithm which generalizes https://arxiv.org/pdf/1912.02400.pdf[CMA-ME] and https://arxiv.org/abs/1610.05729[CVT MAP-Elites]
