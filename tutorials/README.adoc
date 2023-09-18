@@ -8,7 +8,6 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 
 image::logo.gif[]
 
-
 === Quality Diversity
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc[Quality Diversity] Parallel execution of a multi-algorithm improvement emitter and CVT MAP-Elites.
@@ -22,6 +21,7 @@ image::logo.gif[]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PAGMO.adoc[Pagmo results] GTOPX Benchmark results using Pagmo
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PYKEP.adoc[Pykep gym results] Benchmark results for the Pykep gym problems
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MINLP.adoc[Mixed Integer] Mixed integer flight mission design
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ESAChallenge.adoc[ESAChallenge] ESA Optimization Challenge
 
 === Quantum Computing
 
