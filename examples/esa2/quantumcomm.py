@@ -859,14 +859,9 @@ def mo_par():
 
 def mo_to_qd(y):
     f1, f2, c1, c2 = y
-    if c1 > 0: # penalize constraint violations
-        c1 += 1000
-    else: c1 = 0 # set to 0 if no violation
-    if c2 > 0:
-        c2 += 1000
-    else: c2 = 0
-    return f1 + f2 + c1 + c2, \
-           np.minimum(ref_point, np.array([f1, f2])) # use the objectives as descriptive space
+    # weight the objectives and constraints
+    return f1/0.5 + f2/1.4 + c1/3000 + c2/50, \
+                np.minimum(ref_point, np.array([f1, f2])) # use the objectives as descriptive space
 
 def qd_fun(x):
     return mo_to_qd(fitness(x)) # convert the MO result into a QD result
