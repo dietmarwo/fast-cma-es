@@ -18,8 +18,8 @@ import sys
 from loguru import logger
 
 logger.remove()
-logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
-logger.add("log_{time}.txt")
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
+logger.add("log_{time}.txt", format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
 
 problems = [Cassini1(), Cassini2(), Rosetta(), Tandem(5), Messenger(), Gtoc1(), MessFull(), Sagas(), Cassini1minlp()]
 

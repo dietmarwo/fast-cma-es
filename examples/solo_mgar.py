@@ -40,8 +40,8 @@ import sys
 from loguru import logger
 
 logger.remove()
-logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
-logger.add("log_{time}.txt")
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
+logger.add("log_{time}.txt", format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
 
 def read_solutions(fname):
     ys = []

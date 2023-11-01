@@ -31,8 +31,8 @@ import sys
 from loguru import logger
 
 logger.remove()
-logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
-logger.add("log_{time}.txt")
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
+logger.add("log_{time}.txt", format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
 
 def opt_ranger_hardware(task_id, max_evals = 100000):
     bench = benchmark_set.BenchmarkSet("iaml_ranger", check = False)

@@ -35,8 +35,8 @@ import sys
 from loguru import logger
 
 logger.remove()
-logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
-logger.add("log_{time}.txt")
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
+logger.add("log_{time}.txt", format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
 
 fac = 0.0625
 bounds = Bounds([1.1, 0.6, 0, 0], [240, 240, 240, 240]) # six inequalities

@@ -38,7 +38,6 @@ def minimize(fun: Callable[[ArrayLike], float],
              stop_fitness: Optional[float] = -np.inf,
              optimizer: Optional[Optimizer] = None,
              statistic_num: Optional[int] = 0,
-             plot_name:str = None
              ) -> OptimizeResult:   
     """Minimization of a scalar function of one or more variables using parallel 
      optimization retry.
@@ -76,10 +75,6 @@ def minimize(fun: Callable[[ArrayLike], float],
         optimizer to use. Default is a sequence of differential evolution and CMA-ES.
     statistic_num: int, optional
         if > 0 stores the progress of the optimization. Defines the size of this store. 
-    plot_name : String, optional
-        if defined plots are generated during the optimization to monitor progress.
-        Requires statistic_num > 100.
-
      
     Returns
     -------
@@ -91,8 +86,7 @@ def minimize(fun: Callable[[ArrayLike], float],
 
     if optimizer is None:
         optimizer = de_cma(max_evaluations, popsize, stop_fitness)        
-    store = Store(fun, bounds, capacity = capacity, statistic_num = statistic_num, 
-                  plot_name = plot_name)
+    store = Store(fun, bounds, capacity = capacity, statistic_num = statistic_num)
     return retry(store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
 
 def retry(store: Store, 
@@ -122,14 +116,12 @@ def minimize_plot(name: str,
                   num_retries: Optional[int] = 1024, 
                   workers: Optional[int] = mp.cpu_count(), 
                   stop_fitness: Optional[float] = -np.inf, 
-                  statistic_num: Optional[int] = 5000, 
-                  plot_name:str = None) -> OptimizeResult:
+                  statistic_num: Optional[int] = 5000) -> OptimizeResult:
     
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
     logger.info('optimize ' + name)       
-    store = Store(fun, bounds, capacity = 500,
-                  statistic_num = statistic_num, plot_name = plot_name)
+    store = Store(fun, bounds, capacity = 500, statistic_num = statistic_num)
     ret = retry(store, optimizer.minimize, num_retries, value_limit, workers, stop_fitness)
     impr = store.get_improvements()
     np.savez_compressed(name, ys=impr)
@@ -209,8 +201,7 @@ class Store(object):
                  bounds: Bounds, # bounds of the objective function arguments
                  check_interval: Optional[int] = 10, # sort evaluation memory after check_interval iterations
                  capacity: Optional[int] = 500, # capacity of the evaluation store
-                 statistic_num: Optional[int] = 0,
-                 plot_name: Optional[str] = None # requires statistic_num > 500
+                 statistic_num: Optional[int] = 0
                 ):    
         self.fun = fun
         self.lower, self.upper = _convertBounds(bounds)
@@ -236,7 +227,6 @@ class Store(object):
         self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.best_x = mp.RawArray(ct.c_double, self.dim)
         self.statistic_num = statistic_num
-        self.plot_name = plot_name
         # statistics   
         self.statistic_num = statistic_num                         
         if statistic_num > 0:  # enable statistics                          
@@ -257,7 +247,7 @@ class Store(object):
                 self.si.value = si + 1
             self.time[si] = dtime(self.t0)
             self.val[si] = y  
-            logger.info(str(self.time[si]) + ' '  + 
+            logger.debug(str(self.time[si]) + ' '  + 
                       str(self.sevals.value) + ' ' + 
                       str(int(self.sevals.value / self.time[si])) + ' ' + 
                       str(y) + ' ' + 
@@ -403,12 +393,6 @@ def _retry_loop(pid, rgs, store, optimize, num_retries, value_limit, stop_fitnes
                 sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
                                          [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
                 store.add_result(y, sol, evals, value_limit)   
-                if not store.plot_name is None: 
-                    name = store.plot_name + "_retry_" + str(store.get_count_evals())
-                    xs = np.array(store.get_xs())
-                    ys = np.array(store.get_ys())
-                    np.savez_compressed(name, xs=xs, ys=ys) 
-                    plot(y, name, interp=False)    
             except Exception as ex:
                 print(str(ex))
 #        if pid == 0:

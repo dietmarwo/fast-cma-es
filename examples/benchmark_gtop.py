@@ -16,8 +16,8 @@ import sys
 from loguru import logger
 
 logger.remove()
-logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}")
-logger.add("log_{time}.txt")
+logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
+logger.add("log_{time}.txt", format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
 
 def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 100.0, 
                     stop_val = -1E99):
