@@ -9,7 +9,6 @@ See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.ad
 
 # Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 
-"""
 
 import numpy as np
 from numba import njit

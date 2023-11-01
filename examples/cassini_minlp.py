@@ -21,11 +21,11 @@ logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {messa
 logger.add("log_{time}.txt", format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
 
 # minlp approach, planet sequence is additional arguments
-def test_optimizer(opt, problem, num_retries = 120000, num = 100, value_limit = 10.0, log = logger()):
+def test_optimizer(opt, problem, num_retries = 120000, num = 100, value_limit = 10.0):
     logger.info(problem.name + ' ' + opt.name)
     for _ in range(num):
         ret = advretry.minimize(problem.fun, problem.bounds, value_limit, 
-                                num_retries, log, optimizer=opt)
+                                num_retries, optimizer=opt)
 
 def sequences():
     for p1 in range(2,4):
@@ -36,7 +36,7 @@ def sequences():
 
 # simultaneous optimization 
 def test_multiretry(retries_inc = 128, 
-             keep = 0.7, optimizer = de_cma(1500), logger = logger(), repeat = 50):
+             keep = 0.7, optimizer = de_cma(1500), repeat = 50):
     problems = []
     ids = []
     for seq in sequences():
@@ -44,7 +44,7 @@ def test_multiretry(retries_inc = 128,
         ids.append(str(seq))
 
     problem_stats = multiretry.minimize(problems, ids, retries_inc, retries_inc*repeat,
-                                         keep, optimizer, logger)
+                                         keep, optimizer)
     ps = problem_stats[0]
     for _ in range(repeat):
         logger.info("problem " + ps.prob.name + ' ' + str(ps.id))

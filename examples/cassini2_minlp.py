@@ -44,7 +44,7 @@ def sequences():
 
 # simultaneous optimization 
 def check_multiretry(retries_inc = 100, 
-             keep = 0.7, optimizer = de_cma(1500), logger = logger(), repeat = 100):
+             keep = 0.7, optimizer = de_cma(1500), repeat = 100):
     problems = []
     ids = []
     for seq in sequences():
@@ -52,7 +52,7 @@ def check_multiretry(retries_inc = 100,
         ids.append(str(seq))
         
     problem_stats = multiretry.minimize(problems, ids, retries_inc, 
-                                        retries_inc*repeat, keep, optimizer, logger)
+                                        retries_inc*repeat, keep, optimizer)
     ps = problem_stats[0]
     for _ in range(repeat):
         logger.info("problem " + ps.prob.name + ' ' + str(ps.id))
