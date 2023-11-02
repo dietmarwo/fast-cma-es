@@ -266,7 +266,7 @@ def optimize(fname, max_evals=200000, num_restarts=32, seq=None):
         return eval_sequence(seq)
 
 def check_solutions():
-    seqs = [ # good sample solutions computed using optimize("tmap_jpl1", max_evals=5000000, num_restarts=640)
+    seqs = [ # good sample solutions computed using optimize("tmap_jpl1", max_evals=2000000, num_restarts=640)
         [19, 0, 8, 4, 18, 41, 10, 40, 25, 3, 26, 19, 43, 23, 15, 17, 20, 29, 6, 20, 29, 31, 21, 11, 36, 1, 24, 39, 30, 0, 8, 10, 25, 40, 42, 35, 6, 12, 37, 23, 13, 43, 31, 12, 41, 4, 13, 7, 22, 18, 42, 7, 17, 28, 15, 22, 28, 26, 1, 35, 11, 21, 36, 39, 3, 37, 24, 30],
         [22, 30, 13, 0, 19, 38, 20, 42, 11, 31, 29, 36, 2, 40, 17, 32, 16, 2, 27, 35, 37, 41, 18, 17, 32, 37, 13, 8, 41, 10, 28, 16, 11, 20, 29, 31, 36, 39, 14, 4, 8, 6, 35, 27, 39, 24, 18, 14, 42, 7, 5, 28, 10, 40, 25, 24, 38, 43, 0, 19, 5, 25, 7, 30, 22, 43, 4, 6],
         [11, 31, 20, 2, 9, 17, 24, 21, 10, 28, 13, 42, 32, 34, 34, 32, 5, 40, 25, 42, 8, 39, 29, 23, 38, 43, 41, 4, 14, 9, 2, 38, 0, 4, 43, 18, 41, 13, 31, 0, 37, 19, 18, 8, 3, 24, 25, 17, 23, 15, 37, 14, 3, 28, 10, 19, 39, 40, 5, 15, 21, 20, 29, 11, 35, 6, 35, 6],
@@ -279,5 +279,5 @@ if __name__ == '__main__':
     check_solutions()
     optimize("tmap_jpl1", max_evals=200000, num_restarts=64)
     # use this if you have a fast many core processor:
-    #optimize("tmap_jpl1", max_evals=5000000, num_restarts=640)
+    #optimize("tmap_jpl1", max_evals=2000000, num_restarts=640)
 
