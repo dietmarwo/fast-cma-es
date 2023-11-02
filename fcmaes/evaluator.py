@@ -22,14 +22,20 @@ from numpy.typing import ArrayLike
 
 pipe_limit = 64 # higher values can cause issues
 
-def is_debug_active():
+def is_log_level_active(level):
     try: # nasty but currently there is no other way
         for handler in logger._core.handlers.values():
-            if handler['level'].no <= logger.level("DEBUG").no:
+            if handler._levelno <= logger.level(level).no:
                 return True
     except Exception as ex:   
         pass
     return False
+
+def is_debug_active():
+    return is_log_level_active("DEBUG")
+
+def is_trace_active():
+    return is_log_level_active("TRACE")
 
 def eval_parallel(xs: ArrayLike, 
                   evaluator: Evaluator):

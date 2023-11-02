@@ -18,7 +18,7 @@ from scipy.optimize import OptimizeResult, Bounds
 import multiprocessing as mp
 from multiprocessing import Process
 from fcmaes.optimizer import de_cma, dtime, Optimizer
-from fcmaes.evaluator import is_debug_active
+from fcmaes.evaluator import is_debug_active, is_trace_active
 from loguru import logger
 from typing import Optional, Callable, List
 from numpy.typing import ArrayLike
@@ -247,7 +247,7 @@ class Store(object):
                 self.si.value = si + 1
             self.time[si] = dtime(self.t0)
             self.val[si] = y  
-            logger.debug(str(self.time[si]) + ' '  + 
+            logger.trace(str(self.time[si]) + ' '  + 
                       str(self.sevals.value) + ' ' + 
                       str(int(self.sevals.value / self.time[si])) + ' ' + 
                       str(y) + ' ' + 
@@ -316,7 +316,13 @@ class Store(object):
                 ns = self.num_stored.value
                 self.num_stored.value = ns + 1
                 self.replace(ns, y, xs)
-            
+                if is_debug_active():
+                    dt = dtime(self.t0)  
+                    message = '{0} {1} {2} {3} {4:.6f} {5:.6f} {6:.2f} {7:.2f}'.format(
+                        dt, int(self.count_evals.value / dt), self.count_runs.value, self.count_evals.value, \
+                        y, self.best_y.value, self.get_y_mean(), self.get_y_standard_dev())
+                    logger.debug(message)
+          
     def get_x(self, pid: int):
         return self.xs[pid*self.dim:(pid+1)*self.dim]
 
@@ -395,8 +401,6 @@ def _retry_loop(pid, rgs, store, optimize, num_retries, value_limit, stop_fitnes
                 store.add_result(y, sol, evals, value_limit)   
             except Exception as ex:
                 print(str(ex))
-#        if pid == 0:
-#            store.dump()
 
 def _convertBounds(bounds):
     if bounds is None:
