@@ -12,7 +12,7 @@ import ctypes as ct
 GTOC (Global Trajectory Optimization Competition) was initiated 20 years ago by ESA to 
 provide a platform for Space Agencies to exchange ideas how to plan space flights. 
 Every one or two years the best space trajectory planners in the world, including
-JPL (NASA) and ESA, compete solving a complex task. This example is about GTOC12,
+JPL (NASA) and ESA, compete solving a complex task. This example is related to GTOC12,
 which is about planning the mining of asteroids as efficiently as possible.
 
 Each ship departs from and returns to earth, visiting a number of asteroids in between. 
@@ -40,9 +40,9 @@ dm: delta propellant mass, propellant consumption
 ep: start epoch (day)
 tof: time of flight, ep + tof is the arrival epoch
 
-For a fixed number of ships, the task is now to maximize the mined material (per ship).
-
-Constraints are:
+For a fixed number of ships, the task is now to maximize the mined material (per ship)
+by finding graph paths corresponding to the ship trajectories fulfilling all
+constraints:
 
 - A ship may not start heading for the next asteroid before it arrives at an asteroid.
 - Propellant consumption (sum of the dm values along the path) is limited (<= 1500 kg) for each ship.
@@ -52,9 +52,9 @@ Constraints are:
 - If there is no edge to any target asteroid after the arrival time or propellant 
   consumption would exceed the limit the journey for the ship ends. 
 
-This task quite similar to ESAs Wormhole task 
+This task, although quite similar to ESAs Wormhole task 
 https://optimise.esa.int/challenge/spoc-2-wormhole-transportation-network/p/wormhole-transportation-network
-but differs in several aspects:
+differs in several aspects:
 
 - Much lower number of nodes - only 44 instead of 10000. 
 - All ships (and not only two) are relevant.
@@ -227,7 +227,7 @@ def optimize(fname, max_evals=200000, num_restarts=32, seq=None):
                 if transfer is None or mass + transfer[0] > 1500: # limit delta mass to 1500 kg
                     ships += 1 # last path ended, start a new ship / path
                     epoch = 0
-                    all_mass.append(mass) # accumulate propellant consumption for pathes
+                    all_mass.append(mass) # accumulate propellant consumption for all paths
                     mass = 0
                     if ships >= ship_used: 
                         break # no ship left
@@ -279,5 +279,5 @@ if __name__ == '__main__':
     check_solutions()
     optimize("tmap_jpl1", max_evals=200000, num_restarts=64)
     # use this if you have a fast many core processor:
-    #optimize("tmap_jpl1", max_evals=2000000, num_restarts=640)
+    # optimize("tmap_jpl1", max_evals=2000000, num_restarts=640)
 
