@@ -105,7 +105,7 @@ to integer values using ns = X.astype(int). You need to define a function
 possible transfer, and a function 'eval_sequence_n(sequence, ns)' which applies it instead of 
 '_transfer(a2, epoch_min, transfers, idx)'. As optimizer parallel BiteOpt can be applied again.
 
-Our chosen propellant limit of 1500kg may be a bit high if you consider material mass and
+Our chosen propellant limit of 1500kg may be a bit high if you consider mined mass and
 the propellant needed for the transfers from and to earth. Therefore we need the 
 second optimization phase to further reduce propellant consumption. The weighted sum of the
 objective function needs to be adapted accordingly. 
@@ -272,8 +272,10 @@ def optimize(fname, max_evals=200000, num_restarts=32, seq=None):
 
 def check_solutions():
     seqs = [ # good sample solutions computed using optimize("tmap_jpl1", max_evals=2000000, num_restarts=640)
+        [11, 20, 29, 31, 21, 33, 1, 2, 15, 41, 38, 43, 18, 34, 32, 8, 4, 43, 18, 41, 13, 15, 30, 26, 39, 1, 20, 29, 31, 33, 19, 0, 39, 10, 3, 7, 40, 25, 37, 19, 0, 23, 5, 30, 5, 37, 11, 21, 34, 32, 28, 42, 26, 17, 38, 13, 8, 4, 7, 3, 17, 42, 25, 40, 10, 28, 2, 23],
         [19, 0, 8, 4, 18, 41, 10, 40, 25, 3, 26, 19, 43, 23, 15, 17, 20, 29, 6, 20, 29, 31, 21, 11, 36, 1, 24, 39, 30, 0, 8, 10, 25, 40, 42, 35, 6, 12, 37, 23, 13, 43, 31, 12, 41, 4, 13, 7, 22, 18, 42, 7, 17, 28, 15, 22, 28, 26, 1, 35, 11, 21, 36, 39, 3, 37, 24, 30],
         [22, 30, 13, 0, 19, 38, 20, 42, 11, 31, 29, 36, 2, 40, 17, 32, 16, 2, 27, 35, 37, 41, 18, 17, 32, 37, 13, 8, 41, 10, 28, 16, 11, 20, 29, 31, 36, 39, 14, 4, 8, 6, 35, 27, 39, 24, 18, 14, 42, 7, 5, 28, 10, 40, 25, 24, 38, 43, 0, 19, 5, 25, 7, 30, 22, 43, 4, 6],
+        [9, 28, 10, 7, 40, 17, 3, 15, 38, 36, 24, 43, 7, 34, 23, 8, 4, 43, 18, 41, 14, 37, 35, 26, 16, 2, 3, 39, 33, 9, 42, 11, 20, 29, 31, 39, 24, 25, 2, 15, 8, 4, 23, 17, 31, 20, 29, 11, 36, 27, 33, 34, 42, 26, 35, 27, 12, 37, 14, 41, 18, 10, 28, 25, 40, 12, 38, 16],
         [11, 31, 20, 2, 9, 17, 24, 21, 10, 28, 13, 42, 32, 34, 34, 32, 5, 40, 25, 42, 8, 39, 29, 23, 38, 43, 41, 4, 14, 9, 2, 38, 0, 4, 43, 18, 41, 13, 31, 0, 37, 19, 18, 8, 3, 24, 25, 17, 23, 15, 37, 14, 3, 28, 10, 19, 39, 40, 5, 15, 21, 20, 29, 11, 35, 6, 35, 6],
         ]
     for i, seq in enumerate(seqs): 
@@ -284,5 +286,5 @@ if __name__ == '__main__':
     check_solutions()
     optimize("tmap_jpl1", max_evals=200000, num_restarts=64)
     # use this if you have a fast many core processor:
-    #optimize("tmap_jpl1", max_evals=2000000, num_restarts=640)
+    # optimize("tmap_jpl1", max_evals=2000000, num_restarts=6400)
 
