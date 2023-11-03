@@ -1,13 +1,3 @@
-import numpy as np 
-from numba import njit
-import numba
-import time
-from fcmaes.optimizer import dtime, Bite_cpp
-from scipy.optimize import Bounds
-from fcmaes import retry
-import multiprocessing as mp 
-import ctypes as ct
-
 '''
 GTOC (Global Trajectory Optimization Competition) was initiated 20 years ago by ESA to 
 provide a platform for Space Agencies to exchange ideas how to plan space flights. 
@@ -58,7 +48,8 @@ differs in several aspects:
 
 - Much lower number of nodes - only 44 instead of 10000. 
 - All ships (and not only two) are relevant.
-- Number of edges is similar - 246736, but we have 4000-8000 edges between any two asteroids. 
+- Number of edges is similar - 246736, but we have for each asteroid 4000-8000 outgoing edges 
+  and on average 130 (up to 444) edges between any two asteroids. 
 - Any node can be used as start / target node. 
 
 Independent from GTOC12 the subtask shown here represents an interesting variation of the
@@ -121,7 +112,20 @@ objective function needs to be adapted accordingly.
 '''
 
 import sys
+import time
+
+from fcmaes import retry
+from fcmaes.optimizer import dtime, Bite_cpp, Cma_cpp, Crfmnes_cpp
 from loguru import logger
+from numba import njit
+import numba
+from scipy.optimize import Bounds
+
+import ctypes as ct
+import multiprocessing as mp 
+import numpy as np 
+
+
 logger.remove()
 logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="DEBUG")
 logger.add("log_{time}.txt", format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="DEBUG")
@@ -261,6 +265,7 @@ def optimize(fname, max_evals=200000, num_restarts=32, seq=None):
     
     if seq is None: # optimize using parallel BiteOpt
         retry.minimize_plot("minimize_plot", Bite_cpp(max_evals, M=6), fit, bounds, num_retries=num_restarts, workers=workers, 
+        #retry.minimize_plot("minimize_plot", Crfmnes_cpp(2*max_evals, popsize=dim), fit, bounds, num_retries=num_restarts, workers=workers, 
                                 statistic_num=5000) 
     else: # if seq is defined we just evaluate it
         return eval_sequence(seq)
@@ -279,5 +284,5 @@ if __name__ == '__main__':
     check_solutions()
     optimize("tmap_jpl1", max_evals=200000, num_restarts=64)
     # use this if you have a fast many core processor:
-    # optimize("tmap_jpl1", max_evals=2000000, num_restarts=640)
+    #optimize("tmap_jpl1", max_evals=2000000, num_restarts=640)
 
