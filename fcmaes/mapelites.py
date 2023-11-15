@@ -295,7 +295,8 @@ def optimize_cma_(archive, fitness, bounds, rg, cma_params):
         if es.tell(improvement) != 0:
             break 
         old_ys = np.sort(ys)
-        
+
+@np.errstate(invalid='ignore')        
 def update_archive(archive: Archive, xs: np.ndarray, 
                    fitness: Optional[Callable[[ArrayLike], Tuple[float, np.ndarray]]] = None,
                    yds: Optional[ArrayLike] = None):
