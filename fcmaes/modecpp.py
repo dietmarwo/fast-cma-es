@@ -231,8 +231,8 @@ def retry(mofun: Callable[[ArrayLike], ArrayLike],
                 for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
-    _, ys = store.get_front()            
-    return store.get_xs(), store.get_ys()
+    xs, ys = store.get_front()            
+    return xs, ys
 
 def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, guess, popsize, 
                 max_evaluations, workers, nsga_update, pareto_update, 

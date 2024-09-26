@@ -121,7 +121,7 @@ class fcmaes_Optimizer(optimizers.Optimizer):
             result.nfev = nfev
         else: 
             ret = retry.minimize(fun, bnds, num_retries=self._max_retries, workers = self._workers,
-                              optimizer=self._optimizer, logger=self._logger)
+                              optimizer=self._optimizer)
             result.x = ret.x
             result.fun = ret.fun
             result.nfev = ret.nfev

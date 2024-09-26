@@ -241,7 +241,7 @@ class fitness(object):
 def optimize(tickers, start, end):
     bounds = Bounds([20,50,10,10], [50,100,200,200])
     fit = fitness(tickers, start, end) 
-    ret = retry.minimize(fit, bounds, logger = None, 
+    ret = retry.minimize(fit, bounds,
                           num_retries=32, optimizer=Bite_cpp(2000))
     fit.plot(ret.x)
     
@@ -251,8 +251,8 @@ def optimize_mo(tickers, start, end, nsga_update = True):
     max_trades = 8
     fit = fitness(tickers, start, end, max_trades) 
     bounds = Bounds([20,50,10,10], [50,100,200,200])
-    xs, front = modecpp.retry(fit.mofun, len(tickers), ncon, bounds, num_retries=32, popsize = 48, 
-                  max_evaluations = 16000, nsga_update = nsga_update, logger = logger(), workers=32)
+    xs, front = modecpp.retry(fit.mofun, len(tickers), ncon, bounds, num_retries=24, popsize = 48, 
+                  max_evaluations = 16000, nsga_update = nsga_update, workers=24)
     for y, x in zip(front, xs):
         print("fac " + str([-round(yi,2) for yi in y[:nobj]]) +  
               " trades " + str([int(max_trades+ci) for ci in y[nobj:]]) + 
@@ -333,9 +333,9 @@ if __name__ == '__main__':
     start="2019-01-01"
     end="2030-04-30" 
     
-    #optimize(tickers, start, end)
+    optimize(tickers, start, end)
     
-    #optimize_mo(tickers, start, end)
+    optimize_mo(tickers, start, end)
    
     optimize_nd(tickers, start, end)
     #bar(tickers, start, end)

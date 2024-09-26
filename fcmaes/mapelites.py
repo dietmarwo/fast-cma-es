@@ -53,6 +53,7 @@ from sklearn.neighbors import KDTree
 from sklearn.cluster import KMeans
 from scipy.optimize import Bounds
 from pathlib import Path
+from fcmaes.retry import Shared2d
 from fcmaes.optimizer import dtime
 from fcmaes import cmaescpp
 from numpy.random import default_rng
@@ -122,7 +123,7 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
         archive = Archive(dim, qd_bounds, niche_num, use_stats)
         archive.init_niches(samples_per_niche)
         # initialize archive with random values
-        archive.set_xs(rng.uniform(bounds.lb, bounds.ub, (niche_num, dim))) 
+        self.xs.view()[:] = rng.uniform(bounds.lb, bounds.ub, (niche_num, dim))
     t0 = perf_counter() 
     qd_fitness.archive = archive # attach archive for logging  
     for iter in range(iterations):
@@ -252,6 +253,8 @@ def run_map_elites_(archive, fitness, bounds, rg,
     line_sigma = me_params.get('line_sigma', 0.2)
     cma_generations = cma_params.get('cma_generations', 20)
     select_n = archive.capacity
+    arch_xs = archive.xs.view() 
+    arch_ds = archive.ds.view() 
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
         for _ in range(generations):                
             if use_sbx:
@@ -265,7 +268,7 @@ def run_map_elites_(archive, fitness, bounds, rg,
             descs = np.array([yd[1] for yd in yds])
             niches = archive.index_of_niches(descs)
             for i in range(len(yds)):
-                archive.set(niches[i], yds[i], xs[i]) 
+                archive.set(niches[i], yds[i], xs[i], arch_xs, arch_ds) 
             archive.argsort()   
             select_n = archive.get_occupied()            
     
@@ -314,8 +317,10 @@ def update_archive(archive: Archive, xs: np.ndarray,
     if len(neg) > 0:
         neg = neg.reshape((len(neg)))
         # update archive for all real improvements
+        arch_xs = archive.xs.view() 
+        arch_ds = archive.ds.view() 
         for i in neg:
-            archive.set(niches[i], yds[i], xs[i])
+            archive.set(niches[i], yds[i], xs[i], arch_xs, arch_ds)
         # prioritize empty niches
         empty = (improvement == -np.inf) # these need to be sorted according to fitness
         occupied = np.logical_not(empty)
@@ -366,16 +371,17 @@ class Archive(object):
     
     def reset(self):
         """Resets all submitted solutions but keeps the niche centers."""
-        self.xs = mp.RawArray(ct.c_double, self.capacity * self.dim)
-        self.ds = mp.RawArray(ct.c_double, self.capacity * self.qd_dim)
+        self.xs = Shared2d(np.zeros((self.capacity, self.dim), dtype = np.float64))
+        self.ds = Shared2d(np.zeros((self.capacity, self.qd_dim), dtype = np.float64))
         self.ys = mp.RawArray(ct.c_double, self.capacity)
         self.counts = mp.RawArray(ct.c_long, self.capacity) # count
         self.occupied = mp.RawValue(ct.c_long, 0)
         self.stats = mp.RawArray(ct.c_double, self.capacity * self.dim * 4 if self.use_stats else 0)
+        arch_ds = self.ds.view()
         for i in range(self.capacity):
             self.counts[i] = 0
             self.set_y(i, np.inf)  
-            self.set_d(i, np.full(self.qd_dim, np.inf))
+            arch_ds[i] = np.full(self.qd_dim, np.inf)
             if self.stats:
                 self.set_stat(i, 0, np.zeros(self.dim)) # mean
                 self.set_stat(i, 1, np.zeros(self.dim)) # qmean
@@ -400,8 +406,10 @@ class Archive(object):
         ys, ds, xs = archive.get_occupied_data()
         niches = archive.index_of_niches(ds)
         yds = np.array([(y, d) for y, d in zip(ys, ds)])
+        arch_xs = archive.xs.view() 
+        arch_ds = archive.ds.view() 
         for i in range(len(ys)):
-            archive.set(niches[i], yds[i], xs[i]) 
+            archive.set(niches[i], yds[i], xs[i], arch_xs, arch_ds) 
         archive.argsort()   
 
     def fname(self, name): 
@@ -426,8 +434,8 @@ class Archive(object):
             self.cvt_clustering = len(data['cs']) > 0
             xs = data['xs']
             ds = data['ds']
-            self.set_xs(xs)
-            self.set_ds(ds)
+            self.xs.view()[:] = xs
+            self.ds.view()[:] = ds
             self.set_ys(data['ys'])
             if self.cvt_clustering:
                 self.set_cs(data['cs'])
@@ -457,7 +465,10 @@ class Archive(object):
     def set(self, 
             i: int, 
             yd: np.ndarray, 
-            x: np.ndarray):
+            x: np.ndarray,
+            arch_xs: np.ndarray, 
+            arch_ds: np.ndarray,     
+        ):
         """Adds a solution to the archive if it improves the corresponding niche.
         Updates solution.""" 
         self.update_stats(i, x)
@@ -468,8 +479,8 @@ class Archive(object):
             if yold == np.inf: # not yet occupied
                 self.occupied.value += 1
             self.set_y(i, y)
-            self.set_x(i, x)
-            self.set_d(i, d)
+            arch_xs[i] = x
+            arch_ds[i] = d
     
     def update_stats(self, 
                      i: int, 
@@ -511,19 +522,9 @@ class Archive(object):
 
     def get_x_max(self, i: int) -> np.ndarray:
         return self.get_stat(i, 3)
-           
-    def get_x(self, i: int) -> np.ndarray:
-        return self.xs[i*self.dim:(i+1)*self.dim]
 
     def get_xs(self) -> np.ndarray:
-        return np.array([self.get_x(i) for i in range(self.capacity)])
-
-    def set_x(self, i: int, x: ArrayLike):
-        self.xs[i*self.dim:(i+1)*self.dim] = x[:]
-    
-    def set_xs(self, xs: ArrayLike):
-        for i in range(len(xs)):
-            self.set_x(i, xs[i])
+        return self.xs.view()
             
     def encode_d(self, d):
         return (d - self.desc_lb) / self.desc_scale
@@ -531,19 +532,9 @@ class Archive(object):
     def decode_d(self, d):
         return (d * self.desc_scale) + self.desc_lb 
 
-    def get_d(self, i: int) -> float:
-        return self.ds[i*self.qd_dim:(i+1)*self.qd_dim]
-
     def get_ds(self) -> np.ndarray:
-        return np.array([self.get_d(i) for i in range(self.capacity)])
-    
-    def set_d(self, i: int, d: float):
-        self.ds[i*self.qd_dim:(i+1)*self.qd_dim] = d[:]
- 
-    def set_ds(self, ds: ArrayLike):
-        for i in range(len(ds)):
-            self.set_d(i, ds[i])
-  
+        self.ds.view()
+      
     def get_y(self, i: int) -> float:
         return self.ys[i]
         

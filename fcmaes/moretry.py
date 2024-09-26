@@ -106,13 +106,14 @@ def mo_retry(fun: Callable[[ArrayLike], float],
                   store, optimize, num_retries, value_limits)) for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
-    store.sort()
+    store.sort(store.get_xs())
     store.dump()
     return store.get_xs()
 
 def _retry_loop(pid, rgs, fun, weight_bounds, ncon, y_exp, 
                 store, optimize, num_retries, value_limits):
-         
+    
+    xs_view = store.xs.view()
     lower = store.lower
     wlb = np.array(weight_bounds.lb)
     wub = np.array(weight_bounds.ub)
@@ -128,7 +129,7 @@ def _retry_loop(pid, rgs, fun, weight_bounds, ncon, y_exp,
                                          [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
                 objs = wrapper.mo_eval(x) # retrieve the objective values
                 if value_limits is None or all([objs[i] < value_limits[i] for i in range(len(w))]):
-                    store.add_result(y, x, evals, np.inf)   
+                    store.add_result(xs_view, y, x, evals, np.inf)   
                     if not store.plot_name is None:
                         name = store.plot_name + "_moretry_" + str(store.get_count_evals())
                         xs = np.array(store.get_xs())

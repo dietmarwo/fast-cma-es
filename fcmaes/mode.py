@@ -50,6 +50,7 @@ from fcmaes.evaluator import Evaluator, parallel_mo
 from fcmaes import moretry
 import multiprocessing as mp
 from fcmaes.optimizer import dtime
+from fcmaes.retry import Shared2d
 from loguru import logger
 from typing import Optional, Callable, Tuple
 from numpy.typing import ArrayLike
@@ -176,29 +177,32 @@ class store():
         self.nobj = nobj
         self.capacity = capacity
         self.add_mutex = mp.Lock()    
-        self.xs = mp.RawArray(ct.c_double, self.capacity * self.dim)
-        self.ys = mp.RawArray(ct.c_double, self.capacity * self.nobj)  
+        self.xs = Shared2d(np.zeros((self.capacity, self.dim), dtype = np.float64))
+        self.ys = Shared2d(np.zeros((self.capacity, self.nobj), dtype = np.float64)) 
         self.num_stored = mp.RawValue(ct.c_int, 0) 
         self.num_added = mp.RawValue(ct.c_int, 0) 
 
-    def add_result(self, x, y):
+    def add_result(self, x, y,):
+        store_xs = self.xs.view()
+        store_ys = self.ys.view()
         with self.add_mutex:
             self.num_added.value += 1
             i = self.num_stored.value
             if i < self.capacity:                
-                self.set_x(i, x) 
-                self.set_y(i, y)
-                i += 1
-            self.num_stored.value = i
+                store_xs[i] = x
+                store_ys[i] = y
+            self.num_stored.value = i + 1
 
     def add_results(self, xs, ys):
+        store_xs = self.xs.view()
+        store_ys = self.ys.view()
         with self.add_mutex:
             self.num_added.value += 1
             i = self.num_stored.value
             for j in range(len(xs)):
                 if i < self.capacity:                
-                    self.set_x(i, xs[j]) 
-                    self.set_y(i, ys[j])
+                    store_xs[i] = xs[j] 
+                    store_ys[i] = ys[j][:self.nobj]
                     i += 1
                 else:
                     self.get_front(update=True)
@@ -208,35 +212,24 @@ class store():
             self.num_stored.value = i
                       
     def get_front(self, update=False):
+        store_xs = self.xs.view()
+        store_ys = self.ys.view()
         stored = self.num_stored.value
-        xs = np.array([self.get_x(i) for i in range(stored)])
-        ys = np.array([self.get_y(i) for i in range(stored)])
+        xs = store_xs[:stored]
+        ys = store_ys[:stored]
         xf, yf = moretry.pareto(xs, ys)
         if update:
-            for i in range(len(yf)):                   
-                self.set_x(i, xf[i]) 
-                self.set_y(i, yf[i])
-            self.num_stored.value = len(yf)
+            n = len(yf)
+            store_xs[:n] = xf 
+            store_ys[:n] = yf                                
+            self.num_stored.value = n
         return xf, yf
-       
-    def get_xs(self):
-        return np.array([self.get_x(i) for i in range(self.num_stored.value)])
 
-    def get_ys(self):
-        return np.array([self.get_y(i) for i in range(self.num_stored.value)])
-    
-    def get_x(self, i):
-        return self.xs[i*self.dim:(i+1)*self.dim]
- 
-    def set_x(self, i, x):
-        self.xs[i*self.dim:(i+1)*self.dim] = x[:]          
-     
-    def get_y(self, i):
-        return self.ys[i*self.nobj:(i+1)*self.nobj]
- 
-    def set_y(self, i, y):
-        self.ys[i*self.nobj:(i+1)*self.nobj] = y[:]          
-
+    def get_content(self):
+        store_xs = self.xs.view()
+        store_ys = self.ys.view()
+        stored = self.num_stored.value
+        return store_xs[:stored], store_ys[:stored]
 
 class MODE(object):
     

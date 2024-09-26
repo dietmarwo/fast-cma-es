@@ -817,7 +817,7 @@ from fcmaes.evaluator import parallel_mo
 def mo_par():
             
     guess = None
-    guess, _ = read_solution("res/quantcomm_1_100_6372134.npz") # inject an existing pareto front   
+    #guess, _ = read_solution("res/quantcomm_1_100_6372134.npz") # inject an existing pareto front   
     popsize = 512
 
     es = mode.MODE(nobj, ncon, bounds, popsize = popsize, nsga_update=True) # Python MOO optimizer

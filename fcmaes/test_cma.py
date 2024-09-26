@@ -339,18 +339,20 @@ def test_eggholder_retry():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
+from fcmaes.optimizer import de_cma
+
 def test_eggholder_advanced_retry():
     dim = 2
     testfun = Eggholder()
-
+    
     limit = -956   
     for _ in range(5):
         wrapper = Wrapper(testfun.fun, dim)
         ret = advretry.minimize(wrapper.eval, testfun.bounds, 
-                                num_retries=300)
+                                num_retries=32)
         if limit > ret.fun:
             break
-
+        
     assert(limit > ret.fun) # optimization target not reached
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
@@ -392,4 +394,5 @@ def test_eggholder_advanced_retry_python():
     assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(almost_equal(ret.fun, wrapper.get_best_y())) # wrong best y returned
+
  

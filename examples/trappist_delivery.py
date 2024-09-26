@@ -924,11 +924,11 @@ class fitness(object):
     
     def optimize(self, maxevals=50000000, retries=2000):     
         # BiteOpt algorithm multi threaded
-        store = retry.Store(wrapper(self), self.bounds, logger=logger()) 
+        store = retry.Store(wrapper(self), self.bounds) 
         x0 = None
         for i in range(1, 5): # improve incrementally           
             print("iteration", i)
-            store = retry.Store(wrapper(self), self.bounds, logger=logger()) 
+            store = retry.Store(wrapper(self), self.bounds) 
             retry.retry(store, Bite_cpp(maxevals,x0, M=16, popsize=3200, stall_criterion=200).minimize, 
                         num_retries=retries)
             x0 = self.best_x[:]       

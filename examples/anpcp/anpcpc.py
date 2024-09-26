@@ -101,7 +101,7 @@ class ANPCPC():
 def optimize(anpcpc, opt, num_retries = 32):
     ret = retry.minimize(wrapper(anpcpc.fitness), 
                                anpcpc.bounds, num_retries = num_retries, 
-                               optimizer=opt, logger=logger())
+                               optimizer=opt)
     print("facility locations = ", anpcpc.get_facilities(ret.x))
     print("value = ", np.sqrt(ret.fun))
     

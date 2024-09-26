@@ -110,7 +110,7 @@ class ANPCP():
 def optimize(anpcp, opt, num_retries = 32):
     ret = retry.minimize(wrapper(anpcp.fitness), 
                                anpcp.bounds, num_retries = num_retries, 
-                               optimizer=opt, logger=logger())
+                               optimizer=opt)
     print("selection = ", anpcp.get_selection(ret.x))
     print("value = ", ret.fun)
 
