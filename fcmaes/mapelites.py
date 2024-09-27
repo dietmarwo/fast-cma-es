@@ -243,7 +243,6 @@ def optimize_map_elites_(archive, fitness, bounds, workers,
           
 def run_map_elites_(archive, fitness, bounds, rg, 
                     me_params, cma_params): 
-    
     generations = me_params.get('generations', 10) 
     chunk_size = me_params.get('chunk_size', 20)   
     use_sbx = me_params.get('use_sbx', True)     
@@ -253,8 +252,6 @@ def run_map_elites_(archive, fitness, bounds, rg,
     line_sigma = me_params.get('line_sigma', 0.2)
     cma_generations = cma_params.get('cma_generations', 20)
     select_n = archive.capacity
-    arch_xs = archive.xs.view() 
-    arch_ds = archive.ds.view() 
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
         for _ in range(generations):                
             if use_sbx:
@@ -268,7 +265,7 @@ def run_map_elites_(archive, fitness, bounds, rg,
             descs = np.array([yd[1] for yd in yds])
             niches = archive.index_of_niches(descs)
             for i in range(len(yds)):
-                archive.set(niches[i], yds[i], xs[i], arch_xs, arch_ds) 
+                archive.set(niches[i], yds[i], xs[i]) 
             archive.argsort()   
             select_n = archive.get_occupied()            
     
@@ -317,10 +314,8 @@ def update_archive(archive: Archive, xs: np.ndarray,
     if len(neg) > 0:
         neg = neg.reshape((len(neg)))
         # update archive for all real improvements
-        arch_xs = archive.xs.view() 
-        arch_ds = archive.ds.view() 
         for i in neg:
-            archive.set(niches[i], yds[i], xs[i], arch_xs, arch_ds)
+            archive.set(niches[i], yds[i], xs[i])
         # prioritize empty niches
         empty = (improvement == -np.inf) # these need to be sorted according to fitness
         occupied = np.logical_not(empty)
@@ -373,15 +368,15 @@ class Archive(object):
         """Resets all submitted solutions but keeps the niche centers."""
         self.xs = Shared2d(np.zeros((self.capacity, self.dim), dtype = np.float64))
         self.ds = Shared2d(np.zeros((self.capacity, self.qd_dim), dtype = np.float64))
+        self.create_views()
         self.ys = mp.RawArray(ct.c_double, self.capacity)
         self.counts = mp.RawArray(ct.c_long, self.capacity) # count
         self.occupied = mp.RawValue(ct.c_long, 0)
         self.stats = mp.RawArray(ct.c_double, self.capacity * self.dim * 4 if self.use_stats else 0)
-        arch_ds = self.ds.view()
         for i in range(self.capacity):
             self.counts[i] = 0
             self.set_y(i, np.inf)  
-            arch_ds[i] = np.full(self.qd_dim, np.inf)
+            self.ds_view[i] = np.full(self.qd_dim, np.inf)
             if self.stats:
                 self.set_stat(i, 0, np.zeros(self.dim)) # mean
                 self.set_stat(i, 1, np.zeros(self.dim)) # qmean
@@ -400,16 +395,14 @@ class Archive(object):
     def get_occupied_data(self):
         ys = self.get_ys()
         occupied = (ys < np.inf)
-        return ys[occupied], self.get_ds()[occupied], self.get_xs()[occupied]        
+        return ys[occupied], self.ds_view[occupied], self.xs_view[occupied]        
    
     def join(self, archive: Archive):    
         ys, ds, xs = archive.get_occupied_data()
         niches = archive.index_of_niches(ds)
-        yds = np.array([(y, d) for y, d in zip(ys, ds)])
-        arch_xs = archive.xs.view() 
-        arch_ds = archive.ds.view() 
+        yds = np.array([(y, d) for y, d in zip(ys, ds)]) 
         for i in range(len(ys)):
-            archive.set(niches[i], yds[i], xs[i], arch_xs, arch_ds) 
+            archive.set(niches[i], yds[i], xs[i]) 
         archive.argsort()   
 
     def fname(self, name): 
@@ -419,8 +412,8 @@ class Archive(object):
     def save(self, name: str):
         """Saves the archive to disc.""" 
         np.savez_compressed(self.fname(name), 
-                            xs=self.get_xs(), 
-                            ds=self.get_ds(), 
+                            xs=self.xs_view, 
+                            ds=self.ds_view, 
                             ys=self.get_ys(), 
                             cs=self.get_cs() if self.cvt_clustering else np.empty(0),
                             stats=self.get_stats(),
@@ -465,10 +458,7 @@ class Archive(object):
     def set(self, 
             i: int, 
             yd: np.ndarray, 
-            x: np.ndarray,
-            arch_xs: np.ndarray, 
-            arch_ds: np.ndarray,     
-        ):
+            x: np.ndarray):
         """Adds a solution to the archive if it improves the corresponding niche.
         Updates solution.""" 
         self.update_stats(i, x)
@@ -479,8 +469,8 @@ class Archive(object):
             if yold == np.inf: # not yet occupied
                 self.occupied.value += 1
             self.set_y(i, y)
-            arch_xs[i] = x
-            arch_ds[i] = d
+            self.xs_view[i] = x
+            self.ds_view[i] = d
     
     def update_stats(self, 
                      i: int, 
@@ -523,18 +513,22 @@ class Archive(object):
     def get_x_max(self, i: int) -> np.ndarray:
         return self.get_stat(i, 3)
 
-    def get_xs(self) -> np.ndarray:
-        return self.xs.view()
-            
+    def create_views(self): # needs to be called in the target process
+        self.xs_view = self.xs.view()
+        self.ds_view = self.ds.view()
+           
     def encode_d(self, d):
         return (d - self.desc_lb) / self.desc_scale
-
+    
     def decode_d(self, d):
         return (d * self.desc_scale) + self.desc_lb 
 
+    def get_xs(self) -> np.ndarray:
+        return self.xs.view()
+
     def get_ds(self) -> np.ndarray:
-        self.ds.view()
-      
+        return self.ds.view()
+    
     def get_y(self, i: int) -> float:
         return self.ys[i]
         
@@ -596,7 +590,7 @@ class Archive(object):
         selection = rg.integers(0, best_n, chunk_size)
         if best_n < self.capacity: 
             selection = np.fromiter((self.si[i] for i in selection), dtype=int)
-        return self.get_xs()[selection]
+        return self.xs_view[selection]
     
     def random_xs_one(self, best_n: int, rg: Generator) -> Tuple[np.ndarray, float, int]:
         i = int(rg.random()*best_n)

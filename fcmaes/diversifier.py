@@ -110,7 +110,7 @@ def minimize(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]],
         archive = Archive(dim, qd_bounds, niche_num, use_stats)
         archive.init_niches(samples_per_niche)
         # initialize archive with random values
-        archive.xs.view()[:] = rng.uniform(bounds.lb, bounds.ub, (niche_num, dim))       
+        archive.xs_view[:] = rng.uniform(bounds.lb, bounds.ub, (niche_num, dim))       
     t0 = perf_counter()   
     qd_fitness.archive = archive # attach archive for logging     
     minimize_parallel_(archive, qd_fitness, bounds, workers, opt_params, max_evals)
@@ -182,7 +182,7 @@ def apply_advretry(fitness: Callable[[ArrayLike], float],
         ys = archive.get_ys()    
         valid = (ys < np.inf)
         ys = ys[valid]
-        xs = archive.get_xs()[valid]
+        xs = archive.xs_view[valid]
     t0 = perf_counter() 
     # transfer to advretry store
     for i in range(len(ys)):
@@ -190,7 +190,7 @@ def apply_advretry(fitness: Callable[[ArrayLike], float],
     # perform parallel retry
     advretry.retry(store, optimizer.minimize, workers=workers)
     # transfer back to archive 
-    xs = store.get_xs()
+    xs = store.xs_view
     if not x_conv is None:
         xs = [x_conv(x) for x in xs]
     yds = [qd_fitness(x) for x in xs]
@@ -251,8 +251,6 @@ def run_map_elites_(archive, fitness, bounds, rg, evals, max_evals, opt_params =
     iso_sigma = opt_params.get('iso_sigma', 0.01)
     line_sigma = opt_params.get('line_sigma', 0.2)
     select_n = archive.capacity
-    arch_xs = archive.xs.view() 
-    arch_ds = archive.ds.view() 
     while evals.value < max_evals:              
         if use_sbx:
             pop = archive.random_xs(select_n, popsize, rg)
@@ -266,7 +264,7 @@ def run_map_elites_(archive, fitness, bounds, rg, evals, max_evals, opt_params =
         descs = np.array([yd[1] for yd in yds])
         niches = archive.index_of_niches(descs)
         for i in range(len(yds)):
-            archive.set(niches[i], yds[i], xs[i], arch_xs, arch_ds)
+            archive.set(niches[i], yds[i], xs[i])
         archive.argsort()   
         select_n = archive.get_occupied()  
 
@@ -318,7 +316,7 @@ def run_bite_(archive, fitness, bounds, rg, evals, max_evals, opt_params, x0 = N
     
     max_evals_iter = opt_params.get('max_evals', 50000)       
     stall_criterion = opt_params.get('stall_criterion', 20)   
-    popsize = opt_params.get('popsize', 0) 
+    #popsize = opt_params.get('popsize', 0) 
     ret = bitecpp.minimize(fit, bounds, x0 = x0, M = 1, 
                            stall_criterion = stall_criterion,
                            max_evaluations = max_evals_iter, rg = rg)

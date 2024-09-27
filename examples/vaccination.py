@@ -357,8 +357,8 @@ def execute(task):
             
 if __name__ == '__main__':
     # execute('vaccine2dmode')
-    execute('vaccine2dretry')
-    #execute('vaccine3dmode')
+    #execute('vaccine2dretry')
+    execute('vaccine3dmode')
     #execute('vaccine3dretry')
 
 

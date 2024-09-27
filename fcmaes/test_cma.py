@@ -349,7 +349,7 @@ def test_eggholder_advanced_retry():
     for _ in range(5):
         wrapper = Wrapper(testfun.fun, dim)
         ret = advretry.minimize(wrapper.eval, testfun.bounds, 
-                                num_retries=32)
+                                num_retries=96)
         if limit > ret.fun:
             break
         
@@ -395,4 +395,5 @@ def test_eggholder_advanced_retry_python():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(almost_equal(ret.fun, wrapper.get_best_y())) # wrong best y returned
 
+#test_eggholder_advanced_retry()
  

@@ -102,7 +102,7 @@ def retry(store: Store,
             args=(pid, rgs, store, optimize, num_retries, value_limit, stop_fitness)) for pid in range(workers)]
     [p.start() for p in proc]
     [p.join() for p in proc]
-    store.sort(store.get_xs())
+    store.sort()
     store.dump()
     return OptimizeResult(x=store.get_x_best(), fun=store.get_y_best(), 
                           nfev=store.get_count_evals(), success=True)
@@ -240,6 +240,7 @@ class Store(object):
         #shared between processes
         self.add_mutex = mp.Lock()    
         self.xs = Shared2d(np.zeros((self.capacity, self.dim), dtype = np.float64))
+        self.create_xs_view()
         self.ys = mp.RawArray(ct.c_double, self.capacity)  
         self.count_evals = mp.RawValue(ct.c_long, 0)   
         self.count_runs = mp.RawValue(ct.c_int, 0) 
@@ -305,22 +306,22 @@ class Store(object):
         self.set_y(i, y)
         self.set_x(i, xs)
              
-    def sort(self, store_xs: ArrayLike) -> int: # sort all entries to make room for new ones, determine best and worst
+    def sort(self) -> int: # sort all entries to make room for new ones, determine best and worst
         """sorts all store entries, keep only the 90% best to make room for new ones."""
         ns = self.num_stored.value
         ys = np.asarray(self.ys[:ns])
         yi = ys.argsort()
         numStored = min(ns, int(0.9*self.capacity)) # keep 90% best 
-        store_xs[:numStored] = store_xs[yi][:numStored]
+        self.xs_view[:numStored] = self.xs_view[yi][:numStored]
         self.ys[:numStored] = ys[yi][:numStored]
         self.num_sorted.value = numStored  
         self.num_stored.value = numStored  
         return numStored        
             
-    def add_result(self, store_xs: ArrayLike, y: float, x: ArrayLike, evals: int, limit=np.inf):
+    def add_result(self, y: float, x: ArrayLike, evals: int, limit=np.inf):
         """registers an optimization result at the store."""
         with self.add_mutex:
-            self.incr_count_evals(store_xs, evals)
+            self.incr_count_evals(evals)
             if y < limit:  
                 self.count_stat_runs.value += 1
                 if y < self.best_y.value:
@@ -328,14 +329,14 @@ class Store(object):
                     self.best_x[:] = x[:]
                     self.dump()
                 if self.num_stored.value >= self.capacity-1:
-                    self.sort(store_xs)
+                    self.sort()
                 cnt = self.count_stat_runs.value
                 diff = min(1E20, y - self.mean.value) # avoid overflow
                 self.qmean.value += (cnt - 1)/ cnt * diff*diff ;
                 self.mean.value += diff / cnt
                 ns = self.num_stored.value
                 self.num_stored.value = ns + 1
-                store_xs[self.num_stored.value, :] = x
+                self.xs_view[self.num_stored.value, :] = x
                 self.ys[self.num_stored.value] = y
                 if is_debug_active():
                     dt = dtime(self.t0)  
@@ -346,10 +347,12 @@ class Store(object):
 
     def get_x_best(self) -> np.ndarray:
         return np.array(self.best_x[:])
-
-    def get_xs(self):
-        store_xs = self.xs.view()
-        return store_xs[:self.num_stored.value]
+    
+    def create_xs_view(self): # needs to be called in the target process
+        self.xs_view = self.xs.view()
+ 
+    def get_xs(self) -> np.ndarray:
+        return self.xs.view()[:self.num_stored.value]
         
     def get_y(self, pid: int) -> float:
         return self.ys[pid]
@@ -381,9 +384,9 @@ class Store(object):
             else:
                 return False 
        
-    def incr_count_evals(self, store_xs: ArrayLike, evals):
+    def incr_count_evals(self, evals):
         if self.count_runs.value % self.check_interval == self.check_interval-1:
-            self.sort(store_xs)
+            self.sort()
         self.count_evals.value += evals
             
     def dump(self):
@@ -402,8 +405,8 @@ class Store(object):
 
         
 def _retry_loop(pid, rgs, store, optimize, num_retries, value_limit, stop_fitness = -np.inf):
-    fun = store.wrapper if store.statistic_num > 0 else store.fun
-    store_xs = store.xs.view()        
+    store.create_xs_view()
+    fun = store.wrapper if store.statistic_num > 0 else store.fun    
     lower = store.lower
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
         while store.get_runs_compare_incr(num_retries) and store.best_y.value > stop_fitness:      
@@ -411,7 +414,7 @@ def _retry_loop(pid, rgs, store, optimize, num_retries, value_limit, stop_fitnes
                 rg = rgs[pid]
                 sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
                                          [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
-                store.add_result(store_xs, y, sol, evals, value_limit)   
+                store.add_result(y, sol, evals, value_limit)   
             except Exception as ex:
                 print(str(ex))
 

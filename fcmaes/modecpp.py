@@ -155,6 +155,7 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
         else:
             x, y = mode.minimize_par(mofun, max_evaluations, workers)             
         if not store is None:
+            store.create_views()
             store.add_results(x, y)
         return x, y
     except Exception as ex:
@@ -237,6 +238,7 @@ def retry(mofun: Callable[[ArrayLike], ArrayLike],
 def _retry_loop(num_retries, pid, rgs, mofun, nobj, ncon, bounds, guess, popsize, 
                 max_evaluations, workers, nsga_update, pareto_update, 
                 store, ints):
+    store.create_views()
     t0 = time.perf_counter()
     num = max(1, num_retries - workers)
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):

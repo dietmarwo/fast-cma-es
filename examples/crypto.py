@@ -308,7 +308,7 @@ def optimize_nd(tickers, start, end):
     archive = diversifier.minimize(
          mapelites.wrapper(fit.ndfun, ddim, interval=10000, save_interval=100000000), 
          bounds, qd_bounds, 
-         opt_params=[opt_params0, opt_params1], max_evals=20000000,
+         opt_params=[opt_params0, opt_params1], max_evals=500000,
          niche_num = niche_num, samples_per_niche = 20)
     print("final archive: " + archive.info())
     archive.save("crypto_min_cma")
@@ -335,9 +335,9 @@ if __name__ == '__main__':
     
     optimize(tickers, start, end)
     
-    optimize_mo(tickers, start, end)
+    #optimize_mo(tickers, start, end)
    
-    optimize_nd(tickers, start, end)
+    #optimize_nd(tickers, start, end)
     #bar(tickers, start, end)
 
     # fit = fitness(tickers, start, end) 

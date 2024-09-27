@@ -20,7 +20,13 @@
 
 # Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
 
+# install first:
+# pip install --upgrade setuptools[core]
+# pip install swig
+# pip install box2d-py
+
 from yahpo_gym import benchmark_set
+from yahpo_gym.local_config import LocalConfiguration
 import yahpo_gym.benchmarks.iaml
 import numpy as np
 import pandas as pd
@@ -235,6 +241,7 @@ def plot(archive, name):
     plot3d(ysp, name, 'x', 'y', 'z')
     
 if __name__ == '__main__':
+    LocalConfiguration().init_config()
     for task_id in ["41146", "40981", "1489", "1067"]:        
         opt_ranger_interpretability(task_id)
         opt_ranger_hardware(task_id)

@@ -257,20 +257,20 @@ def adv_minimize_plot(problem, opt, name, value_limit = np.inf, num_retries = 10
 
 if __name__ == '__main__':
     
-    decpp_minimize_plot(zdt1(20), '100k64')
-    decpp_minimize_plot(schaffer(20), '100k64')
-    decpp_minimize_plot(poloni(20), '100k64')
-    decpp_minimize_plot(fonseca(20), '100k64')
-
-    de_minimize_plot(zdt1(20), '100k64')
-    de_minimize_plot(schaffer(20), '100k64')
-    de_minimize_plot(poloni(20), '100k64')
-    de_minimize_plot(fonseca(20), '100k64')
-    
-    nsga_minimize_plot(zdt1(20), '100k64')
-    nsga_minimize_plot(schaffer(20), '100k64')
-    nsga_minimize_plot(poloni(20), '100k64')
-    nsga_minimize_plot(fonseca(20), '100k64')
+    # decpp_minimize_plot(zdt1(20), '100k64')
+    # decpp_minimize_plot(schaffer(20), '100k64')
+    # decpp_minimize_plot(poloni(20), '100k64')
+    # decpp_minimize_plot(fonseca(20), '100k64')
+    #
+    # de_minimize_plot(zdt1(20), '100k64')
+    # de_minimize_plot(schaffer(20), '100k64')
+    # de_minimize_plot(poloni(20), '100k64')
+    # de_minimize_plot(fonseca(20), '100k64')
+    #
+    # nsga_minimize_plot(zdt1(20), '100k64')
+    # nsga_minimize_plot(schaffer(20), '100k64')
+    # nsga_minimize_plot(poloni(20), '100k64')
+    # nsga_minimize_plot(fonseca(20), '100k64')
         
     minimize_plot(zdt1(20), Bite_cpp(M=16), '50k1k')
     minimize_plot(schaffer(20), Bite_cpp(M=16), '50k1k')
