@@ -239,7 +239,7 @@ class Store(object):
         
         #shared between processes
         self.add_mutex = mp.Lock()    
-        self.xs = Shared2d(np.zeros((self.capacity, self.dim), dtype = np.float64))
+        self.xs = Shared2d(np.empty((self.capacity, self.dim), dtype = np.float64))
         self.create_xs_view()
         self.ys = mp.RawArray(ct.c_double, self.capacity)  
         self.count_evals = mp.RawValue(ct.c_long, 0)   

@@ -177,8 +177,8 @@ class store():
         self.nobj = nobj
         self.capacity = capacity
         self.add_mutex = mp.Lock()    
-        self.xs = Shared2d(np.zeros((self.capacity, self.dim), dtype = np.float64))
-        self.ys = Shared2d(np.zeros((self.capacity, self.nobj), dtype = np.float64)) 
+        self.xs = Shared2d(np.empty((self.capacity, self.dim), dtype = np.float64))
+        self.ys = Shared2d(np.empty((self.capacity, self.nobj), dtype = np.float64)) 
         self.create_views()
         self.num_stored = mp.RawValue(ct.c_int, 0) 
         self.num_added = mp.RawValue(ct.c_int, 0) 

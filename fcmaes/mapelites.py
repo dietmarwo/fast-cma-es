@@ -366,8 +366,8 @@ class Archive(object):
     
     def reset(self):
         """Resets all submitted solutions but keeps the niche centers."""
-        self.xs = Shared2d(np.zeros((self.capacity, self.dim), dtype = np.float64))
-        self.ds = Shared2d(np.zeros((self.capacity, self.qd_dim), dtype = np.float64))
+        self.xs = Shared2d(np.empty((self.capacity, self.dim), dtype = np.float64))
+        self.ds = Shared2d(np.empty((self.capacity, self.qd_dim), dtype = np.float64))
         self.create_views()
         self.ys = mp.RawArray(ct.c_double, self.capacity)
         self.counts = mp.RawArray(ct.c_long, self.capacity) # count
