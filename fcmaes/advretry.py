@@ -16,6 +16,7 @@ import bz2
 import ctypes as ct
 import numpy as np
 from numpy.linalg import norm
+from numba import njit
 from random import Random
 import multiprocessing as mp
 from multiprocessing import Process
@@ -201,8 +202,7 @@ class Store(object):
         self.eval_fac = mp.RawValue(ct.c_double, 1)
         self.count_evals = mp.RawValue(ct.c_long, 0)   
         self.count_runs = mp.RawValue(ct.c_int, 0) 
-        self.num_stored = mp.RawValue(ct.c_int, 0) 
-        self.num_sorted = mp.RawValue(ct.c_int, 0)  
+        self.num_stored = mp.RawValue(ct.c_int, 0)  
         self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.worst_y = mp.RawValue(ct.c_double, np.inf)  
         self.best_x = mp.RawArray(ct.c_double, self.dim)
@@ -315,21 +315,7 @@ class Store(object):
  
     def crossover(self) -> Tuple[int,int]: # Choose two good entries for recombination
         """indices of store entries to be used for crossover operation."""
-        n = self.num_sorted.value
-        if n < 2:
-            return -1, -1
-        lim = self.random.uniform(min(0.1*n, 1), 0.2*n)/n
-        for _ in range(100):
-            i1 = -1
-            i2 = -1
-            for j in range(n):
-                if self.random.random() < lim:
-                    if i1 < 0:
-                        i1 = j
-                    else:
-                        i2 = j
-                        return i1, i2
-        return -1, -1
+        return _crossover_indices(self.num_stored.value)   
             
     def sort(self) -> int: 
         """sorts all store entries, keep only the 90% best to make room for new ones;
@@ -350,13 +336,12 @@ class Store(object):
                 ys2.append(y)
                 xs2.append(x)
 
-        numStored = min(len(ys2),int(0.9*self.capacity)) # keep 90% best 
-        self.xs_view[:numStored] = xs2[:numStored]
-        self.ys[:numStored] = ys2[:numStored]
-        self.num_sorted.value = numStored  
-        self.num_stored.value = numStored     
-        self.worst_y.value = self.get_y(numStored-1)
-        return numStored        
+        ns = min(len(ys2),int(0.9*self.capacity)) # keep 90% best 
+        self.xs_view[:ns] = xs2[:ns]
+        self.ys[:ns] = ys2[:ns]
+        self.num_stored.value = ns     
+        self.worst_y.value = self.get_y(ns-1)
+        return ns        
 
     def add_result(self, y: float, x: np.ndarray, evals: int, limit: Optional[float] = np.inf):
         """registers an optimization result at the store."""
@@ -456,3 +441,20 @@ def _crossover(fun, store, optimize, rg):
     except:
         return False   
     return True
+
+@njit(cache=True)
+def _crossover_indices(n):
+    if n < 2:
+        return -1, -1
+    lim = np.random.uniform(min(0.1*n, 1), 0.2*n)/n
+    for _ in range(100):
+        i1 = -1
+        i2 = -1
+        for j in range(n):
+            if np.random.random() < lim:
+                if i1 < 0:
+                    i1 = j
+                else:
+                    i2 = j
+                    return i1, i2
+    return -1, -1
