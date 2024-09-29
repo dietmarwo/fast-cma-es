@@ -119,7 +119,7 @@ def minimize(fun: Callable[[ArrayLike], float],
     if popsize is None:
         popsize = 31
     if x0 is None:
-        x0 = np.zeros(dim) if lower is None else rg.uniform(bounds.lb, bounds.ub)
+        x0 = np.zeros(dim)# if lower is None else rg.uniform(bounds.lb, bounds.ub)
     if lower is None:
         lower = [0]*dim
         upper = [0]*dim
