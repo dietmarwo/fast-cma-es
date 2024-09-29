@@ -285,14 +285,14 @@ class Store(object):
     def eval_num(self, max_evals: int) -> int:
         return int(self.eval_fac.value * max_evals)
                                                
-    def limits(self) -> Tuple[float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]: 
+    def limits(self) -> Tuple[float, np.ndarray, np.ndarray, np.ndarray]: 
         """guess, boundaries and initial step size for crossover operation."""
         diff_fac = self.random.uniform(0.5, 1.0)
         lim_fac =  self.random.uniform(2.0, 4.0) * diff_fac
         with self.add_mutex:
             i, j = self.crossover()
             if i < 0:
-                return np.inf, None, None, None, None
+                return np.inf, None, None, None
             x0 = self.xs_view[i]
             x1 = self.xs_view[j]
             y0 = np.asarray(self.get_y(i))
@@ -302,7 +302,7 @@ class Store(object):
         lower = np.maximum(self.lower, x0 - delta_bound)
         upper = np.minimum(self.upper, x0 + delta_bound)
         sdev = np.clip(diff_fac * deltax / self.delta, 0.001, 0.5)        
-        return y0, x1, lower, upper, sdev
+        return y0, lower, upper, sdev
                  
     def distance(self, xprev: np.ndarray, x: np.ndarray) -> float: 
         """distance between entries in store."""
@@ -431,12 +431,11 @@ def _retry_loop(pid, rgs, store, optimize, value_limit, stop_fitness = -np.inf):
 def _crossover(fun, store, optimize, rg):
     if rg.uniform(0,1) < 0.5:
         return False
-    y0, guess, lower, upper, sdev = store.limits()
-    if guess is None:
+    y0, lower, upper, sdev = store.limits()
+    if lower is None:
         return False
-    guess = fitting(guess, lower, upper) # take X from lower
     try:       
-        sol, y, evals = optimize(fun, Bounds(lower, upper), guess, sdev, rg, store)
+        sol, y, evals = optimize(fun, Bounds(lower, upper), None, sdev, rg, store)
         store.add_result(y, sol, evals, y0) # limit to y0  
     except:
         return False   

@@ -228,7 +228,7 @@ def de_crfmnes(max_evaluations: Optional[int] = 50000,
     return Sequence([opt1, opt2])
 
 def crfmnes_bite(max_evaluations: Optional[int] = 50000, 
-                popsize: Optional[int] = 32, 
+                popsize: Optional[int] = 31, 
                 stop_fitness: Optional[float] = -np.inf, 
                 crfm_max_evals: Optional[int] = None, 
                 bite_max_evals: Optional[int] = None, 
@@ -244,6 +244,25 @@ def crfmnes_bite(max_evaluations: Optional[int] = 50000,
                   stop_fitness = stop_fitness)
     opt2 = Bite_cpp(popsize=popsize, max_evaluations = bite_max_evals, 
                    stop_fitness = stop_fitness, M=M)
+    return Sequence([opt1, opt2])
+
+def bite_cma(max_evaluations: Optional[int] = 50000, 
+            popsize: Optional[int] = 31, 
+            stop_fitness: Optional[float] = -np.inf,
+            bite_max_evals: Optional[int] = None,  
+            cma_max_evals: Optional[int] = None, 
+            M: Optional[int] = 1) -> Sequence:
+    """Sequence Bite -> CMA-ES."""
+
+    bite_evals = np.random.uniform(0.1, 0.5)
+    if bite_max_evals is None:
+        bite_max_evals = int(bite_evals*max_evaluations)
+    if cma_max_evals is None:
+        cma_max_evals = int((1.0-bite_evals)*max_evaluations)
+    opt1 = Bite_cpp(popsize=popsize, max_evaluations = bite_max_evals, 
+                   stop_fitness = stop_fitness, M=M)
+    opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
+                  stop_fitness = stop_fitness)
     return Sequence([opt1, opt2])
 
 def cma_bite(max_evaluations: Optional[int] = 50000, 
