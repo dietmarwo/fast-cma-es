@@ -118,13 +118,13 @@ def minimize(fun: Callable[[ArrayLike], float],
     dim, lower, upper = _check_bounds(bounds, dim)
     if popsize is None:
         popsize = 31
-    if x0 is None:
-        x0 = np.zeros(dim)# if lower is None else rg.uniform(bounds.lb, bounds.ub)
     if lower is None:
         lower = [0]*dim
         upper = [0]*dim
-        if min_sigma == 0:
-            min_sigma = 0.1 # no uniform random generation possible without bounds
+        min_sigma = 0 # no uniform random generation possible without bounds
+    if x0 is None:
+        x0 = np.zeros(dim)
+        min_sigma = 0 # don't use guess
     if callable(input_sigma):
         input_sigma=input_sigma()
     if np.ndim(input_sigma) == 0:
@@ -177,10 +177,10 @@ class DE_C:
         if lower is None:
             lower = [0]*dim
             upper = [0]*dim
-            if min_sigma == 0:
-                min_sigma = 0.1 # no uniform random generation possible without bounds
+            min_sigma = 0 # no uniform random generation possible without bounds
         if x0 is None:
-            x0 = rg.uniform(bounds.lb, bounds.ub)
+            x0 = np.zeros(dim)
+            min_sigma = 0 # don't use guess
         if callable(input_sigma):
             input_sigma=input_sigma()
         if np.ndim(input_sigma) == 0:
