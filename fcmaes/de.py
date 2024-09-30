@@ -298,7 +298,7 @@ class DE(object):
             self.n_evals.value += 1
             if y < self.best_y.value or self.n_evals.value % 1000 == 999:           
                 if y < self.best_y.value: self.best_y.value = y
-                t = time() - self.time_0
+                t = time() - self.time_0 + 1E-9
                 c = self.n_evals.value
                 message = '"c/t={0:.2f} c={1:d} t={2:.2f} y={3:.5f} yb={4:.5f} x={5!s}'.format(
                     c/t, c, t, y, self.best_y.value, x)
