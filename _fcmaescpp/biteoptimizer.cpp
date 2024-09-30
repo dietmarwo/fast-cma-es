@@ -8,8 +8,6 @@
 #include <float.h>
 #include <ctime>
 #include <random>
-#define EIGEN_VECTORIZE_SSE2
-#include <EigenRand/EigenRand>
 #include "biteopt.h"
 #include "evaluator.h"
 
@@ -127,20 +125,19 @@ extern "C" {
 void optimizeBite_C(long runid, callback_type func, int dim, int seed,
         double *init, double *lower, double *upper, int maxEvals,
         double stopfitness, int M, int popsize, int stall_iterations, double* res) {
-    int n = dim;
-    vec lower_limit(n), upper_limit(n);
-    bool useLimit = false;
-    for (int i = 0; i < n; i++) {
-        lower_limit[i] = lower[i];
-        upper_limit[i] = upper[i];
-        useLimit |= (lower[i] != 0);
-        useLimit |= (upper[i] != 0);
-    }
-    if (useLimit == false) {
+
+	vec lower_limit(dim), upper_limit(dim);
+    if (lower != NULL && upper != NULL) {
+		for (int i = 0; i < dim; i++) {
+			lower_limit[i] = lower[i];
+			upper_limit[i] = upper[i];
+		}
+    } else {
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
-    Fitness fitfun(func, noop_callback_par,  n, 1, lower_limit, upper_limit);
+
+    Fitness fitfun(func, noop_callback_par,  dim, 1, lower_limit, upper_limit);
     BiteOptimizer opt(runid, &fitfun, dim, init, seed, M, popsize, stall_iterations, maxEvals,
             stopfitness);
 
@@ -148,12 +145,12 @@ void optimizeBite_C(long runid, callback_type func, int dim, int seed,
         opt.doOptimize();
         vec bestX = opt.getBestX();
         double bestY = opt.getBestValue();
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < dim; i++)
             res[i] = bestX[i];
-        res[n] = bestY;
-        res[n + 1] = fitfun.evaluations();
-        res[n + 2] = opt.getIterations();
-        res[n + 3] = opt.getStop();
+        res[dim] = bestY;
+        res[dim + 1] = fitfun.evaluations();
+        res[dim + 2] = opt.getIterations();
+        res[dim + 3] = opt.getStop();
     } catch (std::exception &e) {
         cout << e.what() << endl;
     }

@@ -549,23 +549,25 @@ void optimizeACMA_C(long runid, callback_type func, callback_parallel func_par, 
         double *init, double *lower, double *upper, double *sigma,
         int maxEvals, double stopfitness, double stopTolHistFun, int mu, int popsize, double accuracy,
         long seed, bool normalize, bool use_delayed_update, int update_gap, int workers, double* res) {
-    int n = dim;
-    vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
-    bool useLimit = false;
-    for (int i = 0; i < n; i++) {
-        guess[i] = init[i];
-        inputSigma[i] = sigma[i];
-        lower_limit[i] = lower[i];
-        upper_limit[i] = upper[i];
-        useLimit |= (lower[i] != 0);
-        useLimit |= (upper[i] != 0);
+
+    vec guess(dim), lower_limit(dim), upper_limit(dim), inputSigma(dim);
+    for (int i = 0; i < dim; i++) {// guess is mandatory
+    	guess[i] = init[i];
+    	inputSigma[i] = sigma[i];
     }
-    if (useLimit == false) {
+    if (lower != NULL && upper != NULL) {
+		for (int i = 0; i < dim; i++) {
+	        guess[i] = init[i];
+			lower_limit[i] = lower[i];
+			upper_limit[i] = upper[i];
+		}
+    } else {
         lower_limit.resize(0);
         upper_limit.resize(0);
         normalize = false;
     }
-    Fitness fitfun(func, func_par, n, 1, lower_limit, upper_limit);
+
+    Fitness fitfun(func, func_par, dim, 1, lower_limit, upper_limit);
     fitfun.setNormalize(normalize);
 
     AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, inputSigma,
@@ -578,12 +580,12 @@ void optimizeACMA_C(long runid, callback_type func, callback_parallel func_par, 
             evals = opt.doOptimize();
         vec bestX = opt.getBestX();
         double bestY = opt.getBestValue();
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < dim; i++)
             res[i] = bestX[i];
-        res[n] = bestY;
-        res[n + 1] = evals;
-        res[n + 2] = opt.getIterations();
-        res[n + 3] = opt.getStop();
+        res[dim] = bestY;
+        res[dim + 1] = evals;
+        res[dim + 2] = opt.getIterations();
+        res[dim + 3] = opt.getStop();
     } catch (std::exception &e) {
         cout << e.what() << endl;
     }
@@ -594,22 +596,24 @@ uintptr_t initACMA_C(long runid, int dim,
         int maxEvals, double stopfitness, double stopTolHistFun, int mu, int popsize, double accuracy,
         long seed, bool normalize, bool use_delayed_update, int update_gap) {
 
-    int n = dim;
-    vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
-    bool useLimit = false;
-    for (int i = 0; i < n; i++) {
-        guess[i] = init[i];
-        inputSigma[i] = sigma[i];
-        lower_limit[i] = lower[i];
-        upper_limit[i] = upper[i];
-        useLimit |= (lower[i] != 0);
-        useLimit |= (upper[i] != 0);
+    vec guess(dim), lower_limit(dim), upper_limit(dim), inputSigma(dim);
+    for (int i = 0; i < dim; i++) {// guess is mandatory
+    	guess[i] = init[i];
+    	inputSigma[i] = sigma[i];
     }
-    if (useLimit == false) {
+    if (lower != NULL && upper != NULL) {
+		for (int i = 0; i < dim; i++) {
+	        guess[i] = init[i];
+			lower_limit[i] = lower[i];
+			upper_limit[i] = upper[i];
+		}
+    } else {
         lower_limit.resize(0);
         upper_limit.resize(0);
+        normalize = false;
     }
-    Fitness* fitfun = new Fitness(noop_callback, noop_callback_par, n, 1, lower_limit, upper_limit); // never used here
+
+    Fitness* fitfun = new Fitness(noop_callback, noop_callback_par, dim, 1, lower_limit, upper_limit); // never used here
     fitfun->setNormalize(normalize);
 
     AcmaesOptimizer* opt = new AcmaesOptimizer(runid, fitfun, popsize, mu, guess, inputSigma,

@@ -311,23 +311,25 @@ void optimizePGPE_C(int64_t runid, callback_parallel func_par, int dim,
         bool use_ranking, double center_learning_rate,
         double stdev_learning_rate, double stdev_max_change, double b1,
         double b2, double eps, double decay_coef, bool normalize, double *res) {
-    int n = dim;
-    vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
-    bool useLimit = false;
-    for (int i = 0; i < n; i++) {
-        guess[i] = init[i];
-        inputSigma[i] = sigma[i];
-        lower_limit[i] = lower[i];
-        upper_limit[i] = upper[i];
-        useLimit |= (lower[i] != 0);
-        useLimit |= (upper[i] != 0);
+
+    vec guess(dim), lower_limit(dim), upper_limit(dim), inputSigma(dim);
+    for (int i = 0; i < dim; i++) {// guess is mandatory
+    	guess[i] = init[i];
+    	inputSigma[i] = sigma[i];
     }
-    if (useLimit == false) {
+    if (lower != NULL && upper != NULL) {
+		for (int i = 0; i < dim; i++) {
+	        guess[i] = init[i];
+			lower_limit[i] = lower[i];
+			upper_limit[i] = upper[i];
+		}
+    } else {
         lower_limit.resize(0);
         upper_limit.resize(0);
         normalize = false;
     }
-    Fitness fitfun(noop_callback, func_par, n, 1, lower_limit, upper_limit);
+
+    Fitness fitfun(noop_callback, func_par, dim, 1, lower_limit, upper_limit);
     fitfun.setNormalize(normalize);
 
     PGPEOptimizer opt(runid, &fitfun, dim, seed, popsize, guess, inputSigma,
@@ -347,12 +349,12 @@ void optimizePGPE_C(int64_t runid, callback_parallel func_par, int dim,
     }
     vec bestX = opt.getBestX();
     double bestY = opt.getBestValue();
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < dim; i++)
         res[i] = bestX[i];
-    res[n] = bestY;
-    res[n + 1] = fitfun.evaluations();
-    res[n + 2] = opt.getIterations();
-    res[n + 3] = opt.getStop();
+    res[dim] = bestY;
+    res[dim + 1] = fitfun.evaluations();
+    res[dim + 2] = opt.getIterations();
+    res[dim + 3] = opt.getStop();
 }
 
 uintptr_t initPGPE_C(int64_t runid, int dim, double *init, double *lower,
@@ -361,23 +363,23 @@ uintptr_t initPGPE_C(int64_t runid, int dim, double *init, double *lower,
         double stdev_learning_rate, double stdev_max_change, double b1,
         double b2, double eps, double decay_coef, bool normalize) {
 
-    int n = dim;
-    vec guess(n), lower_limit(n), upper_limit(n), inputSigma(n);
-    bool useLimit = false;
-    for (int i = 0; i < n; i++) {
-        guess[i] = init[i];
-        inputSigma[i] = sigma[i];
-        lower_limit[i] = lower[i];
-        upper_limit[i] = upper[i];
-        useLimit |= (lower[i] != 0);
-        useLimit |= (upper[i] != 0);
+    vec guess(dim), lower_limit(dim), upper_limit(dim), inputSigma(dim);
+    for (int i = 0; i < dim; i++) {// guess is mandatory
+    	guess[i] = init[i];
+    	inputSigma[i] = sigma[i];
     }
-    if (useLimit == false) {
+    if (lower != NULL && upper != NULL) {
+		for (int i = 0; i < dim; i++) {
+	        guess[i] = init[i];
+			lower_limit[i] = lower[i];
+			upper_limit[i] = upper[i];
+		}
+    } else {
         lower_limit.resize(0);
         upper_limit.resize(0);
         normalize = false;
     }
-    Fitness *fitfun = new Fitness(noop_callback, noop_callback_par, n, 1,
+    Fitness *fitfun = new Fitness(noop_callback, noop_callback_par, dim, 1,
             lower_limit, upper_limit);
     fitfun->setNormalize(normalize);
     PGPEOptimizer *opt = new PGPEOptimizer(runid, fitfun, dim, seed, popsize,
@@ -446,3 +448,75 @@ int resultPGPE_C(uintptr_t ptr, double* res) {
 }
 }
 
+//bool rosen(int n, const double *x, double *y) {
+//    double f = 0;
+//    for (int i = 0; i < n - 1; i++)
+//        f += 1e2 * (x[i] * x[i] - x[i + 1]) * (x[i] * x[i] - x[i + 1])
+//                + (x[i] - 1.) * (x[i] - 1.);
+//    y[0] = -f; //negate !!!!!!
+//    return false; // don't terminate
+//}
+//
+//double* test_rosen(int dim, int popsize) {
+//    int n = dim;
+//    int max_iteration = 10000;
+//    int maxEvals = max_iteration * popsize;
+//    int runid = 0;
+//    int seed = 4242;
+//    double stopfitness = -1E99;
+//    vec lower_limit = constant(dim, -100);
+//    vec upper_limit = constant(dim, 100);
+//    double *res = new double[dim + 4];
+//    vec guess = zeros(dim);
+//    vec inputSigma = constant(dim, 0.1);
+//
+//    double center_learning_rate = 0.15;
+//    double stdev_learning_rate = 0.1;
+//    double stdev_max_change = 0.2;
+//    double b1 = 0.9;
+//    double b2 = 0.999;
+//    double eps = 1e-8;
+//    double decay_coef = 1.0;
+//    int lr_decay_steps = 1000;
+//    bool use_ranking = false;
+//
+//    Fitness fitfun(rosen, noop_callback_par, dim, 1, lower_limit, upper_limit);
+//    PGPEOptimizer opt(runid, &fitfun, dim, seed, popsize, guess, inputSigma,
+//            maxEvals, stopfitness, lr_decay_steps, use_ranking,
+//            center_learning_rate, stdev_learning_rate, stdev_max_change, b1, b2,
+//            eps, decay_coef);
+//    try {
+//
+//        for (int i = 0; i < max_iteration && opt.getStop() == 0; i++) {
+//            mat xs = opt.ask_decode();
+//            vec ys(popsize);
+//            for (int p = 0; p < popsize; p++) {
+//                vec y = fitfun.eval(xs.col(p));
+//                ys[p] = y[0];
+//            }
+//            opt.tell(ys);
+//        }
+//        vec bestX = opt.getBestX();
+//        double bestY = opt.getBestValue();
+//        for (int i = 0; i < n; i++)
+//            res[i] = bestX[i];
+//        res[n] = bestY;
+//        res[n + 1] = fitfun.evaluations();
+//        res[n + 2] = opt.getIterations();
+//        res[n + 3] = opt.getStop();
+//        return res;
+//    } catch (std::exception &e) {
+//        cout << e.what() << endl;
+//        return res;
+//    }
+//}
+//
+//int main() {
+//
+//    int dim = 13;
+//    int popsize = 80;
+//    double *res = test_rosen(dim, popsize);
+//    for (int i = 0; i < dim + 4; i++)
+//        cout << res[i] << endl;
+//    return 0;
+//}

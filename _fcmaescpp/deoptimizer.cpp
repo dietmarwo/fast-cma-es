@@ -85,7 +85,7 @@ public:
         min_mutate = min_mutate_ > 0 ? min_mutate_ : 0.1;
         max_mutate = max_mutate_ > 0 ? max_mutate_ : 0.5;
 
-        useNormal = minSigma_ > 0;
+        useNormal = guess_.size() > 0;
         mean = guess_;
         sigma = inputSigma_;
         minSigmaVal = minSigma_;
@@ -119,12 +119,14 @@ public:
     }
 
     void update_mean() {
-        meanHist.col(meanHistIndex) = popX.col(bestI);
-        meanHistIndex = (meanHistIndex + 1) % meanHist.cols();
-        vec delta = meanHist.rowwise().maxCoeff() - meanHist.rowwise().minCoeff();
-        vec sigma_new = delta.cwiseMin(maxSigma).cwiseMax(minSigma);
-        sigma = sigma_new.mean() > sigma.mean() ? sigma_new :  0.9 * sigma + 0.1 * sigma_new;
-        mean = 0.9 * mean + 0.1 * popX.col(bestI);
+        if (useNormal) {
+			meanHist.col(meanHistIndex) = popX.col(bestI);
+			meanHistIndex = (meanHistIndex + 1) % meanHist.cols();
+			vec delta = meanHist.rowwise().maxCoeff() - meanHist.rowwise().minCoeff();
+			vec sigma_new = delta.cwiseMin(maxSigma).cwiseMax(minSigma);
+			sigma = sigma_new.mean() > sigma.mean() ? sigma_new :  0.9 * sigma + 0.1 * sigma_new;
+			mean = 0.9 * mean + 0.1 * popX.col(bestI);
+        }
     }
 
     vec nextX(int p, const vec &xp, const vec &xb) {
@@ -453,28 +455,32 @@ void optimizeDE_C(long runid, callback_type func, int dim, int seed,
         double stopfitness, int popsize, double F, double CR,
         double min_mutate, double max_mutate,
         int workers, double* res) {
+
     vec guess(dim), lower_limit(dim), upper_limit(dim), inputSigma(dim);
-    bool isInt[dim];
-    bool useIsInt = false;
-    bool useLimit = false;
-    for (int i = 0; i < dim; i++) {
-        guess[i] = init[i];
-        inputSigma[i] = sigma[i];
-        lower_limit[i] = lower[i];
-        upper_limit[i] = upper[i];
-        isInt[i] = ints[i];
-        useIsInt |= ints[i];
-        useLimit |= (lower[i] != 0);
-        useLimit |= (upper[i] != 0);
+    if (init != NULL and sigma != NULL) {
+    	for (int i = 0; i < dim; i++) {
+    		guess[i] = init[i];
+    		inputSigma[i] = sigma[i];
+    	}
+    } else {
+    	guess.resize(0);
+    	inputSigma.resize(0);
+    	minSigma = 0;
     }
-    if (useLimit == false) {
+    if (lower != NULL && upper != NULL) {
+		for (int i = 0; i < dim; i++) {
+			lower_limit[i] = lower[i];
+			upper_limit[i] = upper[i];
+		}
+    } else {
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
+
     Fitness fitfun(func, noop_callback_par, dim, 1, lower_limit, upper_limit);
     DeOptimizer opt(runid, &fitfun, dim, seed, popsize, maxEvals, keep,
             stopfitness, F, CR, min_mutate, max_mutate,
-            useIsInt ? isInt : NULL, guess, inputSigma, minSigma);
+            ints, guess, inputSigma, minSigma);
     try {
         if (workers <= 1)
             opt.doOptimize();
@@ -501,28 +507,30 @@ uintptr_t initDE_C(long runid, int dim, int seed,
         double min_mutate, double max_mutate) {
 
     vec guess(dim), lower_limit(dim), upper_limit(dim), inputSigma(dim);
-    bool isInt[dim];
-    bool useIsInt = false;
-    bool useLimit = false;
-    for (int i = 0; i < dim; i++) {
-        guess[i] = init[i];
-        inputSigma[i] = sigma[i];
-        lower_limit[i] = lower[i];
-        upper_limit[i] = upper[i];
-        isInt[i] = ints[i];
-        useIsInt |= ints[i];
-        useLimit |= (lower[i] != 0);
-        useLimit |= (upper[i] != 0);
+    if (init != NULL and sigma != NULL) {
+    	for (int i = 0; i < dim; i++) {
+    		guess[i] = init[i];
+    		inputSigma[i] = sigma[i];
+    	}
+    } else {
+    	guess.resize(0);
+    	inputSigma.resize(0);
     }
-    if (useLimit == false) {
+    if (lower != NULL && upper != NULL) {
+		for (int i = 0; i < dim; i++) {
+			lower_limit[i] = lower[i];
+			upper_limit[i] = upper[i];
+		}
+    } else {
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
+
     Fitness* fitfun = new Fitness(noop_callback, noop_callback_par, dim, 1, 
         lower_limit, upper_limit);
     DeOptimizer* opt = new DeOptimizer(runid, fitfun, dim, seed, popsize, 0, keep,
             -DBL_MAX, F, CR, min_mutate, max_mutate,
-            useIsInt ? isInt : NULL, guess, inputSigma, minSigma);
+            	ints, guess, inputSigma, minSigma);
     return (uintptr_t) opt;
 }
 

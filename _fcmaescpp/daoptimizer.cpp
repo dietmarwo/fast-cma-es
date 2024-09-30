@@ -15,7 +15,6 @@
 #include <math.h>
 #include <ctime>
 #include <random>
-#define EIGEN_VECTORIZE_SSE2
 #include <EigenRand/EigenRand>
 #include <LBFGSB.h>
 
@@ -654,15 +653,14 @@ void optimizeDA_C(long runid, callback_type func, int dim, int seed,
         bool use_local_search, double* res) {
     int n = dim;
     vec guess(n), lower_limit(n), upper_limit(n);
-    bool useLimit = false;
-    for (int i = 0; i < n; i++) {
-        guess[i] = init[i];
-        lower_limit[i] = lower[i];
-        upper_limit[i] = upper[i];
-        useLimit |= (lower[i] != 0);
-        useLimit |= (upper[i] != 0);
-    }
-    if (useLimit == false) {
+    for (int i = 0; i < n; i++)
+    	guess[i] = init[i];
+    if (lower != NULL && upper != NULL) {
+		for (int i = 0; i < n; i++) {
+			lower_limit[i] = lower[i];
+			upper_limit[i] = upper[i];
+		}
+    } else {
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
