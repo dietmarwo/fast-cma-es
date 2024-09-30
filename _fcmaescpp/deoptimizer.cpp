@@ -249,6 +249,9 @@ public:
         for (iterations = 1; fitfun->evaluations() < maxEvaluations
         		&& !fitfun->terminate(); iterations++) {
 
+            if (iterations > 2)
+                update_mean();
+
             CR = iterations % 2 == 0 ? 0.5 * CR0 : CR0;
             F = iterations % 2 == 0 ? 0.5 * F0 : F0;
 
