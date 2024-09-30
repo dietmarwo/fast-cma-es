@@ -722,6 +722,7 @@ class De_cpp(Optimizer):
     def __init__(self, 
                  max_evaluations: Optional[int] = 50000,
                  popsize: Optional[int] = None, 
+                 guess: Optional[ArrayLike] = None, 
                  stop_fitness: Optional[float] = -np.inf,
                  keep: Optional[int] = 200, 
                  f: Optional[float] = 0.5, 
@@ -731,6 +732,7 @@ class De_cpp(Optimizer):
       
         Optimizer.__init__(self, max_evaluations, 'de cpp')
         self.popsize = popsize
+        self.guess = guess
         self.stop_fitness = stop_fitness
         self.keep = keep
         self.f = f
@@ -746,13 +748,16 @@ class De_cpp(Optimizer):
                  rg: Optional[Generator] = Generator(MT19937()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
 
+        if guess is None:
+            guess = self.guess
+            
         ret = decpp.minimize(fun, None, bounds, 
                 popsize=self.popsize, 
                 max_evaluations = self.max_eval_num(store), 
                 stop_fitness = self.stop_fitness,
                 keep = self.keep, f = self.f, cr = self.cr, ints=self.ints,
                 rg=rg, runid = self.get_count_runs(store), 
-                workers = self.workers)
+                workers = self.workers, x0 = guess)
         return ret.x, ret.fun, ret.nfev
 
 class De_python(Optimizer):

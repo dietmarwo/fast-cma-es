@@ -86,7 +86,7 @@ def minimize(fun: Callable[[ArrayLike], float],
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
         optimizeBite_C(runid, c_callback, dim, int(rg.uniform(0, 2**32 - 1)), 
-                           array_type(*guess), array_type(*lower), array_type(*upper), 
+                           None if x0 is None else array_type(*guess), array_type(*lower), array_type(*upper), 
                            max_evaluations, stop_fitness, M, popsize, stall_criterion, res_p)
         x = res[:dim]
         val = res[dim]
