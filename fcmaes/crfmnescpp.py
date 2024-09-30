@@ -89,9 +89,6 @@ def minimize(fun: Callable[[ArrayLike], float],
         popsize = 32      
     if popsize % 2 == 1: # requires even popsize
         popsize += 1
-    if lower is None:
-        lower = [0]*dim
-        upper = [0]*dim
     if callable(input_sigma):
         input_sigma=input_sigma()
     if np.ndim(input_sigma) > 0:
@@ -103,7 +100,8 @@ def minimize(fun: Callable[[ArrayLike], float],
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
         optimizeCRFMNES_C(runid, c_callback_par, dim, array_type(*guess), 
-                       array_type(*lower), array_type(*upper), 
+                None if lower is None else array_type(*lower), 
+                None if upper is None else array_type(*upper), 
                 input_sigma, max_evaluations, stop_fitness,
                 popsize, int(rg.uniform(0, 2**32 - 1)), penalty_coef, 
                 use_constraint_violation, normalize, res_p)

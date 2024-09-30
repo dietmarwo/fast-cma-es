@@ -118,13 +118,6 @@ def minimize(fun: Callable[[ArrayLike], float],
     dim, lower, upper = _check_bounds(bounds, dim)
     if popsize is None:
         popsize = 31
-    if lower is None:
-        lower = [0]*dim
-        upper = [0]*dim
-        min_sigma = 0 # no uniform random generation possible without bounds
-    if x0 is None:
-        x0 = np.zeros(dim)
-        min_sigma = 0 # don't use guess
     if callable(input_sigma):
         input_sigma=input_sigma()
     if np.ndim(input_sigma) == 0:
@@ -141,8 +134,10 @@ def minimize(fun: Callable[[ArrayLike], float],
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
         optimizeDE_C(runid, c_callback, dim, seed,
-                           array_type(*lower), array_type(*upper), 
-                           array_type(*x0), array_type(*input_sigma), min_sigma,
+                            None if lower is None else array_type(*lower), 
+                            None if upper is None else array_type(*upper), 
+                            None if x0 is None else array_type(*x0), 
+                            array_type(*input_sigma), min_sigma,
                            bool_array_type(*ints), max_evaluations, keep, stop_fitness,  
                            popsize, f, cr, min_mutate, max_mutate, workers, res_p)
         x = res[:dim]
@@ -174,13 +169,13 @@ class DE_C:
         dim, lower, upper = _check_bounds(bounds, dim)     
         if popsize is None:
             popsize = 31
-        if lower is None:
-            lower = [0]*dim
-            upper = [0]*dim
-            min_sigma = 0 # no uniform random generation possible without bounds
-        if x0 is None:
-            x0 = np.zeros(dim)
-            min_sigma = 0 # don't use guess
+        # if lower is None:
+        #     lower = [0]*dim
+        #     upper = [0]*dim
+        #     min_sigma = 0 # no uniform random generation possible without bounds
+        # if x0 is None:
+        #     x0 = np.zeros(dim)
+        #     min_sigma = 0 # don't use guess
         if callable(input_sigma):
             input_sigma=input_sigma()
         if np.ndim(input_sigma) == 0:

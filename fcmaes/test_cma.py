@@ -7,7 +7,7 @@ import multiprocessing as mp
 import numpy as np
 from scipy.optimize import OptimizeResult
 from fcmaes.testfun import Wrapper, Rosen, Rastrigin, Eggholder
-from fcmaes import cmaes, de, decpp, cmaescpp, gcldecpp, retry, advretry
+from fcmaes import cmaes, de, decpp, cmaescpp, retry, advretry
 from fcmaes.optimizer import de_cma_py
 
 def almost_equal(X1, X2, eps = 1E-5):
@@ -167,27 +167,6 @@ def test_rosen_cpp_parallel():
     assert(max_eval // popsize + 2 > ret.nit) # too much iterations
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(almost_equal(ret.fun, wrapper.get_best_y(), eps = 1E-1)) # wrong best y returned
-
-def test_rosen_gclde_parallel():
-    popsize = 8
-    dim = 2
-    testfun = Rosen(dim)
-    max_eval = 10000    
-    limit = 0.00001   
-    for _ in range(5):
-        wrapper = Wrapper(testfun.fun, dim)
-        ret = gcldecpp.minimize(wrapper.eval, dim, testfun.bounds,
-                       max_evaluations = max_eval, 
-                       popsize=popsize, workers = mp.cpu_count())
-        if limit > ret.fun:
-            break
-       
-    assert(limit > ret.fun) # optimization target not reached
-    assert(max_eval + popsize >= ret.nfev) # too much function calls
-    assert(max_eval // popsize + 2 > ret.nit) # too much iterations
-    assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
-    assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
-    assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
 def test_rosen_de():
     popsize = 8
@@ -395,5 +374,5 @@ def test_eggholder_advanced_retry_python():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(almost_equal(ret.fun, wrapper.get_best_y())) # wrong best y returned
 
-#test_eggholder_advanced_retry()
+#test_rosen_decpp_parallel()
  

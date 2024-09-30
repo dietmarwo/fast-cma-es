@@ -77,16 +77,15 @@ def minimize(fun: Callable[[ArrayLike], float],
     
     lower, upper, guess = _check_bounds(bounds, x0, rg)      
     dim = guess.size   
-    if lower is None:
-        lower = [0]*dim
-        upper = [0]*dim 
     array_type = ct.c_double * dim 
     c_callback = mo_call_back_type(callback_so(fun, dim))
     res = np.empty(dim+4)
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
         optimizeBite_C(runid, c_callback, dim, int(rg.uniform(0, 2**32 - 1)), 
-                           None if x0 is None else array_type(*guess), array_type(*lower), array_type(*upper), 
+                           None if x0 is None else array_type(*guess), 
+                           None if lower is None else array_type(*lower), 
+                           None if upper is None else array_type(*upper), 
                            max_evaluations, stop_fitness, M, popsize, stall_criterion, res_p)
         x = res[:dim]
         val = res[dim]

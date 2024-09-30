@@ -12,7 +12,7 @@ from loguru import logger
 import ctypes as ct
 import multiprocessing as mp 
 from fcmaes.evaluator import serial, parallel
-from fcmaes import crfmnes, crfmnescpp, pgpecpp, cmaes, de, cmaescpp, decpp, dacpp, gcldecpp, lcldecpp, ldecpp, csmacpp, bitecpp
+from fcmaes import crfmnes, crfmnescpp, pgpecpp, cmaes, de, cmaescpp, decpp, dacpp, bitecpp
 
 from typing import Optional, Callable, Tuple, Union
 from numpy.typing import ArrayLike
@@ -897,128 +897,6 @@ class random_search(Optimizer):
             budget -= chunk
         return x_min, y_min, evals
 
-class LDe_cpp(Optimizer):
-    """Local Differential Evolution C++ implementation."""
-    
-    def __init__(self, 
-                 max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = None,
-                 stop_fitness: Optional[float] = -np.inf,
-                 keep: Optional[int] = 200, 
-                 f: Optional[float] = 0.5, 
-                 cr: Optional[float] = 0.9, 
-                 guess: Optional[ArrayLike] = None, 
-                 sdev: Optional[Union[float, ArrayLike, Callable]] = None, 
-                 ints: Optional[ArrayLike] = None):
-               
-        Optimizer.__init__(self, max_evaluations, 'lde cpp')
-        self.popsize = popsize
-        self.stop_fitness = stop_fitness
-        self.keep = keep
-        self.f = f
-        self.cr = cr
-        self.guess = guess
-        self.sdevs = sdev
-        self.ints = ints
-        
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[float] = None, # ignored
-                 rg: Optional[Generator] = Generator(MT19937()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
-        
-        ret = ldecpp.minimize(fun, bounds, 
-                self.guess if not self.guess is None else guess, 
-                self.sdevs if not self.sdevs is None else sdevs,
-                popsize=self.popsize, 
-                max_evaluations = self.max_eval_num(store), 
-                stop_fitness = self.stop_fitness,
-                keep = self.keep, f = self.f, cr = self.cr, ints = self.ints,
-                rg=rg, runid = self.get_count_runs(store))
-        return ret.x, ret.fun, ret.nfev
-
-class GCLDE_cpp(Optimizer):
-    """GCL-Differential Evolution C++ implementation."""
-    
-    def __init__(self, 
-                 max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = None,
-                 stop_fitness: Optional[float] = -np.inf,
-                 pbest: Optional[float] = 0.7, 
-                 f: Optional[float] = 0.5, 
-                 cr: Optional[float] = 0.9, 
-                 workers: Optional[int] = None):
-                
-        Optimizer.__init__(self, max_evaluations, 'gclde cpp')
-        self.popsize = popsize
-        self.stop_fitness = stop_fitness
-        self.pbest = pbest
-        self.f = f
-        self.cr = cr
-        self.workers = workers
-
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[float] = None, # ignored
-                 rg: Optional[Generator] = Generator(MT19937()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
-        
-        ret = gcldecpp.minimize(fun, None, bounds, 
-                popsize=self.popsize, 
-                max_evaluations = self.max_eval_num(store), 
-                stop_fitness = self.stop_fitness,
-                pbest = self.pbest, f0 = self.f, cr0 = self.cr,
-                rg=rg, runid = self.get_count_runs(store),
-                workers = self.workers)
-        return ret.x, ret.fun, ret.nfev
-
-class LCLDE_cpp(Optimizer):
-    """LCL-Differential Evolution C++ implementation."""
-    
-    def __init__(self, 
-                 max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = None,
-                 stop_fitness: Optional[float] = -np.inf,
-                 pbest: Optional[float] = 0.7, 
-                 f: Optional[float] = 0.5, 
-                 cr: Optional[float] = 0.9, 
-                 guess: Optional[ArrayLike] = None, 
-                 sdev: Optional[Union[float, ArrayLike, Callable]] = None, 
-                 workers: Optional[int] = None):                 
-       
-        Optimizer.__init__(self, max_evaluations, 'lclde cpp')
-        self.popsize = popsize
-        self.stop_fitness = stop_fitness
-        self.pbest = pbest
-        self.f = f
-        self.cr = cr
-        self.workers = workers
-        self.guess = guess
-        self.sdevs = sdev
-
-    def minimize(self, 
-                fun: Callable[[ArrayLike], float], 
-                bounds: Optional[Bounds], 
-                guess: Optional[ArrayLike] = None, 
-                sdevs: Optional[float] = 0.3, # ignored
-                rg=Generator(MT19937()), 
-                store = None) -> Tuple[np.ndarray, float, int]:                 
-        
-        ret = lcldecpp.minimize(fun, bounds, 
-                self.guess if not self.guess is None else guess, 
-                self.sdevs if not self.sdevs is None else sdevs,
-                popsize=self.popsize, 
-                max_evaluations = self.max_eval_num(store), 
-                stop_fitness = self.stop_fitness,
-                pbest = self.pbest, f0 = self.f, cr0 = self.cr,
-                rg=rg, runid = self.get_count_runs(store),
-                workers = self.workers)
-
-        return ret.x, ret.fun, ret.nfev
     
 class Da_cpp(Optimizer):
     """Dual Annealing C++ implementation."""
@@ -1047,38 +925,6 @@ class Da_cpp(Optimizer):
                             max_evaluations = self.max_eval_num(store), 
                             use_local_search = self.use_local_search,
                             rg=rg, runid = self.get_count_runs(store))
-        return ret.x, ret.fun, ret.nfev
-
-class Csma_cpp(Optimizer):
-    """SCMA C++ implementation."""
-   
-    def __init__(self, 
-                 max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = None,
-                 guess: Optional[ArrayLike] = None, 
-                 stop_fitness: Optional[float] = -np.inf,
-                 sdevs: Optional[float] = None):
-                
-        Optimizer.__init__(self, max_evaluations, 'scma cpp')
-        self.popsize = popsize
-        self.stop_fitness = stop_fitness
-        self.guess = guess
-        self.sdevs = sdevs
-
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[float] = 0.16, 
-                 rg=Generator(MT19937()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
-        
-        ret = csmacpp.minimize(fun, bounds, 
-                self.guess if guess is None else guess,
-                self.sdevs if not self.sdevs is None else sdevs,
-                max_evaluations = self.max_eval_num(store), 
-                stop_fitness = self.stop_fitness,
-                rg=rg, runid = self.get_count_runs(store))     
         return ret.x, ret.fun, ret.nfev
 
 class Bite_cpp(Optimizer):

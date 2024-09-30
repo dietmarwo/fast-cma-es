@@ -96,9 +96,6 @@ def minimize(fun: Callable[[ArrayLike], float],
     
     lower, upper, guess = _check_bounds(bounds, x0, rg)      
     dim = guess.size   
-    if lower is None:
-        lower = [0]*dim
-        upper = [0]*dim
     if workers is None:
         workers = 0
     mu = int(popsize/2)
@@ -116,7 +113,9 @@ def minimize(fun: Callable[[ArrayLike], float],
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
         optimizeACMA_C(runid, c_callback, c_callback_par, 
-                dim, array_type(*guess), array_type(*lower), array_type(*upper), 
+                dim, array_type(*guess), 
+                None if lower is None else array_type(*lower), 
+                None if upper is None else array_type(*upper), 
                 array_type(*input_sigma), max_evaluations, stop_fitness, stop_hist, mu, 
                 popsize, accuracy, int(rg.uniform(0, 2**32 - 1)), 
                 normalize, delayed_update, -1 if update_gap is None else update_gap,

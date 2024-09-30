@@ -66,10 +66,7 @@ def minimize(fun: Callable[[ArrayLike], float],
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
                 
     lower, upper, guess = _check_bounds(bounds, x0, rg)   
-    dim = guess.size   
-    if lower is None:
-        lower = [0]*dim
-        upper = [0]*dim
+    dim = guess.size
     array_type = ct.c_double * dim   
     c_callback = call_back_type(callback(fun))
     seed = int(rg.uniform(0, 2**32 - 1))
@@ -77,7 +74,9 @@ def minimize(fun: Callable[[ArrayLike], float],
     res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
     try:
         optimizeDA_C(runid, c_callback, dim, seed,
-                    array_type(*guess), array_type(*lower), array_type(*upper), 
+                    array_type(*guess), 
+                    None if lower is None else array_type(*lower), 
+                    None if upper is None else array_type(*upper), 
                     max_evaluations, use_local_search, res_p)
         x = res[:dim]
         val = res[dim]
