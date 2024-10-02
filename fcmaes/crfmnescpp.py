@@ -13,7 +13,7 @@ import os
 import math
 import ctypes as ct
 import numpy as np
-from numpy.random import MT19937, Generator
+from numpy.random import PCG64DXSM, Generator
 from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, _get_bounds, callback_par, parallel, call_back_par, libcmalib
 
@@ -30,7 +30,7 @@ def minimize(fun: Callable[[ArrayLike], float],
              max_evaluations = 100000, 
              workers = None,
              stop_fitness = -np.inf, 
-             rg = Generator(MT19937()),
+             rg = Generator(PCG64DXSM()),
              runid=0,
              normalize = False,
              use_constraint_violation = True,
@@ -125,7 +125,7 @@ class CRFMNES_C:
                 x0: Optional[ArrayLike] = None,
                 input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.3, 
                 popsize: Optional[int] = 32,   
-                rg: Optional[Generator] = Generator(MT19937()),
+                rg: Optional[Generator] = Generator(PCG64DXSM()),
                 runid: Optional[int] = 0,
                 normalize: Optional[bool] = False,
                 use_constraint_violation: Optional[bool] = True,

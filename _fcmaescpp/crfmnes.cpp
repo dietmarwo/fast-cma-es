@@ -19,7 +19,6 @@
 #include <stdint.h>
 #include <ctime>
 #include <inttypes.h>
-#include <EigenRand/EigenRand>
 #include "evaluator.h"
 
 using namespace std;
@@ -56,7 +55,7 @@ public:
         stopfitness = stopfitness_;
         penalty_coef = penalty_coef_ > 0 ? penalty_coef_ : 1e5;
         use_constraint_violation = use_constraint_violation_;
-        rs = new Eigen::Rand::P8_mt19937_64(seed);
+        rs = new pcg64(seed);
 
         stop = 0;
         v = normalVec(dim, *rs) / sqrt(dim);
@@ -317,7 +316,7 @@ private:
     int lamb;
     int mu;
     bool use_constraint_violation;
-    Eigen::Rand::P8_mt19937_64 *rs;
+    pcg64 *rs;
     vec v;
     vec D;
     double penalty_coef;

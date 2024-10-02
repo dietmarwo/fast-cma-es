@@ -7,7 +7,7 @@ import math
 import os
 import sys
 import numpy as np
-from numpy.random import Generator, MT19937, SeedSequence
+from numpy.random import Generator, PCG64DXSM, SeedSequence
 from scipy.optimize import OptimizeResult, Bounds
 import multiprocessing as mp
 from multiprocessing import Process
@@ -67,7 +67,7 @@ def retry(store, prob, algo, num_retries, value_limit = np.inf, popsize=1, worke
     except ImportError as e:
         raise ImportError("Please install PYGMO (pip install pygmo) to use PAGMO optimizers") from e
     sg = SeedSequence()
-    rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
+    rgs = [Generator(PCG64DXSM(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
             args=(pid, rgs, store, prob, algo, num_retries, value_limit, popsize, pg)) for pid in range(workers)]
     [p.start() for p in proc]

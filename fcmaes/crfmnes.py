@@ -3,7 +3,7 @@ import math
 import numpy as np
 import os
 from scipy.optimize import OptimizeResult, Bounds
-from numpy.random import MT19937, Generator
+from numpy.random import PCG64DXSM, Generator
 from fcmaes.evaluator import _get_bounds, _fitness, serial, parallel
 
 from typing import Optional, Callable, Union, Dict
@@ -28,7 +28,7 @@ def minimize(fun: Callable[[ArrayLike], float],
              workers: Optional[int] = None,
              stop_fitness: Optional[float] = -np.inf,
              is_terminate: Optional[Callable[[ArrayLike, float], bool]] = None,
-             rg: Optional[Generator] = Generator(MT19937()),
+             rg: Optional[Generator] = Generator(PCG64DXSM()),
              runid: Optional[int] = 0,
              normalize: Optional[bool] = False,
              options: Optional[Dict] = {}
@@ -99,7 +99,7 @@ class CRFMNES:
                 runid: Optional[int] = 0, 
                 normalize: Optional[bool] = False,
                 options: Optional[Dict] = {}, 
-                rg: Optional[Generator] = Generator(MT19937()), 
+                rg: Optional[Generator] = Generator(PCG64DXSM()), 
                 workers: Optional[int] = None, 
                 fun: Optional[Callable[[ArrayLike], float]] = lambda x: 0): 
         

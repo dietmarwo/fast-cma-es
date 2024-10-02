@@ -39,7 +39,7 @@ import numpy as np
 import math, sys
 from time import time
 import ctypes as ct
-from numpy.random import Generator, MT19937
+from numpy.random import Generator, PCG64DXSM
 from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import Evaluator, is_debug_active
 import multiprocessing as mp
@@ -58,7 +58,7 @@ def minimize(fun: Callable[[ArrayLike], float],
              keep: Optional[int] = 200,
              f: Optional[float] = 0.5,
              cr: Optional[float] = 0.9,
-             rg: Optional[Generator] = Generator(MT19937()),
+             rg: Optional[Generator] = Generator(PCG64DXSM()),
              filter = None,
              ints: Optional[ArrayLike] = None,
              min_mutate: Optional[float] = 0.1,
@@ -150,7 +150,7 @@ class DE(object):
                 keep: Optional[int] = 200, 
                 F: Optional[float] = 0.5, 
                 Cr: Optional[float] = 0.9, 
-                rg: Optional[Generator] = Generator(MT19937()),
+                rg: Optional[Generator] = Generator(PCG64DXSM()),
                 filter: Optional = None,
                 ints: Optional[ArrayLike] = None,
                 min_mutate: Optional[float] = 0.1,

@@ -12,7 +12,7 @@ import threadpoolctl
 import ctypes as ct
 from scipy import interpolate
 import numpy as np
-from numpy.random import Generator, MT19937, SeedSequence
+from numpy.random import Generator, PCG64DXSM, SeedSequence
 from scipy.optimize._constraints import new_bounds_to_old
 from scipy.optimize import OptimizeResult, Bounds
 import multiprocessing as mp
@@ -97,7 +97,7 @@ def retry(store: Store,
           stop_fitness: Optional[float] = -np.inf) -> OptimizeResult:
     
     sg = SeedSequence()
-    rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
+    rgs = [Generator(PCG64DXSM(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
             args=(pid, rgs, store, optimize, num_retries, value_limit, stop_fitness)) for pid in range(workers)]
     [p.start() for p in proc]

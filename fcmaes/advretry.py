@@ -20,7 +20,7 @@ from numba import njit
 from random import Random
 import multiprocessing as mp
 from multiprocessing import Process
-from numpy.random import Generator, MT19937, SeedSequence
+from numpy.random import Generator, PCG64DXSM, SeedSequence
 from scipy.optimize import OptimizeResult, Bounds
 from loguru import logger
 from fcmaes.retry import _convertBounds, plot, Shared2d
@@ -123,7 +123,7 @@ def retry(store: Store,
           stop_fitness = -np.inf) -> OptimizeResult:
     
     sg = SeedSequence()
-    rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
+    rgs = [Generator(PCG64DXSM(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
             args=(pid, rgs, store, optimize, value_limit, stop_fitness)) for pid in range(workers)]
     [p.start() for p in proc]

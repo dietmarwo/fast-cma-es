@@ -13,7 +13,7 @@ import os
 import math
 import ctypes as ct
 import numpy as np
-from numpy.random import MT19937, Generator
+from numpy.random import PCG64DXSM, Generator
 from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, _get_bounds, mo_call_back_type, callback_so, callback_par, call_back_par, parallel, libcmalib
 
@@ -30,8 +30,8 @@ def minimize(fun: Callable[[ArrayLike], float],
              max_evaluations: Optional[int]  = 100000,
              accuracy: Optional[float] = 1.0, 
              stop_fitness: Optional[float] = -np.inf, 
-             stop_hist: Optional[float] = None,
-             rg: Optional[Generator] = Generator(MT19937()),
+             stop_hist: Optional[float] = -1,
+             rg: Optional[Generator] = Generator(PCG64DXSM()),
              runid: Optional[int] = 0,
              workers: Optional[int] = 1, 
              normalize: Optional[bool] = True,
@@ -143,8 +143,8 @@ class ACMA_C:
         max_evaluations: Optional[int] = 100000, 
         accuracy: Optional[float] = 1.0, 
         stop_fitness: Optional[float] = -np.inf, 
-        stop_hist: Optional[float] = None,
-        rg: Optional[Generator] = Generator(MT19937()),
+        stop_hist: Optional[float] = -1,
+        rg: Optional[Generator] = Generator(PCG64DXSM()),
         runid: Optional[int] = 0,
         normalize: Optional[bool] = True,
         delayed_update: Optional[bool] = True,

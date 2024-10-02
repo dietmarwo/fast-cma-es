@@ -47,7 +47,6 @@
 #include <random>
 #include <queue>
 #include <tuple>
-#include <EigenRand/EigenRand>
 #include "evaluator.h"
 
 namespace mode_optimizer {
@@ -83,8 +82,7 @@ public:
         n_evals = 0;
         // position of current x/y
         pos = 0;
-        //std::random_device rd;
-        rs = new Eigen::Rand::P8_mt19937_64(seed_);
+        rs = new pcg64(seed_);
         // NSGA population update parameters, ignored if nsga_update == false
         // usually use pro_c = 1.0, dis_c = 20.0, pro_m = 1.0, dis_m = 20.0.
         pro_c = pro_c_;
@@ -560,7 +558,7 @@ private:
     double dis_c;
     double pro_m;
     double dis_m;
-    Eigen::Rand::P8_mt19937_64 *rs;
+    pcg64 *rs;
     mat popX;
     mat popY;
     mat vX;

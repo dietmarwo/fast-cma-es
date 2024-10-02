@@ -10,7 +10,7 @@ import math, sys, time, warnings, threadpoolctl
 import multiprocessing as mp
 from multiprocessing import Process
 from scipy.optimize import Bounds
-from numpy.random import Generator, MT19937, SeedSequence
+from numpy.random import Generator, PCG64DXSM, SeedSequence
 from fcmaes.optimizer import de_cma, dtime, Optimizer
 from fcmaes import retry, advretry
 from loguru import logger
@@ -101,7 +101,7 @@ def mo_retry(fun: Callable[[ArrayLike], float],
              workers: Optional[int] = mp.cpu_count()):
     
     sg = SeedSequence()
-    rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
+    rgs = [Generator(PCG64DXSM(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
             args=(pid, rgs, fun, weight_bounds, ncon, y_exp, 
                   store, optimize, num_retries, value_limits)) for pid in range(workers)]

@@ -52,7 +52,7 @@ import numpy as np
 from scipy.optimize import Bounds
 from fcmaes import mode, moretry
 from fcmaes.mode import _filter, store
-from numpy.random import Generator, MT19937, SeedSequence
+from numpy.random import Generator, PCG64DXSM, SeedSequence
 from fcmaes.optimizer import dtime
 from fcmaes.evaluator import mo_call_back_type, callback_mo, parallel_mo, libcmalib
 from fcmaes.de import _check_bounds
@@ -82,7 +82,7 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
              ints: Optional[ArrayLike] = None,
              min_mutate: Optional[float] = 0.1,
              max_mutate: Optional[float] = 0.5,           
-             rg: Optional[Generator] = Generator(MT19937()),
+             rg: Optional[Generator] = Generator(PCG64DXSM()),
              store: Optional[store] = None,
              runid: Optional[int] = 0) -> Tuple[np.ndarray, np.ndarray]:
      
@@ -224,7 +224,7 @@ def retry(mofun: Callable[[ArrayLike], ArrayLike],
         capacity = 2048*popsize
     store = mode.store(dim, nobj + ncon, capacity)
     sg = SeedSequence()
-    rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
+    rgs = [Generator(PCG64DXSM(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
            args=(num_retries, pid, rgs, mofun, nobj, ncon, bounds, guess, popsize, 
                  max_evaluations, workers, nsga_update, pareto_update, 
@@ -269,7 +269,7 @@ class MODE_C:
              ints: Optional[ArrayLike] = None,
              min_mutate: Optional[float] = 0.1,
              max_mutate: Optional[float] = 0.5,           
-             rg: Optional[Generator] = Generator(MT19937()),
+             rg: Optional[Generator] = Generator(PCG64DXSM()),
              runid: Optional[int] = 0):  
        
         """    Parameters
@@ -349,7 +349,7 @@ class MODE_C:
             else:
                 guess, ys = guess
             if rg is None:
-                rg = Generator(MT19937())
+                rg = Generator(PCG64DXSM())
             choice = rg.choice(len(ys), self.popsize, 
                                     replace = (len(ys) < self.popsize))
             self.tell(ys[choice], guess[choice])

@@ -12,7 +12,7 @@ import sys
 import os
 import ctypes as ct
 import numpy as np
-from numpy.random import MT19937, Generator
+from numpy.random import PCG64DXSM, Generator
 from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, call_back_type, callback, libcmalib
 
@@ -26,7 +26,7 @@ def minimize(fun: Callable[[ArrayLike], float],
              x0: Optional[ArrayLike] = None,
              max_evaluations: Optional[int] = 100000, 
              use_local_search: Optional[bool] = True,
-             rg: Optional[Generator] = Generator(MT19937()),
+             rg: Optional[Generator] = Generator(PCG64DXSM()),
              runid: Optional[int] = 0) -> OptimizeResult:   
 
     """Minimization of a scalar function of one or more variables using a 

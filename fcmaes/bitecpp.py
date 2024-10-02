@@ -13,7 +13,7 @@ import os
 import math
 import ctypes as ct
 import numpy as np
-from numpy.random import MT19937, Generator
+from numpy.random import PCG64DXSM, Generator
 from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, mo_call_back_type, callback_so, libcmalib
 
@@ -30,7 +30,7 @@ def minimize(fun: Callable[[ArrayLike], float],
              M: Optional[int] = 1,
              popsize: Optional[int] = 0,
              stall_criterion: Optional[int]  = 0,
-             rg: Optional[Generator]  = Generator(MT19937()),
+             rg: Optional[Generator]  = Generator(PCG64DXSM()),
              runid: Optional[int] = 0) -> OptimizeResult:
     """Minimization of a scalar function of one or more variables using a 
     C++ SCMA implementation called via ctypes.

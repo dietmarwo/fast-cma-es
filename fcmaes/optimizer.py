@@ -4,7 +4,7 @@
 # LICENSE file in the root directory.
 
 import numpy as np
-from numpy.random import MT19937, Generator
+from numpy.random import PCG64DXSM, Generator
 from scipy.optimize import Bounds, minimize, shgo, differential_evolution, dual_annealing, basinhopping
 import sys
 import time
@@ -114,7 +114,7 @@ class Sequence(Optimizer):
                  bounds: Bounds, 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[Union[float, ArrayLike, Callable]] = None, 
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store=None) -> Tuple[np.ndarray, float, int]:
         evals = 0
         y = np.inf
@@ -143,7 +143,7 @@ class Choice(Optimizer):
                  bounds: Bounds, 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[Union[float, ArrayLike, Callable]] = None, 
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store=None) -> Tuple[np.ndarray, float, int]:
         
         choice = rg.integers(0, len(self.optimizers))
@@ -307,7 +307,7 @@ class Crfmnes(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = 0.3, 
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
 
         ret = crfmnes.minimize(fun, bounds, 
@@ -343,7 +343,7 @@ class Crfmnes_cpp(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = 0.3, 
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
 
         ret = crfmnescpp.minimize(fun, bounds, 
@@ -379,7 +379,7 @@ class Pgpe_cpp(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = 0.1, 
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
 
         ret = pgpecpp.minimize(fun, bounds, 
@@ -419,7 +419,7 @@ class Cma_python(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[Union[float, ArrayLike, Callable]] = 0.1, 
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
 
         ret = cmaes.minimize(fun, bounds, 
@@ -447,7 +447,7 @@ class Cma_cpp(Optimizer):
                  update_gap: Optional[int] = None, 
                  normalize: Optional[bool] = True,                 
                  delayed_update: Optional[bool] = True,   
-                 stop_hist: Optional[int] = None): 
+                 stop_hist: Optional[int] = -1): 
           
         Optimizer.__init__(self, max_evaluations, 'cma cpp')
         self.popsize = popsize
@@ -465,7 +465,7 @@ class Cma_cpp(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[Union[float, ArrayLike, Callable]] = 0.1, 
-                 rg=Generator(MT19937()), 
+                 rg=Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
         
         ret = cmaescpp.minimize(fun, bounds,
@@ -503,7 +503,7 @@ class Cma_orig(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[Union[float, ArrayLike]] = 0.3, 
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
 
         lower = bounds.lb
@@ -561,7 +561,7 @@ class Cma_lw(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[Union[float, ArrayLike]] = 0.3, 
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
         
         try:
@@ -623,7 +623,7 @@ class Cma_awm(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[Union[float, ArrayLike]] = 0.3, 
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
         try:
             import cmaes
@@ -682,7 +682,7 @@ class Cma_sep(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[Union[float, ArrayLike]] = 0.3, 
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
         try:
             import cmaes
@@ -745,7 +745,7 @@ class De_cpp(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = None,  # ignored
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
 
         if guess is None:
@@ -787,7 +787,7 @@ class De_python(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = None, # ignored
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
         
         ret = de.minimize(fun, None, 
@@ -813,7 +813,7 @@ class Cma_ask_tell(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = None, # ignored
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
         
         es = cmaes.Cmaes(bounds,
@@ -853,7 +853,7 @@ class De_ask_tell(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = None, # ignored
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
         
         dim = len(bounds.lb)
@@ -880,7 +880,7 @@ class random_search(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = None, # ignored
-                 rg: Optional[Generator] = Generator(MT19937()), 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
         
         dim, x_min, y_min = len(bounds.lb), None, None
@@ -917,7 +917,7 @@ class Da_cpp(Optimizer):
                 bounds: Optional[Bounds], 
                 guess: Optional[ArrayLike] = None, 
                 sdevs: Optional[float] = None, # ignored
-                rg=Generator(MT19937()), 
+                rg=Generator(PCG64DXSM()), 
                 store = None) -> Tuple[np.ndarray, float, int]:
 
         ret = dacpp.minimize(fun, bounds, 
@@ -950,7 +950,7 @@ class Bite_cpp(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(MT19937()), 
+                 rg=Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
 
         ret = bitecpp.minimize(fun, bounds, 
@@ -976,7 +976,7 @@ class Dual_annealing(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(MT19937()), 
+                 rg=Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:                 
         ret = dual_annealing(fun, bounds=list(zip(bounds.lb, bounds.ub)),
             maxfun = self.max_eval_num(store), 
@@ -1000,7 +1000,7 @@ class Differential_evolution(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(MT19937()), 
+                 rg=Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
         
         popsize = self.popsize 
@@ -1031,7 +1031,7 @@ class Basin_hopping(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(MT19937()), 
+                 rg=Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
         localevals = 200
         maxiter = int(self.max_eval_num(store) / localevals)         
@@ -1056,7 +1056,7 @@ class Minimize(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(MT19937()), 
+                 rg=Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
         
         if guess is None:
@@ -1075,7 +1075,7 @@ class Shgo(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(MT19937()), 
+                 rg=Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
         
         ret = shgo(fun, bounds=list(zip(bounds.lb, bounds.ub)), 
@@ -1110,7 +1110,7 @@ class NLopt(Optimizer):
                  bounds: Optional[Bounds], 
                  guess: Optional[ArrayLike] = None, 
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(MT19937()), 
+                 rg=Generator(PCG64DXSM()), 
                  store = None) -> Tuple[np.ndarray, float, int]:
 
         self.fun = fun

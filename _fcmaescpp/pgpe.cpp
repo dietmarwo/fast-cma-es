@@ -21,7 +21,6 @@
 #include <random>
 #include <queue>
 #include <tuple>
-#include <EigenRand/EigenRand>
 #include "evaluator.h"
 
 using namespace std;
@@ -114,8 +113,7 @@ public:
         bestY = DBL_MAX;
         // stop criteria
         stop = 0;
-        //std::random_device rd;
-        rs = new Eigen::Rand::P8_mt19937_64(seed_);
+        rs = new pcg64(seed_);
         optimizer = new ADAM(guess_, b1_, b2_, eps_, center_learning_rate_,
                 decay_coef_);
         center = fitfun->encode(guess_);
@@ -285,7 +283,7 @@ private:
     double bestY;
     vec bestX;
     int stop;
-    Eigen::Rand::P8_mt19937_64 *rs;
+    pcg64 *rs;
     mat popX;
     mat scaled_noises;
     vec popY;

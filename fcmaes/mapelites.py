@@ -46,7 +46,7 @@ during the addition of new solution candidates.
 """
 
 import numpy as np
-from numpy.random import Generator, MT19937, SeedSequence
+from numpy.random import Generator, PCG64DXSM, SeedSequence
 from multiprocessing import Process
 import multiprocessing as mp
 from sklearn.neighbors import KDTree
@@ -234,7 +234,7 @@ def load_archive(name: str,
 def optimize_map_elites_(archive, fitness, bounds, workers,
                          me_params, cma_params):
     sg = SeedSequence()
-    rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
+    rgs = [Generator(PCG64DXSM(s)) for s in sg.spawn(workers)]
     proc=[Process(target=run_map_elites_,
             args=(archive, fitness, bounds, rgs[p],
                   me_params, cma_params)) for p in range(workers)]

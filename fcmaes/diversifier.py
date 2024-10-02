@@ -24,7 +24,7 @@ about the associated solutions.
 """
 
 import numpy as np
-from numpy.random import Generator, MT19937, SeedSequence
+from numpy.random import Generator, PCG64DXSM, SeedSequence
 from multiprocessing import Process
 from scipy.optimize import Bounds
 from fcmaes.optimizer import dtime, de_cma, Optimizer
@@ -207,7 +207,7 @@ def apply_advretry(fitness: Callable[[ArrayLike], float],
 
 def minimize_parallel_(archive, fitness, bounds, workers, opt_params, max_evals):
     sg = SeedSequence()
-    rgs = [Generator(MT19937(s)) for s in sg.spawn(workers)]
+    rgs = [Generator(PCG64DXSM(s)) for s in sg.spawn(workers)]
     evals = mp.RawValue(ct.c_long, 0)
     proc=[Process(target=run_minimize_,
             args=(archive, fitness, bounds, rgs[p],

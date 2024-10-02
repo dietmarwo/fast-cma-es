@@ -13,7 +13,7 @@ import os
 import math
 import ctypes as ct
 import numpy as np
-from numpy.random import MT19937, Generator
+from numpy.random import PCG64DXSM, Generator
 from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, _get_bounds, callback_par, parallel, call_back_par, libcmalib
 
@@ -30,7 +30,7 @@ def minimize(fun: Callable[[ArrayLike], float],
              max_evaluations: Optional[int] = 100000,
              workers: Optional[int] = None,
              stop_fitness: Optional[float] = -np.inf,
-             rg: Optional[Generator] = Generator(MT19937()),
+             rg: Optional[Generator] = Generator(PCG64DXSM()),
              runid: Optional[int] = 0,
              normalize: Optional[bool] = True,
              lr_decay_steps: Optional[int] = 1000,
@@ -146,7 +146,7 @@ class PGPE_C:
         x0: Optional[ArrayLike] = None,
         input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.1,
         popsize: Optional[int] = 32,
-        rg: Optional[Generator] = Generator(MT19937()),
+        rg: Optional[Generator] = Generator(PCG64DXSM()),
         runid: Optional[int] = 0,
         normalize: Optional[bool] = True,
         lr_decay_steps: Optional[int] = 1000,

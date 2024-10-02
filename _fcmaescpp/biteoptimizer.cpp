@@ -37,7 +37,8 @@ public:
         // Limit for fitness value.
         stopfitness = stopfitness_;
         //std::random_device rd;
-        rs = new Eigen::Rand::P8_mt19937_64(seed_);
+        //rs = new Eigen::Rand::P8_mt19937_64(seed_);
+        rs = new pcg64(seed_);
         // stop criteria
         stop = 0;
 
@@ -113,7 +114,7 @@ private:
     double bestY;
     int stop;
     vec bestX;
-    Eigen::Rand::P8_mt19937_64 *rs;
+    pcg64 *rs;
     CBiteRnd rnd;
 };
 

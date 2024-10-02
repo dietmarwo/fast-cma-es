@@ -37,7 +37,6 @@
 #include <random>
 #include <queue>
 #include <tuple>
-#include <EigenRand/EigenRand>
 #include "evaluator.h"
 
 using namespace std;
@@ -75,8 +74,7 @@ public:
         // stop criteria
         stop = 0;
         pos = 0;
-        //std::random_device rd;
-        rs = new Eigen::Rand::P8_mt19937_64(seed_);
+        rs = new pcg64(seed_);
         // Indicating which parameters are discrete integer values. If defined these parameters will be
         // rounded to the next integer and some additional mutation of discrete parameters are performed.
         isInt = isInt_;
@@ -421,7 +419,7 @@ private:
     double CR0;
     double F;
     double CR;
-    Eigen::Rand::P8_mt19937_64 *rs;
+    pcg64 *rs;
     mat popX;
     mat popX0;
     mat askedX;

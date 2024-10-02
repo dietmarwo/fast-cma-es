@@ -25,7 +25,6 @@
 #include <float.h>
 #include <stdint.h>
 #include <ctime>
-#include <EigenRand/EigenRand>
 #include "evaluator.h"
 
 using namespace std;
@@ -167,7 +166,11 @@ public:
         // history queue of best values.
         fitnessHistory = vec::Constant(historySize, DBL_MAX);
         fitnessHistory(0) = bestValue;
-        rs = new Eigen::Rand::P8_mt19937_64(seed);
+        rs = new pcg64(seed);
+
+        computeArz = true;
+        fitness = vec(popsize);
+        arx = mat(dim, popsize);
     }
 
     ~AcmaesOptimizer() {
@@ -276,19 +279,29 @@ public:
 
     mat ask_all() { // undecoded
         // generate popsize offspring.
-        mat xz = normal(dim, popsize, *rs);
+    	arz = normal(dim, popsize, *rs);
         mat xs(dim, popsize);
         for (int k = 0; k < popsize; k++) {
-            vec delta = (BD * xz.col(k)) * sigma;
+            vec delta = (BD * arz.col(k)) * sigma;
             xs.col(k) = fitfun->getClosestFeasibleNormed(xmean + delta);
         }
+        computeArz = false;
         return xs;
     }
 
     int tell_all(mat ys, mat xs) {
        told = 0;
        for (int p = 0; p < popsize; p++)
-           tell(ys(p), xs.col(p));
+    	   tell(ys(p), xs.col(p));
+       computeArz = true;
+       return stop;
+    }
+
+    int tell_all_asked(mat ys, mat xs) {
+       told = 0;
+       for (int p = 0; p < popsize; p++)
+    	   tell(ys(p), xs.col(p));
+       computeArz = false;
        return stop;
     }
 
@@ -304,27 +317,24 @@ public:
         vec arz1 = normalVec(dim, *rs);
         vec delta = (BD * arz1) * sigma;
         vec arx1 = fitfun->getClosestFeasibleNormed(xmean + delta);
+        computeArz = true;
         return arx1;
     }
 
     int tell(double y, const vec &x) {
         //tell function value for a argument list retrieved by ask_one().
-        if (told == 0) {
-            fitness = vec(popsize);
-            arx = mat(dim, popsize);
-            arz = mat(dim, popsize);
-        }
         fitness[told] = isfinite(y) ? y : DBL_MAX;
         arx.col(told) = x;
         told++;
-
         if (told >= popsize) {
             xmean = fitfun->getClosestFeasibleNormed(xmean);
-            try {
-                arz = (BD.inverse()
-                        * ((arx - xmean.replicate(1, popsize)) / sigma));
-            } catch (std::exception &e) {
-                arz = normal(dim, popsize, *rs);
+            if (computeArz) {
+				try {
+					arz = (BD.inverse()
+							* ((arx - xmean.replicate(1, popsize)) / sigma));
+				} catch (std::exception &e) {
+					arz = normal(dim, popsize, *rs);
+				}
             }
             updateCMA();
             told = 0;
@@ -421,7 +431,8 @@ public:
             mat xs = ask_all();
             vec ys(popsize);
             fitfun->values(xs, ys); // decodes
-            for (int k = 0; k < popsize; k++)
+            told = 0;
+            for (int k = 0; k < popsize && stop == 0; k++)
                 tell(ys(k), xs.col(k)); // tell encoded
             if (stop != 0)
                 return fitfun->evaluations();
@@ -538,7 +549,8 @@ private:
     vec bestX;
     int stop;
     int told = 0;
-    Eigen::Rand::P8_mt19937_64 *rs;
+    pcg64 *rs;
+    bool computeArz;
 };
 }
 
@@ -647,7 +659,7 @@ int tellACMA_C(uintptr_t ptr, double* ys) {
     vec vals(popsize);
     for (int i = 0; i < popsize; i++)
         vals[i] = ys[i];
-    opt->tell_all(vals, opt->popX);
+    opt->tell_all_asked(vals, opt->popX);
     return opt->getStop();
 }
 

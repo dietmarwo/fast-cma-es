@@ -20,7 +20,7 @@ import sys
 import os
 import ctypes as ct
 import numpy as np
-from numpy.random import MT19937, Generator
+from numpy.random import PCG64DXSM, Generator
 from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import mo_call_back_type, callback_so, libcmalib
 from fcmaes.de import _check_bounds
@@ -39,7 +39,7 @@ def minimize(fun: Callable[[ArrayLike], float],
              keep: Optional[int] = 200,
              f: Optional[float] = 0.5,
              cr: Optional[float] = 0.9,
-             rg: Optional[Generator] = Generator(MT19937()),
+             rg: Optional[Generator] = Generator(PCG64DXSM()),
              ints: Optional[ArrayLike] = None,
              min_mutate: Optional[float] = 0.1,
              max_mutate: Optional[float] = 0.5,
@@ -158,7 +158,7 @@ class DE_C:
                  keep: Optional[int] = 200,
                  f: Optional[float] = 0.5,
                  cr: Optional[float] = 0.9,
-                 rg: Optional[Generator] = Generator(MT19937()),
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
                  ints: Optional[ArrayLike] = None,
                  min_mutate: Optional[float] = 0.1,
                  max_mutate: Optional[float] = 0.5,

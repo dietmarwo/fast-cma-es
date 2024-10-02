@@ -43,7 +43,7 @@ from __future__ import annotations
 import numpy as np
 import os, sys, time
 import ctypes as ct
-from numpy.random import Generator, MT19937
+from numpy.random import Generator, PCG64DXSM
 from scipy.optimize import Bounds
 
 from fcmaes.evaluator import Evaluator, parallel_mo
@@ -77,7 +77,7 @@ def minimize(mofun: Callable[[ArrayLike], ArrayLike],
              modifier: Callable = None,
              min_mutate: Optional[float] = 0.1,
              max_mutate: Optional[float] = 0.5,
-             rg: Optional[Generator] = Generator(MT19937()),
+             rg: Optional[Generator] = Generator(PCG64DXSM()),
              store: Optional[store] = None) -> Tuple[np.ndarray, np.ndarray]:  
       
     """Minimization of a multi objjective function of one or more variables using
@@ -249,7 +249,7 @@ class MODE(object):
                 dis_m: Optional[float] = 20.0,
                 nsga_update: Optional[bool] = True,
                 pareto_update: Optional[int] = 0,
-                rg: Optional[Generator] = Generator(MT19937()),
+                rg: Optional[Generator] = Generator(PCG64DXSM()),
                 ints: Optional[ArrayLike] = None,
                 min_mutate: Optional[float] = 0.1,
                 max_mutate: Optional[float] = 0.5,   
@@ -296,7 +296,7 @@ class MODE(object):
             else:
                 guess, ys = guess
             if rg is None:
-                rg = Generator(MT19937())
+                rg = Generator(PCG64DXSM())
             choice = rg.choice(len(ys), self.popsize, 
                                     replace = (len(ys) < self.popsize))
             self.tell(ys[choice], guess[choice])

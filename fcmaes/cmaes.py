@@ -17,7 +17,7 @@ import ctypes as ct
 import multiprocessing as mp
 from scipy import linalg
 from scipy.optimize import OptimizeResult, Bounds
-from numpy.random import MT19937, Generator
+from numpy.random import PCG64DXSM, Generator
 from fcmaes.evaluator import Evaluator, serial, _check_bounds, _fitness, is_debug_active
 
 from loguru import logger
@@ -37,7 +37,7 @@ def minimize(fun: Callable[[ArrayLike], float],
              accuracy: Optional[float] = 1.0,
              stop_fitness: Optional[float] = -np.inf,
              is_terminate: Optional[Callable[[ArrayLike, float], bool]]  = None,
-             rg: Optional[Generator] = Generator(MT19937()),
+             rg: Optional[Generator] = Generator(PCG64DXSM()),
              runid: Optional[int] = 0,
              normalize: Optional[bool] = True,
              update_gap: Optional[int] = None) -> OptimizeResult:
@@ -120,7 +120,7 @@ class Cmaes(object):
                         accuracy: Optional[int] = 1.0,
                         stop_fitness: Optional[float] = -np.inf,
                         is_terminate: Optional[bool] = None,
-                        rg: Optional[Generator] = Generator(MT19937()), # used if x0 is undefined
+                        rg: Optional[Generator] = Generator(PCG64DXSM()), # used if x0 is undefined
                         randn: Optional[Callable] = np.random.randn, # used for random offspring 
                         runid: Optional[int] = 0,
                         normalize: Optional[bool] = True,
