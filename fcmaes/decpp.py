@@ -46,7 +46,7 @@ def minimize(fun: Callable[[ArrayLike], float],
              workers: Optional[int] = 1,
              is_terminate: Optional[Callable[[ArrayLike, float], bool]] = None,
              x0: Optional[ArrayLike] = None,
-             input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.3,
+             input_sigma: Optional[Union[float, ArrayLike, Callable]] = None,
              min_sigma: Optional[float] = 0,
              runid: Optional[int] = 0) -> OptimizeResult: 
      
@@ -118,12 +118,11 @@ def minimize(fun: Callable[[ArrayLike], float],
     dim, lower, upper = _check_bounds(bounds, dim)
     if popsize is None:
         popsize = 31
-    if callable(input_sigma):
-        input_sigma=input_sigma()
-    if np.ndim(input_sigma) == 0:
-        input_sigma = [input_sigma] * dim
-    if ints is None:
-        ints = [False]*dim
+    if not input_sigma is None: 
+        if callable(input_sigma):
+            input_sigma=input_sigma()
+        if np.ndim(input_sigma) == 0:
+            input_sigma = [input_sigma] * dim
     if workers is None:
         workers = 0 
     array_type = ct.c_double * dim   
@@ -137,9 +136,11 @@ def minimize(fun: Callable[[ArrayLike], float],
                             None if lower is None else array_type(*lower), 
                             None if upper is None else array_type(*upper), 
                             None if x0 is None else array_type(*x0), 
-                            array_type(*input_sigma), min_sigma,
-                           bool_array_type(*ints), max_evaluations, keep, stop_fitness,  
-                           popsize, f, cr, min_mutate, max_mutate, workers, res_p)
+                            None if input_sigma is None else array_type(*input_sigma), 
+                            min_sigma,
+                            None if ints is None else bool_array_type(*ints), 
+                            max_evaluations, keep, stop_fitness,  
+                            popsize, f, cr, min_mutate, max_mutate, workers, res_p)
         x = res[:dim]
         val = res[dim]
         evals = int(res[dim+1])
