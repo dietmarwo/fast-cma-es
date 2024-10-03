@@ -516,6 +516,7 @@ uintptr_t initDE_C(long runid, int dim, int seed,
     } else {
     	guess.resize(0);
     	inputSigma.resize(0);
+    	minSigma = 0;
     }
     if (lower != NULL && upper != NULL) {
 		for (int i = 0; i < dim; i++) {
