@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import time
 import os
-import sys
 import math
 import threadpoolctl
 import _pickle as cPickle
@@ -16,8 +15,7 @@ import bz2
 import ctypes as ct
 import numpy as np
 from numpy.linalg import norm
-from numba import njit
-from random import Random
+import random
 import multiprocessing as mp
 from multiprocessing import Process
 from numpy.random import Generator, PCG64DXSM, SeedSequence
@@ -190,7 +188,6 @@ class Store(object):
         self.max_eval_fac = max_eval_fac
         self.check_interval = check_interval       
         self.dim = len(self.lower)
-        self.random = Random()
         self.t0 = time.perf_counter()
     
         #shared between processes
@@ -208,6 +205,9 @@ class Store(object):
         self.best_x = mp.RawArray(ct.c_double, self.dim)
         self.statistic_num = statistic_num
         self.datafile = datafile
+        self.rg = random.Random()
+        #self.rg = Generator(PCG64DXSM()))
+        #self.rg = Generator(PCG64DXSM(random.randint(0, 2**63 - 1)))
  
         if statistic_num > 0:  # enable statistics                          
             self.statistic_num = statistic_num
@@ -287,8 +287,8 @@ class Store(object):
                                                
     def limits(self) -> Tuple[float, np.ndarray, np.ndarray, np.ndarray]: 
         """guess, boundaries and initial step size for crossover operation."""
-        diff_fac = self.random.uniform(0.5, 1.0)
-        lim_fac =  self.random.uniform(2.0, 4.0) * diff_fac
+        diff_fac = self.rg.uniform(0.5, 1.0)
+        lim_fac =  self.rg.uniform(2.0, 4.0) * diff_fac
         with self.add_mutex:
             i, j = self.crossover()
             if i < 0:
@@ -315,7 +315,7 @@ class Store(object):
  
     def crossover(self) -> Tuple[int,int]: # Choose two good entries for recombination
         """indices of store entries to be used for crossover operation."""
-        return _crossover_indices(self.num_stored.value)   
+        return _crossover_indices(self.num_stored.value, self.rg)   
             
     def sort(self) -> int: 
         """sorts all store entries, keep only the 90% best to make room for new ones;
@@ -341,7 +341,7 @@ class Store(object):
         self.ys[:ns] = ys2[:ns]
         self.num_stored.value = ns     
         self.worst_y.value = self.get_y(ns-1)
-        return ns        
+        return ns      
 
     def add_result(self, y: float, x: np.ndarray, evals: int, limit: Optional[float] = np.inf):
         """registers an optimization result at the store."""
@@ -441,16 +441,16 @@ def _crossover(fun, store, optimize, rg):
         return False   
     return True
 
-@njit(cache=True)
-def _crossover_indices(n):
+#@njit(cache=True) # njit for some reason degrades performance significantly
+def _crossover_indices(n, rg):
     if n < 2:
         return -1, -1
-    lim = np.random.uniform(min(0.1*n, 1), 0.2*n)/n
+    lim = rg.uniform(min(0.1*n, 1), 0.2*n)/n
     for _ in range(100):
         i1 = -1
         i2 = -1
         for j in range(n):
-            if np.random.random() < lim:
+            if rg.uniform(0,1) < lim:
                 if i1 < 0:
                     i1 = j
                 else:

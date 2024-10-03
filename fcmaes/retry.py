@@ -244,8 +244,7 @@ class Store(object):
         self.ys = mp.RawArray(ct.c_double, self.capacity)  
         self.count_evals = mp.RawValue(ct.c_long, 0)   
         self.count_runs = mp.RawValue(ct.c_int, 0) 
-        self.num_stored = mp.RawValue(ct.c_int, 0) 
-        self.num_sorted = mp.RawValue(ct.c_int, 0)  
+        self.num_stored = mp.RawValue(ct.c_int, 0)   
         self.count_stat_runs = mp.RawValue(ct.c_int, 0)  
         self.t0 = time.perf_counter()
         self.mean = mp.RawValue(ct.c_double, 0) 
@@ -314,7 +313,6 @@ class Store(object):
         numStored = min(ns, int(0.9*self.capacity)) # keep 90% best 
         self.xs_view[:numStored] = self.xs_view[yi][:numStored]
         self.ys[:numStored] = ys[yi][:numStored]
-        self.num_sorted.value = numStored  
         self.num_stored.value = numStored  
         return numStored        
             

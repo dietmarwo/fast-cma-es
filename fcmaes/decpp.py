@@ -170,13 +170,6 @@ class DE_C:
         dim, lower, upper = _check_bounds(bounds, dim)     
         if popsize is None:
             popsize = 31
-        # if lower is None:
-        #     lower = [0]*dim
-        #     upper = [0]*dim
-        #     min_sigma = 0 # no uniform random generation possible without bounds
-        # if x0 is None:
-        #     x0 = np.zeros(dim)
-        #     min_sigma = 0 # don't use guess
         if callable(input_sigma):
             input_sigma=input_sigma()
         if np.ndim(input_sigma) == 0:
