@@ -189,12 +189,16 @@ class Store(object):
         self.check_interval = check_interval       
         self.dim = len(self.lower)
         self.t0 = time.perf_counter()
+        self.statistic_num = statistic_num
+        self.datafile = datafile
+        self.rg = random.Random()
+        #self.rg = Generator(PCG64DXSM()))
+        #self.rg = Generator(PCG64DXSM(random.randint(0, 2**63 - 1)))
     
         #shared between processes
         self.add_mutex = mp.Lock()    
         self.check_mutex = mp.Lock()                     
-        self.xs = Shared2d(np.empty((self.capacity, self.dim), dtype = np.float64))
-        self.create_xs_view()
+        self.xs = mp.RawArray(ct.c_double, capacity * self.dim)
         self.ys = mp.RawArray(ct.c_double, capacity)                  
         self.eval_fac = mp.RawValue(ct.c_double, 1)
         self.count_evals = mp.RawValue(ct.c_long, 0)   
@@ -203,11 +207,6 @@ class Store(object):
         self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.worst_y = mp.RawValue(ct.c_double, np.inf)  
         self.best_x = mp.RawArray(ct.c_double, self.dim)
-        self.statistic_num = statistic_num
-        self.datafile = datafile
-        self.rg = random.Random()
-        #self.rg = Generator(PCG64DXSM()))
-        #self.rg = Generator(PCG64DXSM(random.randint(0, 2**63 - 1)))
  
         if statistic_num > 0:  # enable statistics                          
             self.statistic_num = statistic_num
@@ -241,7 +240,6 @@ class Store(object):
 
     def load(self, name: str):
         data = cPickle.load(bz2.BZ2File(name + '.pbz2', 'rb'))
-        
         self.set_data(data)
   
     def get_data(self) -> List:
@@ -285,16 +283,16 @@ class Store(object):
     def eval_num(self, max_evals: int) -> int:
         return int(self.eval_fac.value * max_evals)
                                                
-    def limits(self) -> Tuple[float, np.ndarray, np.ndarray, np.ndarray]: 
+    def limits(self) -> Tuple[float, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """guess, boundaries and initial step size for crossover operation."""
         diff_fac = self.rg.uniform(0.5, 1.0)
         lim_fac =  self.rg.uniform(2.0, 4.0) * diff_fac
         with self.add_mutex:
             i, j = self.crossover()
             if i < 0:
-                return np.inf, None, None, None
-            x0 = self.xs_view[i]
-            x1 = self.xs_view[j]
+                return math.inf, None, None, None, None
+            x0 = np.asarray(self.get_x(i))
+            x1 = np.asarray(self.get_x(j))
             y0 = np.asarray(self.get_y(i))
              
         deltax = np.abs(x1 - x0)
@@ -302,7 +300,7 @@ class Store(object):
         lower = np.maximum(self.lower, x0 - delta_bound)
         upper = np.minimum(self.upper, x0 + delta_bound)
         sdev = np.clip(diff_fac * deltax / self.delta, 0.001, 0.5)        
-        return y0, lower, upper, sdev
+        return y0, x1, lower, upper, sdev
                  
     def distance(self, xprev: np.ndarray, x: np.ndarray) -> float: 
         """distance between entries in store."""
@@ -310,12 +308,26 @@ class Store(object):
         
     def replace(self, i: int, y: float, x: np.ndarray):
         """replace entry in store."""
-        self.ys[i] = y
-        self.xs_view[i] = x
+        self.set_y(i, y)
+        self.set_x(i, x)
  
     def crossover(self) -> Tuple[int,int]: # Choose two good entries for recombination
         """indices of store entries to be used for crossover operation."""
-        return _crossover_indices(self.num_stored.value, self.rg)   
+        n = self.num_stored.value
+        if n < 2:
+            return -1, -1
+        lim = self.rg.uniform(min(0.1*n, 1), 0.2*n)/n
+        for _ in range(100):
+            i1 = -1
+            i2 = -1
+            for j in range(n):
+                if self.rg.random() < lim:
+                    if i1 < 0:
+                        i1 = j
+                    else:
+                        i2 = j
+                        return i1, i2
+        return -1, -1
             
     def sort(self) -> int: 
         """sorts all store entries, keep only the 90% best to make room for new ones;
@@ -331,17 +343,17 @@ class Store(object):
         xs2 = []
         for i in range(ns):
             y = ys[yi[i]]
-            x = self.xs_view[yi[i]] # preserve diversity
+            x = np.asarray(self.get_x(yi[i]))  # preserve diversity
             if np.all([self.distance(xp, x) > 0.15 for xp in xs2[-2:]]): 
                 ys2.append(y)
                 xs2.append(x)
 
         ns = min(len(ys2),int(0.9*self.capacity)) # keep 90% best 
-        self.xs_view[:ns] = xs2[:ns]
-        self.ys[:ns] = ys2[:ns]
+        for i in range(ns):
+            self.replace(i, ys2[i], xs2[i])
         self.num_stored.value = ns     
         self.worst_y.value = self.get_y(ns-1)
-        return ns      
+        return ns
 
     def add_result(self, y: float, x: np.ndarray, evals: int, limit: Optional[float] = np.inf):
         """registers an optimization result at the store."""
@@ -358,19 +370,18 @@ class Store(object):
                 if self.num_stored.value >= self.capacity - 1:
                     self.sort()
                 ns = self.num_stored.value
-                self.xs_view[ns] = x
-                self.ys[ns] = y
+                self.replace(ns, y, x)
                 self.num_stored.value = ns + 1
       
     def get_x_best(self) -> np.ndarray:
         return np.array(self.best_x[:])
 
-    def create_xs_view(self): # needs to be called in the target process
-        self.xs_view = self.xs.view()
+    def get_x(self, pid) -> np.ndarray:
+        return self.xs[pid*self.dim:(pid+1)*self.dim]
 
-    def get_xs(self) -> np.ndarray:
-        return self.xs.view()[:self.num_stored.value]
-  
+    def get_xs(self)-> np.ndarray:
+        return np.array([self.get_x(i) for i in range(self.num_stored.value)])
+
     def get_y(self, pid: int) -> float:
         return self.ys[pid]
 
@@ -385,6 +396,12 @@ class Store(object):
   
     def get_count_runs(self) -> int:
         return self.count_runs.value
+
+    def set_x(self, pid, xs):
+        self.xs[pid*self.dim:(pid+1)*self.dim] = xs[:]
+
+    def set_y(self, pid, y):
+        self.ys[pid] = y
 
     def get_runs_compare_incr(self, limit: float) -> bool:
         """trigger sorting after check_interval calls. """
@@ -413,47 +430,30 @@ class Store(object):
         logger.info(message)
    
 def _retry_loop(pid, rgs, store, optimize, value_limit, stop_fitness = -np.inf):  
-    store.create_xs_view()  
     fun = store.wrapper if store.statistic_num > 0 else store.fun
-    with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):    
-        while store.get_runs_compare_incr(store.num_retries) and store.best_y.value > stop_fitness:               
-            if _crossover(fun, store, optimize, rgs[pid]):
-                continue
-            try:
-                rg = rgs[pid]
-                dim = len(store.lower)
-                sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None, 
-                                         [rg.uniform(0.05, 0.1)]*dim, rg, store)
-                store.add_result(y, sol, evals, value_limit)
-            except Exception as ex:
-                continue
+    #with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
+    while store.get_runs_compare_incr(store.num_retries) and store.best_y.value > stop_fitness:
+        if _crossover(fun, store, optimize, rgs[pid]):
+            continue
+        try:
+            rg = rgs[pid]
+            dim = len(store.lower)
+            sol, y, evals = optimize(fun, Bounds(store.lower, store.upper), None,
+                                     [rg.uniform(0.05, 0.1)]*dim, rg, store)
+            store.add_result(y, sol, evals, value_limit)
+        except Exception as ex:
+            continue
  
 def _crossover(fun, store, optimize, rg):
     if rg.uniform(0,1) < 0.5:
         return False
-    y0, lower, upper, sdev = store.limits()
-    if lower is None:
+    y0, guess, lower, upper, sdev = store.limits()
+    if guess is None:
         return False
+    guess = fitting(guess, lower, upper) # take X from lower
     try:       
-        sol, y, evals = optimize(fun, Bounds(lower, upper), None, sdev, rg, store)
+        sol, y, evals = optimize(fun, Bounds(lower, upper), guess, sdev, rg, store)
         store.add_result(y, sol, evals, y0) # limit to y0  
     except:
         return False   
     return True
-
-#@njit(cache=True) # njit for some reason degrades performance significantly
-def _crossover_indices(n, rg):
-    if n < 2:
-        return -1, -1
-    lim = rg.uniform(min(0.1*n, 1), 0.2*n)/n
-    for _ in range(100):
-        i1 = -1
-        i2 = -1
-        for j in range(n):
-            if rg.uniform(0,1) < lim:
-                if i1 < 0:
-                    i1 = j
-                else:
-                    i2 = j
-                    return i1, i2
-    return -1, -1
