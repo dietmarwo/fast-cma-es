@@ -293,7 +293,7 @@ class Store(object):
                 return math.inf, None, None, None, None
             x0 = np.asarray(self.get_x(i))
             x1 = np.asarray(self.get_x(j))
-            y0 = np.asarray(self.get_y(i))
+            y0 = self.get_y(i)
              
         deltax = np.abs(x1 - x0)
         delta_bound = np.maximum(0.0001, lim_fac * deltax)
