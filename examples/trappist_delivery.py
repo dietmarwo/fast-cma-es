@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import Bounds
 from fcmaes import retry
 from fcmaes.optimizer import Bite_cpp, wrapper, logger
-from fcmaes.optimizer import Crfmnes_cpp, Crfmnes, de_cma, Bite_cpp, Cma_cpp, LDe_cpp, dtime,  De_cpp, random_search, wrapper
+from fcmaes.optimizer import Crfmnes_cpp, Crfmnes, de_cma, Bite_cpp, Cma_cpp, dtime,  De_cpp, random_search, wrapper
 import ctypes as ct
 import multiprocessing as mp  
  

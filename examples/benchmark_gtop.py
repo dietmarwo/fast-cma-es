@@ -29,13 +29,12 @@ def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 10
 def main():
     numRuns = 100
     min_evals = 1500
-        
-    _test_optimizer(de_cma(min_evals), Gtoc1(), num_retries = 10000, num = numRuns, 
-                    value_limit = -300000.0, stop_val = -1581949)
     _test_optimizer(de_cma(min_evals), Cassini1(), num_retries = 4000, num = numRuns, 
                     value_limit = 20.0, stop_val = 4.93075)
     _test_optimizer(de_cma(min_evals), Cassini2(), num_retries = 6000, num = numRuns, 
-                    value_limit = 20.0, stop_val = 8.38305)
+                    value_limit = 20.0, stop_val = 8.38305)        
+    _test_optimizer(de_cma(min_evals), Gtoc1(), num_retries = 10000, num = numRuns, 
+                    value_limit = -300000.0, stop_val = -1581949)
     _test_optimizer(de_cma(min_evals), Messenger(), num_retries = 8000, num = numRuns, 
                     value_limit = 20.0, stop_val = 8.63)
     _test_optimizer(de_cma(min_evals), Rosetta(), num_retries = 4000, num = numRuns, 
