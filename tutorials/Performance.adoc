@@ -108,7 +108,7 @@ The Problem models a multi-gravity assist interplanetary space mission from Eart
 
 image::Fsc.png[]  
 
-The following picture shows 101 coordinated retry runs: 
+The following picture shows 100 coordinated retry runs:
 
 image::mf3.6000.png[]  
 
