@@ -112,7 +112,7 @@ The following picture shows 100 coordinated retry runs:
 
 image::mf3.6000.png[]  
 
-60 out of these 101 runs produced a result better than 2 km/s:
+79 out of these 100 runs produced a result better than 2 km/s:
 
 image::mf3.2000.png[] 
 
