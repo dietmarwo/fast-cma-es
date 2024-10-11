@@ -84,6 +84,7 @@ limit area [limit-eps, limit+eps] and could maximize this epsilon still maintain
 Executing test_harris_prediciton_eps() we get:
 
 Harris wins
+
 num correct 42.0 eps 1.968 weights [1.705, 2.095, 1.246, 0.012, 2.675, 0.009, 0.802, 0.811, 0.623, 1.664, 0.027, 0.004, 1.326] limit 12.95
 num correct 42.0 eps 1.926 weights [1.684, 2.064, 1.307, 0.078, 2.102, 0.011, 0.777, 0.937, 1.311, 1.631, 0.023, 0.002, 1.072] limit 12.998
 num correct 42.0 eps 1.878 weights [1.433, 2.239, 1.176, 0.001, 2.308, 0.004, 0.94, 0.961, 1.256, 1.981, 0.001, 0.007, 0.695] limit 12.967
@@ -94,7 +95,9 @@ num correct 42.0 eps 1.893 weights [1.775, 2.151, 1.229, 0.022, 2.058, 0.021, 0.
 num correct 42.0 eps 1.67 weights [0.84, 1.897, 1.548, 0.499, 2.411, 0.008, 1.281, 1.278, 0.596, 2.126, 0.031, 0.025, 0.46] limit 12.983
 num correct 42.0 eps 2.007 weights [1.916, 2.124, 1.26, 0.006, 1.991, 0.003, 0.812, 0.642, 1.309, 1.474, 0.01, 0.003, 1.45] limit 12.997
 num correct 42.0 eps 2.019 weights [1.972, 1.922, 1.46, 0.162, 2.392, 0.02, 0.747, 0.612, 1.173, 1.235, 0.011, 0.0, 1.294] limit 12.993
+
 Harris looses
+
 num correct 42.0 eps 3.487 weights [1.282, 2.84, 0.097, 0.521, 2.858, 0.545, 0.881, 0.773, 1.126, 0.589, 0.002, 0.002, 1.485] limit 12.992
 num correct 42.0 eps 3.611 weights [1.087, 2.783, 0.082, 0.623, 2.718, 0.537, 1.161, 0.626, 1.169, 0.554, 0.01, 0.002, 1.647] limit 12.94
 num correct 42.0 eps 3.659 weights [1.181, 2.816, 0.066, 0.584, 3.969, 0.002, 1.104, 0.591, 0.665, 0.329, 0.002, 0.005, 1.689] limit 12.997
@@ -111,6 +114,8 @@ Still all 42 predictions were correct in both cases, even when we change the las
 Remarks: 
 
 - Now it becomes clear that keys 11 and 12 (and key 6 in the Harris wins case) are almost irrelevant.
+
+- Maximizing robustness - epsilon around the limit - leads to quite similar weight values in all optimization runs. 
 
 - Surprisingly the "Harris looses" prediction leads to a much larger epsilon value, so this prediction seems more robust. 
   This result clearly contradicts Lichtmanns original prediction: Harris wins. 
