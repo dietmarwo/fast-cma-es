@@ -6,7 +6,7 @@ https://en.wikipedia.org/wiki/The_Keys_to_the_White_House
 The prediction model was developed by Allan Lichtman and Russian geophysicist Vladimir Keilis-Borok 
 and uses 13 key properties to predict the outcome of an election. 
 
-It can predict correctly almost all past presidential election in the USA since 1860. 
+It can predict correctly almost all past presidential elections in the USA since 1860. 
 
 This example proves, that it cannot reliably predict the 2024 election. 
 
