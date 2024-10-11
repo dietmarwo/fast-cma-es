@@ -56,6 +56,15 @@ num correct 42.0 weights [1.202, 0.71, 0.996, 0.951, 0.913, 1.239, 0.878, 0.772,
 num correct 42.0 weights [0.97, 1.55, 0.544, 0.824, 0.553, 1.859, 1.514, 0.97, 0.673, 0.082, 1.574, 1.34, 0.547] limit 6.879
 
 All 42 predictions were correct in both cases, even when we change the last prediction for 2024. 
+
+Remarks: 
+- The weights are normalized to be compatible with the original weights - 1.0 on average.
+- The high variation of "fitting" weights shows that Lichtmanns weights and limit value are not special, 
+  many other weight sets work equally well - and could be justified for other reasons.  
+- Nate Silver already said that "It’s less that he has discovered the right set of keys than that he’s a locksmith and can 
+  keep minting new keys until he happens to open all 38 doors". This example shows that you don't need to invent new keys
+  to be a "locksmith" opening all doors, including future ones, predicting exactly what you want according to 
+  your political agenda. 
 '''
 
 import numpy as np
