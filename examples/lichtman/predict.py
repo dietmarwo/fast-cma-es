@@ -63,6 +63,7 @@ import sys
 from fcmaes import retry
 from fcmaes.optimizer import Bite_cpp
 from scipy.optimize import Bounds
+from functools import partial
 
 from loguru import logger
 logger.remove()
@@ -111,6 +112,13 @@ def collect_all_data():
             print("error, sum props", sum(props), "incumbant is winner", inc_is_winner, file=sys.stderr)
     return data
 
+def fit(n, props, inc_is_winner, x):
+    weights = x[:-1]
+    limit = x[-1]
+    weights *= len(props)/sum(weights) # normalize weights so that sum is num_props
+    weighted_props = weights*props
+    num_correct = sum( [ inc_is_winner[i] == (sum(weighted_props[i]) > limit) for i in range(n)] )
+    return -num_correct
 
 def find_other_model(data, harris_predict = True):
     
@@ -125,19 +133,10 @@ def find_other_model(data, harris_predict = True):
     lb = [0.0]*dim
     ub = [1.0]*num_props + [13.0]
     bounds = Bounds(lb,ub)
-    workers = 24
-    
-    def fit(x):
-        weights = x[:-1]
-        limit = x[-1]
-        weights *= num_props/sum(weights) # normalize weights so that sum is num_props
-        weighted_props = weights*props
-        num_correct = sum( [ inc_is_winner[i] == (sum(weighted_props[i]) > limit) for i in range(n)] )
-        return -num_correct
-    
+       
     for i in range(10):
-        ret = retry.minimize(fit, bounds, optimizer=Bite_cpp(1000),
-                   num_retries=workers, workers=workers)
+        ret = retry.minimize(partial(fit, n, props, inc_is_winner), bounds, optimizer=Bite_cpp(1000),
+                   num_retries=32)
         weights = ret.x[:-1]
         limit = ret.x[-1]
         weights *= num_props/sum(weights) # normalize weights so that sum is num_props
