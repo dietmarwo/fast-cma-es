@@ -8,7 +8,7 @@ and uses 13 key properties to predict the outcome of an election.
 
 It can predict correctly almost all past presidential election in the USA since 1860. 
 
-This example proves, that it cannot reliable predict the 2024 election. 
+This example proves, that it cannot reliably predict the 2024 election. 
 
 Lichtmann assigns all his criteria the same weight (1.0) and defines a limit sum, 
 which fits well with past elections.
