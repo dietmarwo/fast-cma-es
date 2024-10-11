@@ -58,9 +58,19 @@ num correct 42.0 weights [0.97, 1.55, 0.544, 0.824, 0.553, 1.859, 1.514, 0.97, 0
 All 42 predictions were correct in both cases, even when we change the last prediction for 2024. 
 
 Remarks: 
+
 - The weights are normalized to be compatible with the original weights - 1.0 on average.
+
 - The high variation of "fitting" weights shows that Lichtmanns weights and limit value are not special, 
   many other weight sets work equally well - and could be justified for other reasons.  
+
+- If Lichtmanns weights would be "well balanced" you would expect an average weight value of 1.0 if you compute many solutions. 
+  But the first key usually gets a much higher weight as the fourth or the sixth one. Interestingly this holds only for the 
+  "Harris wins" prediction. 
+
+- If you collect a large number of solutions, the average value for a specific weight could indicate that this average used 
+  as weight could improve the reliability of future predictions. 
+
 - Nate Silver already said that "It’s less that he has discovered the right set of keys than that he’s a locksmith and can 
   keep minting new keys until he happens to open all 38 doors". This example shows that you don't need to invent new keys
   to be a "locksmith" opening all doors, including future ones, predicting exactly what you want according to 
