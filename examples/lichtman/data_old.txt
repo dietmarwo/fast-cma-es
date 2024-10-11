@@ -1,0 +1,225 @@
+1860	Stephen A. Douglas
+(Democratic)
+
+Abraham Lincoln
+(Republican)
+
+True	False	False	False	True	True	False	False	True	True	False	False	True	7	Abraham Lincoln
+1864	Abraham Lincoln
+(Union/Republican)
+
+George McClellan
+(Democratic)
+
+True	True	True	True	True	False	True	False	True	True	True	False	True	3	Abraham Lincoln
+1868	Ulysses S. Grant
+(Republican)
+
+Horatio Seymour
+(Democratic)
+
+True	True	False	True	True	True	True	False	True	True	True	False False 	6	Ulysses S. Grant
+1868	Horatio Seymour
+(Democratic)
+
+Ulysses S. Grant
+(Republican)
+
+False	False	False	True	True	True	True	False	True	True	True	True	True	2	Ulysses S. Grant
+1872	Ulysses S. Grant
+(Republican)
+
+Horace Greeley
+(Democrat/Liberal)
+
+False	True	True	True	True	True	False	False	True	True	True	True	True	3	Ulysses S. Grant
+1876	Rutherford B. Hayes
+(Republican)
+
+
+Samuel J. Tilden
+(Democratic)
+
+False	False	False	True	False	False	False	True	False	True	False	False	True	9	Samuel J. Tilden
+1880	James A. Garfield
+(Republican)
+
+Winfield Scott Hancock
+(Democratic)
+
+True	False	False	True	True	True	True	True	True	True	False	False	True	4	James A. Garfield
+1884	James G. Blaine
+(Republican)
+
+Grover Cleveland
+(Democratic)
+
+False	False	False	True	False	False	False	True	True	True	False	True	True	7	Grover Cleveland
+1888	Grover Cleveland
+(Democratic)
+
+Benjamin Harrison
+(Republican)
+
+False	True	True	True	True	True	False	False	True	True	False	False	True	5	Grover Cleveland	
+1892	Benjamin Harrison
+(Republican)
+
+Grover Cleveland
+(Democratic)
+
+False	False	True	False	True	True	True	False	True	True	False	False	True	6	Grover Cleveland
+1896	William Jennings Bryan
+(Democratic)
+
+William McKinley
+(Republican)
+
+False	False	False	True	False	False	False	False	True	True	False	True	True	8	William McKinley
+1900	William McKinley
+(Republican)
+
+William Jennings Bryan
+(Democratic)
+
+False	True	True	True	True	True	True	True	True	True	True	False	False	3	William McKinley
+1904	Theodore Roosevelt
+(Republican)
+
+Alton Brooks Parker
+(Democratic)
+
+True	True	True	True	True	True	True	True	True	True	True	True	True	0	Theodore Roosevelt
+1908	William Howard Taft
+(Republican)
+
+William Jennings Bryan
+(Democratic)
+
+True	True	False	True	True	False	True	True	True	True	True	False	True	3	William Howard Taft
+1912	William Howard Taft
+(Republican)
+
+Woodrow Wilson
+(Democratic)
+
+False	False	True	False	True	True	False	True	True	True	False	False	True	6	Woodrow Wilson
+1916	Woodrow Wilson
+(Democratic)
+
+Charles Evans Hughes
+(Republican)
+
+False	True	True	True	True	False	True	True	True	True	True	False	True	3	Woodrow Wilson
+1920	James M. Cox
+(Democratic)
+
+Warren G. Harding
+(Republican)
+
+False	False	False	True	False	False	True	False	True	False	True	False	True	8	Warren G. Harding
+1924	Calvin Coolidge
+(Republican)
+
+John W. Davis
+(Democratic)
+
+False	True	True	False	True	True	True	True	False	True	True	False	True	4	Calvin Coolidge
+1928	Herbert Hoover
+(Republican)
+
+Al Smith
+(Democratic)
+
+True	True	False	True	True	True	False	True	True	True	True	False	True	3	Herbert Hoover
+1932	Herbert Hoover
+(Republican)
+
+Franklin D. Roosevelt
+(Democratic)
+
+False	True	True	True	False	False	False	False	True	True	False	False	False	8	Franklin D. Roosevelt
+1936	Franklin D. Roosevelt
+(Democratic)
+
+Alf Landon
+(Republican)
+
+True	True	True	True	True	True	True	True	True	True	False	True	True	1	Franklin D. Roosevelt
+1940	Franklin D. Roosevelt
+(Democratic)
+
+Wendell Willkie
+(Republican)
+
+False	True	True	True	True	True	True	True	True	True	False	True	True	2	Franklin D. Roosevelt
+1944	Franklin D. Roosevelt
+(Democratic)
+
+Thomas Dewey
+(Republican)
+
+False	True	True	True	True	True	True	True	True	False	True	True	True	2	Franklin D. Roosevelt
+1948	Harry S. Truman
+(Democratic)
+
+Thomas Dewey
+(Republican)
+
+False	True	True	False	True	False	True	True	True	False	True	False	True	5	Harry S. Truman
+1952	Adlai Stevenson II
+(Democratic)
+
+Dwight D. Eisenhower
+(Republican)
+
+True	False	False	True	True	False	False	True	False	False	True	False	False	8	Dwight D. Eisenhower
+1956	Dwight D. Eisenhower
+(Republican)
+
+Adlai Stevenson II
+(Democratic)
+
+True	True	True	True	True	True	False	True	True	True	True	True	True	1	Dwight D. Eisenhower
+1960	Richard Nixon
+(Republican)
+
+John F. Kennedy
+(Democratic)
+
+False	True	False	True	False	False	False	True	True	False	False	False	False	9	John F. Kennedy
+1964	Lyndon B. Johnson
+(Democratic)
+
+Barry Goldwater
+(Republican)
+
+False	True	True	True	True	True	True	True	True	False	True	False	True	3	Lyndon B. Johnson
+1968	Hubert Humphrey
+(Democratic)
+
+Richard Nixon
+(Republican)
+
+False	False	False	False	True	True	True	False	True	False	False	False	True	8	Richard Nixon
+1972	Richard Nixon
+(Republican)
+
+George McGovern
+(Democratic)
+
+False	True	True	True	True	False	False	True	True	True	True	False	True	4	Richard Nixon
+1976	Gerald Ford
+(Republican)
+
+Jimmy Carter
+(Democratic)
+
+False	False	True	True	True	False	False	True	False	False	False	False	True	8	Jimmy Carter
+1980	Jimmy Carter
+(Democratic)
+
+Ronald Reagan
+(Republican)
+
+False	False	True	False	False	True	False	True	True	False	True	False	False	8	Ronald Reagan

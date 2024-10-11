@@ -1,0 +1,77 @@
+1984	Ronald Reagan
+(Republican)
+
+Walter Mondale
+(Democratic)
+
+True	True	True	True	True	False	True	True	True	True	False	True	True	2	Ronald Reagan
+1988	George H. W. Bush
+(Republican)
+
+Michael Dukakis
+(Democratic)
+
+True	True	False	True	True	True	False	True	True	True	True	False	True	3	George H. W. Bush
+1992	George H. W. Bush
+(Republican)
+
+Bill Clinton
+(Democratic)
+
+False	True	True	False	False	False	False	True	True	True	True	False	True	6	Bill Clinton
+1996	Bill Clinton
+(Democratic)
+
+Bob Dole
+(Republican)
+
+False	True	True	False	True	True	False	True	True	True	False	False	True	5	Bill Clinton
+2000	Al Gore
+(Democratic)
+
+George W. Bush
+(Republican)
+
+True	True	False	True	True	True	False	True	False	True	False	False	True	5	Al Gore
+2004	George W. Bush
+(Republican)
+
+John Kerry
+(Democratic)
+
+True	True	True	True	True	False	False	True	True	False	True	False	True	4	George W. Bush
+2008	John McCain
+(Republican)
+
+Barack Obama
+(Democratic)
+
+False	True	False	True	False	False	False	True	True	False	False	False	False	9	Barack Obama
+2012	Barack Obama
+(Democratic)
+
+Mitt Romney
+(Republican)
+
+False	True	True	True	True	False	True	True	True	True	True	False	True	3	Barack Obama
+2016	Hillary Clinton
+(Democratic)
+
+Donald Trump
+(Republican)
+
+False	False	False	True	True	True	False	True	True	True	False	False	True	6	Donald Trump
+2020	Donald Trump
+(Republican)
+
+Joe Biden
+(Democratic)
+
+False	True	True	True	False	False	True	False	False	True	False	False	True	7	Joe Biden
+2024	Kamala Harris
+(Democratic)
+
+Donald Trump
+(Republican)
+
+False	True	False	True	True	True	True	True	True	False	True	False	True	4	Kamala Harris
