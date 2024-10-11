@@ -83,7 +83,7 @@ def read_data(fname):
     
     with open(fname) as f:
         lines = f.readlines()
-        data = []  # np.empty((21, 290, 90), dtype=object)
+        data = []
         for line in lines:
             l = line.split()
             if len(l) < 2:
