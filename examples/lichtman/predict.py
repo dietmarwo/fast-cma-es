@@ -119,7 +119,7 @@ Remarks:
 
 - The "Harris wins" prediction leads to a much larger epsilon value, so this prediction seems more robust. 
   This result is consistent with Lichtmanns original prediction: Harris wins. 
-  In an earlier version of this example because of an error interpreting the prediction was different.
+  In an earlier version of this example because of an error interpreting the prediction the result was different.
   
 ---------------------------------------------------------------------------------------------------------------------------------------------
 
