@@ -332,14 +332,6 @@ def find_harris_estimate_eps(data):
         #     print(f'election {i}, challenger wins = {inc_is_winner[i]}, sum = {r(single_sum(n, props[i], weights))}')
         print(f'2024 election, challenger wins = ?, sum = {r(single_sum(n, single_props, weights))}')
 
-def check(n, props, inc_is_winner, weights, eps, limit):
-    weights *= len(props)/sum(weights) # normalize weights so that sum is num_props
-    weighted_props = weights*props
-    num_correct1 = sum( [ inc_is_winner[i] == (sum(weighted_props[i]) > limit + eps) for i in range(n)] )
-    num_correct2 = sum( [ (not inc_is_winner[i]) == (sum(weighted_props[i]) < limit - eps) for i in range(n)] )
-    return - (num_correct1 + num_correct2 + 0.1*eps)
-
-
 def test_harris_estimate_eps():
     data = collect_all_data()
     print("without Harris election")
