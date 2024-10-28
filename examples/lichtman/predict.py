@@ -108,8 +108,8 @@ num correct 42.0 eps 1.407 weights [1.577, 3.531, 0.142, 0.769, 2.159, 0.984, 1.
 num correct 42.0 eps 1.385 weights [1.547, 3.297, 0.303, 0.747, 3.296, 0.512, 1.249, 0.8, 0.909, 0.154, 0.039, 0.105, 0.045] limit 5.135
 num correct 42.0 eps 1.347 weights [2.085, 2.899, 1.094, 0.87, 2.053, 0.834, 1.0, 0.938, 1.11, 0.095, 0.011, 0.007, 0.004] limit 5.439
 num correct 42.0 eps 1.349 weights [1.656, 3.134, 0.523, 0.873, 3.05, 0.607, 1.176, 0.876, 0.778, 0.041, 0.013, 0.084, 0.189] limit 5.173
-S
-till all 42 predictions were correct in both cases, even when we change the last prediction for 2024. 
+
+Still all 42 predictions were correct in both cases, even when we change the last prediction for 2024. 
 
 Remarks: 
 
