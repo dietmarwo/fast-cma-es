@@ -22,7 +22,7 @@ state-of-the-art gradient free optimization algorithms applicable to all kind of
 multi-objective and constrained problems. Its main algorithms are implemented both in Python and C++ and
 support both parallel fitness function evaluation and a parallel retry mechanism. 
 
-=== Update: New Example shows the interaction between AI code generation and optimization
+=== Update: New example shows the interaction between AI code generation and optimization
 
 LLMs can help to generate code implementing a trading strategy. It can even propose ways to optimize the final return. 
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/prophet_opt.py[prophet_opt.py] shows: 
