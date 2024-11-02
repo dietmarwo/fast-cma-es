@@ -272,11 +272,9 @@ class Store(object):
                 self.si.value = si + 1
             self.time[si] = dtime(self.t0)
             self.val[si] = y  
-            logger.trace(str(self.time[si]) + ' '  + 
-                      str(self.sevals.value) + ' ' + 
-                      str(int(self.sevals.value / self.time[si])) + ' ' + 
-                      str(y) + ' ' + 
-                      str(list(x)))
+            logger.trace(
+                f'{self.time[si]} {self.sevals.value} {self.sevals.value/(1E-9 + self.time[si]):.1f} {y} {list(x)}'
+            )
         return y
          
     def get_improvements(self):

@@ -653,7 +653,8 @@ class wrapper(object):
             if log:
                 archinfo = self.archive.info() if hasattr(self, 'archive') else ''
                 logger.info(
-                    f'{dtime(self.t0)} {archinfo} {self.evals.value:.0f} {self.evals.value/(1E-9 + dtime(self.t0)):.0f} {self.best_y.value:.3f} {list(x)}')            
+                    f'{dtime(self.t0)} {archinfo} {self.evals.value:.0f} {self.evals.value/(1E-9 + dtime(self.t0)):.1f} {self.best_y.value:.3f} {list(x)}'
+                )            
             if save and hasattr(self, 'archive'):
                 self.archive.save(f'{self.evals.value}')
             return y, desc

@@ -22,6 +22,18 @@ state-of-the-art gradient free optimization algorithms applicable to all kind of
 multi-objective and constrained problems. Its main algorithms are implemented both in Python and C++ and
 support both parallel fitness function evaluation and a parallel retry mechanism. 
 
+=== Update: New Example shows the interaction between AI code generation and optimization
+
+LLMs can help to generate code implementing a trading strategy. It can even propose ways to optimize the final return. 
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/prophet_opt.py[prophet_opt.py] shows: 
+
+- The o1-preview prompts used to generate the strategy back-testing code.
+- How to identify the parameters to optimize using the AI.  
+- How the parameter optimization process can be automated efficiently utilizing trading simulations executed in parallel.
+
+This idea can be applied everywhere when parameters of time consuming simulations have to be optimized.  
+If you aim to optimize multiple objectives, you may find many other examples in: 
+
 === https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[Tutorials]
 
 === https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Performance.adoc[Performance]

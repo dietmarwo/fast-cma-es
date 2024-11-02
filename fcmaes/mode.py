@@ -196,10 +196,16 @@ class store():
     def add_result(self, x, y):
         with self.add_mutex:
             self.num_added.value += 1
-            i = self.num_stored.value
-            if i < self.capacity:                
-                self.xs_view[i] = x
-                self.ys_view[i] = y
+            if self.num_stored.value >= self.capacity: 
+                self.get_front(update=True)
+                if self.num_stored.value >= self.capacity: 
+                    n = int(self.num_stored.value/2)
+                    self.xs_view[:n] = self.xs_view[:2*n:2] 
+                    self.ys_view[:n] = self.ys_view[:2*n:2]                                
+                    self.num_stored.value = n
+            i = self.num_stored.value              
+            self.xs_view[i] = x
+            self.ys_view[i] = y[:self.nobj]
             self.num_stored.value = i + 1
 
     def add_results(self, xs, ys):
@@ -651,8 +657,8 @@ class wrapper(object):
                  name: Optional[str] = None):
         self.fun = fun
         self.nobj = nobj
-        self.n_evals = mp.RawValue(ct.c_long, 0)
-        self.time_0 = time.perf_counter()
+        self.evals = mp.RawValue(ct.c_long, 0)
+        self.t0 = time.perf_counter()
         self.best_y = mp.RawArray(ct.c_double, nobj)  
         for i in range(nobj):
             self.best_y[i] = sys.float_info.max
@@ -666,7 +672,7 @@ class wrapper(object):
         try:
             y = self.fun(x)
             with self.lock:
-                self.n_evals.value += 1
+                self.evals.value += 1
             if not self.store is None and is_feasible(y, self.nobj):
                 self.store.create_views()
                 self.store.add_result(x, y[:self.nobj])
@@ -675,14 +681,12 @@ class wrapper(object):
                 if y[i] < self.best_y[i]:
                     improve = True 
                     self.best_y[i] = y[i] 
-            improve = improve# and self.n_evals.value > 10000
-            if self.n_evals.value % self.interval == 0 or improve:
-                constr = np.maximum(y[self.nobj:], 0) 
-                logger.info(
-                    str(dtime(self.time_0)) + ' ' + 
-                    str(self.n_evals.value) + ' ' + 
-                    str(round(self.n_evals.value/(1E-9 + dtime(self.time_0)),0)) + ' ' + 
-                    str(self.best_y[:]) + ' ' + str(list(constr)) + ' ' + str(list(x))) 
+            #improve = improve# and self.evals.value > 10000
+            if self.evals.value % self.interval == 0 or improve:
+                constr = np.maximum(y[self.nobj:], 0)
+                logger.info( 
+                    f'{dtime(self.t0)} {self.evals.value} {self.evals.value/(1E-9 + dtime(self.t0)):.1f} {self.best_y[:]} {list(constr)} {list(x)}'      
+                )
                 if (not self.store is None) and (not self.name is None):
                     try:
                         xs, ys = self.store.get_front()

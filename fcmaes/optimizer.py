@@ -70,11 +70,9 @@ class wrapper(object):
             y0 = y if np.isscalar(y) else sum(y)
             if y0 < self.best_y.value:
                 self.best_y.value = y0
-                logger.info(str(dtime(self.t0)) + ' '  + 
-                              str(self.evals.value) + ' ' + 
-                              str(round(self.evals.value/(1E-9 + dtime(self.t0)),0)) + ' ' + 
-                              str(self.best_y.value) + ' ' + 
-                              str(list(x)))
+                logger.info( 
+                    f'{dtime(self.t0)} {self.evals.value} {self.evals.value/(1E-9 + dtime(self.t0)):.1f} {self.best_y.value} {list(x)}'      
+                )
             return y
         except Exception as ex:
             print(str(ex))  
