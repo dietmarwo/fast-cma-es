@@ -412,13 +412,14 @@ def optimize_btc_ask_tell():
     btc_show_x(df, x)   
     
 def show_good_result():
-    x = [0.05349976785054303, 535.7310259242943, 8.794794165972112, 0.5863217629860976]
-    #x = [0.0537233637826047, 543.9150911218842, 9.431851968948289, 0.6863290996281892]
+    x = [0.05647709460900743, 550, 10, 1]
+    #x = [0.06403820524269112, 324.23224069146215, 10, 1]
     df = load_data()
+    y = fitness(df, x)
     btc_show_x(df, x)
 
 if __name__ == '__main__':
-    # btc_strategy()
+    #btc_strategy()
     optimize_btc()
     #optimize_btc_ask_tell()
     #show_good_result()
