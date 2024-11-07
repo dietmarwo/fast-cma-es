@@ -174,17 +174,18 @@ class DE_C:
             input_sigma=input_sigma()
         if np.ndim(input_sigma) == 0:
             input_sigma = [input_sigma] * dim
-        if ints is None:
-            ints = [False]*dim
         array_type = ct.c_double * dim   
         bool_array_type = ct.c_bool * dim 
         seed = int(rg.uniform(0, 2**32 - 1))
         try:
             self.ptr = initDE_C(0, dim, seed,
-                           array_type(*lower), array_type(*upper), 
-                           array_type(*x0), array_type(*input_sigma), min_sigma,
-                           bool_array_type(*ints),
-                           keep, popsize, f, cr, min_mutate, max_mutate)
+                            None if lower is None else array_type(*lower), 
+                            None if upper is None else array_type(*upper), 
+                            None if x0 is None else array_type(*x0), 
+                            None if input_sigma is None else array_type(*input_sigma), 
+                            min_sigma,
+                            None if ints is None else bool_array_type(*ints),
+                            keep, popsize, f, cr, min_mutate, max_mutate)
             self.popsize = popsize
             self.dim = dim            
         except Exception as ex:

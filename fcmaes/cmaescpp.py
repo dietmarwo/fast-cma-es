@@ -187,10 +187,7 @@ class ACMA_C:
         update_gap : int, optional
             number of iterations without distribution update"""
              
-        lower, upper, guess = _get_bounds(dim, bounds, x0, rg)     
-        if lower is None:
-            lower = [0]*dim
-            upper = [0]*dim
+        lower, upper, guess = _get_bounds(dim, bounds, x0, rg)
         mu = int(popsize/2)
         if callable(input_sigma):
             input_sigma=input_sigma()
@@ -201,7 +198,9 @@ class ACMA_C:
         array_type = ct.c_double * dim 
         try:
             self.ptr = initACMA_C(runid,
-                dim, array_type(*guess), array_type(*lower), array_type(*upper), 
+                dim, array_type(*guess), 
+                None if lower is None else array_type(*lower), 
+                None if upper is None else array_type(*upper), 
                 array_type(*input_sigma), max_evaluations, stop_fitness, stop_hist, mu, 
                 popsize, accuracy, int(rg.uniform(0, 2**32 - 1)), 
                 normalize, delayed_update, -1 if update_gap is None else update_gap)

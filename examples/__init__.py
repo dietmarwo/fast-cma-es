@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-__version__ = '1.6.10'
+__version__ = '1.6.11'
 
 __all__ = [
     'advexamples'
