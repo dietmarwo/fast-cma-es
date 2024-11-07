@@ -108,13 +108,7 @@
     that objective function evaluations can require vastly different execution times. 
     So evaluation in "batches" would cause some CPU cores to idle waiting for the slow ones. 
     
-    Using fcmaes ask/tell interface batch evaluation can be enforced if you prefer this. 
-
-    
-     
-    
-    
-    
+    Using fcmaes ask/tell interface batch evaluation can be enforced if you prefer this.
 '''
 
 import pandas as pd
@@ -425,7 +419,7 @@ def show_good_result():
 
 if __name__ == '__main__':
     # btc_strategy()
-    #optimize_btc()
-    optimize_btc_ask_tell()
+    optimize_btc()
+    #optimize_btc_ask_tell()
     #show_good_result()
     pass
