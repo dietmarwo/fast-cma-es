@@ -412,15 +412,17 @@ def optimize_btc_ask_tell():
     btc_show_x(df, x)   
     
 def show_good_result():
-    x = [0.05647709460900743, 550, 10, 1]
-    #x = [0.06403820524269112, 324.23224069146215, 10, 1]
+    # Total Market Return: 15800.96%
+    # Total Strategy Return: 708605.56%
+    # Annualized Sharpe Ratio of the Strategy: 2.02
+    x = [0.05398682129917759, 534.0752343371352, 8.880921187256302, 1.0]
     df = load_data()
     y = fitness(df, x)
     btc_show_x(df, x)
 
 if __name__ == '__main__':
     #btc_strategy()
-    optimize_btc()
+    #optimize_btc()
     #optimize_btc_ask_tell()
-    #show_good_result()
+    show_good_result()
     pass
