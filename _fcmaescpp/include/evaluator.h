@@ -22,7 +22,7 @@
 #include <condition_variable>
 
 #define EIGEN_VECTORIZE_SSE2
-#include <EigenRand/EigenRand>
+#include "pcg_random.hpp"
 
 using Clock = std::chrono::steady_clock;
 using std::chrono::time_point;
@@ -95,53 +95,45 @@ static std::uniform_real_distribution<> distr_01 =
 
 static std::normal_distribution<> gauss_01 = std::normal_distribution<>(0, 1);
 
-static Eigen::MatrixXd normal(int dx, int dy, Eigen::Rand::P8_mt19937_64 &rs) {
-    return Eigen::Rand::normal<mat>(dx, dy, rs);
+static Eigen::MatrixXd normal(int dx, int dy, pcg64 &rs) {
+    return Eigen::MatrixXd::NullaryExpr(dx, dy, [&]() {
+        return gauss_01(rs);
+    });
 }
 
-static Eigen::MatrixXd cauchy(int dx, int dy, Eigen::Rand::P8_mt19937_64 &rs) {
-    return Eigen::Rand::cauchy<mat>(dx, dy, rs);
+static Eigen::MatrixXd normalVec(int dim, pcg64 &rs) {
+    return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
+        return gauss_01(rs);
+    });
 }
 
-static Eigen::MatrixXd studentT(int dx, int dy, Eigen::Rand::P8_mt19937_64 &rs) {
-    return Eigen::Rand::studentT<mat>(dx, dy, rs);
+static Eigen::MatrixXd uniform(int dx, int dy, pcg64 &rs) {
+    return Eigen::MatrixXd::NullaryExpr(dx, dy, [&]() {
+        return distr_01(rs);
+    });
 }
 
-static double rand01(Eigen::Rand::P8_mt19937_64 &rs) {
+static Eigen::MatrixXd uniformVec(int dim, pcg64 &rs) {
+    return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
+        return distr_01(rs);
+    });
+}
+
+static double rand01(pcg64 &rs) {
     return distr_01(rs);
 }
 
-static int randInt(Eigen::Rand::P8_mt19937_64 &rs, int max) {
+static int randInt(pcg64 &rs, int max) {
     return (int) (max * distr_01(rs));
 }
 
-static double normreal(Eigen::Rand::P8_mt19937_64 &rs, double mu, double sdev) {
+static double normreal(pcg64 &rs, double mu, double sdev) {
     return gauss_01(rs) * sdev + mu;
 }
 
-static Eigen::MatrixXd normalVec(int dim, Eigen::Rand::P8_mt19937_64 &rs) {
-    return Eigen::Rand::normal<vec>(dim, 1, rs);
-}
-
-static vec normalVec(const vec &mean, const vec &sdev, int dim, Eigen::Rand::P8_mt19937_64 &rs) {
-    vec nv = Eigen::Rand::normal<vec>(dim, 1, rs);
+static vec normalVec(const vec &mean, const vec &sdev, int dim, pcg64 &rs) {
+    vec nv = normalVec(dim, rs);
     return (nv.array() * sdev.array()).matrix() + mean;
-}
-
-static Eigen::MatrixXd cauchyVec(int dim, Eigen::Rand::P8_mt19937_64 &rs) {
-    return Eigen::Rand::cauchy<vec>(dim, 1, rs);
-}
-
-static Eigen::MatrixXd studentTVec(int dim, Eigen::Rand::P8_mt19937_64 &rs) {
-    return Eigen::Rand::studentT<vec>(dim, 1, rs);
-}
-
-static Eigen::MatrixXd uniform(int dx, int dy, Eigen::Rand::P8_mt19937_64 &rs) {
-    return Eigen::Rand::uniformReal<mat>(dx, dy, rs);
-}
-
-static Eigen::MatrixXd uniformVec(int dim, Eigen::Rand::P8_mt19937_64 &rs) {
-    return Eigen::Rand::uniformReal<vec>(dim, 1, rs);
 }
 
 static vec zeros(int n) {
@@ -296,25 +288,25 @@ public:
         return _lower.size() != 0;
     }
 
-    vec sample(Eigen::Rand::P8_mt19937_64 &rs) {
+    vec sample(pcg64 &rs) {
         if (_lower.size() == 0)
             std::cout << "no bounds error" << std::endl;
         vec rv = uniformVec(_dim, rs);
         return (rv.array() * _scale.array()).matrix() + _lower;
     }
 
-    vec sample(Eigen::Rand::P8_mt19937_64 &rs, vec &up, vec &lo) {
+    vec sample(pcg64 &rs, vec &up, vec &lo) {
          vec rv = uniformVec(_dim, rs);
          return (rv.array() * (up - lo).array()).matrix() + lo;
     }
 
-    double sample_i(int i, Eigen::Rand::P8_mt19937_64 &rs) {
+    double sample_i(int i, pcg64 &rs) {
         if (_lower.size() == 0)
             std::cout << "no bounds error" << std::endl;
         return _lower[i] + _scale[i] * distr_01(rs);
     }
 
-    double sample_i(int i, Eigen::Rand::P8_mt19937_64 &rs, vec &up, vec &lo) {
+    double sample_i(int i, pcg64 &rs, vec &up, vec &lo) {
         return lo[i] + (up[i] - lo[i]) * distr_01(rs);
     }
 
