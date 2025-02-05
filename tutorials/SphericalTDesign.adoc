@@ -783,7 +783,7 @@ symmetries =  [1.00000000e+00 0.00000000e+00 0.00000000e+00 0.00000000e+00
 symmetry error = 0.0
 ----
 
-=== N = 80 , l_max = 14
+=== N = 72 , l_max = 14
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.108.14.txt[108.14]
 
