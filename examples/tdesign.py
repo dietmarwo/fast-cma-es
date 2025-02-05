@@ -1,3 +1,9 @@
+# Copyright (c) Dietmar Wolz.
+#
+# This code is related to the tutorial
+# https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SphericalTDesign.adoc
+# Tested using https://github.com/conda-forge/miniforge Python 12 on Linux Mint 22.
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # Enables 3D plotting
