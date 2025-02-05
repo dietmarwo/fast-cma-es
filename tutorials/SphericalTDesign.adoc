@@ -468,3 +468,6 @@ There are minor errors at l=13, l=14 and l=15
 - We found N=42, l_max=10, N=48, l_max=11 and N=58, l_max=12 spherical t-designs which by far exceed what is possible without using weights.
 - May be some space mission commander will read this in the future to plan his mission.
 - Note that we found a significant performance boost of about 15% using Python 12 compared to Python 10 on our 16 core AMD 9950x CPU using Linux Mint 22.
+- Note that we found https://en.wikipedia.org/wiki/Phrases_from_The_Hitchhiker%27s_Guide_to_the_Galaxy%23The_Answer_to_the_Ultimate_Question_of_Life%2C_the_Universe%2C_and_Everything_is_42[The Answer to the Ultimate Question of Life, the Universe, and Everything]
+, it is the question:
+"how many points on a unit sphere are required, so that all the spherical harmonics cancel out to zero up to and including a given l_max = 10" . Excercise: Can you find the correct answer using any existing AI applied to this prompt?
