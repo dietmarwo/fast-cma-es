@@ -207,8 +207,8 @@ def visualize_points(points, l_max, weights=None):
     syms = symmetry(points, l_max+3, weights)
     weights = normalize_weights_to_average_one(weights)
     print(f"weights: {list(weights)}")
-    print("symetries = ", syms)
-    print(f"symetry error = {sum(syms[1:l_max+1])}")
+    print("symmetries = ", syms)
+    print(f"symmetry error = {sum(syms[1:l_max+1])}")
 
 
     # Unpack theta and phi
