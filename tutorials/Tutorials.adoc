@@ -22,6 +22,7 @@ image::logo.gif[]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PYKEP.adoc[Pykep gym results] Benchmark results for the Pykep gym problems
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MINLP.adoc[Mixed Integer] Mixed integer flight mission design
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ESAChallenge.adoc[ESAChallenge] ESA Optimization Challenge
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SphericalTDesign.adoc[Spherical t-design] Weighted spherical t-design
 
 === Quantum Computing
 

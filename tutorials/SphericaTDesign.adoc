@@ -1,0 +1,470 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+= Mars Mission: The Lost Harmony
+2064, Low Mars Orbit, Mission Commander: You
+
+== Prologue
+
+The red planet loomed below, its ochre surface bathed in the faint glow of the twin moons, Phobos and Deimos. The fleet of 42 spacecraft, your fleet, hovered in anticipation—each a node in a vast celestial network, waiting for your command.
+
+The mission had been meticulously planned, years in the making. A quantum computing array, housed on our 43rd ship, the Horizon Prime, was meant to calculate our formations with flawless precision. But two weeks ago, we lost Horizon Prime to a rogue asteroid impact—a silent catastrophe that tore a hole in our processing power just as we arrived in orbit.
+
+Now, we are left with an aging mainframe, a decade-old relic from an era before real-time gravitational corrections and neural-assisted orbital optimizations. It groans under the weight of calculations that should take nanoseconds, struggling as we feed it equations by hand, hoping it can still guide us.
+
+=== Mission Objective: The Lost Signal
+
+Our task remains unchanged:
+We must orchestrate the fleet into a spherical t-design, a delicate orbital formation that will minimize interference from the Martian surface and maximize spatial resolution for an interferometric imaging array.
+
+=== The Challenge
+Every ship must be placed in precisely chosen orbits such that their collective positions form an optimal sampling of the celestial sphere—a mathematical construct that ensures we can resolve hidden structures in Mars’ subsurface, detect deep crustal anomalies, and even search for whispers of past microbial life buried beneath the dust.
+
+=== The Problem
+Without the lost quantum computer, our ability to solve for the highest l_max is compromised.
+
+==== Bonus Task
+The admiral could send us more ships if necessary. So we have
+to check how many ships we need to increase l_max by one or two.
+
+==== Understanding l_max
+
+In simple terms, l_max determines our maximum imaging resolution. The higher the value, the finer the details we can extract from our interferometric measurements.
+
+- In a perfect world, with N = 43 ships and the quantum processor, we might have reached an ideal spherical t-design.
+- With N = 42 ships and only our sluggish classical computer, our goal is to push as high as possible.
+
+=== The Battle Against Time
+
+We sit aboard the Aurora Ascendant, the command ship, as the mainframe churns through equations, its aging circuits buzzing with every adjustment. The fleet must remain stable—orbital corrections drain precious fuel, and time is against us. We have one shot to get this right before we’re forced to burn resources just to maintain position.
+The fate of the mission rests on your decision. *What is your command?*
+
+=== Problem Analysis
+
+So our task is to come up with a spherical t-design. This is a set
+of points on a unit sphere so that all the spherical harmonics cancel out to zero up to and including a given l_max.
+
+Fortunately our old mainframe stored an ancient internet
+archive from the year 2025 where we find:
+
+==== http://neilsloane.com/sphdesigns/dim3/[sloanes archive]
+Here the best solution which fits is http://neilsloane.com/sphdesigns/dim3/des.3.42.8.txt[3.42.8], a 42-point spherical 8-design - means l_max=8. The smallest l_max=9 solution requires 48 ships, for l_max=10 it is 60 ships.
+
+==== https://web.maths.unsw.edu.au/~rsw/Sphere/EffSphDes/sf.html
+Here the ship numbers for l_max = 8,9,10 are 42, 50 and 62
+
+==== https://web.maths.unsw.edu.au/~rsw/Sphere/EffSphDes/ss.html
+We find ship numbers for l_max = 7,9,11: 32, 48 and 70
+
+Since the admiral is very disappointed about what we found we
+ask the ancient AI on our old mainframe. It comes
+up with the idea to use weighted spherical designs like Lebedev.
+Theoretically these give more freedom which could enable
+higher l_max:
+
+"For most computational integration tasks, having a weighted spherical design is not a problem—it’s entirely standard. From a purely numerical integration perspective, weights are absolutely normal and pose no fundamental barrier to computing accurate results."
+
+Unfortunately the Lebedev approach needs even more ships, so we desparately search for new ideas. As we continue to scan the archive on the mainframe we stumble upon an
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SphericalTDesign.adoc[old tutorial covering exactly this problem]:
+
+== The old Tutorial from 2025
+
+=== This tutorial
+
+- Shows how to construct perfect weighted t-designs for l_max = 10,11 and 12 minimizing the number of points.
+- Shows how to design the fitness function and how to apply evolutionary optimization to find perfect solutions.
+- Shows how to utilize all CPU cores by parallelizing the optimisation process.
+
+=== Tutorial Code
+
+The complete code corresponding to this tutorial is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/tdesign.py[tdesign.py]
+
+=== Fitness Function
+
+First we have to define 't_design_error' which computes the "error" in the weighted t-design defined by a list of N spherical points defined by their theta and phi angles, and a list of weights.
+
+- 't_design_error' checks if the spherical harmonics cancel out to zero up to and including a given l_max and measures the error.
+- It computes the real spherical harmonics based on the associated Legendre function implemented in
+scipy.special.lpmv . Alternatively scipy.special.sph_harm_y could be used converting its complex result, but experiments showed that surprisingly this is slower.
+We utilize the fact that numpy/scipy processes all points at once by using arrays. Therefore, we achieve excellent performance, there is no need to use numba.
+
+[source,python]
+----
+def real_spherical_harmonics(l_max, theta, phi):
+    theta = np.asarray(theta)
+    phi   = np.asarray(phi)
+    # Compute cos(theta) for the Legendre functions.
+    cos_theta = np.cos(theta)
+    Y = {}  # dictionary to store the spherical harmonics
+    for l in range(l_max+1):
+        for m in range(l+1):
+            # Compute the normalization factor
+            norm = np.sqrt((2*l+1)/(4*np.pi) * math.factorial(l-m)/math.factorial(l+m))
+            # Compute the associated Legendre function for order m and degree l.
+            P_lm = lpmv(m, l, cos_theta)
+            if m == 0:
+                # For m = 0, no extra trigonometric factor is needed.
+                Y[(l, 0)] = norm * P_lm
+            else:
+                # For m > 0, compute both the cosine and sine components.
+                Y[(l, m)]  = np.sqrt(2) * norm * P_lm * np.cos(m * phi)
+                Y[(l, -m)] = np.sqrt(2) * norm * P_lm * np.sin(m * phi)
+    return Y
+
+def weighted_spherical_harmonics(l_max, theta, phi, weights):
+    weights = normalize_weights_to_average_one(weights)
+    # 1) Compute the SH values at all points (unweighted).
+    Y = real_spherical_harmonics(l_max, theta, phi)
+    # 2) Multiply each Y_{l,m} by the corresponding weight and sum up.
+    W = {}
+    for l in range(l_max+1):
+        for m in range(-l, l+1):
+            # element-wise multiply by w_i and sum
+            W[(l,m)] = np.sum(Y[(l,m)] * weights)
+    return W
+
+def symmetry_error(Y, N, l_max):
+    """
+    For each degree l from 0 to l_max, compute the sum over m of the square of the
+    (pointwise) sums of the spherical harmonic values. Then multiply by 4*pi/(N^2).
+
+    Parameters:
+      Y : dict mapping (l, m) -> array of shape (N,)
+      N : int, number of points
+      l_max : maximum degree
+
+    Returns:
+      s : numpy array of shape (l_max+1,)
+    """
+    s = np.zeros(l_max+1)
+    # For l = 0 (only m=0 exists)
+    s[0] = np.abs(np.sum(Y[(0, 0)]))**2
+    for l in range(1, l_max+1):
+        for m in range(-l, l+1):
+            s[l] += np.abs(np.sum(Y[(l, m)]))**2
+    s[np.abs(s) < 1.e-20] = 0.
+    return s * 4*np.pi / (N**2)
+
+def symmetry(pts, l_max, weights=None):
+    """
+    Compute a symmetry measure for a set of points.
+    pts has 2 columns, it is assumed to be [theta, phi];
+
+    Returns:
+      An array of length l_max+1.
+    """
+    pts = np.array(pts)
+    # Assume pts[:,0]=theta, pts[:,1]=phi
+    if weights is None:
+        Y = real_spherical_harmonics(l_max, pts[:, 0], pts[:, 1])
+    else:
+        Y = weighted_spherical_harmonics(l_max, pts[:, 0], pts[:, 1], weights)
+    N = pts.shape[0]
+    error = symmetry_error(Y, len(pts), l_max)
+    # Create a multiplier: 1 / (2*l + 1) for l=0,...,l_max
+    mult = 1. / (2*np.arange(0, l_max+1) + 1)
+    return error * mult
+
+def t_design_error(points, l_max, weights=None):
+    syms = symmetry(points, l_max, weights)
+    return sum(syms[1:l_max+1])
+----
+
+=== Utilities
+
+Next we need some utilities:
+
+- 'cartesian_to_spherical' converting cartesian 3d points to (theta,phi) spherical ones
+- 'x_to_points' extracting the (theta,phi) spherical points from the argument vector
+- 'normalize_weights_to_average_one' we normalize the weights so that their sum is N - as in the unweighted case where all weights are assumed to be 1.
+- 'fibonacci_sphere' a quite bad approximation proposed by the AI which works surprisingly well when used as initial guess. I tried "better" alternatives with diminishing results.
+
+[source,python]
+----
+def cartesian_to_spherical(points):
+    spherical_coords = np.empty((len(points),2))
+    for i, (x, y, z) in enumerate(points):
+        theta = np.arccos(z)  # Polar angle
+        phi = np.arctan2(y, x)  # Azimuthal angle
+        if phi < 0:
+            phi += 2*np.pi
+        spherical_coords[i] = (theta, phi)
+    return spherical_coords
+
+def x_to_points(x): # stack theta, phi into an array of shape (N,2)
+    N = len(x)//2
+    return np.stack([x[:N], x[N:]], axis=1)
+
+def normalize_weights_to_average_one(weights):
+    weights = np.array(weights)
+    N = len(weights)
+    sum = np.sum(weights)
+    if sum == 0:
+        return np.ones(N)
+    alpha = N / sum
+    return alpha * weights
+
+def fibonacci_sphere(N):
+    points = []
+    phi = np.pi * (3. - np.sqrt(5.))  # Golden angle
+    for i in range(N):
+        y = 1 - (i / float(N - 1)) * 2  # y goes from 1 to -1
+        radius = np.sqrt(1 - y * y)          # radius at y
+        theta = phi * i                      # golden angle increment
+        x = np.cos(theta) * radius
+        z = np.sin(theta) * radius
+        points.append([x, y, z])
+    return np.array(points)
+----
+
+=== Parallel Optimisation using the https://github.com/avaneev/biteopt[BiteOpt] algorithm.
+
+Finally we are ready to perform the optimization. We use the fcmaes parallel restart mechanism calling the https://github.com/avaneev/biteopt[BiteOpt] algorithm. BiteOpt has a major flaw:
+- Parallelization needs to be at the restart level, it can not parallelize the evaluation of a population performing a single run.
+fcmaes also provides algorithms supporting parallel population evaluation like Differential Evolution,
+CMA-ES or CRFM-NES. But BiteOpts ability to adapt dynamically during optimization compensates for this flaw.
+
+[source,python]
+----
+def optimize_weights(N, l_max, workers=20, max_evals=1000000, max_iters=1):
+
+    def fit(x):
+        points = x_to_points(x[:2*N])
+        weights = x[2*N:]
+        return t_design_error(points, l_max, weights)
+
+    x0 = np.array(list(cartesian_to_spherical(fibonacci_sphere(N)).flatten()) + [1]*N)
+
+    dim = N*3 # we encode the input by concatenating the theta, phi and weight vectors
+    # apply BiteOpt using parallel restart
+    for i in range(max_iters):
+        result = retry.minimize(wrapper(fit),
+                                bounds=Bounds([0]*dim,[np.pi]*N + [2*np.pi]*N + [2]*N),
+                                num_retries=workers, workers=workers,
+                                stop_fitness = 0,
+                                optimizer=Bite_cpp(max_evals, guess=x0, stop_fitness=0))
+    x0 = result.x
+    points = x_to_points(result.x[:2*N])
+    weights = normalize_weights_to_average_one(result.x[2*N:])
+
+----
+
+=== Results
+
+==== N=42, l_max = 10
+
+We found a perfect solution up to l_max=10 using only 42 points.
+
+image::42_10.png[]
+
+Output is:
+[source,python]
+----
+42 points (theta,phi):
+[2.447217284242543, 1.0303914048801714]
+[1.4517070680861281, 5.604941266160562]
+[0.8907621209089062, 2.8593015359409786]
+[1.745862929099355, 4.165114459914451]
+[1.4049928360005761, 3.238975312951073]
+[2.123718951551832, 4.598896945880547]
+[1.4353585379167855, 1.5141547998093383]
+[1.795193579750673, 5.096594585219709]
+[0.9936439341556538, 4.308797093290831]
+[2.42688314878376, 5.258320077680217]
+[2.061148509982718, 2.370264024699624]
+[0.6356259587455823, 4.915642480324595]
+[0.9022157881722463, 0.2816873934360353]
+[0.4161660936306942, 2.2568415894699476]
+[2.0783535824454447, 0.4743672484760749]
+[1.5987738995397742, 2.0519720817232328]
+[1.914019919169261, 6.205336584239582]
+[1.377057139594396, 6.162612488037494]
+[1.8001113473988923, 1.03323260646458]
+[1.9030536604204784, 3.5546001474686792]
+[2.2986410362170338, 3.925717844888819]
+[1.1643720284459766, 5.098644649280042]
+[1.0585497682737501, 2.1949792038737597]
+[2.049939403516931, 1.6296533929828394]
+[1.4679930768047569, 4.610023292590779]
+[1.3719018453624228, 3.8328097495962488]
+[1.5103957757421282, 0.4550427435469594]
+[0.8567644078993933, 5.769891533320035]
+[0.6087172979572448, 1.024244687866028]
+[1.9802333048552152, 2.977183013149219]
+[2.53426390482221, 3.1129991266539556]
+[2.5555780724806496, 2.0704647095249578]
+[1.4814488883229116, 2.6508963308118045]
+[0.38392536310433395, 3.8262559858367093]
+[0.912090306934545, 1.6189186869012622]
+[2.746761190754236, 4.417890964353101]
+[2.5343394636596, 6.209840414334106]
+[0.8750179958146024, 3.571479923677028]
+[0.27975686369694425, 6.155149089475483]
+[2.003199964794502, 5.6761304055135895]
+[1.1852333762660772, 0.9465296848185534]
+[3.0416516361988566, 0.986147115054497]
+
+weights: [1.0686923989463608, 1.006936853157852, 1.0366919458662687, 0.8990632826491868, 1.0481872408048207, 0.9886895472366434, 1.02102322906593, 1.0463681488559085, 1.0484653593209248, 0.9796868643955328, 1.006543582504591, 0.9694810363793928, 1.0909117206860226, 1.0700103666558665, 0.9441339800127497, 0.9945191426107445, 0.9249481421631185, 1.0026057961079573, 1.1007872127242062, 0.9624139527428935, 0.8955518026815953, 1.0237625319134556, 0.9706018847174712, 1.091665763486926, 0.9731112520873746, 0.9374736698059064, 1.0569115307744548, 1.0964660660903478, 0.9112149039905258, 0.9803515510110513, 1.07433486681468, 0.9626781153524502, 1.0696719846263136, 0.9777700998281489, 0.8702450096407891, 0.891068953969204, 1.0891862263724188, 0.919575366373204, 1.0660550338853683, 0.9247050688209141, 1.0613689554089596, 0.9460695594614713]
+symetries =  [1.         0.         0.         0.         0.         0.
+ 0.         0.         0.         0.         0.         0.1241871
+ 0.06575862 0.02474867]
+symetry error = 0.0
+----
+There are minor errors at l=11, l=12 and l=13
+
+==== N=48, l_max = 11
+
+We found a perfect solution up to l_max=11 using only 48 points.
+
+image::48_11.png[]
+
+Output is:
+[source,python]
+----
+48 points (theta,phi):
+[1.6609636528376754, 0.9119797077545138]
+[2.0332922687473345, 5.747521258986248]
+[1.1699657873384723, 1.9593394388479823]
+[1.5932453811460041, 2.944141374358616]
+[1.3536585641517274, 1.3772699720045773]
+[1.5483472724465486, 6.085734027948687]
+[1.073587874358636, 5.811813756189445]
+[1.1152535803821837, 3.218384860617152]
+[2.0680047792324183, 2.6702211025976563]
+[2.010603450228788, 3.94640248438286]
+[2.2297858837891393, 0.7328782394911566]
+[1.5345315259972416, 5.498357122596625]
+[0.6118940481704037, 0.5836933335599276]
+[1.4806290007519498, 4.053572361345344]
+[1.2769583766317139, 0.2642265358820038]
+[2.026339073211587, 0.07679220702698455]
+[0.6465941180951524, 2.211196627377644]
+[0.8820545263724141, 0.02809835738564689]
+[1.1083003848440802, 2.6059286053969393]
+[1.8646342769603, 3.405819189473536]
+[2.417935245016386, 1.5207000444048149]
+[0.9823648155982182, 5.229363129681135]
+[1.1309892033599005, 0.8048098307941682]
+[1.4357013723570007, 3.5814665921405044]
+[2.2595381272207162, 3.1696910109730685]
+[2.343042644298124, 4.54147531114239]
+[1.7106338266279957, 1.8087779443138645]
+[0.4739391602093199, 5.670215480608386]
+[0.798550009287575, 1.3998826575547507]
+[2.5296986054189228, 3.7252859871504094]
+[2.6676534933792895, 2.5286228270283955]
+[1.9716268662511167, 5.100932092434556]
+[0.7236574085731134, 4.662292697993756]
+[1.430958826962819, 4.950370597903347]
+[1.6070611275927884, 2.356764469009016]
+[2.9552696856582408, 4.611592591253544]
+[1.95310840349356, 1.335629954569688]
+[0.6158321564280353, 3.1071505132321624]
+[0.18632296793217853, 1.4699999376785504]
+[1.7879340894413376, 4.518862625591488]
+[2.159227837992271, 2.0877704760905256]
+[2.5257604971608534, 6.2487431668184845]
+[1.7058912812390827, 0.43987393854952933]
+[0.3396445414629753, 4.082374620208072]
+[0.9118067698009803, 3.874470893082349]
+[1.1884842500964654, 4.477222608157907]
+[2.801948112129519, 0.9407819666267304]
+[2.4949985354932576, 5.352789280961853]
+
+weights: [0.9540822984064108, 1.0727528669001796, 1.096018747886196, 1.078275176952217, 1.0779794092807926, 1.0782751769311993, 0.9482890621132951, 0.9518715865272344, 0.9482890621198287, 1.0704864479704028, 1.1365868414422242, 1.07620900394593, 0.9589945903827105, 0.9540822984389209, 0.8971767952012681, 0.9518715865591038, 0.9855570398623735, 0.8012185572481667, 1.0727528669089181, 0.8971767952276675, 0.9132970668411139, 0.9861397280229827, 1.0704864479295555, 0.8776693706048032, 0.8012185572467574, 1.074958282960044, 1.0017601260529123, 1.1262725866376089, 1.0749582829292352, 0.9589945903922749, 1.126272586648196, 1.096018747889762, 0.9132970668439143, 1.0017601260458846, 1.0762090039578232, 1.0145197284962997, 0.9764783637366733, 0.9982127998417561, 1.0145197284818117, 1.077979409316917, 0.9861397280370487, 0.9982127998255726, 0.8776693706022313, 0.9251935226562977, 1.1365868414351603, 0.9764783637575424, 0.9251935226571255, 0.9855570398476493]
+symetries =  [1.00000000e+00 0.00000000e+00 0.00000000e+00 0.00000000e+00
+ 0.00000000e+00 0.00000000e+00 0.00000000e+00 0.00000000e+00
+ 0.00000000e+00 0.00000000e+00 0.00000000e+00 0.00000000e+00
+ 1.72441483e-01 2.80551244e-23 2.46094974e-02]
+symetry error = 0.0
+----
+There are minor errors at l=12, l=13 and l=14
+
+==== N=58, l_max = 12
+
+We found a perfect solution up to l_max=12 using only 58 points.
+
+image::58_12.png[]
+
+Output is:
+[source,python]
+----
+58 points (theta,phi):
+[2.681104400095342, 3.1297111908066637]
+[0.7154107707199917, 3.1093108232963274]
+[0.6789416862870981, 2.328329180993931]
+[2.2530865495040144, 3.5181797115811313]
+[1.8673844360870282, 1.3415982723199287]
+[1.927285154465101, 5.128239532310928]
+[1.657081274078465, 0.27416250207874604]
+[1.2191549430750221, 5.744060604676913]
+[0.538112422091656, 1.5386371524678506]
+[1.4615780340408329, 3.7743774240100443]
+[2.9120625356827894, 4.66427341850738]
+[1.3940910225834287, 5.215498358161127]
+[1.1673808518901907, 0.06308351359734513]
+[1.9595090731976386, 2.397175382603447]
+[0.5486085347557721, 3.993892843564511]
+[1.9462168306606145, 3.966649614743391]
+[1.0223476998510461, 1.6539868090786796]
+[2.0607184906845792, 4.518646321073305]
+[0.8883386793240915, 1.0227092186157694]
+[1.2852150762492365, 3.2452205366176208]
+[2.895787806997049, 1.517021562991158]
+[1.6991198381568426, 5.594023873585617]
+[2.4510517150186244, 2.3041965870967176]
+[1.1958027838302598, 4.730861138756998]
+[2.198845072848418, 3.383892846989375e-08]
+[1.6456869322125696, 4.763853560130005]
+[2.579071228464289, 0.52761351708754]
+[0.749948790760706, 4.661672382384337]
+[1.0824457996934733, 4.18228214464703]
+[1.4957407024337483, 1.6291640801891727]
+[1.7910367280457309, 3.4021765877688606]
+[1.6670247565036371, 2.913667422738485]
+[2.23226434495121, 0.9998465280485642]
+[1.564732590741013, 2.0417176855383357]
+[1.5124900499321432, 2.497984534320207]
+[2.1886125856021015, 5.64678437287598]
+[1.2815538491964542, 0.6095694593202984]
+[0.36673989020787107, 5.263709270011244]
+[2.061310567834104, 0.5029541743695377]
+[0.9749327633824536, 3.645646402536016]
+[0.8041339533280961, 0.4138427514745532]
+[2.414340849387238, 4.997897634883493]
+[0.3573606091636152, 0.4911347637466857]
+[2.0172009133418474, 1.8546938350783773]
+[0.7441936799638402, 5.966385688898415]
+[1.7217704594909287, 0.8458413657665363]
+[2.4196140732903504, 1.5350347118450354]
+[1.4625732945102392, 6.093046430729653]
+[0.19737192872794945, 2.905130104600923]
+[1.554395366080808, 4.295364236137228]
+[2.15571242979144, 2.9201672205986777]
+[2.6515073694563775, 5.872128820146829]
+[1.8055944536325494, 6.062793086597214]
+[0.9025077721183872, 5.279284759766376]
+[1.1234157722963025, 2.17878262234884]
+[2.4776210135817545, 4.140574036565011]
+[1.117677748388637, 2.749032932035534]
+[1.3440884565485327, 1.1678137651302691]
+
+weights: [1.0568405650969255, 1.0426135657875877, 1.0095982144815758, 0.9496026529334867, 1.03594510604714, 1.039242114356098, 1.0633170371517284, 1.0370671188671112, 0.967971978400785, 1.085668298658389, 0.963340169956153, 1.0495777954528496, 0.9854613463006211, 1.0161286682563666, 1.0046071663622314, 1.0840576179023762, 1.0568586778257856, 1.0698326759861898, 1.007529744120311, 1.0691801255766094, 1.031102598230703, 0.9915489714651599, 1.0632468849300942, 0.9873931636061192, 0.9932899851366229, 0.8901570382398424, 0.9821983006942473, 0.8737840492391372, 1.0265946992516373, 0.9125744573276605, 1.060560981064404, 1.0144689262853812, 0.8871945100879534, 0.9032691525738665, 0.8563462352677825, 1.049865102651683, 1.075775796958918, 1.063811351416183, 0.8765735986256921, 0.9367675355371524, 0.9148515573746437, 1.088599071254965, 0.9963303152777864, 1.0464884771017846, 1.089108051121954, 1.0303076649347143, 0.9510053307449832, 0.5950876792889014, 1.0762435812041282, 1.0534229170116134, 1.0760014680058143, 0.9918567334238754, 0.8763365519399436, 1.0545234695792765, 0.9553472437314717, 1.055638455125709, 1.033585586061885, 1.044301868705987]
+symetries =  [1.         0.         0.         0.         0.         0.
+ 0.         0.         0.         0.         0.         0.
+ 0.         0.0934051  0.06649197 0.01707206]
+symetry error = 0.0
+----
+There are minor errors at l=13, l=14 and l=15
+
+== Summary
+
+- BiteOpt parallel restart is well suited to search for weighted spherical t-designs.
+- We found N=42, l_max=10, N=48, l_max=11 and N=58, l_max=12 spherical t-designs which by far exceed what is possible without using weights.
+- May be some space mission commander will read this in the future to plan his mission.
+- Note that we found a significant performance boost of about 15% using Python 12 compared to Python 10 on our 16 core AMD 9950x CPU using Linux Mint 22.
