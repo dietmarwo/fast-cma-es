@@ -248,7 +248,7 @@ def optimize_weights(N, l_max, workers=20, max_evals=1000000, max_iters=1):
                                 num_retries=workers, workers=workers,
                                 stop_fitness = 0,
                                 optimizer=Bite_cpp(max_evals, guess=x0, stop_fitness=0))
-    x0 = result.x
+        x0 = result.x
     points = x_to_points(result.x[:2*N])
     weights = normalize_weights_to_average_one(result.x[2*N:])
 
@@ -495,6 +495,7 @@ There are minor errors at l=13, l=14 and l=15
 === N = 10 , l_max = 4
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.12.5.txt[12.5]
+
 [source,python]
 ----
 10 points (theta,phi):
@@ -524,6 +525,7 @@ symmetry error = 0.0
 === N = 18 , l_max = 6
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.24.7.txt[24.7]
+
 [source,python]
 ----
 18 points (theta,phi):
