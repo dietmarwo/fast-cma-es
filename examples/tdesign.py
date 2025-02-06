@@ -201,18 +201,18 @@ def visualize_points(points, l_max, weights=None):
         A list of points in spherical coordinates.
     """
     print(f'{len(points)} points (theta,phi):')
-    for p in points:
-        print(list(p)) 
-    print()
+    # for p in points:
+    #     print(list(p)) 
+    # Unpack theta and phi
+    theta, phi = zip(*points)
+    print(f"theta: {list(theta)}")
+    print(f"phi: {list(phi)}")
     syms = symmetry(points, l_max+3, weights)
     weights = normalize_weights_to_average_one(weights)
     print(f"weights: {list(weights)}")
     print("\nsymmetries = ", syms)
     print(f"symmetry error = {sum(syms[1:l_max+1])}")
 
-
-    # Unpack theta and phi
-    theta, phi = zip(*points)
     weights = np.ones(len(points)) if weights is None else weights
     theta = np.array(theta)
     phi = np.array(phi)    
@@ -330,7 +330,7 @@ if __name__ == '__main__':
     l_max = 2  # Maximum l value
     
     optimize_weighted(N, l_max, max_evals=20000)
-
+    
     show_results(10, 4)
     show_results(18, 6)
     show_results(22, 7)
