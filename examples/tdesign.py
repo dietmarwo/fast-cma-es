@@ -260,7 +260,7 @@ def optimize_weighted(N, l_max, workers=20, max_evals=150000, max_iters=1):
                                 num_retries=workers, workers=workers,
                                 stop_fitness = 0, 
                                 optimizer=Bite_cpp(max_evals, guess=x0, stop_fitness=0))
-    x0 = result.x
+        x0 = result.x
     points = x_to_points(result.x[:2*N])
     weights = result.x[2*N:]  
     print(f"Fitness: {fit(x0)}")        
