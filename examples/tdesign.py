@@ -333,7 +333,7 @@ if __name__ == '__main__':
     N = 10  # Number of points
     l_max = 2  # Maximum l value
     
-    #optimize_weighted(N, l_max, max_evals=20000)
+    optimize_weighted(N, l_max, max_evals=20000)
     
     show_results(10, 4)
     show_results(18, 6)
