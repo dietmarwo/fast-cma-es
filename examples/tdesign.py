@@ -205,12 +205,12 @@ def visualize_points(points, l_max, weights=None):
     #     print(list(p)) 
     # Unpack theta and phi
     theta, phi = zip(*points)
-    print(f"theta: {list(theta)}")
-    print(f"phi: {list(phi)}")
+    print(f"theta = {list(theta)}")
+    print(f"phi = {list(phi)}")
     syms = symmetry(points, l_max+3, weights)
     weights = normalize_weights_to_average_one(weights)
-    print(f"weights: {list(weights)}")
-    print("\nsymmetries = ", syms)
+    print(f"weights = {list(weights)}")
+    print(f"\nsymmetries = {syms}")
     print(f"symmetry error = {sum(syms[1:l_max+1])}")
 
     weights = np.ones(len(points)) if weights is None else weights
@@ -333,7 +333,7 @@ if __name__ == '__main__':
     N = 10  # Number of points
     l_max = 2  # Maximum l value
     
-    optimize_weighted(N, l_max, max_evals=20000)
+    #optimize_weighted(N, l_max, max_evals=20000)
     
     show_results(10, 4)
     show_results(18, 6)
