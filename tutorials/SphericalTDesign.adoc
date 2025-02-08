@@ -92,6 +92,7 @@ First we have to define 't_design_error' which computes the "error" in the weigh
 - It computes the real spherical harmonics based on the associated Legendre function implemented in
 scipy.special.lpmv . Alternatively scipy.special.sph_harm_y could be used converting its complex result, but experiments showed that surprisingly this is slower.
 We utilize the fact that numpy/scipy processes all points at once by using arrays. Therefore, we achieve excellent performance, there is no need to use numba.
+- The original version of the symmetry function was contributed by Stephen Pollaine, a specialist in laser design for fusion reactors. The Laboratory for Laser Energetics (LLE) at the University of Rochester employed a spherical t-design, positioning 60 lasers at the vertices of a modified soccer ball, achieving a maximum angular momentum of l_max = 9. Implementing weighted designs in this context would be significantly more challenging due to the irregular distribution of points, requiring each laser to operate at a unique intensity.
 
 [source,python]
 ----
