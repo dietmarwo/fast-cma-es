@@ -11,6 +11,8 @@ image::logo.gif[]
 
 == Prologue
 
+image::formation.webp[]
+
 The red planet loomed below, its ochre surface bathed in the faint glow of the twin moons, Phobos and Deimos. The fleet of 42 spacecraft, your fleet, hovered in anticipation—each a node in a vast celestial network, waiting for your command.
 
 The mission had been meticulously planned, years in the making. A quantum computing array, housed on our 43rd ship, the Horizon Prime, was meant to calculate our formations with flawless precision. But two weeks ago, we lost Horizon Prime to a rogue asteroid impact—a silent catastrophe that tore a hole in our processing power just as we arrived in orbit.
@@ -332,6 +334,8 @@ There are minor errors at l=13, l=14 and l=15
 "how many points on a unit sphere are required, so that all the spherical harmonics cancel out to zero up to and including a given l_max = 10" . Excercise: Can you find the correct answer using any existing AI applied to this prompt?
 
 == Laser Fusion Reactor Design
+
+image::reactor.webp[]
 
 As previously mentioned, the Laboratory for Laser Energetics (LLE) at the University of Rochester utilized a spherical 9-design, arranging 60 lasers to converge at the center of the sphere (see https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_03_Shvydky.pdf[Shvydky]). Introducing weighted designs in this setup presents considerable challenges, primarily due to the irregular distribution of points, which necessitates assigning a unique intensity to each laser.
 
