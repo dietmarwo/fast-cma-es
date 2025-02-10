@@ -368,7 +368,7 @@ By applying this method, we significantly reduce the number of decision variable
         weights = x[2*n:]
         return t_design_error(points, l_max, weights)
 ----
-Interestingly, experiments have revealed an additional benefit: the number of distinct weights in the solution is greatly minimized, often resulting in a low number of different weight values. For N = 72 this simplification means we only need to construct two types of lasers with varying intensities. Below are the corresponding solutions using 60, 72 and 132 lasers, achieving l_max = 12 using 5 weights, l_max = 14 using 2 weights and l_max = 19 using 3 weights respectively. We alsp show
+Interestingly, experiments have revealed an additional benefit: the number of distinct weights in the solution is greatly minimized, often resulting in a low number of different weight values. For N = 72 this simplification means we only need to construct two types of lasers with varying intensities. Below are the corresponding solutions using 60, 72 and 132 lasers, achieving l_max = 12 using 5 weights, l_max = 14 using 2 weights and l_max = 19 using 3 weights respectively. We also show
 intensity distributions plots - compare to https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_03_Shvydky.pdf[Shvydky] for uniform designs. Specially the 72 and 132 beam designs show excellent uniformity. These plots are computed using Equation 1 from https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_03_Shvydky.pdf[Shvydky].
 
 Note that in the plot the intensities are normalized. So 1.0 means full intensity and 0.0 means minimal relative intensity.
