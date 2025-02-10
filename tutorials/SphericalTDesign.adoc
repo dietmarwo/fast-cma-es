@@ -406,6 +406,8 @@ symmetry error = 0.0
 
 === N = 132 , l_max = 19, 3 different weights
 
+image::132_19.png[]
+
 [source,python]
 ----
 132 points (theta,phi) 3 different weights:
