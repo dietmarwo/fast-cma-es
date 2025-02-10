@@ -416,7 +416,7 @@ symmetry error = 0.0
 
 image::132_19.png[]
 
-image::intensity72.png[]
+image::intensity132.png[]
 
 [source,python]
 ----
