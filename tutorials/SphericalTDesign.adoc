@@ -333,13 +333,13 @@ There are minor errors at l=13, l=14 and l=15
 , it is the question:
 "how many points on a unit sphere are required, so that all the spherical harmonics cancel out to zero up to and including a given l_max = 10" . Excercise: Can you find the correct answer using any existing AI applied to this prompt?
 
-== Laser Fusion Reactor Design
+= Laser Fusion Reactor Design
 
 image::reactor.webp[]
 
 As previously mentioned, the Laboratory for Laser Energetics (LLE) at the University of Rochester utilized a spherical 9-design, arranging 60 lasers to converge at the center of the sphere (see https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_03_Shvydky.pdf[Shvydky]). Introducing weighted designs in this setup presents considerable challenges, primarily due to the irregular distribution of points, which necessitates assigning a unique intensity to each laser.
 
-However, we can partially address these challenges by adjusting the optimization process. The generation of uniform t-designs incorporates certain techniques (refer to https://arxiv.org/pdf/math/0207211[Improved Snub Cube], which we can adapt to our approach. Specifically, by leveraging point generation through permutation and mirroring, we can derive 12 symmetric points from a single reference point.
+However, we can partially address these challenges by adjusting the optimization process. The generation of uniform t-designs incorporates certain techniques (refer to https://arxiv.org/pdf/math/0207211[Improved Snub Cube]), which we can adapt to our approach. Specifically, by leveraging point generation through permutation and mirroring, we can derive 12 symmetric points from a single reference point.
 
 [source,python]
 ----
@@ -488,7 +488,7 @@ We see that the resulting error is evenly distributed over all l <= l_max and it
 So using a perfect design helps to manage the error for all l <= l_max when we consider
 a 1% beam strength variation.
 
-== Table of Minimal Spherical t-Designs
+= Table of Minimal Spherical t-Designs
 
 === N = 2 , l_max = 1
 
