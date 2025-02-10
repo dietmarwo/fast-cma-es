@@ -421,7 +421,33 @@ symmetry error = 0.0
 ----
 
 In the table below all solutions N >= 100 are created using this method and also
-show a reduced number of distinct weights.
+show a reduced number of distinct weights. The N = 48 solution shown in the previous section is also applicable having only 2 different weights 0.95 and 1.05.
+
+=== Variation of Beam Strength
+
+There are unavoidable fluctuations in laser energy in each beam, roughly 1% variation in peak power. Are perfect t-designs of any value at all?
+We can check by randomly varying the weight for each beam and check the resulting error for each l <= l_max:
+
+[source,python]
+----
+    errors = []
+    syms = []
+    for i in range(1000):
+        # max 1 % strength variation for each laser
+        variation = np.random.uniform(low=0.995, high=1.005, size=N)
+        randomized_weight = variation * weights
+        errors.append(t_design_error(points, l_max, randomized_weight))
+        syms.append(symmetry(points, l_max, randomized_weight))
+    syms = np.array(syms)
+    print(f'mean error = {np.mean(errors)}')
+    print(f'standard dev error = {np.std(errors)}')
+    print(f'mean syms = {np.mean(syms, axis=0)}')
+    print(f'standard dev syms = {np.std(syms, axis=0)}')
+----
+
+We see that the resulting error is evenly distributed over all l <= l_max and it is <= 1.5E7.
+So using a perfect design helps to manage the error for all l <= l_max when we consider
+a 1% beam strength variation.
 
 == Table of Minimal Spherical t-Designs
 
