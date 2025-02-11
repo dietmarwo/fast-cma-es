@@ -348,36 +348,30 @@ if __name__ == '__main__':
     N = 10  # Number of points
     l_max = 2  # Maximum l value
     
-    #optimize_weighted(N, l_max, max_evals=20000)
+    optimize_weighted(N, l_max, max_evals=20000)
     #
-    # show_results(10, 4)
-    # show_results(18, 6)
-    # show_results(22, 7)
-    # show_results(28, 8)
-    # show_results(34, 9)
-    # show_results(42, 10)
-    # show_results(48, 11)
-    # show_results(58, 12)
-    # show_results(60, 12)
-    # show_results(64, 13)
-    # show_results(72, 14)
-    # show_results(82, 15)
-    # show_results(98, 16)
-    # show_results(100, 16)
-    # show_results(108, 17)
-    # show_results(126, 18)
-    # show_results(132, 19)
-    # show_results(150, 20)
-    # show_results(168, 21)
-    # show_results(180, 22)
-    # show_results(192, 23)
-    
-        
+    show_results(10, 4)
+    show_results(18, 6)
+    show_results(22, 7)
+    show_results(28, 8)
+    show_results(34, 9)
+    show_results(42, 10)
+    show_results(48, 11)
+    show_results(58, 12)
+    show_results(60, 12)
+    show_results(64, 13)
+    show_results(72, 14)
+    show_results(82, 15)
+    show_results(98, 16)
+    show_results(100, 16)
+    show_results(108, 17)
+    show_results(126, 18)
+    show_results(132, 19)
+    show_results(150, 20)
+    show_results(168, 21)
+    show_results(180, 22)
+    show_results(192, 23)       
     show_results(276, 27)
 
-    #show_results(276, 27)
-    
-    # show_results(252, 26)
-    # show_results(276, 27)
 
     
