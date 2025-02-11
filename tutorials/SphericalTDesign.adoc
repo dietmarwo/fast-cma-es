@@ -390,7 +390,7 @@ The minimal relative intensities for 48, 60, 72 and 132 lasers are 0.982725, 0.9
 
 ==== N=48, l_max = 11
 
-See picture in the last section.
+image::48_11.png[]
 
 image::48intense.png[]
 
