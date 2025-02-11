@@ -713,7 +713,7 @@ symmetries =  [1.         0.         0.         0.         0.         0.
  0.         0.         0.         0.         0.         0.
  0.         0.         0.         0.10261877 0.06483876 0.        ]
 symmetry error = 0.0
-minimal relative intensity = 0.984542 rms = 0.00105520
+minimal relative intensity = 0.995359 rms = 0.00105520
 ----
 
 === N = 82 , l_max = 15
