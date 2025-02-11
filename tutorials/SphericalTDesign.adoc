@@ -386,7 +386,7 @@ These plots are computed using Equation 1 from
 https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_03_Shvydky.pdf[Shvydky].
 
 Note that in the plot the intensities are normalized. So 1.0 means full intensity and 0.0 means minimal relative intensity.
-The minimal relative intensities for 48, 60, 72 and 132 lasers are 0.982725, 0.984542, 0.984542 and 0.999907. The uniform N=60 design proposed by Shvydky has a minimal relative intensity of 0.985446, almost equal to the weighted N=60 design.
+The minimal relative intensities for 48, 60, 72 and 132 lasers are 0.982725, 0.984542, 0.995359 and 0.999907. The uniform N=60 design proposed by Shvydky has a minimal relative intensity of 0.985446, almost equal to the weighted N=60 design.
 
 ==== N=48, l_max = 11
 
