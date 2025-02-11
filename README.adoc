@@ -223,7 +223,7 @@ Example dependencies:
 
 [source]
 ----
-@misc{fcmaes2022,
+@misc{fcmaes2025,
     author = {Dietmar Wolz},
     title = {fcmaes - A Python-3 derivative-free optimization library},
     note = {Python/C++ source code, with description and examples},
