@@ -71,7 +71,7 @@ higher l_max:
 
 "For most computational integration tasks, having a weighted spherical design is not a problem—it’s entirely standard. From a purely numerical integration perspective, weights are absolutely normal and pose no fundamental barrier to computing accurate results."
 
-Unfortunately the approach https://github.com/ifilot/pylebedev/tree/master/pylebedev/data[Lebedev] often uses negative
+Unfortunately the https://github.com/ifilot/pylebedev/tree/master/pylebedev/data[Lebedev] approach often uses negative
 or very uneven weights the antennas on our ships cannot use. Alternatives like
 https://www-user.tu-chemnitz.de/~potts/workgroup/graef/quadrature/index.php[Gauss-Quadratures], for instance N=5, M=12
 which has 60 points with l_max = 9, also offer no improvement.
