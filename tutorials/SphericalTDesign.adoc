@@ -268,7 +268,6 @@ We found a perfect solution up to l_max=10 using only 42 points.
 
 image::42_10.png[]
 
-Output is:
 [source,python]
 ----
 42 points (theta,phi) 42 different weights:
@@ -289,7 +288,6 @@ We found a perfect solution up to l_max=11 using only 48 points.
 
 image::48_11.png[]
 
-Output is:
 [source,python]
 ----
 48 points (theta,phi) 2 different weights:
@@ -311,7 +309,6 @@ We found a perfect solution up to l_max=12 using only 58 points.
 
 image::58_12.png[]
 
-Output is:
 [source,python]
 ----
 58 points (theta,phi) 58 different weights:
@@ -401,7 +398,6 @@ image::48_11.png[]
 
 image::48intense.png[]
 
-Output is:
 [source,python]
 ----
 48 points (theta,phi) 2 different weights:
