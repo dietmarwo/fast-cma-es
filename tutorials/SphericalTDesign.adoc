@@ -71,7 +71,8 @@ higher l_max:
 
 "For most computational integration tasks, having a weighted spherical design is not a problem—it’s entirely standard. From a purely numerical integration perspective, weights are absolutely normal and pose no fundamental barrier to computing accurate results."
 
-Unfortunately the Lebedev approach needs even more ships. Alternatives like
+Unfortunately the approach https://github.com/ifilot/pylebedev/tree/master/pylebedev/data[Lebedev] often uses negative
+or very uneven weights the antennas on our ships cannot use. Alternatives like
 https://www-user.tu-chemnitz.de/~potts/workgroup/graef/quadrature/index.php[Gauss-Quadratures], for instance N=5, M=12
 which has 60 points with l_max = 9, also offer no improvement.
 So we desparately search for new ideas. As we continue to scan the archive on the mainframe we stumble upon an
@@ -437,6 +438,10 @@ image::72_14.png[]
 
 image::72intense.png[]
 
+Note that the https://github.com/ifilot/pylebedev/blob/master/pylebedev/data/lebedev_013.txt[Lebedev13] design
+also uses 74 points. But it reaches only l_max = 13, and it uses negative weights, which are impossible to realize
+varying the laser beam strangth.
+
 [source,python]
 ----
 72 points (theta,phi) 2 different weights:
@@ -450,7 +455,7 @@ symmetries =  [1.         0.         0.         0.         0.         0.
 symmetry error = 0.0
 ----
 
-=== N = 132 , l_max = 19, 3 different weights
+=== N = 132, l_max = 19, 3 different weights
 
 image::132_19.png[]
 
@@ -522,22 +527,27 @@ a 1% beam strength variation.
 
 = Table of Minimal Spherical t-Designs
 
-=== N = 2 , l_max = 1
+Note that https://github.com/ifilot/pylebedev/tree/master/pylebedev/data[Lebedev] weighted designs
+use negative or very uneven weights compared to our designs and for all but the l_max = 27
+design they need more points. It seems the optimization approach reaches its limits
+at l_max = 27.
+
+=== N = 2, l_max = 1
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.2.1.txt[2.1]
 - no better weighted solution
 
-=== N = 4 , l_max = 2
+=== N = 4, l_max = 2
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.4.2.txt[4.2]
 - no better weighted solution
 
-=== N = 6 , l_max = 3
+=== N = 6, l_max = 3
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.6.3.txt[6.3]
 - no better weighted solution
 
-=== N = 10 , l_max = 4
+=== N = 10, l_max = 4
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.12.5.txt[12.5]
 
@@ -554,12 +564,12 @@ symmetry error = 0.0
 minimal relative intensity = 0.417921 rms = 0.14275317
 ----
 
-=== N = 12 , l_max = 5
+=== N = 12, l_max = 5
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.12.5.txt[12.5]
 - no better weighted solution
 
-=== N = 18 , l_max = 6
+=== N = 18, l_max = 6
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.24.7.txt[24.7]
 
@@ -576,7 +586,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.726816 rms = 0.07977770
 ----
 
-=== N = 22 , l_max = 7
+=== N = 22, l_max = 7
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.24.7.txt[24.7]
 
@@ -594,7 +604,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.724756 rms = 0.06836737
 ----
 
-=== N = 28 , l_max = 8
+=== N = 28, l_max = 8
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.36.8.txt[36.8]
 
@@ -611,7 +621,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.827053 rms = 0.04465091
 ----
 
-=== N = 34 , l_max = 9
+=== N = 34, l_max = 9
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.48.9.txt[48.9]
 
@@ -630,7 +640,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.897265 rms = 0.01825170
 ----
 
-=== N = 42 , l_max = 10
+=== N = 42, l_max = 10
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.60.10.txt[60.10]
 
@@ -648,7 +658,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.976213 rms = 0.00393389
 ----
 
-=== N = 48 , l_max = 11
+=== N = 48, l_max = 11
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.70.11.txt[70.11]
 
@@ -667,7 +677,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.982725 rms = 0.00432292
 ----
 
-=== N = 58/60 , l_max = 12
+=== N = 58/60, l_max = 12
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.84.12.txt[84.12]
 
@@ -696,7 +706,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.984542 rms = 0.00329519
 ----
 
-=== N = 64 , l_max = 13
+=== N = 64, l_max = 13
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.96.13.txt[96.13]
 
@@ -716,7 +726,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.985146 rms = 0.00255375
 ----
 
-=== N = 72 , l_max = 14
+=== N = 72, l_max = 14
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.108.14.txt[108.14]
 
@@ -734,7 +744,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.995359 rms = 0.00105520
 ----
 
-=== N = 82 , l_max = 15
+=== N = 82, l_max = 15
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.120.15.txt[120.15]
 
@@ -754,7 +764,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.998525 rms = 0.00024952
 ----
 
-=== N = 98/100 , l_max = 16
+=== N = 98/100, l_max = 16
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.144.16.txt[144.16]
 
@@ -785,7 +795,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999289 rms = 0.00015548
 ----
 
-=== N = 108 , l_max = 17
+=== N = 108, l_max = 17
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.156.17.txt[156.17]
 
@@ -804,7 +814,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999234 rms = 0.00014760
 ----
 
-=== N = 126 , l_max = 18
+=== N = 126, l_max = 18
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.180.18.txt[180.18]
 
@@ -823,7 +833,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999538 rms = 0.00008887
 ----
 
-=== N = 132 , l_max = 19
+=== N = 132, l_max = 19
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.204.19.txt[204.19]
 
@@ -842,7 +852,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999907 rms = 0.00002414
 ----
 
-=== N = 150 , l_max = 20
+=== N = 150, l_max = 20
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.216.20.txt[216.20]
 
@@ -861,7 +871,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999937 rms = 0.00001155
 ----
 
-=== N = 168 , l_max = 21
+=== N = 168, l_max = 21
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.240.21.txt[240.21]
 
