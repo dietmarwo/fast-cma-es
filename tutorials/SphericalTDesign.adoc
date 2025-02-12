@@ -71,8 +71,9 @@ higher l_max:
 
 "For most computational integration tasks, having a weighted spherical design is not a problem—it’s entirely standard. From a purely numerical integration perspective, weights are absolutely normal and pose no fundamental barrier to computing accurate results."
 
-Unfortunately the https://github.com/ifilot/pylebedev/tree/master/pylebedev/data[Lebedev] approach often uses negative
-or very uneven weights the antennas on our ships cannot use. Alternatives like
+Unfortunately the https://github.com/ifilot/pylebedev/tree/master/pylebedev/data[Lebedev]
+approach frequently relies on negative or highly uneven weights, which are incompatible with the
+antennas on our ships. Alternatives like
 https://www-user.tu-chemnitz.de/~potts/workgroup/graef/quadrature/index.php[Gauss-Quadratures], for instance N=5, M=12
 which has 60 points with l_max = 9, also offer no improvement.
 So we desparately search for new ideas. As we continue to scan the archive on the mainframe we stumble upon an
@@ -438,9 +439,7 @@ image::72_14.png[]
 
 image::72intense.png[]
 
-Note that the https://github.com/ifilot/pylebedev/blob/master/pylebedev/data/lebedev_013.txt[Lebedev13] design
-also uses 74 points. But it reaches only l_max = 13, and it uses negative weights, which are impossible to realize
-varying the laser beam strangth.
+The https://github.com/ifilot/pylebedev/blob/master/pylebedev/data/lebedev_013.txt[Lebedev13] quadrature design also utilizes 74 points, but it achieves only l_max = 13. A crucial difference is that the Lebedev13 scheme includes negative weights, which pose a practical challenge in applications where the quadrature weights must be realized physically—such as when adjusting laser beam strengths. Negative weights are not physically meaningful in this context because they imply a subtraction of intensity, which isn't feasible with standard laser modulation techniques.
 
 [source,python]
 ----
@@ -527,10 +526,10 @@ a 1% beam strength variation.
 
 = Table of Minimal Spherical t-Designs
 
-Note that https://github.com/ifilot/pylebedev/tree/master/pylebedev/data[Lebedev] weighted designs
-use negative or very uneven weights compared to our designs and for all but the l_max = 27
-design they need more points. It seems the optimization approach reaches its limits
-at l_max = 27.
+Note that https://github.com/ifilot/pylebedev/tree/master/pylebedev/data[Lebedev]
+weighted designs utilize negative or highly uneven weights compared to our approach.
+Additionally, except for the l_max = 27 design, they require more points.
+It seems the optimization approach reaches its limits at l_max = 27.
 
 === N = 2, l_max = 1
 
