@@ -175,9 +175,8 @@ For parallel retry use:
 
 [source,python]
 ----
-from fcmaes.optimizer import logger
 from fcmaes import retry
-ret = retry.minimize(fun, bounds, logger=logger())
+ret = retry.minimize(fun, bounds)
 ----
 
 The retry logs mean and standard deviation of the results, so it can be used to test and compare optimization algorithms:
@@ -185,11 +184,11 @@ You may choose different algorithms for the retry:
 
 [source,python]
 ----
-from fcmaes.optimizer import logger, Bite_cpp, De_cpp, Cma_cpp, Sequence
-ret = retry.minimize(fun, bounds, logger=logger(), optimizer=Bite_cpp(100000))
-ret = retry.minimize(fun, bounds, logger=logger(), optimizer=De_cpp(100000))
-ret = retry.minimize(fun, bounds, logger=logger(), optimizer=Cma_cpp(100000))
-ret = retry.minimize(fun, bounds, logger=logger(), optimizer=Sequence([De_cpp(50000), Cma_cpp(50000)]))
+from fcmaes.optimizer import Bite_cpp, De_cpp, Cma_cpp, Sequence
+ret = retry.minimize(fun, bounds, optimizer=Bite_cpp(100000))
+ret = retry.minimize(fun, bounds, optimizer=De_cpp(100000))
+ret = retry.minimize(fun, bounds, optimizer=Cma_cpp(100000))
+ret = retry.minimize(fun, bounds, optimizer=Sequence([De_cpp(50000), Cma_cpp(50000)]))
 ----
 
 Here https://github.com/dietmarwo/fast-cma-es/blob/master/examples you find more examples.
