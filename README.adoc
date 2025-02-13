@@ -205,7 +205,7 @@ Runtime:
 Compile time (binaries for Linux and Windows are included):
 
 - Eigen https://gitlab.com/libeigen/eigen (version >= 3.4.0 is required for CMA).
-- EigenRand: https://github.com/bab2min/EigenRand - used in all {cpp} optimization algorithms.
+- PCG Random Number Generation https://github.com/imneme/pcg-cpp - used in all {cpp} optimization algorithms.
 - LBFGSpp: https://github.com/yixuan/LBFGSpp/tree/master/include - used for dual annealing local optimization.
 
 Optional dependencies:
