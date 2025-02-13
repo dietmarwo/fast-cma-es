@@ -498,6 +498,35 @@ symmetry error = 0.0
 In the table below all solutions N >= 100 are created using this method and also
 show a reduced number of distinct weights.
 
+=== Lebedev Spherical Designs
+
+Some Lebedev spherical designs show relatively smooth weight distribution and could be viable alternatives:
+
+image::lebedev.png[]
+
+[source,python]
+----
+N = 50, l_max = 11
+https://github.com/ifilot/pylebedev/blob/master/pylebedev/data/lebedev_011.txt
+weigths = [0.6349206349206488, 1.008666776895948, 1.054687499999998, 1.1287477954144478]
+minimal relative intensity = 0.984713 rms = 0.00330522
+
+N = 86, l_max = 15
+https://github.com/ifilot/pylebedev/blob/master/pylebedev/data/lebedev_015.txt
+weigths = [0.9555077911118807, 0.9927849927850555, 1.0158581222337681, 1.0213791113302062, 1.0271761813836404]
+minimal relative intensity = 0.998664 rms = 0.00025879
+
+N = 110, l_max = 17
+https://github.com/ifilot/pylebedev/blob/master/pylebedev/data/lebedev_017.txt
+weigths = [0.4211097544430708, 0.9032911011510117, 1.055501846967812, 1.066449599782932, 1.0773111263736819, 1.093709638029582]
+minimal relative intensity = 0.999217 rms = 0.00014577
+
+N = 170, l_max = 21
+https://github.com/ifilot/pylebedev/blob/master/pylebedev/data/lebedev_021.txt
+weigths = [0.8811758899171654, 0.9311143754732957, 0.9426232933462958, 1.0146252779057763, 1.0321265710140766, 1.0542839011201364, 1.0740479316683866, 1.0852247114975568]
+minimal relative intensity = 0.999955 rms = 0.00000756
+----
+
 === Variation of Beam Strength
 
 There are unavoidable fluctuations in laser energy in each beam, roughly 1% variation in peak power. Are perfect t-designs of any value at all?
