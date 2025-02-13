@@ -9,6 +9,10 @@ image::logo.gif[]
 = Mars Mission: The Lost Harmony
 2064, Low Mars Orbit, Mission Commander: You
 
+== Update
+
+Alexander Shvydky (see his work https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_03_Shvydky.pdf[here]) pointed out that many of the results in this tutorial can alternatively be achieved using spherical Fourier transformations. For additional details, consult https://www-user.tu-chemnitz.de/~potts/workgroup/graef/papers/designsS2.pdf[GraefS2] and https://www-user.tu-chemnitz.de/~potts/workgroup/graef/quadrature/[Gauß-type Quadratures on S2]. However, certain t-designs, such as those with N=132, l_max=19 and N=186, l_max=23, remain noteworthy because they use only 3 and 4 distinct weights, respectively—a feature that is particularly advantageous for technical applications like laser fusion reactor design.
+
 == Prologue
 
 image::formation.webp[]
