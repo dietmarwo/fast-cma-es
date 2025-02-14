@@ -609,11 +609,11 @@ The objective-weights prioritize the relaxed symmetry (t-design) error. But as s
 all symmetries are lower than eps, the optimizer is free to target the uniformity-rms.
 Note that there are no more weights for the points, as we are optimizing a uniform design.
 
-image::108uniform.png[]
-
 === Sloanes 108/14 uniform 108-design:
 
 Sloanes 108/14-design has a uniformity rms = 0.00035970.
+
+image::108uniform.png[]
 
 [source,python]
 ----
