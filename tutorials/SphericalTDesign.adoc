@@ -565,8 +565,8 @@ to make one laser intensity be certain percentage different from another
 and maintain it throughout the whole time varying laser pulse (which has
 a thoroughly optimized shape)"
 
-So may be we should have a closer look also at uniform designs.
-There seems not much progress in this are recently. Sloanes
+So may be we should have a closer look at uniform designs.
+There seems not much progress in this area recently. Sloanes
 http://neilsloane.com/sphdesigns/dim3/des.3.108.14.txt[N=108/l_max=14]
 design is really not bad. How can we improve it?
 
