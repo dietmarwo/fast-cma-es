@@ -555,6 +555,7 @@ We see that the resulting error is evenly distributed over all l <= l_max and it
 So using a perfect design helps to manage the error for all l <= l_max when we consider
 a 1% beam strength variation.
 
+=== Uniform t-designs for Laser Reactors
 
 From https://www.researchgate.net/profile/Alexander-Shvydky[Alexander Shvydky]
 from Rochester I got the following hint:
