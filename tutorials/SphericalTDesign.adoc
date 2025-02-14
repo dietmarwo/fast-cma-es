@@ -608,8 +608,11 @@ and adapt the objective function using a weighted sum approach for both objectiv
 The objective-weights prioritize the relaxed symmetry (t-design) error. But as soon as
 all symmetries are lower than eps, the optimizer is free to target the uniformity-rms.
 Note that there are no more weights for the points, as we are optimizing a uniform design.
+By the way, it is a bad idea to seed the optimization with Sloanes 108/14-design as this is
+a very strong local minimum the optimizer struggles to escape. So we seed as usual with the
+Fibonacci/Spiral design. 
 
-=== Sloanes 108/14 uniform 108-design:
+=== Sloanes uniform 108/14-design:
 
 Sloanes 108/14-design has a uniformity rms = 0.00035970.
 
@@ -629,7 +632,7 @@ symmetry error = 0.09854836940179791
 minimal relative intensity = 0.997935 rms = 0.00035970
 ----
 
-=== Symmetry Relaxation to eps = 1E-6 / 1E-7 uniform 108-design
+=== Symmetry Relaxation to eps = 1E-6 / 1E-7 uniform 108/14-design
 
 Accepting symmetry tolerances of 1E-6 and 1E-7 for the 108/14-design results in uniformity rms = 0.00017034 and 00019304 which is about factor 2 improvement.
 
