@@ -564,7 +564,7 @@ The idea is to clarify the requirements:
 
 - As we have to deal with small beam strength fluctuations it makes no sense
 to search for exact zero values for the symmetries. The fluctuations will anyway
-spoil our result. Alternatively we can tolerate a symmetry error of eps - which
+spoil our result. Alternatively we can tolerate a symmetry error `eps` - which
 could be a vector if we want to define the acceptable error separately for each
 symmetry.
 
@@ -626,7 +626,7 @@ minimal relative intensity = 0.997935 rms = 0.00035970
 
 Accepting symmetry tolerances of 1E-8 and 1E-5 for the 108/14-design results in uniformity rms = 0.00016276 and 0.00015247 which is > factor 2 improvement.
 A tolerance of 1E-8 is sufficient to generate a much better uniformity. There is not much to gain lowering accuracy even further. Note that only for higher l
-the accuracy is lowered, although the objective function applies the same limit to all l <= l_max.
+the accuracy is lowered, although the objective function applies the same limit to all `l <= l_max`.
 
 image::108.14intense.png[]
 
