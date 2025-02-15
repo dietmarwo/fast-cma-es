@@ -684,7 +684,8 @@ minimal relative intensity = 0.999117 rms = 0.00016444
 ----
 
 Note that the weighted 132/19-design above has an even lower intensity
-`rms = 0.00014760` and has 5 symmetries more. If it is possible to construct three different lasers where their beam strength relates exactly as given by the 3 weight values, this would be an even better solution. 
+`rms = 0.00014760` and has 5 symmetries more. If it is possible to construct three different lasers where their beam strength relates exactly as given by the 3 weight values, this would be an even better solution. The 192/23 above is even better. https://www-user.tu-chemnitz.de/~potts/workgroup/graef/quadrature/index.php[Gauss-Quadratures] shows smaller solutions (130/19 and 186/23), but they
+use more weights.
 
 = Table of Minimal Spherical t-Designs
 
