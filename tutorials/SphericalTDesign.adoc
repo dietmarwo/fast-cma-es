@@ -785,6 +785,14 @@ symmetry error = 0.0
 minimal relative intensity = 0.999948 rms = 0.00000915
 ----
 
+=== Interesting Uniform Designs from https://www-user.tu-chemnitz.de/~potts/workgroup/graef/quadrature/[Graef]
+
+Graef focusses on lowering the number of points, but some of his designs have exceptional low uniformity rms:
+
+- https://www-user.tu-chemnitz.de/~potts/workgroup/graef/quadrature/S2designs/N014_M108_Tetra.dat[108/14]: rms = 0.00016444 (same as the one above)
+- https://www-user.tu-chemnitz.de/~potts/workgroup/graef/quadrature/S2designs/N017_M156_Tetra.dat[156/17]: rms = 0.00003266
+- https://www-user.tu-chemnitz.de/~potts/workgroup/graef/quadrature/S2designs/N020_M216_Tetra.dat[216/20]: rms = 0.00000573
+
 = Table of Minimal Spherical t-Designs
 
 Note that https://github.com/ifilot/pylebedev/tree/master/pylebedev/data[Lebedev]
