@@ -1121,7 +1121,7 @@ symmetry error = 1.873408463883804e-05
 minimal relative intensity = 0.999974 rms = 0.00000373
 ----
 
-=== N = 226, l_max = 20
+=== N = 228, l_max = 20
 image::nt.png[]
 [source,python]
 ----
