@@ -4,6 +4,7 @@
 
 = fcmaes - a Python 3 gradient-free optimization library
 
+link:https://pepy.tech/projects/fcmaes[image:https://static.pepy.tech/badge/fcmaes[PyPI Downloads]]
 https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
 
 image::logo.gif[]
