@@ -23,6 +23,9 @@ state-of-the-art gradient free optimization algorithms applicable to all kind of
 multi-objective and constrained problems. Its main algorithms are implemented both in Python and C++ and
 support both parallel fitness function evaluation and a parallel retry mechanism. 
 
+=== Update: How to compute π-groups for dimensional analysis
+See https://github.com/dietmarwo/BuckinghamExamples[BuckinghamExamples]
+
 === Update: How to compute weighted spherical t-designs
 
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SphericalTDesign.adoc[Spherical t-design] New example shows how to compute weighted spherical t-designs.
