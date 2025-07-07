@@ -20,7 +20,7 @@ endif()
 
 PROJECT(acmalib)
 
-add_library(acmalib SHARED acmaesoptimizer.cpp pgpe.cpp deoptimizer.cpp daoptimizer.cpp modeoptimizer.cpp gcldeoptimizer.cpp lcldeoptimizer.cpp ldeoptimizer.cpp biteoptimizer.cpp csmaoptimizer.cpp crfmnes.cpp ascent.cpp)
+add_library(acmalib SHARED acmaesoptimizer.cpp pgpe.cpp deoptimizer.cpp daoptimizer.cpp modeoptimizer.cpp gcldeoptimizer.cpp lcldeoptimizer.cpp ldeoptimizer.cpp biteoptimizer.cpp csmaoptimizer.cpp crfmnes.cpp)
 
 set(CMAKE_INSTALL_LIBDIR ${CMAKE_BINARY_DIR}/../fcmaes/lib)
 
