@@ -16,6 +16,7 @@ import numpy as np
 from numpy.random import PCG64DXSM, Generator
 from scipy.optimize import OptimizeResult, Bounds
 from fcmaes.evaluator import _check_bounds, _get_bounds, callback_par, parallel, call_back_par, libcmalib
+assert libcmalib is not None, "failed to load libcmalib.so"
 
 from typing import Optional, Callable, Union
 from numpy.typing import ArrayLike

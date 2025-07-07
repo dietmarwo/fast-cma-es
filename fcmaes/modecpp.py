@@ -55,6 +55,8 @@ from fcmaes.mode import _filter, store
 from numpy.random import Generator, PCG64DXSM, SeedSequence
 from fcmaes.optimizer import dtime
 from fcmaes.evaluator import mo_call_back_type, callback_mo, parallel_mo, libcmalib
+assert libcmalib is not None, "failed to load libcmalib.so"
+
 from fcmaes.de import _check_bounds
 from fcmaes.evaluator import is_debug_active
 from loguru import logger
