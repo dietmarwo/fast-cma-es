@@ -294,7 +294,7 @@ Using deep space maneuvers and a more accurate model of the real mission shows t
 
 === GTOC1
 
-The https://sophia.estec.esa.int/gtoc_portal/?page_id=13[GTOC1] competition was already discussed in detail in the https://github.com/dietmarwo/fast-cma-es/blob/master/Tutorial.adoc[Tutorial]. This time we will show how to find a good planet sequence. We will use the "fixed multirevolution Lambert" version of the GTOP code which is not yet included in fcmaes. For GTOC1 this is an essential requirement for solutions which improve on the winning one from JPL. And we need a long planet sequence - therefore we had to add a `time of flight <= 30 year` constraint to the code. Our boxed constraints which define the timings are:
+The https://sophia.estec.esa.int/gtoc_portal/?page_id=13[GTOC1] competition was already discussed in detail in the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc[Tutorials]. This time we will show how to find a good planet sequence. We will use the "fixed multirevolution Lambert" version of the GTOP code which is not yet included in fcmaes. For GTOC1 this is an essential requirement for solutions which improve on the winning one from JPL. And we need a long planet sequence - therefore we had to add a `time of flight <= 30 year` constraint to the code. Our boxed constraints which define the timings are:
 
 ----
        lb = [3000.,14.,14.,14.,14.,14.,14.,300.,300.,300.,300.], 

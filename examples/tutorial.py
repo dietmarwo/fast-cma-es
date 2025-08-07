@@ -3,7 +3,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc for a detailed description.
+# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc for a detailed description.
 
 # Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
 

@@ -24,7 +24,7 @@ global space trajectory optimization problems. Up to now (2022) there were eleve
 including optimization problems not solvable without a surrogate model approximating the real world
 model specified in the tasks. In almost all cases the participants choose to use a customized
 domain specific surrogate. 
-See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorial.adoc[Tutorial] for details 
+See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc[Tutorials] for details
 about the first competition https://sophia.estec.esa.int/gtoc_portal/?page_id=13[Save the Earth].
 In this case continuous thrust specified by ODEs is modeled by so called 
 http://nbodyphysics.com/blog/gravity-engine-doc-1-3-2-2-2/demonstrations-2/lambert-transfer/Lambert/[Lambert transfers].
