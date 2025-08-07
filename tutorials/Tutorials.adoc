@@ -10,7 +10,7 @@ image::logo.gif[]
 
 === Dimensional Analysis
 
-https://github.com/dietmarwo/BuckinghamExamples[BuckinghamExamples] How to compute π-groups for dimensional analysis.
+- https://github.com/dietmarwo/BuckinghamExamples[BuckinghamExamples] How to compute π-groups for dimensional analysis.
 
 === Quality Diversity
 
