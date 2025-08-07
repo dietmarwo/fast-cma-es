@@ -68,7 +68,7 @@ https://github.com/dietmarwo/BuckinghamExamples[BuckinghamExamples] How to compu
 
 === Simulation
 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Simulation.adoc[Simulation] Optimize a Moran Process, a real case in aging research.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Simulation.adoc[Moran Process] Optimize a Moran Process, a real case in aging research.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc[Parameter Sweep] Biochemical stochastic model parameters.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Surrogate.adoc[Surrogate] Optimize the Mazda car design problem.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc[Robot Pushing and Navigating Rovers]
