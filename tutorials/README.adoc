@@ -8,6 +8,10 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 
 image::logo.gif[]
 
+=== Dimensional Analysis
+
+https://github.com/dietmarwo/BuckinghamExamples[BuckinghamExamples] How to compute π-groups for dimensional analysis.
+
 === Quality Diversity
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc[Quality Diversity] Parallel execution of a multi-algorithm improvement emitter and CVT MAP-Elites.
@@ -22,36 +26,37 @@ image::logo.gif[]
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PYKEP.adoc[Pykep gym results] Benchmark results for the Pykep gym problems
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MINLP.adoc[Mixed Integer] Mixed integer flight mission design
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ESAChallenge.adoc[ESAChallenge] ESA Optimization Challenge
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SphericalTDesign.adoc[Spherical t-design] Weighted spherical t-design
 
 === Quantum Computing
 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc[Variational Qubit] Optimize a Variational Qubit and a Variational Quantum Eigensolver.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc[Variational Qubit] Optimize a Variational Qubit and a Variational Quantum Eigensolver.  
 
 === Service - Demand Network Planning (p-center problem)
 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/5G.adoc[5G network planning] Solve the p-center-problem for irregular shapes with holes.
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Service.adoc[Service Locations] Solve the α-neighbor p-center optimization problem.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/5G.adoc[5G network planning] Solve the p-center-problem for irregular shapes with holes. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Service.adoc[Service Locations] Solve the α-neighbor p-center optimization problem.  
 
 === Scheduling
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Employee.adoc[Employee Scheduling] Optimize an employee schedule.
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop] Solving the flexible job shop scheduling problem.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop] Solving the flexible job shop scheduling problem. 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling] Solving a complex scheduling problem, part of the GTOC11 competition.
 
 === Routing
 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/OneForAll.adoc[One For All] MMKP and VRPTW.
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[Multi-UAV] Multi-UAV Task Assignment.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/OneForAll.adoc[One For All] MMKP and VRPTW. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[Multi-UAV] Multi-UAV Task Assignment.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Routing.adoc[Routing] Capacitated Vehicle Routing.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[Noisy TSP] Solve the noisy Traveling Salesman Problem.
 
 === Trading
 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[Crypto Trading] Optimize your crypto trading strategy.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[Crypto Trading] Optimize your crypto trading strategy.  
 
 === Water Management
 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc[Water Management] Optimize water resource management.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc[Water Management] Optimize water resource management.  
 
 === Social Media
 
@@ -59,17 +64,18 @@ image::logo.gif[]
 
 === Game Design
 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc[gbea TopTrumps Benchmark] TopTrumps game optimization benchmark.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc[gbea TopTrumps Benchmark] TopTrumps game optimization benchmark. 
 
 === Simulation
 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc[Parameter Sweep] Biochemical stochastic model parameters.
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Surrogate.adoc[Surrogate] Optimize the Mazda car design problem.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Simulation.adoc[Simulation] Optimize a Moran Process, a real case in aging research.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc[Parameter Sweep] Biochemical stochastic model parameters.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Surrogate.adoc[Surrogate] Optimize the Mazda car design problem.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc[Robot Pushing and Navigating Rovers]
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] Optimize CFD simulation based problems.
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PowerPlant.adoc[Power Plant] Power Plant Efficiency.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] Optimize CFD simulation based problems.   
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PowerPlant.adoc[Power Plant] Power Plant Efficiency.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Vaccination.adoc[Vaccination] Modeling Vaccination.
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] Managing hospital resources during a pandemic.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] Managing hospital resources during a pandemic.  
 
 === Machine Learning
 
@@ -78,16 +84,16 @@ image::logo.gif[]
 
 === Miscellaneous
 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc[Subset selection] Select an optimal subset.
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc[Clustering] Out of the box.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc[Subset selection] Select an optimal subset.  
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc[Clustering] Out of the box.  
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ODE.adoc[ODE] Use of differential equation solvers.
 
 === fcmaes-Details
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[MO-DE] MO-DE, a new multi objective algorithm.
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc[Multi-Objective] Solving multi objective problems using variable weights.
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Constraints.adoc[Constraints] Optimizing with constraints.
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Expressions.adoc[Expressions] Sequences and random choices of optimizers.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc[Multi-Objective] Solving multi objective problems using variable weights. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Constraints.adoc[Constraints] Optimizing with constraints. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Expressions.adoc[Expressions] Sequences and random choices of optimizers. 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/DelayedUpdate.adoc[Delayed Update] Asynchronous parallel function evaluation.
 
 === Log output of the parallel retry

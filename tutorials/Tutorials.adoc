@@ -115,7 +115,7 @@ The log output of the parallel retry contains the following rows:
 Mean and standard deviation would be misleading when using coordinated retry, because
 of the retries initiated by crossover. Therefore the rows of the
 log output differ slightly:
- 
+
 ==== Smart retry
 
 - time (in sec)
