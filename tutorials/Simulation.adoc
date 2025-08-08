@@ -108,6 +108,10 @@ This approach has two main benefits:
 
 - We can track progress directly and stop the optimization if it stalls. No callback is needed, and we have full access to the loop’s context.
 
+But:
+
+- The `minimize` function (e.g., `fcmaes.de.minimize`) also accepts a workers argument and supports Python multiprocessing. With differential evolution, minimize often keeps the worker processes slightly busier compared to the ask/tell interface. (See the section "Alternative: Use minimize" below.) For CMA-ES, both interfaces generally offer similar performance.
+
 How can it be used:
 
 ==== fcmaes imports
@@ -125,7 +129,18 @@ logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {level} | {message}", level=
 #logger.add("log_{time}.txt", format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
 ----
 
-You can adjust the logging configuration to set the log level and add extra file outputs.
+You can configure logging to set the log level and add additional file outputs.
+
+Note for Windows users:
+
+- On Windows, subprocesses are “spawned” and do not share the parent’s file handle. If multiple processes write to the same log file without coordination, this can cause mixed-up log entries, file lock errors, or lost lines.
+
+Workarounds:
+
+- For debugging, run single-threaded on Windows, but use the Linux subsystem for actual optimization runs.
+
+- Alternatively, redirect standard output to a log file using:
+`python simulation_optimization.py | tee output.log`
 
 
 ==== Defining the objective function which calls the simulation
