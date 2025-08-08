@@ -43,8 +43,13 @@ General guidelines:
 - Carefully verify accuracy. Some LLM improvements increased speed at the cost of accuracy. We were able to limit accuracy loss while preserving most of the speed gains.
 - Consider memory usage. For example, replacing some `float64` arrays with `float32` can help reduce memory consumption and may improve performance when running multiple simulations in parallel, since CPU caches are limited.
 
-In the end, these strategies resulted in a speed-up of about factor three while maintaining acceptable accuracy.
+When GPT-5 became available, we tested it right away to see if it could further boost performance.
 
+- Its initial suggestion actually made the code 4.5 times slower.
+
+- After giving feedback about the real performance, we were able to achieve a modest 3% improvement.
+
+This shows the importance of making changes gradually and always verifying the results.
 
 === Optimizers Tested
 
