@@ -166,6 +166,16 @@ def objFunc(args, params):
 ----
 
 Make sure the simulation inside the objective function runs in single-threaded mode.
+
+[source,python]
+----
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+numba.set_num_threads(1)
+----
+
 Since the optimizer already runs multiple simulations in parallel using Python multiprocessing, adding more parallelism inside the simulation will only create overhead and slow everything down. This is because the number of CPU cores is limited.
 
 ==== The Optimization Loop
