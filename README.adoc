@@ -45,7 +45,7 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/examples/prophet_opt.py[pro
 This idea can be applied everywhere when parameters of time consuming simulations have to be optimized.  
 If you aim to optimize multiple objectives, you may find many other examples in: 
 
-=== https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[Tutorials]
+=== https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc[Tutorials]
 
 === https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Performance.adoc[Performance]
 
