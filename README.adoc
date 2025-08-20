@@ -24,7 +24,7 @@ multi-objective and constrained problems. Its main algorithms are implemented bo
 support both parallel fitness function evaluation and a parallel retry mechanism. 
 
 === Update: Open Source AI Optimization Assistant
-- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Assistant.adoc[Optimization Assistant] How to set up, configure and use an open source AI optimization assistant specialized for fcmaes.
+See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Assistant.adoc[Optimization Assistant] How to set up, configure and use an open source AI optimization assistant specialized for fcmaes.
 
 === Update: A real case in aging research
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Simulation.adoc[Moran Process] Optimize a Moran Process. Check out if you have to optimize parameters for an expensive simulation. Includes a detailed comparison with Optuna.
