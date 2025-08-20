@@ -35,7 +35,7 @@ See https://github.com/dietmarwo/BuckinghamExamples[BuckinghamExamples] Reveal t
 
 === Update: How to compute weighted spherical t-designs
 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SphericalTDesign.adoc[Spherical t-design] New example shows how to compute weighted spherical t-designs to optimize laser fusion reactor designs.
+See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SphericalTDesign.adoc[Spherical t-design] Shows how to compute weighted spherical t-designs to optimize laser fusion reactor designs.
 
 === Update: Interaction between AI code generation and optimization
 
