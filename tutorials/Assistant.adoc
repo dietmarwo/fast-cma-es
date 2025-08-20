@@ -1,0 +1,129 @@
+:encoding: utf-8
+:imagesdir: img
+:cpp: C++
+
+= fcmaes - a Python 3 gradient-free optimization library
+
+https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
+
+image::logo.gif[]
+
+== Open Source AI Optimization Assistant
+
+This tutorial shows how to set up a helper that applies fcmaes to a concrete problem.
+
+- Pick an optimization algorithm.
+- Learn the basics of how it works.
+- Choose the interface: ask/tell or minimize.
+- Choose how to parallelize: parallel restarts or parallel population evaluation.
+
+A general AI like GPT‑5 or OPUS 4.1 can help with ideas.
+But it may not know the details of fcmaes.
+
+Training a custom AI on fcmaes is possible, but costly.
+A simpler option is this: open the fcmaes repository (or any GitHub project) in an IDE like VS Code, PyCharm, or IntelliJ, and use the Continue plugin.
+Continue can connect to any AI via the Ollama or OpenAI protocol.
+Here, we focus on using an open‑source model running locally on an AI server in your LAN.
+
+=== Hardware Options
+
+At the moment, there are two main choices:
+
+- A standard PC with several GPUs.
+  These provide large amounts of VRAM.
+  The limit is the combined GPU memory.
+  For good results you need at least 48 GB.
+  A cheap option is two Nvidia 3090 cards.
+
+- A machine built for AI with shared memory (128 GB or more).
+  Examples are Apple M4, AMD 395 AI MAX, or NVIDIA DGX Spark.
+  Advantage: You can load bigger models and use larger contexts.
+  Disadvantage: Speed is lower because of limited memory bandwidth.
+  Execution is around 5× slower than with GPUs.
+
+For the *fcmaes expert* case, GPU speed is more important.
+48 GB is already enough for good results, and future models of the same size will run even better.
+Still, AI-specific machines will likely get cheaper and faster soon, so the GPU advantage may not last.
+
+=== Server Setup
+
+The AI server must expose either the OpenAI or the Ollama API so other machines in the LAN can connect through the Continue plugin.
+For IDE usage we need an *instruct* model variant tuned for tool interaction.
+If VRAM is limited to 48 GB, a *coder* model is better since it focuses resources on programming tasks only.
+At the time of writing, the best option is https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8[Qwen3-Coder-30B-A3B-Instruct-FP8] on Hugging Face.
+No equivalent was available on Ollama.
+
+First install https://github.com/vllm-project/vllm[vllm] using:
+[source]
+----
+pip install vllm
+----
+ideally in a dedicated virtual environment.
+
+Then start the server with the command below.
+[source]
+----
+CUDA_VISIBLE_DEVICES=0,1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+NCCL_P2P_DISABLE=1 NCCL_IB_DISABLE=1 \
+python -m vllm.entrypoints.openai.api_server \
+  --host 0.0.0.0 --port 8000 \
+  --model Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8 \
+  --trust-remote-code \
+  --dtype float16 \
+  --tensor-parallel-size 2 \
+  --max-model-len 8192 \
+  --gpu-memory-utilization 0.90
+----
+
+- The first run downloads and caches the model from Hugging Face. Later runs use the local cache.
+- The example command is tuned for two Nvidia 3090 GPUs. Adjust settings for your own hardware. If unsure, ask an LLM (GPT-5, Opus 4.1, Grok, or Gemini Pro) how to configure it.
+- Parameters are set to use all available memory. If you run into memory issues, lower `gpu-memory-utilization` and `max-model-len`.
+- On a dedicated AI machine with more memory, you can load larger models and increase the context size (`max-model-len`).
+- Finally, find your server’s local IP address (`ifconfig` on Linux). You’ll need this to configure the client.
+
+=== Client Setup
+
+Install the https://www.continue.dev/[Continue] plugin in your IDE (VS Code, JetBrains, etc.).
+Configure it in `~/.continue/config.yaml` as follows:
+[source]
+----
+  models:
+  - name: Qwen3-Coder
+    provider: openai
+    model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+    defaultCompletionOptions:
+      maxTokens: 1024
+      temperature: 0.2
+      topP: 0.9
+    apiBase: http://<server-ip-address>:8000/v1
+    roles:
+      - chat
+      - edit
+      - apply
+      - autocomplete
+----
+
+- `temperature = 0.2` → Low randomness, safer outputs.
+- `topP = 0.9` → Some diversity, limited to the most likely ~90% of tokens.
+- `maxTokens = 1024` → Matches the context size defined on the server (`--max-model-len`).
+
+Next, clone the fcmaes repository:
+
+[source]
+----
+git clone https://github.com/dietmarwo/fast-cma-es.git
+----
+
+Then open the repository as a new project in VS Code or PyCharm.
+
+**Example prompts for Continue:**
+
+- `@Codbase where is differential evolution implemented?`
+- `Analyse the Python implementation of Differential Evolution. Does it have special properties?`
+- `@cmaes.py explain`
+- Select code in the IDE and ask: `explain`
+- `What is the difference between CMA-ES and Differential Evolution?`
+- `@cmaes.py How can I parallelize optimization?`
+- `Show an example application of BiteOpt`
+- `@cmaes.py What is the difference between `fmin` and `minimize`?`
+- `@cmaes.py How can I use a custom objective function with bounds?`

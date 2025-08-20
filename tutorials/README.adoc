@@ -81,6 +81,7 @@ image::logo.gif[]
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/EvoJax.adoc[EvoJax] Hardware-Accelerated Neuroevolution.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/HyperparameterOptimization.adoc[Hyper Parameters] Hyper parameter optimization.
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Assistant.adoc[Optimization Assistant] Open Source AI Optimization Assistant.
 
 === Miscellaneous
 
