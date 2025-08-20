@@ -30,7 +30,8 @@ See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Assistant.ado
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Simulation.adoc[Moran Process] Optimize a Moran Process. Check out if you have to optimize parameters for an expensive simulation. Includes a detailed comparison with Optuna.
 
 === Update: How to compute π-groups for dimensional analysis
-See https://github.com/dietmarwo/BuckinghamExamples[BuckinghamExamples]
+See https://github.com/dietmarwo/BuckinghamExamples[BuckinghamExamples] Reveal the underlying structure of physical models by using evolutionary algorithms to fit continuous powers that maximize data collapse R^2^
+ under variance constraints.
 
 === Update: How to compute weighted spherical t-designs
 
