@@ -54,14 +54,15 @@ At the time of writing, the best option is https://huggingface.co/Qwen/Qwen3-Cod
 No equivalent was available on Ollama.
 
 First install https://github.com/vllm-project/vllm[vllm] using:
-[source]
+[source,shell]
 ----
 pip install vllm
 ----
 ideally in a dedicated virtual environment.
 
 Then start the server with the command below.
-[source]
+
+[source,shell]
 ----
 CUDA_VISIBLE_DEVICES=0,1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 NCCL_P2P_DISABLE=1 NCCL_IB_DISABLE=1 \
@@ -85,7 +86,8 @@ python -m vllm.entrypoints.openai.api_server \
 
 Install the https://www.continue.dev/[Continue] plugin in your IDE (VS Code, JetBrains, etc.).
 Configure it in `~/.continue/config.yaml` as follows:
-[source]
+
+[source,yaml]
 ----
   models:
   - name: Qwen3-Coder
@@ -127,3 +129,53 @@ Then open the repository as a new project in VS Code or PyCharm.
 - `Show an example application of BiteOpt`
 - `@cmaes.py What is the difference between `fmin` and `minimize`?`
 - `@cmaes.py How can I use a custom objective function with bounds?`
+
+=== Update: Alternative Server Setup (Ollama)
+
+A newer Qwen3‑Coder model fits the assistant role better.
+It also needs less GPU VRAM, so you can use a larger context window.
+We will host it with Ollama.
+
+[source,shell]
+----
+curl -fsSL https://ollama.com/install.sh | sh
+OLLAMA_HOST=0.0.0.0 ollama serve
+ollama run hf.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2:Q6_K
+----
+
+If your GPU is smaller or larger, pick another variant.
+
+[source,shell]
+----
+# smaller model
+ollama run hf.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2:Q4_K_M
+# larger model
+ollama run hf.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2:Q8_0
+----
+
+=== Update: Alternative Client Setup (Ollama)
+
+Install the https://www.continue.dev/[Continue] plugin in your IDE (VS Code, JetBrains, etc.).
+Set the config in `~/.continue/config.yaml`.
+
+[source,yaml]
+----
+models:
+  - name: Qwen3-Coder
+    provider: ollama
+    model: hf.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2:Q6_K
+    apiBase: http://192.168.2.158:11434
+    defaultCompletionOptions:
+      maxTokens: 1024
+      temperature: 0.2
+      topP: 0.9
+    roles:
+      - chat
+      - edit
+      - apply
+      - autocomplete
+----
+
+Everything else stays the same.
+Use Continue to talk to your local model inside the IDE.
+The larger context window helps with longer conversations.
