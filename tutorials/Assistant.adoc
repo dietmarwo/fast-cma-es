@@ -164,7 +164,7 @@ models:
   - name: Qwen3-Coder
     provider: ollama
     model: hf.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2:Q6_K
-    apiBase: http://192.168.2.158:11434
+    apiBase: http://<server-ip-address>:11434
     defaultCompletionOptions:
       maxTokens: 1024
       temperature: 0.2
