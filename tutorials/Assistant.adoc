@@ -109,6 +109,11 @@ python -m vllm.entrypoints.openai.api_server \
 In our tests, vLLM only worked with a weaker model and enforced a smaller context size.
 For this reason, we recommend using Ollama instead.
 
+In general when choosing between Ollama and vLLM:
+
+- Need maximum throughput, batching, scheduling controls, or multi‑node? → vLLM. It’s engineered for this and is well‑documented. You can easily scale up your LLM inference workload by simply increasing `--tensor-parallel-size`   to shard the model across N GPUs (tensor parallel). Pipeline parallel and data parallel are also available. Weights are split across GPUs; tensor parallelism handles the intra‑layer sharding. But limited quantisation support may force you to choose the other option:
+- Want a simpler local stack, primarily to fit bigger models across your GPUs, with decent single‑user performance? → Ollama; Recent releases note improved multi‑GPU scheduling and better VRAM allocation with >2 GPUs. If a model doesn’t fit on one GPU, Ollama can spread it across GPUs to increase total effective VRAM. Throughput gains may be modest; the main win is capacity.
+
 === Client Setup
 
 Install the https://www.continue.dev/[Continue] plugin in your IDE (VS Code, JetBrains, etc.).
