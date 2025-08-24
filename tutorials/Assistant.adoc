@@ -47,13 +47,36 @@ Still, AI-specific machines will likely get cheaper and faster soon, so the GPU 
 
 === Server Setup
 
-The AI server must expose either the OpenAI or the Ollama API so other machines in the LAN can connect through the Continue plugin.
-For IDE usage we need an *instruct* model variant tuned for tool interaction.
+The AI server must expose either the OpenAI or the Ollama API so other machines in the LAN can connect through the Continue plugin. For IDE usage we need an *instruct* model variant tuned for tool interaction.
 If VRAM is limited to 48 GB, a *coder* model is better since it focuses resources on programming tasks only.
-At the time of writing, the best option is https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8[Qwen3-Coder-30B-A3B-Instruct-FP8] on Hugging Face.
-No equivalent was available on Ollama.
 
-First install https://github.com/vllm-project/vllm[vllm] using:
+At the time of writing, the best model option for our hardware supported by https://ollama.com/[Ollama] is https://huggingface.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2[Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2] on Hugging Face. We recommend using the 6-bit distilled version. If your machine has less or more VRAM, choose a different bit number which fits your hardware.
+
+First install the https://ollama.com/[Ollama] server using:
+
+[source,shell]
+----
+curl -fsSL https://ollama.com/install.sh | sh
+OLLAMA_HOST=0.0.0.0 ollama serve
+ollama run hf.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2:Q6_K
+----
+If you are on Windows/MacOS, you can download Ollama from https://ollama.com/download and run it with `ollama serve`. Alternative model variants which work well are:
+
+[source,shell]
+----
+# smaller model
+ollama run hf.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2:Q4_K_M
+# larger model
+ollama run hf.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2:Q8_0
+----
+
+Find your server’s local IP address (`ifconfig` on Linux). You’ll need this to configure the client.
+
+==== Alternative: Use vLLM
+
+At the time of writing, the best model option for vLLM is https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8[Qwen3-Coder-30B-A3B-Instruct-FP8] on Hugging Face.
+
+First install https://github.com/vllm-project/vllm[vLLM] using:
 [source,shell]
 ----
 pip install vllm
@@ -80,80 +103,11 @@ python -m vllm.entrypoints.openai.api_server \
 - The example command is tuned for two Nvidia 3090 GPUs. Adjust settings for your own hardware. If unsure, ask an LLM (GPT-5, Opus 4.1, Grok, or Gemini Pro) how to configure it.
 - Parameters are set to use all available memory. If you run into memory issues, lower `gpu-memory-utilization` and `max-model-len`.
 - On a dedicated AI machine with more memory, you can load larger models and increase the context size (`max-model-len`).
-- Finally, find your server’s local IP address (`ifconfig` on Linux). You’ll need this to configure the client.
+
+In our tests, vLLM only worked with a weaker model and enforced a smaller context size.
+For this reason, we recommend using Ollama instead.
 
 === Client Setup
-
-Install the https://www.continue.dev/[Continue] plugin in your IDE (VS Code, JetBrains, etc.).
-Configure it in `~/.continue/config.yaml` as follows:
-
-[source,yaml]
-----
-  models:
-  - name: Qwen3-Coder
-    provider: openai
-    model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
-    defaultCompletionOptions:
-      maxTokens: 1024
-      temperature: 0.2
-      topP: 0.9
-    apiBase: http://<server-ip-address>:8000/v1
-    roles:
-      - chat
-      - edit
-      - apply
-      - autocomplete
-----
-
-- `temperature = 0.2` → Low randomness, safer outputs.
-- `topP = 0.9` → Some diversity, limited to the most likely ~90% of tokens.
-- `maxTokens = 1024` → Matches the context size defined on the server (`--max-model-len`).
-
-Next, clone the fcmaes repository:
-
-[source]
-----
-git clone https://github.com/dietmarwo/fast-cma-es.git
-----
-
-Then open the repository as a new project in VS Code or PyCharm.
-
-**Example prompts for Continue:**
-
-- `@Codbase where is differential evolution implemented?`
-- `Analyse the Python implementation of Differential Evolution. Does it have special properties?`
-- `@cmaes.py explain`
-- Select code in the IDE and ask: `explain`
-- `What is the difference between CMA-ES and Differential Evolution?`
-- `@cmaes.py How can I parallelize optimization?`
-- `Show an example application of BiteOpt`
-- `@cmaes.py What is the difference between `fmin` and `minimize`?`
-- `@cmaes.py How can I use a custom objective function with bounds?`
-
-=== Update: Alternative Server Setup (Ollama)
-
-A newer Qwen3‑Coder model fits the assistant role better.
-It also needs less GPU VRAM, so you can use a larger context window.
-We will host it with Ollama.
-
-[source,shell]
-----
-curl -fsSL https://ollama.com/install.sh | sh
-OLLAMA_HOST=0.0.0.0 ollama serve
-ollama run hf.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2:Q6_K
-----
-
-If your GPU is smaller or larger, pick another variant.
-
-[source,shell]
-----
-# smaller model
-ollama run hf.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2:Q4_K_M
-# larger model
-ollama run hf.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2:Q8_0
-----
-
-=== Update: Alternative Client Setup (Ollama)
 
 Install the https://www.continue.dev/[Continue] plugin in your IDE (VS Code, JetBrains, etc.).
 Set the config in `~/.continue/config.yaml`.
@@ -176,6 +130,80 @@ models:
       - autocomplete
 ----
 
+- `temperature = 0.2` → Low randomness, safer outputs.
+- `topP = 0.9` → Some diversity, limited to the most likely ~90% of tokens.
+- `maxTokens = 1024` → Maximal number of tokens for auto-completion.
+- `apiBase` → The IP address of the server where Ollama is running.
+  Replace `<server-ip-address>` with the actual IP address of your server.
+  If Ollama is running locally on your machine, use `http://localhost:11434`.
+
+**Switch from Agent Mode to Chat Mode in Continue:**
+
+By default, Continue starts in *agent mode*.
+In this mode the model tries to act as an autonomous coding agent.
+It interprets prompts as instructions to search, edit, or run code in your IDE.
+
+The open-source model we use here does not fully support this mode.
+As a result, requests will result in an error message.
+
+The solution is to switch to *chat mode*.
+In chat mode the model works as a conversational partner:
+it answers questions, explains code, and discusses optimization strategies without trying to execute IDE actions.
+
+To switch modes in Continue:
+
+1. Open the Continue sidebar in your IDE.
+2. At the top you will see the mode selector (set to *Agent* by default).
+3. Change it to *Chat*.
+
+Now the model will respond reliably.
+If you later use a model that supports agent mode, you can switch back at any time.
+
+**Clone the fcmaes repository:**
+
+The fcmaes code should be accessible in your project, then you can ask Continue how to use it.
+[source]
+----
+git clone https://github.com/dietmarwo/fast-cma-es.git
+----
+
+Then open the repository as a new project in VS Code or PyCharm or copy the code into your optimization project.
+
+**Example prompts for Continue:**
+
+- `@Codbase where is differential evolution implemented?`
+- `Analyse the Python implementation of Differential Evolution. Does it have special properties?`
+- `@cmaes.py explain`
+- Select code in the IDE and ask: `explain`
+- `What is the difference between CMA-ES and Differential Evolution?`
+- `@cmaes.py How can I parallelize optimization?`
+- `Show an example application of BiteOpt`
+- `@cmaes.py What is the difference between `fmin` and `minimize`?`
+- `@cmaes.py How can I use a custom objective function with bounds?`
+
+
+==== Alternative: Use vLLM / openai Provider
+If you have chosen vLLM to host your model on the server instead of Ollama, the client configuration needs to be adapted.
+Configure the https://www.continue.dev/[Continue] plugin in your IDE (VS Code, JetBrains, etc.) in `~/.continue/config.yaml` as follows:
+
+[source,yaml]
+----
+  models:
+  - name: Qwen3-Coder
+    provider: openai
+    model: Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8
+    defaultCompletionOptions:
+      maxTokens: 1024
+      temperature: 0.2
+      topP: 0.9
+    apiBase: http://<server-ip-address>:8000/v1
+    roles:
+      - chat
+      - edit
+      - apply
+      - autocomplete
+----
+
 Everything else stays the same.
 Use Continue to talk to your local model inside the IDE.
-The larger context window helps with longer conversations.
+The smaller context window may be an issue with longer conversations.
