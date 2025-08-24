@@ -161,6 +161,29 @@ To switch modes in Continue:
 Now the model will respond reliably.
 If you later use a model that supports agent mode, you can switch back at any time.
 
+There are models supporting Continue's agent mode, but they all are
+inferior to the models we recommend for this tutorial:
+
+- https://huggingface.co/Qwen/Qwen2.5-7B-Instruct[Qwen2.5-7B-Instruct]
+  Supports function calling and tool use. Lightweight, good for single-GPU setups.
+
+- https://huggingface.co/Qwen/Qwen2.5-14B-Instruct[Qwen2.5-14B-Instruct]
+  Larger variant with stronger reasoning. Also supports function calling.
+
+- https://huggingface.co/Qwen/Qwen2.5-32B-Instruct[Qwen2.5-32B-Instruct]
+  More capable, but VRAM heavy. Works if you have 2×3090 with tensor parallelism.
+
+- https://huggingface.co/Qwen/Qwen2.5-72B-Instruct[Qwen2.5-72B-Instruct]
+  Very large; requires >150 GB VRAM or advanced inference optimizations.
+
+- https://huggingface.co/Vikhrmodels/Qwen2.5-7B-Instruct-Tool-Planning-v0.1[Vikhrmodels/Qwen2.5-7B-Instruct-Tool-Planning-v0.1]
+  Fine-tuned for **tool planning**, enabling multi-tool orchestration.
+
+- https://huggingface.co/ermiaazarkhalili/Qwen2.5-7B-Instruct_Function_Calling_xLAM[ermiaazarkhalili/Qwen2.5-7B-Instruct_Function_Calling_xLAM]
+  Specialized in structured **function calling** with JSON-like schemas.
+
+But this situation may change any moment, as better agentic models will be released.
+
 **Clone the fcmaes repository:**
 
 The fcmaes code should be accessible in your project, then you can ask Continue how to use it.
