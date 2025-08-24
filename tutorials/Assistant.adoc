@@ -143,6 +143,12 @@ models:
 - `apiBase` → The IP address of the server where Ollama is running.
   Replace `<server-ip-address>` with the actual IP address of your server.
   If Ollama is running locally on your machine, use `http://localhost:11434`.
+- Add the `tool_use` capability if your model supports Continue's agent mode - our recommended model does not.
+[source,yaml]
+----
+    capabilities:
+      - tool_use
+----
 
 **Switch from Agent Mode to Chat Mode in Continue:**
 
