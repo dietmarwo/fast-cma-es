@@ -8,6 +8,8 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 
 image::logo.gif[]
 
+Note: This tutorial will be updated whenever newer and better open-source LLMs become available.
+
 == Open Source AI Optimization Assistant
 
 This tutorial shows how to set up a helper that applies fcmaes to a concrete problem.
