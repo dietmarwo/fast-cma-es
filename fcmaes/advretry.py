@@ -10,8 +10,6 @@ import time
 import os
 import math
 import threadpoolctl
-import _pickle as cPickle
-import bz2
 import ctypes as ct
 import numpy as np
 from numpy.linalg import norm
@@ -227,7 +225,7 @@ class Store(object):
                 self.si.value = si + 1
             self.time[si] = dtime(self.t0)
             self.val[si] = y  
-            logger.info(str(self.time[si]) + ' '  + 
+            logger.debug(str(self.time[si]) + ' '  + 
                       str(self.sevals.value) + ' ' + 
                       str(y) + ' ' + 
                       str(list(x)))
@@ -235,30 +233,27 @@ class Store(object):
                     
     # persist store
     def save(self, name: str):
-        with bz2.BZ2File(name + '.pbz2', 'w') as f: 
-            cPickle.dump(self.get_data(), f)
-
-    def load(self, name: str):
-        data = cPickle.load(bz2.BZ2File(name + '.pbz2', 'rb'))
-        self.set_data(data)
-  
-    def get_data(self) -> List:
-        data = []
-        data.append(self.get_xs())
-        data.append(self.get_ys())
-        data.append(self.get_x_best())
-        data.append(self.get_y_best())
-        data.append(self.num_stored.value)
-        return data
+        np.savez_compressed(
+            name + '.npz',
+            xs=self.get_xs(),
+            ys=self.get_ys(),
+            x_best=self.get_x_best(),
+            y_best=self.get_y_best(),
+            num_stored=self.num_stored.value
+        )
         
-    def set_data(self, data: ArrayLike):
-        xs = data[0]
-        ys = data[1]
+    def load(self, name: str):
+        data = np.load(name + '.npz')
+        xs = data['xs']
+        ys = data['ys']
+        x_best = data['x_best']
+        y_best = data['y_best'][()]  # [()] extracts scalar from 0D array
+        num_stored = data['num_stored'][()] # [()] extracts scalar from 0D array
         for i in range(len(ys)):
             self.replace(i, ys[i], xs[i])
-        self.best_x[:] = data[2][:]
-        self.best_y.value = data[3]
-        self.num_stored.value = data[4]
+        self.best_x[:] = x_best[:]
+        self.best_y.value = y_best
+        self.num_stored.value = num_stored
         self.sort()
                
     def get_improvements(self) -> np.ndarray:
@@ -365,8 +360,7 @@ class Store(object):
                     self.best_x[:] = x[:]
                     self.dump()
                     if not self.datafile is None:
-                        self.save(self.datafile)
-
+                        self.save(f'{self.datafile}.{abs(y):.5f}')
                 if self.num_stored.value >= self.capacity - 1:
                     self.sort()
                 ns = self.num_stored.value

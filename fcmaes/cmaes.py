@@ -40,7 +40,8 @@ def minimize(fun: Callable[[ArrayLike], float],
              rg: Optional[Generator] = Generator(PCG64DXSM()),
              runid: Optional[int] = 0,
              normalize: Optional[bool] = True,
-             update_gap: Optional[int] = None) -> OptimizeResult:
+             update_gap: Optional[int] = None,
+             serial_fun = True) -> OptimizeResult:
     """Minimization of a scalar function of one or more variables using CMA-ES.
      
     Parameters
@@ -93,7 +94,7 @@ def minimize(fun: Callable[[ArrayLike], float],
         ``nit`` the number of CMA-ES iterations, ``status`` the stopping critera and
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
   
-    if workers is None or workers <= 1:
+    if serial_fun and (workers is None or workers <= 1):
         fun = serial(fun)        
     cmaes = Cmaes(bounds, x0, 
                       input_sigma, popsize, 
@@ -107,6 +108,7 @@ def minimize(fun: Callable[[ArrayLike], float],
         x, val, evals, iterations, stop = cmaes.doOptimize()
     return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, 
                           success=True)
+
 
 class Cmaes(object):
     """Implements the cma-es ask/tell interactive interface."""
@@ -540,6 +542,7 @@ class Cmaes(object):
             arnorms = np.sqrt(np.einsum('ij->i', arzneg * arzneg))
             idxnorms = arnorms.argsort()
             arnormsSorted = arnorms[idxnorms]
+            arnormsSorted[arnormsSorted==0] = 1e-30
             idxReverse = idxnorms[::-1]
             arnormsReverse = arnorms[idxReverse]
             arnorms = arnormsReverse / arnormsSorted

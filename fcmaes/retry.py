@@ -226,7 +226,8 @@ class Store(object):
                  bounds: Bounds, # bounds of the objective function arguments
                  check_interval: Optional[int] = 10, # sort evaluation memory after check_interval iterations
                  capacity: Optional[int] = 500, # capacity of the evaluation store
-                 statistic_num: Optional[int] = 0
+                 statistic_num: Optional[int] = 0,
+                 datafile: Optional[str] = None
                 ):    
         self.fun = fun
         self.lower, self.upper = _convertBounds(bounds)
@@ -251,7 +252,7 @@ class Store(object):
         self.qmean = mp.RawValue(ct.c_double, 0) 
         self.best_y = mp.RawValue(ct.c_double, np.inf) 
         self.best_x = mp.RawArray(ct.c_double, self.dim)
-        self.statistic_num = statistic_num
+        self.datafile = datafile
         # statistics   
         self.statistic_num = statistic_num                         
         if statistic_num > 0:  # enable statistics                          
@@ -324,6 +325,8 @@ class Store(object):
                     self.best_y.value = y
                     self.best_x[:] = x[:]
                     self.dump()
+                    if not self.datafile is None:
+                        self.save(f'{self.datafile}.{abs(y):.5f}')
                 if self.num_stored.value >= self.capacity-1:
                     self.sort()
                 cnt = self.count_stat_runs.value
@@ -331,9 +334,9 @@ class Store(object):
                 self.qmean.value += (cnt - 1)/ cnt * diff*diff ;
                 self.mean.value += diff / cnt
                 ns = self.num_stored.value
+                self.xs_view[ns, :] = x
+                self.ys[ns] = y
                 self.num_stored.value = ns + 1
-                self.xs_view[self.num_stored.value, :] = x
-                self.ys[self.num_stored.value] = y
                 if is_debug_active():
                     dt = dtime(self.t0)  
                     message = '{0} {1} {2} {3} {4:.6f} {5:.6f} {6:.2f} {7:.2f}'.format(
@@ -399,6 +402,30 @@ class Store(object):
                 self.best_y.value, self.get_y_mean(), self.get_y_standard_dev(), vals, self.best_x[:])
         logger.debug(message)
 
+    # persist store
+    def save(self, name: str):
+        np.savez_compressed(
+            name + '.npz',
+            xs=self.get_xs(),
+            ys=self.get_ys(),
+            x_best=self.get_x_best(),
+            y_best=self.get_y_best(),
+            num_stored=self.num_stored.value
+        )
+        
+    def load(self, name: str):
+        data = np.load(name + '.npz')
+        xs = data['xs']
+        ys = data['ys']
+        x_best = data['x_best']
+        y_best = data['y_best'][()]  # [()] extracts scalar from 0D array
+        num_stored = data['num_stored'][()] # [()] extracts scalar from 0D array
+        for i in range(len(ys)):
+            self.replace(i, ys[i], xs[i])
+        self.best_x[:] = x_best[:]
+        self.best_y.value = y_best
+        self.num_stored.value = num_stored
+        self.sort()
         
 def _retry_loop(pid, rgs, store, optimize, num_retries, value_limit, stop_fitness = -np.inf):
     store.create_xs_view()

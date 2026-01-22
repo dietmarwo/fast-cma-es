@@ -4,6 +4,7 @@
 # LICENSE file in the root directory.
 
 import numpy as np
+import traceback
 from numpy.random import PCG64DXSM, Generator
 from scipy.optimize import Bounds, minimize, shgo, differential_evolution, dual_annealing, basinhopping
 import sys
@@ -75,7 +76,8 @@ class wrapper(object):
                 )
             return y
         except Exception as ex:
-            print(str(ex))  
+            print(f"{type(ex).__name__}: {ex}")
+            traceback.print_exc()
             return sys.float_info.max  
     
 class Optimizer(object):
@@ -401,7 +403,8 @@ class Cma_python(Optimizer):
                  sdevs: Optional[float] = None, 
                  workers: Optional[int] = None,        
                  update_gap: Optional[int] = None, 
-                 normalize: Optional[bool] = True):  
+                 normalize: Optional[bool] = True,
+                 serial_fun: Optional[bool] = True):  
            
         Optimizer.__init__(self, max_evaluations, 'cma py')
         self.popsize = popsize
@@ -411,6 +414,7 @@ class Cma_python(Optimizer):
         self.sdevs = sdevs
         self.normalize = normalize
         self.workers = workers
+        self.serial_fun = serial_fun
 
     def minimize(self, 
                  fun: Callable[[ArrayLike], float], 
@@ -429,7 +433,8 @@ class Cma_python(Optimizer):
                 rg=rg, runid=self.get_count_runs(store),
                 normalize = self.normalize,
                 update_gap = self.update_gap,
-                workers = self.workers)     
+                workers = self.workers,
+                serial_fun = self.serial_fun)     
         return ret.x, ret.fun, ret.nfev
 
 class Cma_cpp(Optimizer):
