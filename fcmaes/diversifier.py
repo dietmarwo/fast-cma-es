@@ -212,8 +212,8 @@ def minimize_parallel_(archive, fitness, bounds, workers, opt_params, max_evals)
     proc=[Process(target=run_minimize_,
             args=(archive, fitness, bounds, rgs[p],
                   opt_params, p, workers, evals, max_evals)) for p in range(workers)]
-    [p.start() for p in proc]
-    [p.join() for p in proc]
+    for p in proc: p.start()
+    for p in proc: p.join()
                     
 def run_minimize_(archive, fitness, bounds, rg, opt_params, p, workers, evals, max_evals):  
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):

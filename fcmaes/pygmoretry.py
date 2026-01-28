@@ -70,8 +70,8 @@ def retry(store, prob, algo, num_retries, value_limit = np.inf, popsize=1, worke
     rgs = [Generator(PCG64DXSM(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
             args=(pid, rgs, store, prob, algo, num_retries, value_limit, popsize, pg)) for pid in range(workers)]
-    [p.start() for p in proc]
-    [p.join() for p in proc]
+    for p in proc: p.start()
+    for p in proc: p.join()
     store.sort(store.get_xs())
     store.dump()
     return OptimizeResult(x=store.get_x_best(), fun=store.get_y_best(), 

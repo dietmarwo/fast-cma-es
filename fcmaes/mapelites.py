@@ -238,8 +238,8 @@ def optimize_map_elites_(archive, fitness, bounds, workers,
     proc=[Process(target=run_map_elites_,
             args=(archive, fitness, bounds, rgs[p],
                   me_params, cma_params)) for p in range(workers)]
-    [p.start() for p in proc]
-    [p.join() for p in proc]
+    for p in proc: p.start()
+    for p in proc: p.join()
           
 def run_map_elites_(archive, fitness, bounds, rg, 
                     me_params, cma_params): 

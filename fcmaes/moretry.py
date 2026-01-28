@@ -105,8 +105,8 @@ def mo_retry(fun: Callable[[ArrayLike], float],
     proc=[Process(target=_retry_loop,
             args=(pid, rgs, fun, weight_bounds, ncon, y_exp, 
                   store, optimize, num_retries, value_limits)) for pid in range(workers)]
-    [p.start() for p in proc]
-    [p.join() for p in proc]
+    for p in proc: p.start()
+    for p in proc: p.join()
     store.sort()
     store.dump()
     return store.xs_view

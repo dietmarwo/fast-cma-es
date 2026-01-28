@@ -81,14 +81,13 @@ class Evaluator(object):
         self.workers = workers
         self.proc=[Process(target=_evaluate, args=(self.fun, 
                 self.pipe, self.read_mutex, self.write_mutex)) for _ in range(workers)]
-        [p.start() for p in self.proc]
+        for p in self.proc: p.start()
         
     def stop(self): # shutdown all workers 
         for _ in range(self.workers):
             self.pipe[0].send(None)
-        [p.join() for p in self.proc]    
-        for p in self.pipe:
-            p.close()
+        for p in self.proc: p.join()  
+        for p in self.pipe: p.close()
 
 def _eval_parallel_segment(xs, ys, i0, i1, evaluator):
     for i in range(i0, i1):

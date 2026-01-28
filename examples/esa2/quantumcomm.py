@@ -931,8 +931,8 @@ def so_par():
     
         def eval(self, workers=mp.cpu_count()):
             proc=[mp.Process(target=self.eval_loop) for pid in range(workers)]
-            [p.start() for p in proc]
-            [p.join() for p in proc]             
+            for p in proc: p.start()
+            for p in proc: p.join()         
             return np.array(self.xs), np.array(self.ys)
         
         def eval_loop(self):
@@ -1058,8 +1058,8 @@ def pymoo_par():
             ys_out = manager.dict() # collects solutions generated in the sub processes
             fits = [fitness_wrapper(pid, xs_out, ys_out) for pid in range(workers)]
             proc=[mp.Process(target=self.optimize, args=(guess, fits[pid], pid)) for pid in range(workers)]
-            [p.start() for p in proc] # spawn NSGAII optimization workers
-            [p.join() for p in proc]    
+            for p in proc: p.start()
+            for p in proc: p.join()   
             xs = np.array(list(chain.from_iterable(xs_out.values()))) # join collected solutions
             ys = np.array(list(chain.from_iterable(ys_out.values()))) # we ignore the pymoo optimization result
             xs, ys = moretry.pareto(xs, ys)

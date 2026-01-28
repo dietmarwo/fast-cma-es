@@ -232,8 +232,8 @@ def retry(mofun: Callable[[ArrayLike], ArrayLike],
                  max_evaluations, workers, nsga_update, pareto_update, 
                  store, ints))
                 for pid in range(workers)]
-    [p.start() for p in proc]
-    [p.join() for p in proc]
+    for p in proc: p.start()
+    for p in proc: p.join()
     xs, ys = store.get_front()            
     return xs, ys
 
