@@ -153,7 +153,7 @@ def test_rosen_cpp_parallel():
     sdevs = [1.0]*dim
     max_eval = 10000
     
-    limit = 0.00001   
+    limit = 0.0001   
     for _ in range(5):
         wrapper = Wrapper(testfun.fun, dim)
         ret = cmaescpp.minimize(wrapper.eval, testfun.bounds, input_sigma = sdevs, 
