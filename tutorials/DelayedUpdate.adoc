@@ -16,225 +16,240 @@ This tutorial is about:
 - Analyzes its performance for hyper-parameter optimization.
 - Compares with hyperband optimization.
 
-This mechanism currently is implemented for DE, CMA-ES and MODE. Note that there
-are differences between the Python- and {Cpp}-implementations of these algorithms:
-The {Cpp}-variants use {Cpp}-multithreading mechanisms, the Python ones use
-Python-multi-processing. You should check for your application what works best.
-GCL-DE and CR-FM-NES only use Python-multi-processing for parallel fitness evaluation
-even for {Cpp}-variants and don't support the delayed update mechanism. You should configure 
-`popsize=n*workers` with an integer `n >= 1` for parallel fitness evaluation without delayed update. 
+This mechanism is currently implemented for DE, CMA-ES, and MODE. There are differences
+between the Python and {cpp} implementations. The {cpp} variants use {cpp}
+multithreading. The Python variants use Python multiprocessing. For a real application,
+you need to check which option works better.
+
+GCL-DE and CR-FM-NES use Python multiprocessing for parallel fitness evaluation even in
+the {cpp} variants, and they do not support delayed update. For parallel fitness
+evaluation without delayed update, configure `popsize=n*workers` with an integer `n >= 1`.
 
 === Introduction
 
-If your objective function is expensive to evaluate and poorly parallelized like in the 
-domain of Hyperparameter Optimization 
-(see the https://github.com/dietmarwo/fast-cma-es/blob/master/HyperparameterOptimization.adoc[Hyper Parameter Tutorial])
-it makes less sense to execute the optimization process using a parallel retry mechanism. 
-Instead we should focus on parallel function evaluation, which usually scales much better than the
-intrinsic parallelization of the objective function itself. For instance the evaluation of hyper parameters
-for https://github.com/dmlc/xgboost/blob/master/python-package/xgboost/sklearn.py[xgboost.XGBRegressor] 
-using cross validation can itself been parallelized using parameter `n_jobs`, 
-see https://github.com/dietmarwo/fast-cma-es/blob/master/examples/house.py[house.py]. But it is much better 
-to set `n_jobs=1` if the optimization algorithm supports parallel function evaluation. 
-There are multiple options to implements this:
+If your objective function is expensive and does not parallelize well, as in
+hyperparameter optimization
+(see the https://github.com/dietmarwo/fast-cma-es/blob/master/HyperparameterOptimization.adoc[Hyper Parameter Tutorial]),
+parallel retry becomes less attractive. In that case it is better to focus on parallel
+function evaluation. This often scales much better than the objective function's own
+internal parallelism.
 
-- Population based algorithms like 
+One example is hyperparameter tuning for
+https://github.com/dmlc/xgboost/blob/master/python-package/xgboost/sklearn.py[xgboost.XGBRegressor]
+with cross validation, as shown in
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/house.py[house.py].
+The regressor itself can use `n_jobs`, but if the optimizer supports parallel function
+evaluation it is usually better to set `n_jobs=1`.
+
+There are multiple ways to do this:
+
+- Population based algorithms such as
 https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaescpp.py[CMA-ES] and
 https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/gcldecpp.py[GCL-DE]
-provide a call to evaluate the whole population at once.
-This can be implemented both as serial loop or using a parallel evaluator. Disadvantages are:
+can evaluate the whole population at once. This can be implemented as a serial loop or
+with a parallel evaluator. The disadvantages are:
 
-* If population size is smaller than or not a multiple of 
-the number of available threads the CPU can not be fully utilized.
+* If the population size is smaller than, or not a multiple of, the number of available
+threads, the CPU cannot be fully utilized.
 
-* If evaluations for specific parameters are more expensive than others, some threads will idle until  
-the whole population is evaluated
+* If some parameter settings are more expensive to evaluate than others, some threads
+will sit idle until the whole population has finished.
 
-- The optimization algorithm provides a `X = ask()` operation generating a sample based on its internal state,
-and a `tell(X, y)` operation updating its state. If these operations work independently from the population
-size, more individuals than a single population can be evaluated in parallel and new evaluations can be
-triggered before the population is fully evaluated. 
+- The optimization algorithm provides an `X = ask()` operation that generates a sample
+from its internal state, and a `tell(X, y)` operation that updates that state. If these
+operations work independently of the population size, then more individuals than a
+single population can be evaluated in parallel. New evaluations can also be started
+before the population is fully evaluated.
 
-Obviously the second option is preferable, although it imposes some challenges for the implementation of the
-optimization algorithm, and only population based algorithms can support it. We implemented this idea
-in Python both for https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[CMA-ES] and
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/de.py[Differential Evolution]. There is no
-reason to use {cpp} here because we only want to support very expensive objective functions, so the 
-cost for the status update in `tell(X, y)` is negligible. 
+The second option is usually better. It is harder to implement, and only population
+based algorithms can support it, but it uses parallel resources more effectively. In
+fcmaes we implemented this idea in Python for
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[CMA-ES] and
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/de.py[Differential Evolution].
+There is no strong reason to use {cpp} here because the target use case is very
+expensive objective functions, so the cost of the `tell(X, y)` state update is negligible.
 
-image::delayedUpdate1.png[] 
+image::delayedUpdate1.png[]
 
-To reduce the delay of the update if the population size is smaller than the number of
-parallel function evaluation processes/threads we could run multiple optimizers simultaneously.
+If the population size is smaller than the number of parallel evaluation
+processes or threads, one possible way to reduce update delay is to run multiple
+optimizers at the same time.
 
-image::delayedUpdate2.png[] 
+image::delayedUpdate2.png[]
 
-If the state update is cheap in comparison to the function evaluation the optimizers
-can run single threaded in a loop calling ask/tell for each optimizer in a sequence. 
-Then each "ask" listens to a specific queue for its optimizer filled by a 
-single result pipe listener running in a separate thread. This concept is not yet 
-implemented in fcmaes because our experiments indicated even with an update
-delay we still get acceptable results. 
+If the state update is cheap compared to function evaluation, the optimizers can run in a
+single-threaded loop and call ask/tell for each optimizer in sequence. Then each `ask`
+listens to its own queue, filled by a single result-pipe listener running in a separate
+thread. This concept is not yet implemented in fcmaes because our experiments showed
+that even with update delay, the results are still acceptable.
 
 === Comparison with Hyperband Optimization
 
-Note that the idea above is closely related to the
+The idea above is closely related to the
 https://homes.cs.washington.edu/~jamieson/hyperband.html[Hyperband Algorithm] with
 
 - `X = ask()` equivalent to `get_random_hyperparameter_configuration`
 - `tell(X, y)` equivalent to `tellrun_then_return_val_loss`
 
-with a minor modification:
+with one minor modification:
 
-- The number of optimization algorithms running in the loop is reduced over time,
-filtering out the ones with the worst solution so far. 
+- The number of optimization algorithms running in the loop decreases over time by
+filtering out the ones with the worst solution so far.
 
-It becomes equivalent if the optimization algorithms were state-less and `ask()` returns
-arbitrary random samples, and if the number of evaluators is equal to 
-the number of "parallel" algorithm runs. Experiments show that both lead to inferior results. 
-We save memory by not storing any algorithm state and CPU time
-by not having to update this state. But 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[CMA-ES] relies on 
-highly efficient MKL/BLAS implementations 
-(via https://markus-beuckelmann.de/blog/boosting-numpy-blas.html[Numpy]) and the state update effort for Differential 
-Evolution is negligible. 
+The two approaches become equivalent if the optimization algorithms are stateless,
+`ask()` returns arbitrary random samples, and the number of evaluators matches the number
+of parallel algorithm runs. Our experiments show that this gives worse results.
 
-Nevertheless the Hyperband inspired idea 
-using multiple instances of an optimization algorithm sharing a pool of parallel
-function / loss evaluators and filtering out bad instances over time thereby increasing the
-evaluation budget of the surviving instances is interesting. Specially for hard hyperparameter
-optimization scenarios involving many parameters to be optimized. If GPUs are involved 
-parallelization of the function/loss evaluation may be limited, then we could 
-try a clustered solution based on https://docs.ray.io/en/master/cluster/index.html[ray] 
-similar to https://github.com/dietmarwo/fcmaes-ray[fcmaes-ray].
+That approach saves memory because no algorithm state has to be stored, and it saves CPU
+time because no state has to be updated. But
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[CMA-ES] relies on
+highly efficient MKL/BLAS implementations
+(via https://markus-beuckelmann.de/blog/boosting-numpy-blas.html[Numpy]), and the state
+update cost for Differential Evolution is negligible.
+
+Still, the Hyperband-inspired idea is interesting: run multiple optimizer instances,
+let them share a pool of parallel function or loss evaluators, and remove weak instances
+over time so the survivors get a larger evaluation budget. This may be useful for hard
+hyperparameter optimization problems with many variables. If GPUs limit parallel
+function or loss evaluation, a clustered setup based on
+https://docs.ray.io/en/master/cluster/index.html[ray], similar to
+https://github.com/dietmarwo/fcmaes-ray[fcmaes-ray], may be worth trying.
 
 === Application to Hyperparameter Optimization
 
 What happens if we apply delayed state update to the scenario described in the
 https://github.com/dietmarwo/fast-cma-es/blob/master/HyperparameterOptimization.adoc[Hyper Parameter Tutorial]?
-Again we use the tutorial code https://github.com/dietmarwo/fast-cma-es/blob/master/examples/house.py[house.py]
-and the same 16 core AMD 3950X machine for our tests:
+We again use the tutorial code
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/house.py[house.py]
+and the same 16 core AMD 3950X machine for the tests:
 
 For CMA-ES the call is:
 [source,python]
 ----
 from fcmaes import cmaes
 
-   ret = cmaes.minimize(obj_f, bounds, popsize = 16, max_evaluations = 40000, 
+   ret = cmaes.minimize(obj_f, bounds, popsize = 16, max_evaluations = 40000,
    					workers = 16)
 ----
- 
+
 [source,python]
 ----
  from fcmaes import de
- 
-   ret = de.minimize(obj_f, bounds, popsize = 16, max_evaluations = 40000, 
-   					workers = 16)
-----  
 
-Note that only for 'cmaes' 'workers > popsize' is supported. For 'de' you have to increase 
-'popsize' accordingly. 
+   ret = de.minimize(obj_f, bounds, popsize = 16, max_evaluations = 40000,
+   					workers = 16)
+----
+
+Note that only `cmaes` supports `workers > popsize`. For `de` you need to increase
+`popsize` accordingly.
 
 === Myths regarding Hyperparameter Optimization
 
-There are two myths regarding hyperparameter optimization 
-(hyperparameters are the values controlling a machine learning process):
+There are two common myths about hyperparameter optimization
+(hyperparameters are the values that control a machine learning process):
 
 - https://www.kaggle.com/clair14/tutorial-bayesian-optimization[Bayesian Optimization]
-  and http://hyperopt.github.io/hyperopt/[Tree of Parzen Estimators (TPE)] are hard to beat. 
-  
-- Usually testing a few hundred parameter sets is sufficient to find good values. 
+  and http://hyperopt.github.io/hyperopt/[Tree of Parzen Estimators (TPE)] are hard to beat.
 
-Data from our  
+- Usually testing a few hundred parameter sets is sufficient to find good values.
+
+Data from our
 https://github.com/dietmarwo/fast-cma-es/blob/master/HyperparameterOptimization.adoc[Hyper Parameter Tutorial]
-combined with new results for "delayed" CMA-ES and DE (population size = 16, number of parallel threads = 32)
-seems to confirm the myth: If we check the mean squared error after the same number of 
-evaluations (cross === Update
+combined with new results for delayed CMA-ES and DE (population size = 16, number of
+parallel threads = 32) seems to confirm these myths. If we compare mean squared error
+after the same number of evaluations (cross validations), we get:
 
-The mechanism described here for parallel fitness function evaluation are now used 
-in most of the fcmaes algorithms: MO-DE, DE and CMA-ES both in the C++ and in the
-Python implementation. Therefore the 'delayed_update' parameter is partly removed.
-If 'workers > 1' delayed update / parallel function evaluation is used. validations) we see:
+image::Hyper_Parameter_Optimization_300_evals.png[]
 
-image::Hyper_Parameter_Optimization_300_evals.png[] 
+- Especially with fewer than 100 evaluations, TPE and Bayesian optimization are superior.
+- Even after 300 evaluations TPE and Bayesian still perform well.
 
-- Specially with less than 100 evaluations TPE and Bayesian are superior.
-- Even after 300 evaluations TPE and Bayesian still perform well. 
+The more accurate statement is:
 
-The truth behind these myths could be formulated as:
+- If you want to evaluate no more than 300 cross validations, and you cannot execute
+multiple cross validations in parallel (limited GPU resources, ...), then TPE or
+Bayesian optimization is a good choice.
 
-- If you want to evaluate not more than 300 cross validations, and you cannot execute multiple
-cross validations in parallel (limited GPU resources, ...) then you can choose TPE or Bayesian optimization. 
-
-Lets check what happens if we remove these limits as it can be done for CPU based regressors like the popular 
+Now consider what happens when we remove these limits, as we can for CPU-based
+regressors such as the popular
 https://github.com/dmlc/xgboost/blob/master/python-package/xgboost/sklearn.py[xgboost.XGBRegressor].
-Don't be fooled by the CPU utilization shown by the OS, when using XGBRegressor parameter
-"n_jobs=32", which is the default on our 16 core / 32 thread machine:
+Do not be misled by the CPU utilization reported by the OS when using the XGBRegressor
+parameter `n_jobs=32`, which is the default on our 16 core / 32 thread machine:
 
-image::cpuUsage.png[] 
+image::cpuUsage.png[]
 
-It is the same as we see when using "n_jobs=1" and executing 32 XGBRegressor cross validations in parallel. 
-But the number of validations per minute increases from about 3 to about 13 and above as can been seen in the 
-top right corner of the diagrams. The CPU utilization shown indicates how much "room" the processor has to execute other tasks - in this case
-it is fully utilized. But is is no indication how much work really is done - it can be the processor is busy 
-transferring data between cores. Check the CPU temperature, it is usually higher when the processor is
-doing "real" work. 
+The reported CPU utilization is similar to what we see with `n_jobs=1` while running 32
+XGBRegressor cross validations in parallel. But the number of validations per minute
+increases from about 3 to about 13 and above, as shown in the top right corner of the
+diagrams. Reported CPU utilization only indicates how much room the processor has left
+for other tasks. In this case it is fully utilized, but that does not tell us how much
+useful work is being done. The processor may spend a lot of time moving data between
+cores. CPU temperature is often a better hint here. It is usually higher when the
+processor is doing more real work.
 
-Therefore we no longer show performance in relation to evaluations but in relation to the time used. 
+For this reason, we no longer compare performance by evaluation count. We compare it by
+elapsed time.
 
+=== Update
+
+The mechanism described here for parallel fitness evaluation is now used in most fcmaes
+algorithms: MO-DE, DE, and CMA-ES, both in the C++ and Python implementations.
+Therefore the `delayed_update` parameter has been partly removed. If `workers > 1`,
+delayed update or parallel function evaluation is used.
 
 === Performance of longer runs
 
-image::Hyper_Parameter_Optimization_3000_sec.png[] 
+image::Hyper_Parameter_Optimization_3000_sec.png[]
 
-When investing 3000 sec we already see a clear superiority for CMA-ES 16/32 and DE 16/32. 
+After 3000 sec, CMA-ES 16/32 and DE 16/32 are already clearly better.
 
-image::Hyper_Parameter_Optimization_12000_sec.png[] 
+image::Hyper_Parameter_Optimization_12000_sec.png[]
 
-After 12000 sec the gap to the conventional methods still increases.
+After 12000 sec, the gap to the conventional methods increases further.
 
 image::Hyper_Parameter_Optimization_70000_sec.png[]
 
-Finally we see that with CMA-ES 16/32 it may be worth to invest even more time.
+Finally, we see that with CMA-ES 16/32 it may be worth investing even more time.
 
 === Conclusion
 
-- On a modern multi core processor hyperparameter optimization for CPU based regressors like `XGBRegressor`
-can be improved by executing multiple cross validations in parallel 
-instead of utilizing the internal parallelization of the regressor. 
+- On a modern multi-core processor, hyperparameter optimization for CPU-based regressors
+like `XGBRegressor` can be improved by running multiple cross validations in parallel
+instead of relying on the regressor's internal parallelization.
 
-- In this case CPU utilization can further be improved by using optimizers supporting delayed state update.  
+- In this setting, CPU utilization can be improved further by using optimizers that
+support delayed state update.
 
-- For longer execution times (> 1000 sec on a 16 core CPU) both differential evolution and CMA-ES clearly 
-outperform TPE and Bayesian optimization when utilizing delayed state update. 
+- For longer execution times (> 1000 sec on a 16 core CPU), both Differential
+Evolution and CMA-ES clearly outperform TPE and Bayesian optimization when using
+delayed state update.
 
-- For very long runs (> 50000 sec) CMA-ES + delayed update finds the best results. 
+- For very long runs (> 50000 sec), CMA-ES + delayed update finds the best results.
 
-You should try both fcmaes CMA-ES and DE variants supporting delayed update beyond hyperparameter optimization.
-Criteria for its applicability are:
+This is not limited to hyperparameter optimization. The fcmaes CMA-ES and DE variants
+with delayed update are worth trying whenever the following conditions hold:
 
 - Very high cost for objective function evaluation.
-- The objective function is CPU, not GPU based. 
+- The objective function is CPU, not GPU based.
 - No intrinsic parallelization of the objective function or bad scaling.
 
-Many simulation based objective functions fall into this category. But if possible, it is even better to 
-execute parallel optimization retries instead of parallelizing objective function evaluation. For 
-the https://github.com/dietmarwo/fcmaes-java/blob/master/CTOC11.adoc[CTOC11 competition] we chose this option,
-although the simulation performed by the objective function was quite costly. 
+Many simulation-based objective functions fall into this category. Still, if possible,
+it is often even better to run parallel optimization retries instead of parallelizing
+objective function evaluation. For the
+https://github.com/dietmarwo/fcmaes-java/blob/master/CTOC11.adoc[CTOC11 competition]
+we chose that option, although the simulation in the objective function was quite costly.
 
 ==== Remarks
 
-- The the CMA-ES algorithm implemented in fcmaes is the well known "active CMA" algorithm, see
+- The CMA-ES algorithm implemented in fcmaes is the well known "active CMA" algorithm, see
   https://www.researchgate.net/publication/227050324_The_CMA_Evolution_Strategy_A_Comparing_Review[CMA_Evolution_Strategy]
-- The DE variant used is special to fcmaes, it was successfully applied at the 
+- The DE variant used is special to fcmaes, it was successfully applied at the
   https://github.com/dietmarwo/fcmaes-java/blob/master/CTOC11.adoc[CTOC11 competition].
   Other DE variants may perform significantly worse.
-- GCL-DE, which is also implemented in fcmaes, doesn't support (yet) delayed update, but can evaluate a whole
-  population in parallel. It requires a higher number of function evaluations, but performs also better than
+- GCL-DE, which is also implemented in fcmaes, doesn't support delayed update yet, but can evaluate a whole
+  population in parallel. It requires more function evaluations, but still performs better than
   TPE and Bayesian optimization for very long runs. See "A case learning-based differential evolution algorithm for global optimization of interplanetary trajectory design,
     Mingcheng Zuo, Guangming Dai, Lei Peng, Maocai Wang, Zhengquan Liu", https://doi.org/10.1016/j.asoc.2020.106451[DOI]
-  
-  
 
 
 

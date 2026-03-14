@@ -14,113 +14,114 @@ image::logo.gif[]
 This tutorial
 
 - Is related to https://github.com/AllenDowney/ModSimPy/blob/master/examples/plague.ipynb
-from the free book https://greenteapress.com/wp/modsimpy/[Modeling and Simulation] from Allan B. Downey. 
-Note that, different to the other fcmaes tutorials,  
-the code for this example is licensed under the 
+from the free book https://greenteapress.com/wp/modsimpy/[Modeling and Simulation] by Allan B. Downey.
+Unlike the other fcmaes tutorials, the code for this example is licensed under the
 https://creativecommons.org/licenses/by-nc-sa/4.0/[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International]
-license, so it is not allowed to use it for commercial purposes. See also
+license, so it cannot be used for commercial purposes. See also
 https://notebook.community/AllenDowney/ModSimPy/soln/chap12soln[Solution Chapter 12].
-- Shows how to evaluate countermeasures to a disease. How should you distribute your limited budged between them
+- Shows how to evaluate countermeasures for a disease. How should you distribute a limited budget between them
 to minimize the infection rate?
-- How to use multi-objective optimization to produce diagrams representing non-dominated solutions which 
-can be used to plan counter-measures.
-- How to speed up the simulation using https://numba.pydata.org/[numba].
-- Shows different ways to visualize multi-dimensional pareto fronts in Python. 
+- Shows how to use multi-objective optimization to produce diagrams of non-dominated solutions that can help plan countermeasures.
+- Shows how to speed up the simulation using https://numba.pydata.org/[numba].
+- Shows different ways to visualize multi-dimensional pareto fronts in Python.
 
 The code for this tutorial is
 here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vaccination.py[vaccination.py]
 
 === Motivation
 
-https://greenteapress.com/wp/modsimpy/[Modeling and Simulation] contains many good ideas 
-how to implement simulations. It uses https://pandas.pydata.org/docs/reference/api/pandas.Series.html[pandas.Series]
-to implement the time series representing the course of a disease.  
-The example shows, for a fixed overall budget, how different budged distributions over two counter measures: 
+https://greenteapress.com/wp/modsimpy/[Modeling and Simulation] contains many good ideas for implementing simulations.
+It uses https://pandas.pydata.org/docs/reference/api/pandas.Series.html[pandas.Series]
+to represent the time series of a disease outbreak.
+The example shows, for a fixed overall budget, how different budget splits between two countermeasures
 
 - Investing in a hand washing campaign.
 - Investing in vaccine doses.
 
-affects the final infection rate. This is done by simply iterating over all possible budged distributions.
-But what, if the budged is not fixed and you want to find out for all possible investments:
+affect the final infection rate. It does this by iterating over all possible budget distributions.
+
+But what if the budget is not fixed and you want to explore all possible investment levels? Then the questions become:
 
 - How should the money be distributed optimally?
-- What is the final infection rate?
+- What is the resulting infection rate?
 
-With only two input variables - the two investments - this can be easily be handled by a nested loop
-iterating over all investments using a reasonable step size.  But what if there are more input variables / competing
-objectives / constraints ? Or if the solution landscape is rugged, so we would need a very small step size ?
-The multi-objective optimization approach applied to this problem may be overkill here, but it generalizes well
-if we add more complexity. And it can perform simulations in parallel - although this may be easy to implement for a 
-nested loop. For this example you may view multi-objective optimization as a kind of "intelligent" nested loop, 
-which reduces the step size automatically near optimal investment distributions. 
+With only two input variables, the two investments, this is still easy to handle with a nested loop
+and a reasonable step size. But that changes when there are more input variables, more competing
+objectives, or constraints. It also changes when the solution landscape is rugged and we need a much smaller step size.
 
-But anyway, nested loop or multi-objective optimization, the execution time for a simulation performed using Python
-can become an issue. Therefore we prefer a slightly different approach handling time series shown for instance in our 
+For this problem, a multi-objective optimization approach may be overkill. Still, it generalizes well
+when we add complexity. It can also run simulations in parallel, although that is also possible with a nested loop.
+In this example, you can think of multi-objective optimization as an "intelligent" nested loop
+that automatically uses a finer step size near good investment distributions.
+
+Whether we use a nested loop or multi-objective optimization, execution time can become a problem
+when the simulation is written in Python. We therefore prefer a slightly different way to handle time series,
+similar to the approach used in our
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[crypto trading tutorial]:
 
-- Instead of a https://pandas.pydata.org/docs/reference/api/pandas.Series.html[pandas.Series] (one dimensional) 
-use a https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html[pandas.DataFrame]. So instead representing the
-series by a list of objects we represent each attribute as a separate list represented by the columns of the DataFrame.
-The main advantage is that we can extract and assign these columns as numpy arrays and can feed them to a simulator inner loop
-implemented using https://numba.pydata.org/[numba]. This can lead to a dramatic speed up of the simulation, which
-comes very handy if it is called in a nested loop or for a multi-objective optimization.   
-For the vaccination problem fortunately we don't need the time series at all, since we are only
-interested in the final infection rate. This computation can easily be "delegated" to a simulation loop using 
+- Instead of a https://pandas.pydata.org/docs/reference/api/pandas.Series.html[pandas.Series] (one-dimensional),
+use a https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html[pandas.DataFrame]. That means we no longer represent the
+series as a list of objects. Instead, each attribute becomes a separate list stored in a DataFrame column.
+The main advantage is that we can extract and assign these columns as numpy arrays and pass them to an inner simulator loop
+implemented with https://numba.pydata.org/[numba]. This can speed up the simulation dramatically, which matters
+when it is called inside a nested loop or a multi-objective optimization.
+For the vaccination problem we fortunately do not need the full time series at all, because we are only
+interested in the final infection rate. That computation can easily be delegated to a simulation loop written with
 https://numba.pydata.org/[numba].
 
 === Fast SIR simulation
-The simulation of the disease uses the
-https://scipython.com/book/chapter-8-scipy/additional-examples/the-sir-epidemic-model/[SIR epidemic model]
+The disease simulation uses the
+https://scipython.com/book/chapter-8-scipy/additional-examples/the-sir-epidemic-model/[SIR epidemic model],
 where SIR stands for
 
 - S(t) are those susceptible but not yet infected with the disease.
 - I(t) is the number of infectious individuals.
 - R(t) are those individuals who have recovered from the disease and now have immunity to it.
 
-The simulation can be accelerated by several orders of magnitude using https://numba.pydata.org/[numba] 
-as follows:
+The simulation can be accelerated by several orders of magnitude with https://numba.pydata.org/[numba],
+as shown below:
 
 [source,python]
 ----
     @njit(fastmath=True)
     def fast_update(s, i, r, beta, gamma):
-        infected = beta * i * s    
-        recovered = gamma * i       
+        infected = beta * i * s
+        recovered = gamma * i
         return s - infected, i + infected - recovered, r + recovered
-    
+
     @njit(fastmath=True)
     def fast_simulate(s, i, r, t_end, beta, gamma):
         for t in range(0, t_end):
             s, i, r = fast_update(s, i, r, beta, gamma)
-        return s, i, r   
+        return s, i, r
 ----
 
-`fast_simulate` replaces the `sweep_doses` from the original example code which fills 
-`SRI` objects into a `pandas.Series`. The acceleration may not really be needed for
-this small example, but for bigger simulations it is essential that all inner loops
-are executed using https://numba.pydata.org/[numba].
+`fast_simulate` replaces `sweep_doses` from the original example, which fills
+`SRI` objects into a `pandas.Series`. The acceleration may not matter much for
+this small example, but for larger simulations it is essential that all inner loops
+run inside https://numba.pydata.org/[numba].
 
 [source,python]
 ----
     def sweep_doses(dose_array):
         sweep = SweepSeries()
-        
+
         for doses in dose_array:
             fraction = doses / num_students
             spending = budget - doses * price_per_dose
-            
+
             system = make_system(beta, gamma)
             add_immunization(system, fraction)
             add_hand_washing(system, spending)
-            
+
             results = run_simulation(system, update_func)
             sweep[doses] = calc_total_infected(results, system)
-    
+
         return sweep
 ----
 
-We also could produce the whole series using https://numba.pydata.org/[numba]
-if needed - and store the resulting arrays in a `pandas.DataFrame`:
+We could also generate the whole series with https://numba.pydata.org/[numba]
+if needed, and store the resulting arrays in a `pandas.DataFrame`:
 
 [source,python]
 ----
@@ -142,51 +143,50 @@ if needed - and store the resulting arrays in a `pandas.DataFrame`:
 
 === Objective Fitness Function
 
-How can we design the fitness function guiding the optimization process?
-Result should be a set of non-dominating solutions - a pareto-front - which
-corresponds to "good" or "interesting" solutions we would produce using a 
-nested loop iterating first over the vaccination
-budged and then over the hand-washing campaign spending. We are interested 
-in solutions with a low combined budged, so we define the sum
-'budged_doses + spending` as one of our objectives, the infection rate
-`infected` as the other one. 
+How should we define the fitness function that guides the optimization?
+The result should be a set of non-dominated solutions, a pareto front.
+It should correspond to the "good" or "interesting" solutions we would otherwise get from a
+nested loop that iterates first over the vaccination
+budget and then over hand-washing spending. We are interested
+in solutions with a low combined budget, so we define the sum
+`budged_doses + spending` as one objective and the infection rate
+`infected` as the other.
 
 [source,python]
 ----
 class fcmaes_problem():
-    
+
     def __init__(self):
         self.dim = 2
-        self.bounds = Bounds([0]*self.dim, [budget]*self.dim)     
-        
-    def simulate(self, budged_doses, spending):     
+        self.bounds = Bounds([0]*self.dim, [budget]*self.dim)
+
+    def simulate(self, budged_doses, spending):
         doses = budged_doses / price_per_dose
-        fraction = doses / num_students         
+        fraction = doses / num_students
         system = make_system(beta, gamma)
         add_immunization(system, fraction)
-        add_hand_washing(system, spending)          
+        add_hand_washing(system, spending)
         results = run_simulation(system, update_func)
         return calc_total_infected(results, system)
 
     def fitness2(self, x):
         budged_doses = x[0]
-        spending = x[1]                        
+        spending = x[1]
         infected = self.simulate(budged_doses, spending)
         return [infected, budged_doses + spending]
 
     def fitness3(self, x):
         budged_doses = x[0]
-        spending = x[1]                        
+        spending = x[1]
         infected = self.simulate(budged_doses, spending)
         return [infected, budged_doses, spending]
-    
-problem = fcmaes_problem()    
+
+problem = fcmaes_problem()
 ----
 
-Additionally we define
-an objective function `fitness3` which separates both budgets to 
-create a 3 dimensional chart visualizing the structure of all budged 
-distributions in relation to the resulting infection rate.
+We also define an objective function `fitness3` that keeps both budgets separate.
+This lets us create a 3-dimensional chart that shows how all budget
+distributions relate to the resulting infection rate.
 
 === Compute the 2-objective Pareto Front
 
@@ -194,15 +194,15 @@ fcmaes offers two different parallelization modes:
 
 ==== Parallel function evaluation
 
-In this mode a single optimization performs function evaluations in parallel. 
-Advantage: Faster convergence, you need less evaluations to produce a good 
-set of non dominated solutions (pareto-front).
+In this mode, a single optimization evaluates the fitness function in parallel.
+The advantage is faster convergence. You need fewer evaluations to produce a good
+set of non-dominated solutions, the pareto front.
 
 [source,python]
 ----
-    xs, ys = mode.minimize(mode.wrapper(problem.fitness2, 3, interval=1000), 3, 
-               problem.ncon, problem.bounds, 
-               popsize = 256, max_evaluations = 25600, nsga_update=False, 
+    xs, ys = mode.minimize(mode.wrapper(problem.fitness2, 3, interval=1000), 3,
+               problem.ncon, problem.bounds,
+               popsize = 256, max_evaluations = 25600, nsga_update=False,
                workers=8)
 ----
 
@@ -210,23 +210,23 @@ set of non dominated solutions (pareto-front).
 
 image::vaccine2dmode.png[]
 
-Only 8 workers are defined because the overhead for parallelization is high, 
-more workers would not improve the evaluation rate further. If the fitness evaluation is
-more expensive, it dominates the parallelization overhead, so this problem disappears. 
-Because of our `numba` based "tuning" we get about 1450 evaluations/sec using parallel 
+Only 8 workers are used because the parallelization overhead is high.
+More workers would not improve the evaluation rate further. If the fitness evaluation is
+more expensive, it dominates the parallelization overhead and this problem disappears.
+Because of our `numba`-based tuning we get about 1450 evaluations/sec using parallel
 function evaluation, and about 6800 evaluations/sec using parallel optimization on
-a 16 core / 32 thread AMD 5950 CPU. The whole optimization produces a 512 solution pareto 
+a 16 core / 32 thread AMD 5950 CPU. The whole optimization produces a 512 solution pareto
 front in about 17 seconds for parallel function evaluation (25000 evaluations) and a 7573 solution pareto front
 in about 83 seconds (561000 evaluations)
 
-For comparison: The original non-numba simulation performs 277 simulations / sec 
-using parallel function evaluation, and about 286 evaluations/sec using parallel optimization. 
-Now you need to set `workers=32`
-for 'mode.minimize` to fully utilize the CPU, since the parallelization overhead now is 
-smaller compared to the cost of a function evaluation. 
+For comparison, the original non-numba simulation performs 277 simulations / sec
+using parallel function evaluation, and about 286 evaluations/sec using parallel optimization.
+In that case you need to set `workers=32`
+for `mode.minimize` to fully utilize the CPU, because the parallelization overhead is now
+smaller compared to the cost of a function evaluation.
 
-Single threaded the original non-numba simulation performs only 13.3 simulations / sec, the
-numba-optimized one about 450.
+In single-threaded mode, the original non-numba simulation performs only 13.3 simulations / sec.
+The numba-optimized version reaches about 450.
 
 So the speed gain factors are as follows:
 
@@ -234,25 +234,26 @@ So the speed gain factors are as follows:
 [width="80%",cols="3,^2,^2",options="header"]
 |=========================================================
 |parallelization |original | numba
-|none |1.0 |33.8 
+|none |1.0 |33.8
 |parallel function |20.8 | 109.0
 |parallel optimization |21.5 |511.2
 |=========================================================
 
-So the maximal speedup on the AMD 5950 CPU 16 core CPU was 511: 
-parallel optimization / numba simulation compared to single threaded / original simulation.
-You don't want to miss factor > 500 for larger more serious simulations / optimizations.
+So the maximum speedup on the AMD 5950 CPU 16 core CPU was 511:
+parallel optimization / numba simulation compared to single-threaded / original simulation.
+For larger and more serious simulations or optimizations, this kind of speedup matters.
 
 ==== Parallel optimization
 
-In this mode the whole optimization is performed in parallel. Advantage: Better
-scaling, more evaluations per second. Disadvantage: Slower convergence, you need
-more evaluations - but you get more solutions in the pareto front:
+In this mode, the whole optimization is performed in parallel.
+The advantage is better scaling and more evaluations per second.
+The disadvantage is slower convergence, so you need more evaluations.
+But you also get more solutions in the pareto front:
 
 [source,python]
 ----
-    xs, ys = modecpp.retry(mode.wrapper(problem.fitness2, 2, interval=1000), 2, 
-               0, problem.bounds, popsize = 128, max_evaluations = 12800, 
+    xs, ys = modecpp.retry(mode.wrapper(problem.fitness2, 2, interval=1000), 2,
+               0, problem.bounds, popsize = 128, max_evaluations = 12800,
                nsga_update=False, num_retries = 64, workers=32)
     moretry.plot("pandemy", 0, xs, ys)
 ----
@@ -261,62 +262,62 @@ image::vaccine2dretry.png[]
 
 ==== Interpretation of the result
 
-Parallel optimization produces more detailed picture, since because of the 
-improved parallelization-scaling we can compute a bigger solution.
+Parallel optimization gives a more detailed picture because the better scaling
+lets us compute a larger solution set.
 
 We see that:
 
 - We should not invest more than 800 for the hand-washing campaign, since
-for a final infection rate < 0.20 only more money invested in vaccination helps. 
+for a final infection rate < 0.20 only more money invested in vaccination helps.
 - As long as we invest 800 for the hand-washing campaign, each increase of the vaccination
-budged further reduces the final infection rate significantly.
-- If our overall budged is between 400-800, all the money should go to the hand-washing campaign. 
-- If it is less than 400, all the money should be invested in vaccination. 
+budget further reduces the final infection rate significantly.
+- If our overall budget is between 400-800, all the money should go to the hand-washing campaign.
+- If it is less than 400, all the money should be invested in vaccination.
 
-Did you expect this result? I was surprised. 
+Did you expect this result? I was surprised.
 
 === Compute the 3-objective Pareto Front
 
-We use the same algorithms, this time applied to the 3-objective fitness variant `fitness3`.
-Performance is very similar to the 2d-variant, but this time we see how both campaign spending and
-vaccination budged influence the final infection rate. 
+We use the same algorithms again, this time with the 3-objective variant `fitness3`.
+Performance is very similar to the 2d variant, but now we can see how both campaign spending and
+vaccination budget influence the final infection rate.
 
 ==== Parallel function evaluation
 
 [source,python]
 ----
-    xs, ys = mode.minimize(mode.wrapper(problem.fitness3, 3, interval=1000), 3, 
-                0, problem.bounds, popsize = 512, max_evaluations = 25600, 
+    xs, ys = mode.minimize(mode.wrapper(problem.fitness3, 3, interval=1000), 3,
+                0, problem.bounds, popsize = 512, max_evaluations = 25600,
                 nsga_update=False, workers=8)
     plot3d(xs, ys, task)
 ----
 
 ==== Result
 
-This time we produce two pictures, one using a heatmap to represent the 3rd dimension:
+This time we produce two pictures. One uses a heatmap to represent the third dimension:
 
 image::vaccine3dmode.png[]
 
-And one using a 3d-perspective:
+The other uses a 3d perspective:
 
 image::vaccine3dmode2.png[]
 
-When you execute the example you will notice that this time you can play with the picture in 
-the browser. This is an important feature which helps to actually understand the 3d result. 
+When you run the example, you will notice that you can interact with the picture
+in the browser. This is important because it makes the 3d result much easier to understand.
 
 ==== Parallel optimization
 
 [source,python]
 ----
-    xs, ys = modecpp.retry(mode.wrapper(problem.fitness3, 3, interval=1000), 3, 
-                0, problem.bounds, popsize = 256, max_evaluations = 25600, 
+    xs, ys = modecpp.retry(mode.wrapper(problem.fitness3, 3, interval=1000), 3,
+                0, problem.bounds, popsize = 256, max_evaluations = 25600,
                 nsga_update=False, workers=32)
     plot3d(xs, ys, task)
 ----
 
-Again we get a more detailed picture using parallel optimization, since, because of the 
-improved parallelization-scaling we can compute a bigger solution this way. Note that this
-is not the case for expensive objective functions, because then both methods scale similarly.  
+Again we get a more detailed picture with parallel optimization because the
+better scaling lets us compute a larger solution this way. Note that this
+is not the case for expensive objective functions, because then both methods scale similarly.
 
 image::vaccine3dretry.png[]
 
@@ -324,16 +325,16 @@ image::vaccine3dretry2.png[]
 
 ==== Exercise
 
-Is the result dependent on the optimization library used? To answer this question
-try https://facebookresearch.github.io/nevergrad/optimization.html#multiobjective-minimization-with-nevergrad[nevergrad], 
+Is the result dependent on the optimization library used? To answer this question,
+try https://facebookresearch.github.io/nevergrad/optimization.html#multiobjective-minimization-with-nevergrad[nevergrad],
 a very popular optimization library (> 40000 downloads last month, see https://pypistats.org/packages/nevergrad ).
-You may start testing NGOpt, CMA, DE, TwoPointsDE, but be warned: Finding a `nevergrad` multi-objective algorithm
-which is able to reproduce the result above is challenging. You may try something like:
+You may start with NGOpt, CMA, DE, or TwoPointsDE, but be warned: finding a `nevergrad` multi-objective algorithm
+that is able to reproduce the result above is challenging. You may try something like:
 
 [source,python]
 ----
-    import nevergrad as ng   
-    fit = mode.wrapper(problem.fitness2, 2, interval=1000)    
+    import nevergrad as ng
+    fit = mode.wrapper(problem.fitness2, 2, interval=1000)
     instrum = ng.p.Instrumentation(
             ng.p.Array(shape=(problem.dim,)).set_bounds(problem.bounds.lb, problem.bounds.ub))
     optimizer = ng.optimizers.TwoPointsDE(parametrization=instrum, budget=5000, num_workers=8)
@@ -344,20 +345,20 @@ which is able to reproduce the result above is challenging. You may try somethin
     plot2d(xs, ys, "TwoPointsDE")
 ----
 
-If you don't succeed try https://pymoo.org/algorithms/moo/nsga2.html[pymoo]. 
-This exercise is to show that when using https://numba.pydata.org/[numba] to speed up the fitness function,
-the optimization algorithm overhead becomes relevant. 
-https://facebookresearch.github.io/nevergrad[nevergrad] is not designed for fast fitness functions. 
+If you do not succeed, try https://pymoo.org/algorithms/moo/nsga2.html[pymoo].
+This exercise shows that when https://numba.pydata.org/[numba] speeds up the fitness function,
+the optimization algorithm overhead becomes relevant.
+https://facebookresearch.github.io/nevergrad[nevergrad] is not designed for fast fitness functions.
 
 ==== Conclusion
 
-- fcmaes multi objective optimization can be used to replace a nested loop enumerating all solutions
-produced by a simulation. 
+- fcmaes multi-objective optimization can replace a nested loop that enumerates all solutions
+produced by a simulation.
 - Advantages for this kind of application are
     * Automatic parallelization.
     * Automatic adjustment of the step size.
-- Visualization of the multi-dimensional solution landscapes can assist the decision making process.
-- If the solution landscape is rugged, if there are many dimensions, objectives or constraints,
-a nested loop will no longer work. 
-- You don't want to miss out speed factor > 500 for larger more serious simulations / optimizations
-which could be achieved by parallelization + numba combined. 
+- Visualization of multi-dimensional solution landscapes can assist the decision-making process.
+- If the solution landscape is rugged, or if there are many dimensions, objectives, or constraints,
+a nested loop will no longer work.
+- For larger and more serious simulations or optimizations, it matters that parallelization and numba together
+can achieve a speed factor > 500.

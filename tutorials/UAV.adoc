@@ -11,82 +11,62 @@ image::logo.gif[]
 
 == Multi-UAV Task Assignment
 
-This tutorial
+This tutorial:
 
-- Discusses how continuous optimization can be applied to a Multi-UAV Task Assignment problem thereby
-  beating other proposed algorithms specifically created to solve this problem. 
-- Extends the problem to multiple objectives and shows how this modification can 
-  be solved using the fcmaes-MODE algorithm. 
+- Shows how continuous optimization can be applied to a Multi-UAV Task Assignment problem and outperform specialized algorithms proposed for this benchmark.
+- Extends the problem to multiple objectives and shows how to solve that variant with the fcmaes MODE algorithm.
 
 === Motivation
 
-Unmanned aerial vehicles (UAVs) have a large application potential in 
-transportation, disaster rescue, reconnaissance and surveillance.
-Swarms of UAVs can be viewed as distributed intelligent autonomous systems.
+Unmanned aerial vehicles (UAVs) are used in transportation, disaster rescue, reconnaissance, and surveillance.
+A swarm of UAVs can be seen as a distributed autonomous system.
 
-There are many variants of the UAV task assignment problem. As an example
-we will investigate the following variant:
+There are many variants of the UAV task assignment problem. Here we look at the following one:
 
-What is the optimal set of routes for
-a fleet of vehicles to traverse in order to deliver to a set of targets
-thereby fulfilling a time limit constraint. Each vehicle has
-its own speed and the targets have different time costs and rewards.  
+What is the best set of routes for a fleet of vehicles to visit a set of targets while satisfying a time limit? Each vehicle has its own speed, and each target has its own time cost and reward.
 
-The chosen variant is suitable for a wide range of multi-UAV task assignment problems. 
-Therefore in https://arxiv.org/pdf/2009.00363.pdf it was chosen as the basis
-for a benchmark to evaluate different optimization algorithms:
-https://github.com/robin-shaun/Multi-UAV-Task-Assignment-Benchmark . 
+This variant is suitable for a wide range of multi-UAV task assignment problems. For that reason, https://arxiv.org/pdf/2009.00363.pdf used it as the basis for a benchmark that compares different optimization algorithms:
+https://github.com/robin-shaun/Multi-UAV-Task-Assignment-Benchmark .
 
-Three different algorithms: GA, PSO and ACO, were implemented in a problem specific
-way and can be evaluated by executing the benchmark. Additionally a `step` function
-is provided which can support the application of machine learning approaches like
-reinforcement learning. 
+The benchmark includes three problem-specific algorithms: GA, PSO, and ACO. It also provides a `step` function that can support machine learning approaches such as reinforcement learning.
 
-A problem specific optimizer has obvious disadvantages:
+A problem-specific optimizer has obvious disadvantages:
 
 - Additional implementation effort.
 - Harder to adapt for other problem variants.
-- Utilizing the whole CPU (all cores) is difficult. All three implementations are single threaded. 
+- Using the whole CPU is difficult. All three implementations are single-threaded.
 
-It makes only sense if the performance is superior compared to standard continuous optimizers
-like BiteOpt, CR-FM-NES or CMA-ES. which are easy to parallelize. 
-CR-FM-NES and CMA-ES converge fast, but can get stuck at local minima. BiteOpt, on the other hand,
-converges slower but is better at avoiding getting stuck. Therefore we choose the sequences 
-CR-FM-NES->BiteOpt and CMA-ES->BiteOpt as algorithms to test with the UAV problem. 
+This extra work only makes sense if the performance is clearly better than that of standard continuous optimizers such as BiteOpt, CR-FM-NES, or CMA-ES, which are easy to parallelize. CR-FM-NES and CMA-ES converge quickly, but they can get stuck in local minima. BiteOpt converges more slowly, but it is better at escaping them. For this reason, we test the sequences CR-FM-NES->BiteOpt and CMA-ES->BiteOpt on the UAV problem.
 
-Parallel retry applied to any of the two continuous optimizers outperforms all three 
-algorithms by a big margin as we can see in the diagrams below:
+With parallel retry, both continuous optimization sequences outperform all three specialized algorithms by a wide margin, as shown below:
 
 image::uav_reward.png[]
 
-Only for small problems GA can compete. The following diagram shows selected solutions for
-small, medium and large problem sizes for all six algorithms:
+Only on small problems can GA compete. The next diagram shows selected solutions for small, medium, and large problem sizes for all six algorithms:
 
 image::uav_results.png[]
 
-If we apply generic continuous optimization algorithms to this problem, 
-adaption to a different variant means that only the objective function needs
-to be adapted. 
+This is the main practical advantage. If we use generic continuous optimizers, adapting to a different problem variant usually means changing only the objective function.
 
 === Implementation
 
 We forked https://github.com/robin-shaun/Multi-UAV-Task-Assignment-Benchmark[Multi-UAV-Task-Assignment-Benchmark]
-in https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark 
-and implemented the following enhancements:
+to https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark
+and added the following enhancements:
 
 - GA objective function is much faster using https://numba.pydata.org/[numba].
-- We applied numba also to the GA operations (selection, mutation, crossover), see
+- We also applied numba to the GA operations selection, mutation, and crossover, see
 https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/ga.py[ga.py]
 - The fitness function used for GA is adapted and improved for use with continuous optimizers.
-- CR-FM-NES->BiteOpt and CMA-ES->BiteOpt using parallel retry are added as Benchmark and as a stand-alone experiment.
-- Multi-objective MODE parallel retry is added as stand-alone experiment. 
+- CR-FM-NES->BiteOpt and CMA-ES->BiteOpt with parallel retry are added to the benchmark and as stand-alone experiments.
+- Multi-objective MODE parallel retry is added as a stand-alone experiment.
 
 ==== Single Objective Continuous Fitness
 
 Fitness class `Optimizer` delegates to the fitness function adapted from GA:
 
 [source,python]
-----   
+----
 @njit(fastmath=True)
 def fitness_(x, vehicle_num, vehicles_speed, target_num, targets, time_lim, map):
     ins = np.zeros(target_num+1, dtype=numba.int32)
@@ -118,72 +98,56 @@ def fitness_(x, vehicle_num, vehicles_speed, target_num, targets, time_lim, map)
 
 class Optimizer():
 ...
-    def fitness(self, x):   
-        return -fitness_(x, self.vehicle_num, self.vehicles_speed, 
+    def fitness(self, x):
+        return -fitness_(x, self.vehicle_num, self.vehicles_speed,
                            self.target_num, self.targets, self.time_lim, self.map)
 ...
 ----
 
-Note that we use the `np.argsort`-trick applied to decision variables in the `[0,1]`-interval 
-to generate a sequence of unique indices. This way we need an additional decision variable, but
-the results are much better for continuous optimizers.
+Here we use the `np.argsort` trick on decision variables in the `[0,1]` interval to generate a sequence of unique indices. This requires one additional decision variable, but it works much better for continuous optimizers.
 
 The complete code is in
 https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_fcmaes.py[test_fcmaes.py]
 and https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/fcmaesopt.py[fcmaesopt.py]
-Only minor adjustments to the objective function initially created for GA are needed to 
-apply https://numba.pydata.org/[numba] for a dramatic speedup.
+Only minor changes to the objective function originally created for GA are needed to apply https://numba.pydata.org/[numba] and get a large speedup.
 
 ==== Multiple Objectives
 
-Instead of only optimizing the overall reward we can add more objectives:
+Instead of optimizing only the overall reward, we can add more objectives:
 
 - used time - to be minimized
 - used energy - to be minimized
 
-By applying a multi-objective algorithm we gain additional knowledge about
-the tradeoffs associated with these objectives. As a result we could for instance
-reconsider the time limit for the single objective optimization, if we see
-that more time means less energy and higher reward. So we adapted the
-objective function and applied the fcmaes MODE multi-objective optimization
-algorithm. In the diagrams below you see two 2-dimensional projections 
-of the resulting three dimensional pareto front: 
+This gives more insight into the tradeoffs between objectives. For example, if more time leads to less energy use and higher reward, we may want to reconsider the time limit used in the single-objective setup. We therefore adapted the objective function and applied the fcmaes MODE multi-objective optimizer. The diagrams below show two 2-dimensional projections of the resulting 3-dimensional Pareto front:
 
 image::1_front_pareto_uav100.png[]
 
 image::2_front_pareto_uav100.png[]
 
-We used about 25 minutes / 8*10^8 evaluations for this optimization. Multi-objective
-optimization needs more function evaluations than BiteOpt to find a solution
-- as part of the pareto front - with comparable reward.  But to reach a reward
-achieved by GA, PSO or ACO only a few seconds are required. Note that this
-problem doesn't work well with differential evolution population update. Both single- and multi-objective. 
-So you have to configure MODE with parameter `nsga_update = True`.
+We used about 25 minutes and `8*10^8` evaluations for this optimization. Multi-objective optimization needs more function evaluations than BiteOpt to find a solution on the Pareto front with comparable reward. But it only needs a few seconds to reach rewards achieved by GA, PSO, or ACO. Note that this problem does not work well with differential evolution population update, in either the single-objective or multi-objective setting. MODE therefore has to be configured with `nsga_update = True`.
 
 [source,python]
-----   
+----
         def get_fitness(vehicle_num, target_num, map_size):
             env = Env(vehicle_num,target_num,map_size,visualized=True)
             return Fitness(vehicle_num,env.vehicles_speed,target_num,env.targets,env.time_lim)
- 
+
         mo_problem = get_fitness(15,90,1.5e4)
         mo_fun = mode.wrapper(mo_problem, nobj)
-                
+
         workers = mp.cpu_count()
-                
+
         # MO parallel optimization retry
-        xs, ys = modecpp.retry(mo_fun, nobj, 0, 
+        xs, ys = modecpp.retry(mo_fun, nobj, 0,
                       mo_problem.bounds, num_retries=workers, popsize = 512,
                   max_evaluations = evals, nsga_update = True, workers=workers)
 ----
 
-The complete code is in 
+The complete code is in
 https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_mode.py[test_mode.py]
 
-Is it possible to use reinforcement learning to compute a pareto front?
-It seems so: https://arxiv.org/abs/1908.08342 , it would be interesting
-to apply this to UAV task assignment and compare results.
-  
+Can reinforcement learning be used to compute a Pareto front? It seems possible: https://arxiv.org/abs/1908.08342 . It would be interesting to apply that approach to UAV task assignment and compare the results.
+
 ==== How to replicate the results?
 
 Do a `git clone https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark.git`
@@ -193,23 +157,20 @@ and execute one of the following files:
 - Continuous optimizers stand-alone: https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_fcmaes.py[test_fcmaes.py]
 - MODE stand-alone: https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark/blob/master/test_mode.py[test_mode.py]
 
-MODE can use up to `evals = 100000000` with `workers=32` and `popsize=512` for large problem instances. 
-Even a fast 16 core CPU like the AMD 5950x needs one hour for the optimization using these parameters.
-But this way multi-objective optimization delivers also excellent single-objective results similar to BiteOpt.
+For large problem instances, MODE can use up to `evals = 100000000` with `workers=32` and `popsize=512`.
+Even on a fast 16-core CPU such as the AMD 5950x, optimization with these parameters takes about one hour.
+At that setting, multi-objective optimization also delivers excellent single-objective results similar to BiteOpt.
 
 === Conclusion
 
-Before you implement a problem specific optimization algorithm first check whether a standard 
-continuous optimization algorithm is applicable. Our https://github.com/dietmarwo/fast-cma-es/blob/master/README.md[README]
-contains many example applications where you may be surprised that this approach works. Some of these are
-scheduling or task assignment related. Advantages are:
+Before implementing a problem-specific optimization algorithm, first check whether a standard continuous optimizer is applicable. Our https://github.com/dietmarwo/fast-cma-es/blob/master/README.md[README]
+contains many examples where this works well, including scheduling and task assignment problems. The advantages are:
 
-- Parallelization comes for free. 
-- Only the objective function has to be implemented. 
+- Parallelization comes for free.
+- Only the objective function has to be implemented.
 - Often the standard algorithms perform better.
-- Algorithm overhead is reduced, since many algorithms are implemented in C++. 
-- The CR-FM-NES->BiteOpt sequence has low algorithm overhead and is applicable to other 
-  problems like vehicle routing (VRTPW) or MKKP. 
+- Algorithm overhead is reduced, since many algorithms are implemented in C++.
+- The CR-FM-NES->BiteOpt sequence has low algorithm overhead and is applicable to other
+  problems such as vehicle routing (VRTPW) or MKKP.
 
-Objective function implementation sometimes may be a bit tricky, specifically for problems using discrete
-arguments. For Multi-UAV Task Assignment both algorithm sequences perform exceptionally good. 
+Implementing the objective function can still be tricky, especially for problems with discrete arguments. For Multi-UAV Task Assignment, both algorithm sequences perform exceptionally well.

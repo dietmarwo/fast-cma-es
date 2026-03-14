@@ -12,116 +12,90 @@ image::logo.gif[]
 
 === This tutorial
 
-- Discusses how to apply QD-algorithms (Quality Diversity) to expensive simulations: Power plant, chemical reactions, stock trade, water management and car design/crash simulation.
-- Discusses how different configurations / solution-emitters may affect the result.
-- Shows how to "zoom in" into QD-archives and how to combine QD-algorithms with MO-algorithms.
+- Explains how to apply QD algorithms (Quality Diversity) to expensive simulations in power plant design, biochemical reactions, stock trading, water management, and car design and crash simulation.
+- Compares different configurations and improvement emitters.
+- Shows how to "zoom in" on QD archives and how to combine QD algorithms with MO algorithms.
 
 === Remark
 
-If you just want to play around with QD-algorithms, there is a simple example
-https://github.com/dietmarwo/fast-cma-es/blob/master/examples/arm.py[arm.py], the simulation of a planar robot arm. Change the parameters / used algorithms to learn how they work.
+If you just want to experiment with QD algorithms, start with the simple example https://github.com/dietmarwo/fast-cma-es/blob/master/examples/arm.py[arm.py], which simulates a planar robot arm. Change the parameters or algorithms to get a feel for how they behave.
 
 === Motivation
 
-In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[MapElites.adoc] we investigated
-QD (Quality-Diversity) optimizations from the perspective of an extremely hard optimization problem to check its
-limits. We found, that even for extremely rugged solution landscapes like https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/img/cassBestSun.png[Cassini2] QD methods are applicable if:
+In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[MapElites.adoc] we looked at QD optimization from the perspective of an extremely hard problem to understand its limits. We found that QD methods are still applicable even on very rugged solution landscapes such as https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/img/cassBestSun.png[Cassini2], provided that:
 
-- We fully exploit the parallelism provided by modern many-cores CPUs.
-- We integrate evolutionary algorithms like CMA-ES and CR-FM-NES with MAP-Elites.
+- We fully use the parallelism of modern many-core CPUs.
+- We combine MAP-Elites with evolutionary algorithms such as CMA-ES and CR-FM-NES.
 
-But these methods require a large amount of fitness evaluations. What if these are really expensive as for more elaborated simulations?
+These methods need many fitness evaluations. That raises an obvious question: what happens when each evaluation is expensive because it runs a detailed simulation?
 
-The purpose of technical simulations is mostly to understand the relation between input parameters and the resulting behavior which enables to find an "optimal" parameter setting. This optimum is not always only related to one or several objectives but additionaly to constraints. These constraints may be "flexible" in the sense that if we find that there is a big improvement related to a slight relaxation of a constraint we just may choose to do it. This means it is not always a good idea to include all constraints already into the optimization problem. Instead, what we want to do, is a complete parameter sweep and decide about the "acceptable" constraints after investigating the results.
-And, if there are multiple objectives, we can postpone the decision how we want to weight them - also in relation to the constraints.
+Technical simulations are usually used to understand how input parameters affect system behavior and to identify good parameter settings. In practice, "good" rarely means only one objective. Constraints matter too, and some of them may be flexible. If a small relaxation of a constraint leads to a large improvement, we may decide that the tradeoff is acceptable. For that reason, it is often not a good idea to encode every constraint directly into the optimization problem from the start. It is usually better to explore the design space first and decide later which constraints are acceptable. The same applies to multiple objectives. We can postpone the choice of their weights until we have seen the available tradeoffs.
 
-This would mean, we abandon the idea of an "objective(s)" as it is required by regular optimization algorithms.
-We could either split the parameter space into a grid or apply random parameters. Although acceptable for smaller problems, 
-this is problematic because of the exponential growth of the parameter space in relation to the number of decision variables and because the "tesselation" of the solution space should not be based on the input parameters, but on some derived properties related to the "behavior" or to "features" of the simulation. Example:
+This means moving away from the usual idea of a single objective, or even a fixed set of objectives, as required by standard optimization algorithms. One option would be to sweep the parameter space with a grid or random samples. That can work for small problems, but it breaks down as the number of decision variables grows. More importantly, the tessellation should usually not be based on the input parameters. It should be based on derived properties that describe the behavior of the simulation. For example:
 
-Imagine we have a power plant simulation where we are interested in efficiency (power / heat). Then the tesselation should be based on the derived properties power and heat, not on the input parameters. Now two questions arise:
+Imagine a power plant simulation where we care about efficiency, defined as power divided by heat. Then the tessellation should be based on the derived properties power and heat, not on the input parameters. This leads to two questions:
 
-- How do we get the behavior/feature values and how do we tesselate?
-- How do we generate the parameter settings we want to try out?
+- How do we obtain the behavior values, and how should we tessellate them?
+- How do we generate the parameter settings we want to evaluate?
 
-The first question is straightforward to answer: Behavior is observable during simulation, so the fitness function can return an additional behavior vector. https://arxiv.org/abs/1610.05729[CVT Map Elites] proposes Voronoi tessellation which can easily 
-and efficiently be implemented based on `sklearn.neighbors.KDTree` and `sklearn.cluster.KMeans`. We tesselate the behavior space
-into niches and maintain their elites - the fittest solution for each niche - in a QD-archive. Creating the KDTree may be
-expensive if we aim at >= 10000 niches, but this can be mitigated by caching the means of the niches. If we normalize the
-behavior space to the [0,1]-interval for each dimension, these cached means can even be shared between different problems, as
-long as the number of dimensions and the number of niches are the same. fcmaes does this caching automatically.
+The first question is straightforward. Behavior is observable during the simulation, so the fitness function can return an additional behavior vector. https://arxiv.org/abs/1610.05729[CVT Map Elites] proposes a Voronoi tessellation that can be implemented efficiently with `sklearn.neighbors.KDTree` and `sklearn.cluster.KMeans`. We tessellate the behavior space into niches and store the elite of each niche, meaning the fittest solution found there, in a QD archive. Building the KDTree can be expensive if we use 10000 or more niches, but caching the niche means helps. If the behavior space is normalized to [0,1] in each dimension, these cached means can even be shared across problems as long as the number of dimensions and niches stays the same. fcmaes does this caching automatically.
 
-The second question is less trivial: We want to improve over random parameters and focus on "interesting" parts of the solution space. So we reintroduce the "objective", but not to find the global optimum, but to define what "interesting" exactly means. How we implement multiple objectives is debatable, because we could use a weighted sum to define our "interest"
-and still preserve diversity by defining the multiple objectives as dimensions of the behavior space. Lets focus on the single fitness objective approach for the rest of this tutorial. For the power plant example we have "interesting" = "efficient", so we define efficiency as the fitness objective.
+The second question is harder. We want to do better than random sampling and focus on interesting parts of the solution space. So we reintroduce an objective, not to find one global optimum, but to define what "interesting" means. There are different ways to handle multiple objectives. For example, we could use a weighted sum as the fitness objective and still preserve diversity by using the individual objectives as behavior dimensions. In the rest of this tutorial we focus on the simpler case of a single fitness objective. In the power plant example, "interesting" means "efficient", so efficiency becomes the fitness objective.
 
-==== When should you consider using fcmaes for QD ?
+==== When should you consider using fcmaes for QD?
 
-When should you consider using fcmaes for analyzing simulations applying QD-algorithms and why? The fcmaes QD-algorithms support parallel fitness/behaviour evaluations sharing a QD-archive. The achievable scaling by parallelization is usually much higher compared to parallelization of the simulation itself. The implementation adopts ideas from the fcmaes parallel retry which also uses a solution archive shared by parallel optimization processes.
+When does fcmaes make sense for simulation analysis with QD, and why? The fcmaes QD algorithms support parallel fitness and behavior evaluations that all share one QD archive. In many cases, this scales much better than parallelizing the simulation itself. The implementation builds on ideas from fcmaes parallel retry, which also uses a solution archive shared by parallel optimization processes.
 
 Consider fcmaes if:
 
-- Your simulation is expensive and your CPU(s) have many cores.
-- You don't want to parallelize the simulation itself, or the scaling achieved by parallelizing it is poor.
-- Your simulation has a Python or C/{cpp} API to execute it. For {cpp}-APIs create a Python-wrapper using ctypes as it
-was done for some of the examples here. Avoid calling them as separate executables. The overhead doing this is often
-underestimated. See https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2014WR015976[Evolving many-objective water management to exploit exascale computing] which discusses the application of an exascale machine for the Lower Rio Grande Valley (LRGV) water management problem for which a regular many core CPU is sufficient as we will see below.
+- Your simulation is expensive and your CPU or CPUs have many cores.
+- You do not want to parallelize the simulation itself, or parallelizing it gives poor scaling.
+- Your simulation can be called through a Python or C/{cpp} API. For C/{cpp} APIs, create a Python wrapper with ctypes as done in some of the examples here. Avoid launching simulations as separate executables. The overhead is often underestimated. See https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2014WR015976[Evolving many-objective water management to exploit exascale computing], which discusses the Lower Rio Grande Valley (LRGV) water management problem. As shown below, a regular many-core CPU is already sufficient for that problem.
 
-You may run multiple QD-optimizations on multiple CPUs and join the results/QD-archives afterwards to improve coverage of the behavior space.
+You can also run several QD optimizations on different CPUs and merge the resulting archives later to improve behavior-space coverage.
 
 ==== Exploration versus Exploitation
-Using QD-algorithms the way solution candidates are generated is determined by the QD-algorithm parameter settings, where fcmaes offers a lot of flexibility. These
-parameters balance "exploration" versus "exploitation" where the optimal compromise is problem specific. We aim at
-maximal "exploitation" - don't miss the global optimum by a large margin - without sacrificing exploration - full 
-coverage of all niches of the behavior space. Since the "exploration" requirement is easier to fulfill fcmaes emphasises "exploitation".
+
+In QD algorithms, the way new candidates are generated depends on the algorithm settings. fcmaes gives you a lot of control here. These settings balance exploration against exploitation, and the best balance depends on the problem. The goal is strong exploitation so we do not miss very good solutions, while still maintaining enough exploration to cover the behavior space. Since exploration is usually the easier part, fcmaes puts more emphasis on exploitation.
 
 ==== Ease of Use
-What if you are not interested in playing with all the complex parameters of the QD-algorithm? You want a decent result
-"out of the box"? fcmaes provides a default configuration using both Map-Elites and an improvement emitter in parallel which works very well in most cases.
-The population/batch size could be adapted, but for most applications the
-default already produces good results. MO-algorithms
-are more sensitive in this regard.
+
+You may not want to tune a large set of QD parameters. You may just want a reasonable result out of the box. fcmaes provides a default setup that runs both MAP-Elites and an improvement emitter in parallel, and this works well in most cases. You can still adapt the population or batch size, but for many applications the default already performs well. MO algorithms are usually more sensitive in this regard.
 
 ==== Customization
-But if you really want you have many parameters for tweaking:
 
-- You may choose the base algorithm of the improvement emitter (currently CMA-ES, CR-FM-NES, DE, PGPE and BiteOpt). This is important, because CMA-ES, the most popular improvement emitter, is optimal only for a small number of applications.
-- Improvement emitters can be applied in sequence. See for instance https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py], where such a sequence is the optimal configuration.
-- Mixing Map-Elites with an improvement emitter is not a new idea, but fcmeas
-allocates specific parallel processes sharing the same archive for each task. As default half of the processes are dedicated to Map-Elites but you may customize this as you want. You could for instance allocate 12 processes to Map-Elites and 20 processes to the configured improvement emitter on a 16 core CPU supporting hyperthreading.
-- You may adapt many parameters of the configured improvement emitter algorithm.
+If you do want to tune the algorithm, fcmaes offers many options:
+
+- You can choose the base algorithm for the improvement emitter. Current options are CMA-ES, CR-FM-NES, DE, PGPE, and BiteOpt. This matters because CMA-ES, although popular, is not the best choice for every application.
+- Improvement emitters can be chained. See https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py], where such a sequence gives the best configuration.
+- Mixing MAP-Elites with an improvement emitter is not new, but fcmaes assigns separate parallel processes to each task while they share one archive. By default, half of the processes run MAP-Elites, but you can change that. For example, on a 16-core CPU with hyperthreading you could assign 12 processes to MAP-Elites and 20 to the configured improvement emitter.
+- You can tune many parameters of the selected improvement emitter.
 
 === Related work
 
-https://github.com/slds-lmu/qdo_yahpo[qdo_yahpo] provides a framework to test QD Hyperparameter Optimization.
-They use a surrogate model which can be executed single threaded to parallelize their tests. We applied their benchmarks to fcmaes diversifier in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/yahpo.py[yapoo.py].
+https://github.com/slds-lmu/qdo_yahpo[qdo_yahpo] provides a framework for testing QD hyperparameter optimization. It uses a surrogate model that can be executed single-threaded, which makes parallel testing easy. We applied these benchmarks to fcmaes diversifier in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/yahpo.py[yahpo.py].
 
-Differences are:
+The main differences are:
 
-- fcmaes uses a QD archive shared between parallel processes each running either CVT MAP-Elites or an improvement emitter.
-- fcmaes uses Voronoi tesselation (see CVT MAP-Elites https://arxiv.org/abs/1610.05729)
-- Instead of gaussian distribution fcmaes can use simulated binary crossover + polynomial mutation as NSGA-II
-- The number of parallel processes allocated to each emitter is configurable
-- Improvement emitters not necessarily use CMA-ES (CR-FM-NES, DE, BiteOpt and PGPE being the current alternatives)
-- Improvement emitters can be chained (like DE -> CMA) where the following emitter is initialized with the
-solution from the previous one. Helps with extremely rigged fitness landscapes.
-- Improvement emitters are initialized with a random solution instead of a niche elite. Seems to work better this way.
+- fcmaes uses a QD archive shared between parallel processes, each running either CVT MAP-Elites or an improvement emitter.
+- fcmaes uses Voronoi tessellation, as described in https://arxiv.org/abs/1610.05729[CVT MAP-Elites].
+- Instead of a Gaussian distribution, fcmaes can use simulated binary crossover plus polynomial mutation, as in NSGA-II.
+- The number of parallel processes assigned to each emitter is configurable.
+- Improvement emitters do not have to use CMA-ES. Current alternatives are CR-FM-NES, DE, BiteOpt, and PGPE.
+- Improvement emitters can be chained, for example DE -> CMA, where the later emitter is initialized with the solution from the earlier one. This helps on extremely rugged fitness landscapes.
+- Improvement emitters are initialized with a random solution instead of a niche elite. This seems to work better.
 
-It is important being able to choose the algorithm used for the improvement emitter as supported by the https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[fcmaes diversifier] meta algorithm. The problems discussed here work best either with the CR-FM-NES or the CMA-ES emitter, but in
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[MapElites.adoc] (application of the fcmaes diversifier to a space mission design problem: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py]) it is a DE->CMA-ES sequence, and for
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling.adoc (section QD update)] it is BiteOpt. See also https://github.com/google/evojax/pull/52 where I created a PR for evojax
-introducing the same concept to the machine learning domain.
+Being able to choose the improvement-emitter algorithm is important, and the https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[fcmaes diversifier] meta-algorithm supports that directly. The problems discussed here work best with either CR-FM-NES or CMA-ES as the emitter. In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[MapElites.adoc], which applies the fcmaes diversifier to a space mission design problem through https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py], the best choice is a DE -> CMA-ES sequence. In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling.adoc (section QD update)] it is BiteOpt. See also https://github.com/google/evojax/pull/52, where I created a PR for EvoJax that introduces the same idea in the machine learning domain.
 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[fcmaes diversifier] performs very well for QD Hyperparameter Optimization, although a direct comparison is difficult because fcmaes uses Voronoi tesselation where https://github.com/slds-lmu/qdo_yahpo[qdo_yahpo] uses a grid.
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[fcmaes diversifier] also performs very well on QD hyperparameter optimization, although a direct comparison is difficult because fcmaes uses Voronoi tessellation while https://github.com/slds-lmu/qdo_yahpo[qdo_yahpo] uses a grid.
 
-If a surrogate model is available, as for
-https://github.com/dietmarwo/fast-cma-es/blob/master/examples/yahpo.py[yapoo.py],
-parallelization is much easier since there is no "GPU-bottleneck". Otherwise hyperparameter optimization would often use a computing resource which cannot easily be shared (a GPU/TPU) restricting optimization to a single thread for each GPU.
+If a surrogate model is available, as in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/yahpo.py[yahpo.py], parallelization is much easier because there is no GPU bottleneck. Without a surrogate, hyperparameter optimization often depends on a GPU or TPU that cannot easily be shared, which usually limits optimization to one thread per device.
 
 === Powerplant Simulation
 
-The complete code for this example is here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/powerplant.py[powerplant.py]. In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PowerPlant.adoc[PowerPlant.adoc] we describe how to apply single- and multi-objective optimization, here we will add QD-methods.
+The complete code for this example is here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/powerplant.py[powerplant.py]. https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PowerPlant.adoc[PowerPlant.adoc] explains the single-objective and multi-objective variants. Here we extend the same example with QD methods.
 
-The simulation of the power plant is based on  https://github.com/oemof/tespy[tespy], a Python-framework to simulate thermal engineering systems. We modify the pressure at two "extraction" connections, these pressures are the decision variables we want to optimize. After the simulation we divide "power" and "heat" to  determine the efficiency we want to maximize.
+The power plant simulation is based on https://github.com/oemof/tespy[tespy], a Python framework for thermal engineering systems. We vary the pressure at two extraction connections. These two pressures are the decision variables. After each simulation run, we divide power by heat to compute the efficiency that we want to maximize.
 
 [source,python]
 ----
@@ -140,54 +114,45 @@ The simulation of the power plant is based on  https://github.com/oemof/tespy[te
         return y, desc
 ----
 
-The QD behavior vector `desc` contains power and heat separately.
-Not that `calculate_qd` is protected by `with threadpoolctl.threadpool_limits(limits=1, user_api="blas")` to force the simulation to be executed single
-threaded. This way it doesn't interfere with the parallel optimization.
+The QD behavior vector `desc` stores power and heat separately. Note that `calculate_qd` is protected by `with threadpoolctl.threadpool_limits(limits=1, user_api="blas")` so the simulation runs single-threaded. That avoids interference with the parallel optimization.
 
 [source,python]
 ----
 def run_diversifier():
     class qd_problem():
-        
+
         def __init__(self):
             self.dim = 2
             self.qd_dim = 2
-            self.bounds = Bounds([1]*self.dim, [40]*self.dim)          
-            self.qd_bounds = Bounds([2.2E8, 5E8], [2.8E8, 6.3E8])          
+            self.bounds = Bounds([1]*self.dim, [40]*self.dim)
+            self.qd_bounds = Bounds([2.2E8, 5E8], [2.8E8, 6.3E8])
             self.local = threading.local()
-        
+
         def get_model(self):
             if not hasattr(self.local, 'model'):
                 self.create_model()
             return self.local.model
-        
+
         def create_model(self):
             self.local.model = PowerPlant()
-        
-        def efficiency(self, x):   
+
+        def efficiency(self, x):
             try:
                 with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
-                    eff, desc = self.get_model().calculate_qd(x)    
+                    eff, desc = self.get_model().calculate_qd(x)
                 if not np.isfinite(eff): # model gets corrupted in case of an error
                     self.create_model() # we need to recreate the model
                     return 0, self.qd_bounds.lb
                 return eff, desc
             except Exception as ex:
-                return 0, self.qd_bounds.lb  
-  
+                return 0, self.qd_bounds.lb
+
         def qd_fitness(self, x):
             y, desc = self.efficiency(x)
             return 1-y, desc
 ----
 
-The QD-optimization is called by `diversifier.minimize`. It is configured
-to execute Map-Elites ('solver':'elites') and a CMA-ES improvement emitter
- ('solver':'CMA_CPP') in parallel, allocating half of the available threads to
-each of them. `qd_bounds` are used to normalize the behavior-values and
-`max_evals=25600` restricts the overall number of fitness evaluations.
-`'max_evals':200` limits the number of fitness evaluations of a single improvement emitter run.
-Here CMA-ES is the best base algorithm for the improvement emitter - which is not the
-case for most of the other simulation based problems discussed below.
+The QD optimization is executed with `diversifier.minimize`. It runs MAP-Elites (`'solver':'elites'`) and a CMA-ES improvement emitter (`'solver':'CMA_CPP'`) in parallel, with half of the available threads assigned to each. `qd_bounds` normalizes the behavior values. `max_evals=25600` limits the total number of fitness evaluations, while `'max_evals':200` limits one improvement-emitter run. In this example, CMA-ES is the best emitter base algorithm. That is not the case for most of the other simulation-based problems discussed later.
 
 [source,python]
 ----
@@ -200,40 +165,28 @@ case for most of the other simulation based problems discussed below.
 
 ----
 
-The resulting diagram shows how "efficiency" is distributed for different
-resulting power consumption / heat values. We can easily identify the most
-efficient solutions for specific power and heat limits. Since fcmaes can
-store and retrieve the resulting QD-archive, we can defer this to a later
-processing stage. Alternatively we can restart the optimization from a
-stored archive thereby changing the optimization parameters.
-It is even possible to change the number of niches or the definition of the behavior
-vector in between, although this requires a fitness-recomputation of the stored solutions.
+The resulting diagram shows how efficiency is distributed across different power and heat values. It becomes easy to identify the most efficient solutions for specific power and heat limits. Because fcmaes can store and reload the QD archive, you can make these decisions later in a separate analysis step. You can also restart the optimization from a stored archive with different optimization parameters. It is even possible to change the number of niches or the definition of the behavior vector in between, although that requires recomputing fitness values for the stored solutions.
 
 image::powerplant_nd.png[]
 
 
 === Biochemical Reactions
 
-The complete code for this example is here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vilar.py[vilar.py]. In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc[Sweep.adoc] we describe how to apply single- and multi-objective optimization, here we will add QD-methods.
+The complete code for this example is here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vilar.py[vilar.py]. https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc[Sweep.adoc] explains the single-objective and multi-objective versions. Here we add QD methods.
 
-In https://www.pnas.org/doi/10.1073/pnas.092133899[Mechanisms of noise-resistance in genetic oscillators] Jose M.G.Vilar showed a biochemical model of a "circadian clock" which enables organisms to keep internal sense of daily time. This model can be simulated using https://github.com/StochSS/GillesPy2[GillesPy2], see
- https://github.com/StochSS/GillesPy2/blob/main/examples/StartingModels/VilarOscillator/VilarOscillator.py[VilarOscillator.py]. The Vilar-model has 15 parameters and the question is:
+In https://www.pnas.org/doi/10.1073/pnas.092133899[Mechanisms of noise-resistance in genetic oscillators], Jose M. G. Vilar introduced a biochemical model of a circadian clock that lets organisms keep an internal sense of daily time. The model can be simulated with https://github.com/StochSS/GillesPy2[GillesPy2]; see https://github.com/StochSS/GillesPy2/blob/main/examples/StartingModels/VilarOscillator/VilarOscillator.py[VilarOscillator.py]. The Vilar model has 15 parameters, and we want to answer these questions:
 
- - Is the oscillating behavior of the model dependent on specific parameter settings?
- - Can we find parameters which can affect the oscillating property of the model negatively?
- - Or does the model have "self-regulating" properties preserving the steady oscillation?
+ - Does the oscillating behavior depend on specific parameter settings?
+ - Can we find parameter settings that degrade the oscillation?
+ - Or does the model show self-regulating behavior that preserves a steady oscillation?
 
 
-We simply use scipys `argrelextrema` to identify the maxima of the `R`-species. Then we determine the standard deviation of the amplitude and of the peak time distances. Small values of these standard
-deviations indicate a steady oscillation, so we use them as objectives.
-`ws = sdev_peak_dist/3.0 + sdev_amp/30.0`, the normalizing weighted sum of these standard
-deviations serves as fitness value, for the behavior vector we additionally use the frequency to further enhance
-diversification.
+We use scipy's `argrelextrema` to identify the maxima of species `R`. Then we compute the standard deviation of the amplitudes and of the distances between peaks. Small values for these standard deviations indicate a steady oscillation, so we use them as objectives. `ws = sdev_peak_dist/3.0 + sdev_amp/30.0`, the normalized weighted sum of these standard deviations, serves as the fitness value. We also include the frequency in the behavior vector to increase diversification.
 
 [source,python]
 ----
     class nd_problem():
-     
+
         def __init__(self):
             self.bounds = get_bounds(VilarOscillator(), 100)
             self.qd_bounds = Bounds([0, 30, .035], [3, 300, .050])
@@ -258,13 +211,11 @@ diversification.
                 return ws, np.array([sdev_peak_dist, sdev_amp, freq])
 ----
 
-This time we configure CR-FM-NES as base algorithm of the improvement emitter ('solver':'CRMFNES_CPP') and execute MAP-Elites
-in parallel ('solver':'elites'). We choose a low population size because the simulation is quite expensive - even
-with parallelization we achieve only about 8 simulations per second.
+This time we use CR-FM-NES as the base algorithm for the improvement emitter (`'solver':'CRMFNES_CPP'`) and run it in parallel with MAP-Elites (`'solver':'elites'`). We choose a small population size because the simulation is expensive. Even with parallelization, we reach only about 8 simulations per second.
 
 [source,python]
 ----
-    problem = nd_problem() 
+    problem = nd_problem()
     opt_params0 = {'solver':'elites', 'popsize':8}
     opt_params1 = {'solver':'CRMFNES_CPP', 'max_evals':200, 'popsize':16, 'stall_criterion':3}
     archive = diversifier.minimize(
@@ -275,21 +226,15 @@ with parallelization we achieve only about 8 simulations per second.
     plot_archive(archive)
 ----
 
-The resulting diagram shows the result together with a second one were we maximize the objective:
-`ws = 2 - (sdev_peak_dist/3.0 + sdev_amp/30.0)`. They look quite similar which means the objective doesn't play
-an important role here.
+The resulting diagram also includes a second run where we maximize the objective `ws = 2 - (sdev_peak_dist/3.0 + sdev_amp/30.0)`. Both diagrams look quite similar, which suggests that the objective plays only a small role here.
 
 image::vilar_nd.png[]
 
 === Stock Trade Simulation
 
-The complete code for this example is here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/crypto.py[crypto.py]. In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[CryptoTrading.adoc] we describe how to apply single- and multi-objective optimization, here we will add QD-methods.
+The complete code for this example is here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/crypto.py[crypto.py]. https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[CryptoTrading.adoc] explains the single-objective and multi-objective versions. Here we add QD methods.
 
-When we try to optimize parameters of a trading strategy using historical data, the main problem is that we adapt
-for the historical situation which may not be applicable for the future. The example problem mitigates that already
-by optimizing the ROI (return of investment) for 4 tickers and uses the geometrical mean ROI as fitness - normalized
-against the hodl-ROI - what we get if we buy and hold the whole time. We can now use the 4 normalized ROI-factors
-as behavior vector to generate a set of diverse solutions.
+When we optimize a trading strategy on historical data, the main risk is overfitting to the past. The example already reduces that risk by optimizing ROI (return on investment) across 4 tickers and using the geometric mean ROI as fitness. This ROI is normalized against the HODL ROI, meaning the return we would get by buying and holding the entire time. We can now use the 4 normalized ROI factors as the behavior vector and generate a diverse set of solutions.
 
 [source,python]
 ----
@@ -298,7 +243,7 @@ as behavior vector to generate a set of diverse solutions.
         return 5+y, factors # we need positive y values for tracking QD-Score
 ----
 
-Now we can count in all these diverse solutions the number of occurrence of a specific parameter value.
+Once we have this archive of diverse solutions, we can count how often each parameter value occurs.
 
 [source,python]
 ----
@@ -307,7 +252,7 @@ Now we can count in all these diverse solutions the number of occurrence of a sp
     qd_dim = 4
     qd_bounds = Bounds([0]*ddim, [4]*ddim)
     niche_num = 1000
-    fit = fitness(tickers, start, end, None) 
+    fit = fitness(tickers, start, end, None)
     opt_params0 = {'solver':'elites', 'popsize':100}
     opt_params1 = {'solver':'CMA_CPP', 'max_evals':10000, 'popsize':16, 'stall_criterion':3}
     archive = diversifier.minimize(
@@ -328,7 +273,7 @@ Now we can count in all these diverse solutions the number of occurrence of a sp
               " x = " + str([int(xi) for xi in x]))
 ----
 
-This way we obtain a more reliable indicator which parameter values work well:
+This gives us a more reliable indicator of which parameter values work well:
 
 image::cryptoparam.png[]
 
@@ -337,21 +282,17 @@ image::cryptoparam.png[]
 
 ==== HBV Rainfall-Runoff Model
 
-The complete code for this example is here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/hbv/hbv.py[hbv.py]. In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc[Water.adoc] we describe how to apply multi-objective optimization, here we will add QD-methods.
+The complete code for this example is here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/hbv/hbv.py[hbv.py]. https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc[Water.adoc] explains the multi-objective version. Here we add QD methods.
 
-The rainfall-runoff multiobjective problem (see https://www.sciencedirect.com/science/article/abs/pii/S0309170812000073[Evolutionary multiobjective optimization in water resources])
-
-has three primary routines:
+The rainfall-runoff multi-objective problem, discussed in https://www.sciencedirect.com/science/article/abs/pii/S0309170812000073[Evolutionary multiobjective optimization in water resources], has three main routines:
 
 - snow accumulation and melt
 - soil moisture accounting
 - transformation of the linear outflow from two sub-basins
 
-The model contains 14 real-valued decision variables that require calibration.
-It is a "real world problem", its corresponding multi-objective optimization problem
-was used to calibrate the HBV model for the Williams River, West Virginia, United States.
+The model has 14 real-valued decision variables that must be calibrated. This is a real-world problem. Its multi-objective formulation was used to calibrate the HBV model for the Williams River in West Virginia, United States.
 
-As fitness we use a weighted sum of the four objectives which serve as behavior vector.
+For QD, we use a weighted sum of the four objectives as fitness. The same four objectives form the behavior vector.
 
 [source,python]
 ----
@@ -377,34 +318,29 @@ def optimize_qd():
     archive.save('hbv_qd')
 ----
 
-Again CR-FM-NES ('solver':'CRMFNES_CPP') beats CMA-ES as base algorithm for the improvement emitter (try it yourself).
-We combine it with MAP-Elites ('solver':'elites') and get the following result:
+Again, CR-FM-NES (`'solver':'CRMFNES_CPP'`) works better than CMA-ES as the improvement-emitter base algorithm for this problem. Combined with MAP-Elites (`'solver':'elites'`), it produces the following result:
 
 image::hbv_nd.png[]
 
-Since we have four objectives, each diagram shows three of them.
+Since there are four objectives, each diagram shows three of them.
 
 === Lower Rio Grande Valley (LRGV) problem
 
 The complete code for this example is here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/lrgv/lrgv.py[lrgv.py]. See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc[Water.adoc].
 
-The Lower Rio Grande Valley (LRGV) problem framework implements a risk-based water supply portfolio management problem. A single city has to find an efficient combination of market-based and traditional reservoir sources for its water supply minimizing the risk of
-having insufficient water available at any time. An option based market enables the city to buy water later at a fixed price
-by paying an option price in advance.
+The Lower Rio Grande Valley (LRGV) framework models a risk-based water supply portfolio problem. A single city must choose an efficient mix of market-based sources and traditional reservoir sources while minimizing the risk of not having enough water available when needed. An option-based market lets the city secure water later at a fixed price by paying an option price in advance.
 
-We forked the original code at https://github.com/dietmarwo/LRGV to make it callable via Python and
-made the code reentrant. This speeds up the number of simulations performed each second dramatically,
-so that we can easily perform 400000 fitness calls.
+We forked the original code at https://github.com/dietmarwo/LRGV so it can be called from Python and made it reentrant. That greatly increases the number of simulations we can execute per second, so running 400000 fitness evaluations becomes easy.
 
-We configure the problem framework to use the following five objectives:
+We configure the framework with five objectives:
 
 - minimize water supply costs
 - maximize the reliability of meeting demands
 - minimize surplus water
 - minimize dropped or unused water transfers
-- minimize the number of leases required over a 10 year planning horizon
+- minimize the number of leases required over a 10-year planning horizon
 
-As fitness we use a weighted sum of the five objectives which serve as behavior vector.
+For QD, we use a weighted sum of these five objectives as the fitness value. The behavior vector contains the five objectives themselves.
 
 [source,python]
 ----
@@ -437,30 +373,19 @@ def optimize_qd():
 
 image::lrgv_nd.png[]
 
-Since we have five objectives, each diagram shows three of them.
+Since there are five objectives, each diagram shows three of them.
 
 === The Mazda Benchmark Problem
 
-Unfortunately there are not many complex multi objective real world problems in the public domain.
-One is the http://ladse.eng.isas.jaxa.jp/benchmark/[Mazda Benchmark Problem]
-jointly developed by the Mazda Motor Corporation, Japan Aerospace Exploration Agency, and Tokyo
-University of Science. The problem is multi-objective involving 222 discrete decision variables,
-and 54 inequality constraints. Three cars are designed simultaneously thereby minimizing their weight and maximizing
-the number of common thickness parts among the three types of cars - which minimizes their production
-cost. The original constraints of the problem simulate collisions to evaluate car safety. In the
-benchmark these expensive simulations are modeled by response surface approximations which can be
-viewed as a domain specific surrogate model. After generating solutions for the approximated
-model, real collision simulations can be applied to the solution to filter solutions valid in the real world.
+There are not many complex real-world multi-objective benchmark problems in the public domain. One of them is the http://ladse.eng.isas.jaxa.jp/benchmark/[Mazda Benchmark Problem], developed jointly by Mazda Motor Corporation, the Japan Aerospace Exploration Agency, and Tokyo University of Science. It has 222 discrete decision variables, 54 inequality constraints, and multiple objectives. The task is to design three cars at the same time while minimizing weight and maximizing the number of shared sheet-thickness parts, which reduces production cost. The original constraints represent expensive collision simulations used to assess car safety. In the benchmark, these simulations are replaced by response-surface approximations, which act as a domain-specific surrogate model. After generating solutions on the approximate model, the real collision simulations can be applied later to filter out solutions that do not hold up in the real world.
 
-In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Surrogate.adoc[Surrogate] we described
-how to solve this problem by applying MODE, the fcmaes multi-objective algorithm.
+In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Surrogate.adoc[Surrogate] we described how to solve this problem with MODE, the fcmaes multi-objective algorithm.
 
-Applying QD to the Mazda benchmark we get now more than
-7000 diverse solutions, much more than what a MO-algorithm will deliver.
+With QD, the Mazda benchmark now yields more than 7000 diverse solutions, far more than a typical MO algorithm returns.
 
 image::mazda_nd.png[]
 
-The picture above shows the progress over time:
+The figure above shows progress over time:
 
 - 30 minutes: Hypervolume = 0.326 (only valid solutions)
 - 1 hour: Hypervolume = 0.379
@@ -469,32 +394,27 @@ The picture above shows the progress over time:
 - MO results: Hypervolume = 0.4959
 - merge with MO-results: Hypervolume = 0.498
 
-The constraints approximate expensive physical simulations ("crash tests"). That the approximated constraints are fulfilled, doesn't
-guarantee the same for the "real" ones. Contrary the approximation may be more restrictive than the reality.
+The constraints approximate expensive physical simulations, namely crash tests. Satisfying the approximate constraints does not guarantee that the real constraints are also satisfied. The opposite can also happen: the approximation may be more restrictive than reality.
 
-So maybe not all 7000 solutions will be interesting, but a few hundred along the "border" between
-valid and invalid solutions. These could be the basis for further investigations applying more expensive
-simulations verifying the constraints.
+So not all 7000 solutions will be equally interesting. The most valuable ones may be the few hundred solutions near the border between valid and invalid regions. These can be the starting point for more detailed follow-up studies with more expensive simulations that verify the constraints.
 
 ==== QD defers the application of constraints
 
-Constraints will be applied during QD-optimization, but they will not be enforced as the MODE MO-algorithm does. Invalid solutions are stored together with valid ones. We can apply the "is-valid" filter after the simulation.
-But if the constraints are only approximations this may be a bad idea. There may be other reasons to defer the application of constraints: What if the basic assumptions change:
-Suppose we have to evaluate whether it is worth to use more expensive steel which increases the "limits" in some constraints? The corresponding pareto front could be determined on the basis of the optimization result we already have: The "blue" area would extend a bit more to the bottom. We would see how much more "common parts" we have in production and compare the saved cost with the price difference of the used steel.
+Constraints are still part of the QD optimization, but they are not enforced as strictly as in the MODE MO algorithm. Invalid solutions are kept in the archive together with valid ones. We can apply the final validity filter after the simulation. When the constraints are only approximations, that can be an advantage.
 
-Regarding the number of choices we have after optimization we can conclude: QD > MO > single objective.
-MO defers the choice between objectives, QD does the same, but also keeps invalid solutions.
+There are other reasons to defer the final application of constraints. The underlying assumptions may change. Suppose we want to know whether it is worth using a more expensive steel that relaxes some of the limits. Then we can derive the corresponding Pareto front from the optimization result we already have. The blue area would extend slightly further downward. That would show how many more common parts we could use in production, and we could compare the resulting cost savings with the higher material cost.
 
-Back in 2017 there was a competition held in Japan about this problem:
-https://www.jstage.jst.go.jp/article/tjpnsec/9/2/9_86/_article/-char/en[Evolutionary Competition 2017]
-to close the gap between the direction of research on evolutionary computation in academia and the expectations of the industry for evolutionary computation. The multi-objective part of the competition resulted in:
+In terms of how many choices we have after optimization, the relation is simple: QD > MO > single objective. MO postpones the choice between objectives. QD does the same and also keeps invalid solutions for later inspection.
+
+In 2017, Japan hosted a competition on this problem:
+https://www.jstage.jst.go.jp/article/tjpnsec/9/2/9_86/_article/-char/en[Evolutionary Competition 2017].
+The goal was to reduce the gap between research in evolutionary computation and industry expectations. The multi-objective part of the competition produced this result:
 
 image::mazdacomp.png[]
 
-Although what is shown is the best run out of 21, what was achieved with only 30000 evaluations is remarkable. Note that the winning team 13 used a single objective algorithm called CR-FM-NES together with Tchebycheff scalarization of the constraints. Which is the reason we see CR-FM-NES now as part of the fcmaes library and as part of Google's https://github.com/google/evojax/tree/main/evojax/algo[EvoJax].
+The figure shows only the best run out of 21, but the result achieved with only 30000 evaluations is still remarkable. Note that the winning team, team 13, used a single-objective algorithm called CR-FM-NES together with Tchebycheff scalarization of the constraints. That is why CR-FM-NES is now part of the fcmaes library and also part of Google's https://github.com/google/evojax/tree/main/evojax/algo[EvoJax].
 
-As fitness we use a weighted sum of the two objectives which serve as behavior vector.
-Additionally we add a penalty for constraint violations.
+For QD, we use a weighted sum of the two objectives as the fitness value. The behavior vector contains the two objectives, and we add a penalty for constraint violations.
 
 [source,python]
 ----
@@ -520,24 +440,17 @@ Additionally we add a penalty for constraint violations.
          problem.bounds, problem.qd_bounds, opt_params=[opt_params0, opt_params1], max_evals=400000000)
     print('final archive:', archive.info())
     archive.save('lrgv_qd')
-----    
+----
 
-We apply the https://arxiv.org/abs/2201.11422[CR-FM-NES] as base algorithm of the improvement emitter.
-Additionally, for halve of the available threads, https://arxiv.org/abs/1610.05729[CVT MAP-Elites] is used. Both share
-the same multi-threaded QD-archive. The QD-fitness function `qd_fun` uses Tchebycheff scalarization
-for the constraints and returns both objectives as behavior vector.
+We use https://arxiv.org/abs/2201.11422[CR-FM-NES] as the base algorithm for the improvement emitter. In addition, https://arxiv.org/abs/1610.05729[CVT MAP-Elites] uses half of the available threads. Both operate on the same multi-threaded QD archive. The QD fitness function `qd_fun` applies Tchebycheff scalarization to the constraints and returns the two objectives as the behavior vector.
 
-Note that the original http://ladse.eng.isas.jaxa.jp/benchmark/Mazda_CdMOBP.zip[benchmark code]
-was slightly modified to be thread safe and to be accessible directly from Python. Parallelization
-is essential here, our AMD 5950 16 core CPU can perform around 8000 simulations per second utilizing
-32 parallel threads.
+Note that the original http://ladse.eng.isas.jaxa.jp/benchmark/Mazda_CdMOBP.zip[benchmark code] was slightly modified to be thread-safe and directly accessible from Python. Parallelization is essential here. On an AMD 5950 16-core CPU, we can perform around 8000 simulations per second with 32 parallel threads.
 
 ==== Zooming into the QD-archive
 
 image::zoom1.png[]
 
-On the left side we see the QD-result after 200 million fitness evaluations (about 8 hours on a 16 core CPU)
-computed as follows:
+On the left, we see the QD result after 200 million fitness evaluations, which takes about 8 hours on a 16-core CPU. It was computed as follows:
 
 [source,python]
 ----
@@ -555,9 +468,7 @@ def nd_optimize():
     archive.save("mazda1")
 ----
 
-We used 100x100 niches and `qd_bounds = Bounds([2., -74], [3.5, 0])`. What if we now want to "zoom in"
-to a subarea of the QD-space we are interested in ? We need to load the archive, change the
-boundaries / number of niches, recompute fitness and behavior vectors and continue the computation:
+We used 100x100 niches and `qd_bounds = Bounds([2., -74], [3.5, 0])`. Suppose we now want to zoom in on a sub-area of the QD space. We can load the archive, change the bounds and number of niches, recompute the fitness and behavior vectors, and continue the optimization:
 
 [source,python]
 ----
@@ -582,16 +493,15 @@ boundaries / number of niches, recompute fitness and behavior vectors and contin
     archive.save("mazda2")
 ----
 
-The result after some more hours of computation is shown at the right diagram. We greatly increased the number
-of good valid solutions for each number of shared part thicknesses. But the increased number of niches slows down the optimization, now we only can compute about 4500 fitness evaluations per second down from about 8000.
+The result after a few more hours is shown in the diagram on the right. We greatly increase the number of good valid solutions for each value of shared part thickness. The larger number of niches slows down the optimization, though. Throughput drops from about 8000 to about 4500 fitness evaluations per second.
 
 ==== Applying a MO-algorithm
 
-Next let us compare what we get from applying a MO-algorithm:
+Next, let us compare this with a MO algorithm:
 
 image::zoom2.png[]
 
-On the left we see the result after the same number of fitness evaluations - 200 million. Computation time is slightly lower since there is no QD-archive to be maintained, we get about 8800 evaluations per second.
+On the left, we see the result after the same number of fitness evaluations, 200 million. Computation time is slightly lower because there is no QD archive to maintain, so throughput rises to about 8800 evaluations per second.
 
 [source,python]
 ----
@@ -603,19 +513,15 @@ On the left we see the result after the same number of fitness evaluations - 200
     np.savez_compressed('mo_result', xs=x, ys=y)
 ----
 
-We perform 32 optimizations in parallel using the DE-population update (`nsga_update=False`) and declare
-all decision variables as discrete (`ints = np.array([True]*dim)`). Finally we use numpys `savez_compressed`
-to store all results - not just the pareto front.
+We run 32 optimizations in parallel using the DE population update (`nsga_update=False`) and mark all decision variables as discrete (`ints = np.array([True]*dim)`). Finally, we use numpy's `savez_compressed` to store all results, not just the Pareto front.
 
-Hypervolume is better than with the QD, but we get less alternatives to choose from. MO-fitness `problem.fun`
-returns the two objectives separately, together with the 54 constraints. We don't need to weight these as with the QD-algorithm, as the optimization algorithms takes care of them.
+Hypervolume is better than with QD, but we get fewer alternatives to choose from. The MO fitness function `problem.fun` returns the two objectives and the 54 constraints separately. We do not need to weight them, because the MO algorithm handles them directly.
 
-But MO-algorithms should
-be less seen as competition, but as complement.
+Still, MO algorithms should not be seen as competition here. They are a complement.
 
 ==== Join MO-algorithm results
 
-We can just join the MO-result into our QD-archive and continue with the QD-algorithm:
+We can simply merge the MO result into the QD archive and continue the QD optimization:
 
 [source,python]
 ----
@@ -633,27 +539,20 @@ with np.load('mo_result') as data:
     archive.save("mazda3")
 ----
 
-The final result is shown at the right diagram above. If two machines are available, QD- and MO-optimization
-could be executed in parallel to save time.
+The final result is shown on the right side of the figure above. If two machines are available, QD and MO optimization can also be run in parallel to save time.
 
 === Conclusion
 
-There is not much literature available describing the application of QD methods
-to expensive simulations we can compare with, so our results are preliminary. But they can serve as a baseline for future comparisons.
+There is still little literature on applying QD methods to expensive simulations, so there is not much we can compare against. These results are therefore preliminary, but they can still serve as a useful baseline for future work.
 
 We found that:
 
-- https://arxiv.org/abs/2201.11422[CR-FM-NES] can beat CMA-ES for many problems if used as improvement emitter.
-- Mixing MAP-elites with the CR-FM-NES improvement emitter works very well in most cases and should be tried first.
-- Sharing a QD archive between many parallel MAP-elites and improvement-emitter processes scales better than parallelizing the simulation itself.
-- fcmaes blocks the application of parallelization by the BLAS library to avoid the creation of too many threads. The simulation should be executed single threaded.
-- The default configuration provided by fcmaes works well, but the population size can be
-adapted dependent on the number of fitness evaluations your budged allows. Higher population size also reduces the overhead for the tesselation because it increases its batch size. Compared with MO-algorithms the population size is less relevant.
-- MAP-elites can be configuered to use https://arxiv.org/pdf/1804.03906[Iso+LineDD], but for the problems we tested the default SBX+mutation
-borrowed from NSGA-II works better. You may try Iso+LineDD to further improve existing QD-archives.
-- Improvement emitters often are initialized with niche-elites. We found no
-problem where this worked better than random initialization, so we chose the latter.
-- MO-algorithms are no competition but complement QD-algorithms because they have different strengths and
-weaknesses. We can join MO-algorithm results into an existing QD-archive.
-- fcmaes allows to change the number of niches, the fitness function, behavior limits and other parameters
-before continuing the QD-optimization to "drill down" into interesting subareas of the behavior space.
+- https://arxiv.org/abs/2201.11422[CR-FM-NES] can beat CMA-ES on many problems when used as an improvement emitter.
+- Mixing MAP-Elites with a CR-FM-NES improvement emitter works very well in most cases and should usually be the first configuration to try.
+- Sharing one QD archive between many parallel MAP-Elites and improvement-emitter processes often scales better than parallelizing the simulation itself.
+- fcmaes disables BLAS-level parallelism to avoid creating too many threads. The simulation itself should run single-threaded.
+- The default fcmaes configuration works well, but the population size can be adapted to the number of fitness evaluations your budget allows. A larger population size also reduces tessellation overhead by increasing the batch size. Compared with MO algorithms, population size is less critical here.
+- MAP-Elites can be configured to use https://arxiv.org/pdf/1804.03906[Iso+LineDD], but for the problems tested here the default SBX plus mutation borrowed from NSGA-II works better. You can still try Iso+LineDD to improve an existing QD archive.
+- Improvement emitters are often initialized with niche elites. We found no problem where that worked better than random initialization, so we chose the latter.
+- MO algorithms are not competitors but complements to QD algorithms because they have different strengths and weaknesses. We can merge MO results into an existing QD archive.
+- fcmaes lets you change the number of niches, the fitness function, behavior limits, and other parameters before continuing the QD optimization. This makes it possible to drill down into interesting sub-areas of the behavior space.

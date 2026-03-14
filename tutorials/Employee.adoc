@@ -13,49 +13,50 @@ image::logo.gif[]
 
 This tutorial:
 
-- Is based on 
+- Is based on
 https://github.com/optapy/optapy-quickstarts/blob/stable/employee-scheduling/README.adoc[employee-scheduling],
 an https://github.com/optapy/optapy[OptaPy] tutorial for employee scheduling.
-- Will show how to improve the OptaPy result by applying parallel continuous optimization.
-- Illustrate how easy it is to specify the corresponding fitness function.
-- Apply multi-objective optimization to produce a set of non-dominated scheduling choices which 
-involve an additional competing objective.
+- Shows how to improve the OptaPy result by applying parallel continuous optimization.
+- Illustrates how easy it is to define the corresponding fitness function.
+- Applies multi-objective optimization to generate a set of non-dominated scheduling choices
+with an additional competing objective.
 
 The code for this tutorial is
-here: 
+here:
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/examples/employee.py[employee.py].
 
 == Motivation
 
-Employee scheduling is a very common scheduling optimization problem. There are hard constraints
-- like an employees skills don't fit the requirements for a specific slot,  or she is unavailable at a certain day - 
-and soft constraints - like an employee prefers to work at a specific shift. These constraints 
-have to be correctly prioritized. 
+Employee scheduling is a common optimization problem. It includes hard constraints,
+for example when an employee lacks the required skill for a slot or is unavailable on a given day.
+It also includes soft constraints, for example when an employee prefers a specific shift.
+These constraints need clear priorities.
 
-Applying continuous optimization is not very common here, but recent developments have largely increased its applicability. 
+Continuous optimization is not a common first choice here. Recent developments make it far more practical.
 The main reasons are:
 
-- Using https://numba.pydata.org/[numba] and parallel execution on a modern many-core CPU you can execute up to 
-1000.000 evaluations/sec of a fitness function evaluating a possible schedule. 
-- Modern continuous optimization algorithms like https://github.com/avaneev/biteopt[BiteOpt] can handle discrete problems very well. 
+- Using https://numba.pydata.org/[numba] and parallel execution on a modern many-core CPU, you can execute up to
+1000.000 evaluations/sec of a fitness function that evaluates a possible schedule.
+- Modern continuous optimization algorithms like https://github.com/avaneev/biteopt[BiteOpt] can handle discrete problems very well.
 
-So even if millions of fitness evaluations are required to solve a scheduling/planning problem, this is a matter
-of seconds now. 
+This means that even if a scheduling or planning problem needs millions of fitness evaluations,
+the runtime can still be measured in seconds.
 
-But this is only half of the story: What if you want to consider an additional competing objective and want to 
-generate a number of non-dominating choices - a so called pareto-front? For continuous optimization this is a
-"solved problem", you get it "for free", but not for traditional scheduling optimizers like https://github.com/optapy/optapy[OptaPy].
+That is only part of the story. What if you want to add another competing objective and generate
+several non-dominated choices, a so-called pareto-front? In continuous optimization this is largely a solved problem.
+You get that capability almost for free. Traditional scheduling optimizers such as
+https://github.com/optapy/optapy[OptaPy] do not make this as straightforward.
 
-Now you could argue, that it is easier to specify the details of a scheduling problem using an API specifically created
-for these kind of problems. An answer to this argument involves the presentation of an alternative: The creation
-of a fitness function solving the problem and let the reader decide what is easier. 
+One possible objection is that a dedicated scheduling API may be easier to use for this kind of problem.
+A fair answer is to show an alternative. We will define a fitness function for the same problem
+and let the reader decide which approach is easier.
 
 === Employee Scheduling using OptaPy
 
-We recommend that you try out the original example 
+We recommend that you try the original
 https://github.com/optapy/optapy-quickstarts/blob/stable/employee-scheduling/README.adoc[employee-scheduling]
-first. The concrete instance is generated randomly but you will see a generated schedule similar to this one:
+example first. The concrete instance is generated randomly, but you will see a schedule similar to this one:
 
 image::schedule1.png[]
 
@@ -66,10 +67,10 @@ image::employee1.png[]
 you will notice two things:
 
 - Some employees are almost doing nothing.
-- The green slots are almost empty. This means the "desires" of the employees to work at a specific day are almost ignored. 
+- The green slots are almost empty. This means the employees' wishes to work on a specific day are almost ignored.
 
-If you interpret the "DESIRED" fields as days an employee wants to work and use the start of a shift to 
-identify the day, then no "desires" are fulfilled. 
+If you interpret the `DESIRED` fields as days an employee wants to work, and use the start of a shift to
+identify the day, then no desires are fulfilled.
 
 We get:
 
@@ -81,23 +82,22 @@ mean shifts per employee 7.875
 std shifts per employee 4.998437255783052
 ----
 
-What happens of we repeat the experiment? We always end up with the same result, so we have no alternatives we can 
-choose from. 
+What happens if we repeat the experiment? We always end up with the same result, so there are no alternatives to choose from.
 
-Imagine what would happen if you would install such a schedule in the real world. You would soon end up with less employees, since
-some would prefer to work elsewhere. Hiring people is expensive, so lets see if we can do something about that. 
+Now imagine deploying such a schedule in the real world. Some employees would likely prefer to work elsewhere.
+Hiring replacements is expensive, so it is worth checking whether we can do better.
 
 ==== Update
 
-It turned out that there is a bug in the optapy example, its optimizer is able to fulfill the "DESIRED" shifts
-if configured correctly. Defining a constraint optimizing the distribution of shifts should also be possible in
-principle, but this currently doesn't work because of another optapy bug. 
-Will update the tutorial when this is finally fixed. 
+It turned out that there is a bug in the optapy example. Its optimizer is able to fulfill the `DESIRED` shifts
+if configured correctly. Defining a constraint that optimizes the distribution of shifts should also be possible
+in principle, but this currently does not work because of another optapy bug.
+We will update the tutorial when this is finally fixed.
 
 === Generating a Test Problem
 
-We used the following code to generate the JSON-representation of an employee 
-scheduling problem using https://github.com/optapy/optapy[OptaPy]. 
+We used the following code to generate the JSON representation of an employee
+scheduling problem with https://github.com/optapy/optapy[OptaPy].
 
 [source,python]
 ----
@@ -107,7 +107,7 @@ def save_solution():
     solve()
     while get_solver_status() != SolverStatus.NOT_SOLVING:
         time.sleep(5)
-        print(get_solver_status())  
+        print(get_solver_status())
     solver_status = get_solver_status()
     solution = schedule
     score = score_manager.updateScore(solution)
@@ -120,33 +120,33 @@ def save_solution():
         outfile.write(sched_json)
 ----
 
-Note that this JSON includes already an OptaPy solution - which we will ignore - but we didn't 
-find a way to export the problem without solving it first. 
+This JSON already contains an OptaPy solution, which we will ignore.
+We did not find a way to export the problem without solving it first.
 
 Our code in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/employee.py[employee.py]
-is completely independent from OctaPy and the example code in 
-https://github.com/optapy/optapy-quickstarts/blob/stable/employee-scheduling/README.adoc[employee-scheduling],
-it only depends on the generated problem instance. 
+is completely independent of OptaPy and of the example code in
+https://github.com/optapy/optapy-quickstarts/blob/stable/employee-scheduling/README.adoc[employee-scheduling].
+It depends only on the generated problem instance.
 
-=== Representing the Employee Scheduling JSON instance as Optimization Problem  
+=== Representing the Employee Scheduling JSON instance as Optimization Problem
 
-We now can read all the solution-independent parts of the generated JSON to produce
-a continuous optimization problem including a fitness function:
+We can now read the solution-independent parts of the generated JSON and turn them into
+a continuous optimization problem with a fitness function:
 
 [source,python]
 ----
 class problem():
-    
+
     def __init__(self, json_file):
         with open(json_file) as json_file:
-            sched = json.load(json_file)    
-            
+            sched = json.load(json_file)
+
         self.shifts = sched['shift_list']
         self.shift_to_index, self.days, self.locations, self.required_skills, \
                 self.sec_start, self.sec_end = shift_indices(self.shifts)
         self.day_to_index, self.day_ids = index_map(self.days)
         self.location_to_index, self.location_ids = index_map(self.locations)
-                
+
         self.employees = sched['employee_list']
         self.employee_to_index, self.names, self.skill_sets = employee_indices(self.employees)
         self.name_to_index, self.name_ids = index_map(self.names)
@@ -158,42 +158,42 @@ class problem():
         self.avail_name_ids = np.array([self.name_to_index[n] for n in self.avail_names])
         self.avail_day_ids = np.array([self.day_to_index[d] for d in self.avail_days])
         self.avail_type_ids = np.array([avail_type_map[t] for t in self.avail_types])
-        
+
         self.dim = len(self.shifts)
-        self.bounds = Bounds([0]*self.dim, [len(self.employees)-1E-9]*self.dim)  
+        self.bounds = Bounds([0]*self.dim, [len(self.employees)-1E-9]*self.dim)
 
     def fitness(self, x):
-        score, employee_num_shifts = fitness_(x.astype(int), self.day_ids, 
-                    self.required_skill_ids, self.skill_set_ids, self.avail_name_ids, 
+        score, employee_num_shifts = fitness_(x.astype(int), self.day_ids,
+                    self.required_skill_ids, self.skill_set_ids, self.avail_name_ids,
                     self.avail_day_ids, self.avail_type_ids, self.sec_start, self.sec_end)
         return score + 10*np.std(employee_num_shifts)
 ----
 
-Note that we convert all the information into numpy-index-arrays, together
-with lists which allow to retrieve the original representation from these indices. 
+We convert all information into numpy index arrays, together with lists that let us recover
+the original representation from these indices.
 
-The numpy-index-array representation helps to speed up the fitness evaluation 
-by using https://numba.pydata.org/[numba]. numba loves numpy arrays - and hates objects -  
-and the indices accelerate the comparisons.
+This representation speeds up fitness evaluation when using https://numba.pydata.org/[numba].
+numba works well with numpy arrays and poorly with Python objects.
+The indexed form also makes comparisons faster.
 
-The fitness function forwards these index-arrays to a fast numba function 
+The fitness function forwards these index arrays to the fast numba function
 `fitness_(x.astype(int), ...` discussed below. Note that the continuous decision vector
-`x` is converted into discrete integer values using `x.astype(int)`.
+`x` is converted to discrete integer values using `x.astype(int)`.
 
 === Implementing the Fitness Function
 
-The fitness function needs to check how many hard and soft constraints 
-an employee schedule `employees_at_shift` given as decision vector violates.   
-We multiply hard constraints by factor 1000 to priorize them. `UNDESIRED`
-constraints - that an employee prefers not to work at a specific day - 
-will get factor 100, and `DESIRED` constraints 
-- that an employee likes to work at a specific day - gets a negative  
-factor `-1`, because we want to maximize its fulfillment.  
+The fitness function checks how many hard and soft constraints
+an employee schedule `employees_at_shift`, given as a decision vector, violates.
+We multiply hard constraints by 1000 to prioritize them. `UNDESIRED`
+constraints, where an employee prefers not to work on a specific day,
+get factor 100. `DESIRED` constraints,
+where an employee wants to work on a specific day, get a negative
+factor `-1`, because we want to maximize their fulfillment.
 
 [source,python]
 ----
 @njit(fastmath=True)
-def fitness_(employees_at_shift, day_ids, required_skill_ids, skill_set_ids, 
+def fitness_(employees_at_shift, day_ids, required_skill_ids, skill_set_ids,
              avail_names_ids, avail_days_ids, avail_type_ids, sec_start, sec_end):
     score = 0
     num_employees = len(skill_set_ids)
@@ -212,14 +212,14 @@ def fitness_(employees_at_shift, day_ids, required_skill_ids, skill_set_ids,
         employee_last_end[employee] = sec_end[shift]
         required_skill = required_skill_ids[shift]
         skill_set = skill_set_ids[employee]
-        if not required_skill in skill_set: 
+        if not required_skill in skill_set:
             score += 1000 # employee has wrong skill set
         avail_ids = np.where(avail_names_ids == employee)
         for avail_id in avail_ids[0]:
             avail_day = avail_days_ids[avail_id]
             if day == avail_day:
                 type = avail_type_ids[avail_id]
-                if type == UNDESIRED:  
+                if type == UNDESIRED:
                     score += 100 # employee does not want to work this day
                 elif type == UNAVAILABLE:
                     score += 1000 # employee is unavailable
@@ -231,47 +231,47 @@ def fitness_(employees_at_shift, day_ids, required_skill_ids, skill_set_ids,
 You may compare the complexity of this code to
 https://github.com/optapy/optapy-quickstarts/blob/stable/employee-scheduling/constraints.py[constraints.py] and
 https://github.com/optapy/optapy-quickstarts/blob/stable/employee-scheduling/domain.py[domain.py].
-Note that the fitness function above doesn't require any specific domain objects and
-"schedule solver"-API, but still is quite readable. And it does something more:
-It counts the number of shifts for each employee and returns this as an array. You may use
-`np.std(employee_num_shifts)` or `-min(employee_num_shifts)` to support a more 
-equal distribution of work. This way we make sure that all employees get a fair amount of work-shifts. 
+The fitness function above does not require specific domain objects or a
+"schedule solver" API, but it is still quite readable. It also does more:
+it counts the number of shifts for each employee and returns this as an array. You can use
+`np.std(employee_num_shifts)` or `-min(employee_num_shifts)` to support a more
+equal distribution of work. This is how we encourage a fair number of shifts for all employees.
 
 === Single Objective Optimization
 
-We call `fcmaes.retry.minimize_plot` because we want to monitor/plot the progress over time. 
-It takes an continuous optimizer as an argument. We recommend to try BiteOpt first - not only for
-this problem - because it doesn't require specific parameters, it is mostly self adapting. 
-`fcmaes.retry` will as default use `mp.cpu_count()` parallel workers. In our case (AMD 16 core 5950x)
-this results to 32 optimizations performed in parallel. 
+We call `fcmaes.retry.minimize_plot` because we want to monitor and plot progress over time.
+It takes a continuous optimizer as an argument. We recommend trying BiteOpt first, not only for
+this problem, because it does not need special parameter tuning and is mostly self-adapting.
+`fcmaes.retry` uses `mp.cpu_count()` parallel workers by default. On our AMD 16 core 5950x,
+this leads to 32 optimizations running in parallel.
 
 [source,python]
 ----
     def fitness(self, x):
-        score, employee_num_shifts = fitness_(x.astype(int), self.day_ids, 
-                    self.required_skill_ids, self.skill_set_ids, self.avail_name_ids, 
+        score, employee_num_shifts = fitness_(x.astype(int), self.day_ids,
+                    self.required_skill_ids, self.skill_set_ids, self.avail_name_ids,
                     self.avail_day_ids, self.avail_type_ids, self.sec_start, self.sec_end)
         return score + 10*np.std(employee_num_shifts)
 
     def optimize(self):
         self.fitness(np.random.uniform(0, len(self.employees), self.dim).astype(int))
-        res = retry.minimize_plot("schedule.bite.400k", Bite_cpp(400000),  
-        #res = retry.minimize_plot("schedule.de.400k", De_cpp(400000, popsize = 512, ints = [True]*self.dim), 
+        res = retry.minimize_plot("schedule.bite.400k", Bite_cpp(400000),
+        #res = retry.minimize_plot("schedule.de.400k", De_cpp(400000, popsize = 512, ints = [True]*self.dim),
                     wrapper(self.fitness), self.bounds, num_retries=32, plot_limit=10000)
-        print(self.fitness_mo(res.x)) 
+        print(self.fitness_mo(res.x))
         self.show(res.x)
 ----
 
-In the diagrams below you see:
+In the diagrams below you can see:
 
-- Both BitOpt and Differential Evolution can solve this problem.
-- Less than three seconds is required to find the solution - although the optimizer runs a bit longer. 
+- Both BiteOpt and Differential Evolution can solve this problem.
+- Less than three seconds are needed to find the solution, although the optimizer runs a bit longer.
 
 image::employeeres.png[]
 
-'self.show(res.x)` shows the result as a human readable list. It converts the indices back into schedules, employees and
-fulfilled/violated constraints. As we see all 5 "desired" work day constraints are fulfilled and all employees get at least
-5 shifts applied.  
+`self.show(res.x)` prints the result in a human-readable form. It converts the indices back into schedules,
+employees, and fulfilled or violated constraints. We see that all 5 `DESIRED` work day constraints are fulfilled,
+and every employee gets at least 5 assigned shifts.
 
 ----
 desired shift days 5
@@ -298,22 +298,22 @@ std shifts per employee 0.33071891388307384
 ...
 ----
 
-We get different results we can choose from. This process obviously can be 
-parallelized on different cloud CPU nodes. The last one has a quite equal work distribution
-and fulfills 5 work day "desires". optapy always produces the same result, even if we configure
+So we get different valid results to choose from. This process can obviously be
+parallelized across different cloud CPU nodes. The last result has a very even work distribution
+and fulfills 5 work day desires. OptaPy always produces the same result, even if we configure
 `<environmentMode>NON_REPRODUCIBLE</environmentMode>` in its configuration.
 
 === Multi-Objective Fitness
 
-For the fitness function the only change is that instead of adding `-0.1*np.std(employee_num_shifts)` to the first objective, 
-we return a second one `np.std(employee_num_shifts)`. Note that alternatively we could maximize
-the minimal number of assigned shifts to an employee: `-min(employee_num_shifts)`. 
+For the fitness function, the only change is that instead of adding `-0.1*np.std(employee_num_shifts)` to the first objective,
+we return `np.std(employee_num_shifts)` as a second objective. Alternatively, we could maximize
+the minimum number of assigned shifts for an employee with `-min(employee_num_shifts)`.
 
 [source,python]
 ----
     def fitness_mo(self, x):
-        score, employee_num_shifts = fitness_(x.astype(int), self.day_ids, 
-                    self.required_skill_ids, self.skill_set_ids, self.avail_name_ids, 
+        score, employee_num_shifts = fitness_(x.astype(int), self.day_ids,
+                    self.required_skill_ids, self.skill_set_ids, self.avail_name_ids,
                     self.avail_day_ids, self.avail_type_ids, self.sec_start, self.sec_end)
         return [score, np.std(employee_num_shifts)]
         #return [score, -min(employee_num_shifts)]
@@ -321,19 +321,19 @@ the minimal number of assigned shifts to an employee: `-min(employee_num_shifts)
 
 === Multi-Objective Optimization
 
-Since the `fcmaes` library offers only one multi-objective optimizer "MODE", the only 
-choice we have to make is whether to use differential evolution or NSGA-II population
-update (parameter `nsga_update=True`). The recommendation is to try both. For this problem
-NSGA-II population update works better. Multi-objective optimization usually needs
-a larger population size, we choose 512 here. 
+Since `fcmaes` offers only one multi-objective optimizer, `MODE`, the main
+choice is whether to use differential evolution or NSGA-II population
+update through the parameter `nsga_update=True`. It is worth trying both.
+For this problem, NSGA-II population update works better.
+Multi-objective optimization usually needs a larger population size, so we choose 512 here.
 
 [source,python]
 ----
     def optimize_mo(self):
         self.fitness_mo(np.random.uniform(0, len(self.employees), self.dim).astype(int))
-        pname = "schedule_mo_600k.512"    
-        xs, ys = modecpp.retry(mode.wrapper(self.fitness_mo, 2), 
-                     2, 0, self.bounds, popsize = 512, max_evaluations = 600000, 
+        pname = "schedule_mo_600k.512"
+        xs, ys = modecpp.retry(mode.wrapper(self.fitness_mo, 2),
+                     2, 0, self.bounds, popsize = 512, max_evaluations = 600000,
                      nsga_update=True, num_retries = 32, workers=32)
         np.savez_compressed(pname, xs=xs, ys=ys)
         xs, ys = moretry.pareto(xs, ys)
@@ -341,8 +341,8 @@ a larger population size, we choose 512 here.
             print(str(list(y)) + ' ' + str([int(xi) for xi in x]))
 ----
 
-As a result, after about 36 seconds,  we get lists of corresponding argument vectors (`xs`) and function values (`ys`) which represent
-the set of non-dominated solutions - the pareto-front: 
+As a result, after about 36 seconds, we get lists of corresponding argument vectors (`xs`) and function values (`ys`).
+Together they represent the set of non-dominated solutions, the pareto-front:
 
 ----
 [-400.0, 0.7806247497997998] [3, 10, 14, 12, 2, 5, 1, 11, 9, 0, 7, 15, 14, 11, 6, 10, 13, 9, 8, 3, 10, 13, 12, 4, 7, 0, 15, 4, 2, 1, 5, 6, 11, 13, 7, 15, 10, 4, 3, 14, 11, 13, 2, 1, 0, 2, 9, 7, 4, 1, 13, 10, 8, 12, 15, 9, 3, 11, 4, 10, 5, 13, 0, 5, 13, 14, 11, 6, 12, 3, 10, 4, 8, 5, 1, 14, 4, 12, 2, 7, 0, 3, 8, 9, 7, 4, 15, 6, 14, 10, 6, 5, 15, 8, 10, 11, 3, 12, 1, 0, 8, 9, 2, 13, 6, 5, 7, 12, 6, 4, 11, 9, 14, 1, 2, 8, 15, 12, 1, 3, 11, 15, 5, 2, 6, 8]
@@ -351,30 +351,28 @@ the set of non-dominated solutions - the pareto-front:
 [1500.0, 0.33071891388307384] [1, 5, 14, 4, 3, 7, 15, 10, 0, 9, 7, 12, 14, 0, 15, 4, 2, 11, 4, 13, 8, 10, 12, 1, 14, 9, 3, 1, 10, 0, 11, 6, 5, 13, 2, 7, 15, 2, 14, 0, 6, 9, 8, 11, 3, 4, 14, 1, 2, 7, 12, 13, 8, 5, 15, 12, 9, 2, 4, 10, 11, 14, 0, 11, 5, 3, 1, 6, 7, 9, 15, 10, 4, 3, 13, 14, 6, 7, 8, 5, 0, 7, 4, 9, 12, 15, 10, 8, 13, 1, 11, 12, 6, 10, 8, 5, 3, 13, 1, 5, 6, 0, 2, 12, 15, 10, 3, 11, 13, 8, 1, 3, 5, 7, 2, 6, 15, 14, 9, 4, 11, 12, 13, 8, 6, 2]
 ----
 
-We can use `problem.show` applied to the solutions to check the details.
+We can use `problem.show` on these solutions to inspect the details.
 
-Multi-objective optimization help to further diversify possible solutions representing different 
-"compromises" between the objectives. 
-It doesn't require that we "weight" objectives in advance, 
-their scaling doesn't matter. Instead we are presented with a
-set of choices and can decide afterwards what we prefer.
-For this specific problem instance the number of choices is quite limited, which will not be the case with 
-larger employee scheduling problem instances with more valid assignment choices. 
+Multi-objective optimization helps diversify the set of possible schedules by representing different
+compromises between the objectives. We do not need to choose weights in advance,
+and objective scaling does not matter. Instead, we get a set of choices and decide afterwards what we prefer.
+For this specific problem instance, the number of choices is quite limited. Larger employee scheduling instances
+with more valid assignments will usually offer more alternatives.
 
-Edit and execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/employee.py[employee.py] 
-to reproduce our results. Expect slower timings with older CPUs having less cores -
-we used a 16 core AMD 5950x. `fcmaes` is mainly about utilizing all resources of modern
-many core CPUs. 
+Edit and execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/employee.py[employee.py]
+to reproduce our results. Expect slower timings on older CPUs with fewer cores.
+We used a 16 core AMD 5950x. `fcmaes` is mainly about using all resources of modern
+many-core CPUs.
 
 === Challenge
 
-We modified the problem generating settings in 
+We modified the problem generation settings in
 https://github.com/optapy/optapy-quickstarts/blob/stable/employee-scheduling/services.py[services.py]
-to generate a tougher challenge:
+to create a tougher challenge:
 
 - More optional skills `["Anaesthetics", "Surgery", "Radiology"]`
 - Roster length of 28 days:
-- 20 employees 
+- 20 employees
 - Skill distribution `skills = pick_subset(OPTIONAL_SKILLS, random, 1, 4, 4)`
 
 [source,python]
@@ -387,7 +385,7 @@ OPTIONAL_SKILLS = ["Anaesthetics", "Surgery", "Radiology"]
         skills = pick_subset(OPTIONAL_SKILLS, random, 1, 4, 4)
 ----
 
-This is a setting OptaPy still can solve. We tried several time limits:
+This is still a setting that OptaPy can solve. We tried several time limits:
 
 ----
 time spent (100056), best score (-1hard/-480soft), score calculation speed (84/sec) step total (280).
@@ -404,7 +402,7 @@ time spent (4800145), best score (0hard/-480soft), score calculation speed (45/s
 time spent (20000064), best score (0hard/0soft), score calculation speed (21/sec) step total (72491).
 ----
 
-20000 seconds is sufficient. We executed OptaPy 12 times using this limit and always got:
+20000 seconds is sufficient. We ran OptaPy 12 times with this limit and always got:
 
 ----
 desired shift days 0
@@ -414,22 +412,22 @@ mean shifts per employee 12.6
 std shifts per employee 3.8000000000000003
 ----
 
-No desired work day fulfilled, and a quite large standard deviation of the shift assignemnts to the employees. 
+No desired work day is fulfilled, and the standard deviation of shift assignments across employees is quite large.
 
-We need to reconfigure the single objective optimization to adapt for the increased complexity:
+We need to reconfigure the single-objective optimization to handle the increased complexity:
 
 [source,python]
 ----
     def optimize(self):
         self.fitness(np.random.uniform(0, len(self.employees), self.dim).astype(int))
-        res = retry.minimize_plot("schedule.bite.400k", Bite_cpp(400000),  
-        #res = retry.minimize_plot("schedule.de.10000k", De_cpp(10000000, popsize = 10000, ints = [True]*self.dim), 
-        print(self.fitness_mo(res.x)) 
+        res = retry.minimize_plot("schedule.bite.400k", Bite_cpp(400000),
+        #res = retry.minimize_plot("schedule.de.10000k", De_cpp(10000000, popsize = 10000, ints = [True]*self.dim),
+        print(self.fitness_mo(res.x))
         self.show(res.x)
 ----
 
-Note, that Differential Evolution now requires a huge population size. BiteOpt can still can solve the problem in a 
-reasonable time of about 30 seconds: 
+Note that Differential Evolution now needs a huge population size. BiteOpt can still solve the problem in a
+reasonable time of about 30 seconds:
 
 image::employeeres2.png[]
 
@@ -457,20 +455,20 @@ std shifts per employee 0.9165151389911679
 ...
 ----
 
-The last solution has a quite equal shift distribution and fulfills six work day desires. 
-But from the first solution we see that not always all soft requirements are fulfilled, 'Elsa Li'
-has to work at an undesired day.
+The last solution has a fairly even shift distribution and fulfills six work day desires.
+But the first solution also shows that not all soft requirements are always satisfied. `Elsa Li`
+still has to work on an undesired day.
 
-For multi-objective optimization we also have to adapt the parameters:
+For multi-objective optimization we also need to adapt the parameters:
 
 [source,python]
 ----
-        xs, ys = modecpp.retry(mode.wrapper(self.fitness_mo, 2), 
-                 2, 0, self.bounds, popsize = 4096, max_evaluations = 20000000, 
+        xs, ys = modecpp.retry(mode.wrapper(self.fitness_mo, 2),
+                 2, 0, self.bounds, popsize = 4096, max_evaluations = 20000000,
              nsga_update=True, num_retries = 32, workers=32)
----- 
+----
 
-We find a pareto front representing more scheduling choices:
+We then find a pareto front that offers more scheduling choices:
 
 ----
 [-600.0, 2.437211521390788] [0, 10, 14, 16, 8, 15, 12, 1, 6, 14, 19, 2, 4, 17, 12, 1, 18, 7, 14, 2, 1, 19, 13, 10, 3, 18, 4, 3, 11, 9, 16, 5, 10, 19, 12, 0, 6, 19, 4, 17, 14, 3, 10, 8, 11, 18, 13, 9, 4, 3, 7, 16, 6, 0, 9, 1, 15, 10, 14, 12, 2, 11, 18, 9, 1, 15, 8, 7, 17, 11, 4, 3, 15, 16, 9, 8, 11, 6, 17, 1, 2, 13, 1, 17, 8, 6, 4, 18, 12, 7, 2, 8, 4, 9, 11, 3, 15, 10, 1, 2, 6, 16, 8, 1, 18, 9, 7, 11, 13, 9, 17, 15, 1, 4, 18, 6, 8, 17, 3, 7, 4, 19, 11, 2, 14, 9, 6, 13, 5, 11, 14, 18, 16, 0, 3, 2, 12, 15, 9, 1, 6, 19, 4, 10, 3, 9, 15, 13, 12, 17, 14, 2, 10, 18, 13, 3, 6, 9, 14, 16, 1, 17, 7, 5, 3, 15, 6, 0, 8, 2, 16, 7, 11, 12, 2, 3, 8, 5, 13, 1, 7, 19, 4, 5, 17, 9, 16, 13, 3, 4, 19, 8, 12, 18, 14, 10, 5, 3, 8, 16, 4, 2, 6, 7, 13, 19, 17, 18, 2, 7, 19, 9, 8, 15, 1, 6, 11, 7, 4, 15, 10, 12, 0, 16, 17, 8, 1, 11, 18, 16, 5, 13, 14, 19, 17, 6, 9, 12, 7, 13, 3, 2, 18, 4, 5, 11, 19, 15, 1, 2, 13, 7]
@@ -483,15 +481,15 @@ We find a pareto front representing more scheduling choices:
 
 ==== Exercise
 
-Is the result dependent on the optimization library used? To answer this question
-try https://facebookresearch.github.io/nevergrad[nevergrad], 
-a very popular optimization library (> 40000 downloads last month, see https://pypistats.org/packages/nevergrad ).
-You may start testing NGOpt, CMA, DE, TwoPointsDE, something like:
+Is the result dependent on the optimization library used? To answer this question,
+try https://facebookresearch.github.io/nevergrad[nevergrad],
+a very popular optimization library (> 40000 downloads last month, see https://pypistats.org/packages/nevergrad).
+You may start by testing NGOpt, CMA, DE, TwoPointsDE, for example:
 
 [source,python]
 ----
-    def optimize_ng(self):    
-        import nevergrad as ng   
+    def optimize_ng(self):
+        import nevergrad as ng
         fit = wrapper(self.fitness)
         instrum = ng.p.Instrumentation(
             ng.p.Array(shape=(self.dim,)).set_bounds(self.bounds.lb, self.bounds.ub)
@@ -502,22 +500,16 @@ You may start testing NGOpt, CMA, DE, TwoPointsDE, something like:
         self.show(recommendation.value[0][0])
 ----
 
-This exercise is to show that when using https://numba.pydata.org/[numba] to speed up the fitness function,
-the optimization algorithm overhead becomes relevant. 
-https://facebookresearch.github.io/nevergrad[nevergrad] is not designed for fast fitness functions. 
+This exercise shows that once https://numba.pydata.org/[numba] makes the fitness function fast,
+the overhead of the optimization algorithm itself becomes relevant.
+https://facebookresearch.github.io/nevergrad[nevergrad] is not designed for very fast fitness functions.
 
 == Conclusion
 
-- Multi-objective optimization can provide the basis for the decision process even for large combinatorial scheduling problems.
-- It can help to make employees "happy" by producing an employee schedule fulfilling all their "desires" and avoid having
-no assigned shifts for some of them. 
-- Performance of continuous optimization is sufficient even for large problem instances using Python, if https://numba.pydata.org/[numba]
-is used to code the fitness function. 
-- Modern continuous optimizers written in {cpp} like BiteOpt and fcmaes-MODE enable the evaluation of up to 10⁶ fitness evaluations/sec and are well suited
-for decision variables used as discrete integer values. 
-- The shown approach is very flexible regarding unusual constraints and modifications. Imagine assigning different weights to the fulfillment of soft constraints
-for individual employees or other modifications. 
-- Standard tools reach their limits soon, continuous optimization can sometimes still fulfill all hard and soft constraints, although
-it can require many million fitness evaluations.  
-- For problems where the requirements are very hard to fulfill, the pareto-front generated by multi-objective optimization 
-can be very small - but still can offer interesting alternatives. 
+- Multi-objective optimization can support decision-making even for large combinatorial scheduling problems.
+- It can help make employees "happy" by producing schedules that fulfill all their "desires" and avoid leaving some employees without assigned shifts.
+- Performance of continuous optimization is sufficient even for large problem instances in Python if https://numba.pydata.org/[numba] is used for the fitness function.
+- Modern continuous optimizers written in {cpp}, like BiteOpt and fcmaes-MODE, enable up to 10⁶ fitness evaluations/sec and work well when decision variables are used as discrete integer values.
+- The approach shown here is flexible and handles unusual constraints and modifications well. For example, you could assign different weights to soft constraints for individual employees.
+- Standard tools reach their limits quickly. Continuous optimization can sometimes still fulfill all hard and soft constraints, although it may require many millions of fitness evaluations.
+- For problems where the requirements are very hard to fulfill, the pareto-front generated by multi-objective optimization can be very small, but it can still offer interesting alternatives.

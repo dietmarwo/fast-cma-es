@@ -12,47 +12,50 @@ Note: This tutorial will be updated whenever newer and better open-source LLMs b
 
 == Open Source AI Optimization Assistant
 
-This tutorial shows how to set up a helper that applies fcmaes to a concrete problem.
+This tutorial explains how to set up a helper that applies fcmaes to a concrete optimization problem.
 
 - Pick an optimization algorithm.
 - Learn the basics of how it works.
 - Choose the interface: ask/tell or minimize.
-- Choose how to parallelize: parallel restarts or parallel population evaluation.
+- Choose the parallelization strategy: parallel restarts or parallel population evaluation.
 
-A general AI like GPT‑5 or OPUS 4.1 can help with ideas.
-But it may not know the details of fcmaes.
+A general AI such as GPT‑5 or OPUS 4.1 can help with ideas.
+But it usually does not know the details of fcmaes.
 
-Training a custom AI on fcmaes is possible, but costly.
-A simpler option is this: open the fcmaes repository (or any GitHub project) in an IDE like VS Code, PyCharm, or IntelliJ, and use the Continue plugin.
+Training a custom AI on fcmaes is possible, but expensive.
+A simpler approach is to open the fcmaes repository, or any other GitHub project, in an IDE such as VS Code, PyCharm, or IntelliJ and use the Continue plugin.
 Continue can connect to any AI via the Ollama or OpenAI protocol.
-Here, we focus on using an open‑source model running locally on an AI server in your LAN.
+In this tutorial, we focus on an open-source model running locally on an AI server in your LAN.
 
 === Hardware Options
 
-At the moment, there are two main choices:
+There are currently two main hardware choices:
 
 - A standard PC with several GPUs.
-  These provide large amounts of VRAM.
-  The limit is the combined GPU memory.
-  For good results you need at least 48 GB.
-  A cheap option is two Nvidia 3090 cards.
+  This gives you a lot of VRAM.
+  The practical limit is the combined GPU memory.
+  For good results, you need at least 48 GB.
+  A relatively cheap option is two Nvidia 3090 cards.
 
 - A machine built for AI with shared memory (128 GB or more).
   Examples are Apple M4, AMD 395 AI MAX, or NVIDIA DGX Spark.
-  Advantage: You can load bigger models and use larger contexts.
-  Disadvantage: Speed is lower because of limited memory bandwidth.
+  The advantage is capacity: you can load bigger models and use larger contexts.
+  The disadvantage is speed because memory bandwidth is limited.
   Execution is around 5× slower than with GPUs.
 
-For the *fcmaes expert* case, GPU speed is more important.
-48 GB is already enough for good results, and future models of the same size will run even better.
+For the *fcmaes expert* use case, GPU speed matters more.
+48 GB is already enough for good results, and future models of the same size will likely perform even better.
 Still, AI-specific machines will likely get cheaper and faster soon, so the GPU advantage may not last.
 
 === Server Setup
 
-The AI server must expose either the OpenAI or the Ollama API so other machines in the LAN can connect through the Continue plugin. For IDE usage we need an *instruct* model variant tuned for tool interaction.
-If VRAM is limited to 48 GB, a *coder* model is better since it focuses resources on programming tasks only.
+The AI server must expose either the OpenAI API or the Ollama API so other machines in the LAN can connect through the Continue plugin.
+For IDE use, we need an *instruct* model variant tuned for tool interaction.
+If VRAM is limited to 48 GB, a *coder* model is usually the better choice because it focuses its resources on programming tasks.
 
-At the time of writing, the best model option for our hardware supported by https://ollama.com/[Ollama] is https://huggingface.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2[Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2] on Hugging Face. We recommend using the 6-bit distilled version. If your machine has less or more VRAM, choose a different bit number which fits your hardware.
+At the time of writing, the best model option for our hardware supported by https://ollama.com/[Ollama] is https://huggingface.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2[Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2] on Hugging Face.
+We recommend the 6-bit distilled version.
+If your machine has less or more VRAM, choose a different bit number that fits your hardware.
 
 First install the https://ollama.com/[Ollama] server using:
 
@@ -62,7 +65,8 @@ curl -fsSL https://ollama.com/install.sh | sh
 OLLAMA_HOST=0.0.0.0 ollama serve
 ollama run hf.co/BasedBase/Qwen3-Coder-30B-A3B-Instruct-480B-Distill-V2:Q6_K
 ----
-If you are on Windows/MacOS, you can download Ollama from https://ollama.com/download and run it with `ollama serve`. Alternative model variants which work well are:
+If you are on Windows/macOS, you can download Ollama from https://ollama.com/download and run it with `ollama serve`.
+These alternative model variants also work well:
 
 [source,shell]
 ----
@@ -83,7 +87,7 @@ First install https://github.com/vllm-project/vllm[vLLM] using:
 ----
 pip install vllm
 ----
-ideally in a dedicated virtual environment.
+Ideally, do this in a dedicated virtual environment.
 
 Then start the server with the command below.
 
@@ -102,22 +106,22 @@ python -m vllm.entrypoints.openai.api_server \
 ----
 
 - The first run downloads and caches the model from Hugging Face. Later runs use the local cache.
-- The example command is tuned for two Nvidia 3090 GPUs. Adjust settings for your own hardware. If unsure, ask an LLM (GPT-5, Opus 4.1, Grok, or Gemini Pro) how to configure it.
-- Parameters are set to use all available memory. If you run into memory issues, lower `gpu-memory-utilization` and `max-model-len`.
+- The example command is tuned for two Nvidia 3090 GPUs. Adjust the settings for your own hardware. If you are unsure, ask an LLM (GPT-5, Opus 4.1, Grok, or Gemini Pro) how to configure it.
+- The parameters are set to use all available memory. If you run into memory issues, lower `gpu-memory-utilization` and `max-model-len`.
 - On a dedicated AI machine with more memory, you can load larger models and increase the context size (`max-model-len`).
 
-In our tests, vLLM only worked with a weaker model and enforced a smaller context size.
-For this reason, we recommend using Ollama instead.
+In our tests, vLLM only worked with a weaker model and a smaller context size.
+For that reason, we recommend using Ollama instead.
 
-In general when choosing between Ollama and vLLM:
+In general, choose between Ollama and vLLM as follows:
 
-- Need maximum throughput, batching, scheduling controls, or multi‑node? → vLLM. It’s engineered for this and is well‑documented. You can easily scale up your LLM inference workload by simply increasing `--tensor-parallel-size`   to shard the model across N GPUs (tensor parallel). Pipeline parallel and data parallel are also available. Weights are split across GPUs; tensor parallelism handles the intra‑layer sharding. But limited quantisation support may force you to choose the other option:
-- Want a simpler local stack, primarily to fit bigger models across your GPUs, with decent single‑user performance? → Ollama; Recent releases note improved multi‑GPU scheduling and better VRAM allocation with >2 GPUs. If a model doesn’t fit on one GPU, Ollama can spread it across GPUs to increase total effective VRAM. Throughput gains may be modest; the main win is capacity.
+- Need maximum throughput, batching, scheduling controls, or multi‑node? → vLLM. It is built for that and well documented. You can scale up LLM inference by increasing `--tensor-parallel-size` to shard the model across N GPUs. Pipeline parallel and data parallel are also available. Weights are split across GPUs, and tensor parallelism handles the intra-layer sharding. Limited quantisation support may still force you to choose the other option.
+- Want a simpler local stack, mainly to fit larger models across your GPUs, with decent single‑user performance? → Ollama. Recent releases note improved multi‑GPU scheduling and better VRAM allocation with >2 GPUs. If a model does not fit on one GPU, Ollama can spread it across GPUs to increase total effective VRAM. Throughput gains may be modest. The main benefit is capacity.
 
 === Client Setup
 
 Install the https://www.continue.dev/[Continue] plugin in your IDE (VS Code, JetBrains, etc.).
-Set the config in `~/.continue/config.yaml`.
+Set the configuration in `~/.continue/config.yaml`.
 
 [source,yaml]
 ----
@@ -137,13 +141,13 @@ models:
       - autocomplete
 ----
 
-- `temperature = 0.2` → Low randomness, safer outputs.
+- `temperature = 0.2` → Low randomness and safer outputs.
 - `topP = 0.9` → Some diversity, limited to the most likely ~90% of tokens.
-- `maxTokens = 1024` → Maximal number of tokens for auto-completion.
+- `maxTokens = 1024` → Maximum number of tokens for auto-completion.
 - `apiBase` → The IP address of the server where Ollama is running.
   Replace `<server-ip-address>` with the actual IP address of your server.
   If Ollama is running locally on your machine, use `http://localhost:11434`.
-- Add the `tool_use` capability if your model supports Continue's agent mode - our recommended model does not.
+- Add the `tool_use` capability if your model supports Continue's agent mode. Our recommended model does not.
 [source,yaml]
 ----
     capabilities:
@@ -152,15 +156,15 @@ models:
 
 **Switch from Agent Mode to Chat Mode in Continue:**
 
-By default, Continue starts in *agent mode*.
-In this mode the model tries to act as an autonomous coding agent.
+Continue starts in *agent mode* by default.
+In this mode, the model tries to act as an autonomous coding agent.
 It interprets prompts as instructions to search, edit, or run code in your IDE.
 
 The open-source model we use here does not fully support this mode.
-As a result, requests will result in an error message.
+As a result, requests usually fail with an error message.
 
-The solution is to switch to *chat mode*.
-In chat mode the model works as a conversational partner:
+Switch to *chat mode* instead.
+In chat mode, the model works as a conversational partner:
 it answers questions, explains code, and discusses optimization strategies without trying to execute IDE actions.
 
 To switch modes in Continue:
@@ -169,11 +173,10 @@ To switch modes in Continue:
 2. At the top you will see the mode selector (set to *Agent* by default).
 3. Change it to *Chat*.
 
-Now the model will respond reliably.
+The model should now respond reliably.
 If you later use a model that supports agent mode, you can switch back at any time.
 
-There are models supporting Continue's agent mode, but they all are
-inferior to the models we recommend for this tutorial:
+There are models that support Continue's agent mode, but they are all inferior to the models we recommend for this tutorial:
 
 - https://huggingface.co/Qwen/Qwen2.5-7B-Instruct[Qwen2.5-7B-Instruct]
   Supports function calling and tool use. Lightweight, good for single-GPU setups.
@@ -193,21 +196,21 @@ inferior to the models we recommend for this tutorial:
 - https://huggingface.co/ermiaazarkhalili/Qwen2.5-7B-Instruct_Function_Calling_xLAM[ermiaazarkhalili/Qwen2.5-7B-Instruct_Function_Calling_xLAM]
   Specialized in structured **function calling** with JSON-like schemas.
 
-But this situation may change any moment, as better agentic models will be released.
+But this may change at any time as better agentic models are released.
 
 **Clone the fcmaes repository:**
 
-The fcmaes code should be accessible in your project, then you can ask Continue how to use it.
+Make the fcmaes code available in your project so Continue can inspect it and answer questions about it.
 [source]
 ----
 git clone https://github.com/dietmarwo/fast-cma-es.git
 ----
 
-Then open the repository as a new project in VS Code or PyCharm or copy the code into your optimization project.
+Then open the repository as a new project in VS Code or PyCharm, or copy the code into your optimization project.
 
 **Example prompts for Continue:**
 
-- `@Codbase where is differential evolution implemented?`
+- `@Codebase where is differential evolution implemented?`
 - `Analyse the Python implementation of Differential Evolution. Does it have special properties?`
 - `@cmaes.py explain`
 - Select code in the IDE and ask: `explain`
@@ -219,7 +222,7 @@ Then open the repository as a new project in VS Code or PyCharm or copy the code
 
 
 ==== Alternative: Use vLLM / openai Provider
-If you have chosen vLLM to host your model on the server instead of Ollama, the client configuration needs to be adapted.
+If you chose vLLM to host your model on the server instead of Ollama, the client configuration needs to be adapted.
 Configure the https://www.continue.dev/[Continue] plugin in your IDE (VS Code, JetBrains, etc.) in `~/.continue/config.yaml` as follows:
 
 [source,yaml]
@@ -241,5 +244,5 @@ Configure the https://www.continue.dev/[Continue] plugin in your IDE (VS Code, J
 ----
 
 Everything else stays the same.
-Use Continue to talk to your local model inside the IDE.
-The smaller context window may be an issue with longer conversations.
+You can then use Continue to talk to your local model inside the IDE.
+The smaller context window may become an issue in longer conversations.

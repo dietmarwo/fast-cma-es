@@ -12,57 +12,54 @@ image::logo.gif[]
 
 This tutorial is about:
 
-- Explains how to apply weighted sum penalty approach to evaluate constraints for single objective optimization.
-- Applies this method to an optimization problem from the space mission design domain. 
+- how to use a weighted-sum penalty approach for constraints in single-objective optimization.
+- how to apply this approach to a space mission design problem.
 
-Not all optimization problems are boxed constrained, there may be additional equality and/or inequality constraints. Using a real life example we will discuss how such a problem can be converted into a boxed constrained one. We will investigate the drawbacks of this conversion. There are dedicated optimizers solving problems with constraints and we will 
-show how they can be applied. 
+Not all optimization problems are box-constrained. Many also contain equality or inequality constraints. In this tutorial, we use a real example to show how such a problem can be converted into a box-constrained one. We also look at the drawbacks of that conversion. Finally, we show how dedicated constrained optimizers can be applied directly.
 
-Note that alternatively the fcmaes multi-objective MODE optimization algorithm. supports explicit constraints which there are automatically prioritized and weighted. You may apply MODE also to single objective problems to use this mechanism. 
+As an alternative, the `fcmaes` multi-objective MODE optimizer supports explicit constraints. These constraints are prioritized and weighted automatically. You can also apply MODE to a single-objective problem if you want to use that mechanism.
 
 === Fly to near earth asteroid K14Y00D
 
-We will use https://github.com/esa/pykep/blob/master/pykep/examples/_ex11.py[pykep example 11] which is based on 
+We use https://github.com/esa/pykep/blob/master/pykep/examples/_ex11.py[pykep example 11], which is based on
 https://github.com/esa/pykep/blob/master/pykep/trajopt/_lt_margo.py[lt_margo]
 
-This problem represents a low-thrust interplanetary trajectory from Earth to a target NEO "K14Y00D". 
-The problem was developed and used during the European Space Agency interplanetary cubesat M-ARGO study.
+This problem models a low-thrust interplanetary trajectory from Earth to the near-Earth asteroid "K14Y00D".
+It was developed for the European Space Agency interplanetary cubesat M-ARGO study.
 See http://www.esa.int/spaceinimages/Images/2017/11/Deep-space_CubeSat[CubeSat] and http://www.esa.int/gsp/ACT/mad/projects/lt_to_NEA.html[to NEA]
-for more details. Don't forget `pip install pygmo` and `pip install pykep` if you want to reproduce our experiments.  
+for more details. If you want to reproduce the experiments, install the dependencies with `pip install pygmo` and `pip install pykep`.
 
 image::margo_2.png[]
 
-The trajectory is divided into 30 equal segments, each has a different maximal thrust dependent from the distance to the sun. 
-A Taylor integrator is used to numerically approximate the propagation of position, velocity and mass. 
-Although the Taylor integrator is very efficient, objective function evaluation is quite expensive. 
+The trajectory is split into 30 equal segments. Each segment has its own maximum thrust, which depends on the distance from the Sun.
+A Taylor integrator propagates position, velocity, and mass numerically.
+The Taylor integrator is efficient, but each objective function evaluation is still expensive.
 
-Note: This kind of problem is quite different to the ones from https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[GYM] we discussed
+This problem is quite different from the https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[GYM] problems discussed
 in https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[GYM results]:
 
-- Example 11 has 93 dimensions but nevertheless is much easier than the GYM problems, since it covers only a single segmented transfer. The GYM problems on the other hand span multiple transfers visiting many planets. They have lower dimensionality because only a single segment per transfer is used. 
-- High number of dimensions but relatively easy to solve means: Coordinated retry doesn't help, we need to use dedicated constraint optimizers or use pure CMA-ES, increase the number of evaluations per run and lower the population size. 
+- Example 11 has 93 dimensions, but it is still much easier than the GYM problems because it covers only a single segmented transfer. The GYM problems span multiple transfers and visits to many planets. They have lower dimensionality because they use only one segment per transfer.
+- The combination of high dimensionality and moderate difficulty has an important consequence: coordinated retry does not help much here. Instead, we need dedicated constrained optimizers, or pure CMA-ES with more evaluations per run and a smaller population size.
 
 === Objective Function
 
-Idea: Propagate forward 15 segments from the start position and backward 15 segments from the target position. 
-We want both trajectories to "meet" in the middle resulting in mismatch equality constraints for position, velocity and mass. 
-Each of the segments have their own thrust values assigned, which are computed using the argument vector and are 
-dependent from the distance from the sun, see https://github.com/esa/pykep/blob/master/pykep/trajopt/_lt_margo.py#L287[L287]
+The basic idea is simple. We propagate 15 segments forward from the start and 15 segments backward from the target.
+Both trajectories should "meet" in the middle. This creates equality constraints for the mismatch in position, velocity, and mass.
+Each segment has its own thrust values. These values are computed from the argument vector and depend on the distance from the Sun, see https://github.com/esa/pykep/blob/master/pykep/trajopt/_lt_margo.py#L287[L287]
 
-Since Example 11 doesn't include earth gravity (parameter earth_gravity=False) all inequality constraints are related
-to the maximal thrust in all segments. Thrust is represented as (x,y,z) vectors. Each x,y and z are boxed constrained, but
-we need inequality constraints to limit the overall thrust represented by the norm of the thrust vectors. This leads to the observation:
+Since Example 11 does not include Earth gravity (`earth_gravity=False`), all inequality constraints come from the maximum thrust in each segment.
+Thrust is represented as `(x,y,z)` vectors. Each component is box-constrained, but that is not enough. We also need inequality constraints to limit the total thrust, which is given by the norm of the thrust vector.
+This leads to an important observation:
 
-- Sometimes inequality constraints can be converted into boxed constraints - here we could use a polar coordinate representation of the
-three dimensional thrust vectors (two angles + the norm value) which could be boxed constrained.  
+- Sometimes inequality constraints can be converted into box constraints. In this case, we could represent each three-dimensional thrust vector in polar coordinates: two angles plus the norm. Those values could then be box-constrained.
 
 === Solving Example 11
 
-Since the problem is defined as PYGMO2 user defined problem, it can be solved using PYGMO/PAGMO optimizers as the  
+Since the problem is defined as a PYGMO2 user-defined problem, it can be solved with PYGMO/PAGMO optimizers, as the
 https://github.com/esa/pykep/blob/master/pykep/examples/_ex11.py[Example 11 code] shows:
-    
+
 [source,python]
-----    
+----
     ...
     algo = algo_factory("snopt7")
     udp = add_gradient(pk.trajopt.lt_margo(
@@ -74,11 +71,11 @@ https://github.com/esa/pykep/blob/master/pykep/examples/_ex11.py[Example 11 code
     ...
 ----
 
-In fact PYGMO forwards the problem to the https://ccom.ucsd.edu/~optimizers/solvers/snopt/[SNOPT] commercial solver.
-But alternatively open source optimizers are supported. If we don't have snopt7 we can easily reconfigure:
+In fact, PYGMO forwards the problem to the commercial https://ccom.ucsd.edu/~optimizers/solvers/snopt/[SNOPT] solver.
+Open-source optimizers are also supported. If `snopt7` is not available, we can switch easily:
 
 [source,python]
-----    
+----
     ...
     algo = algo_factory("slsqp")
     algo.set_verbosity(0)
@@ -86,11 +83,11 @@ But alternatively open source optimizers are supported. If we don't have snopt7 
         earth_gravity=False),
         with_grad=True
 ----
-Now the https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/#slsqp[NLopt slsqp] algorithm is used instead. Lets 
-try a serial loop first:
+Now the https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/#slsqp[NLopt slsqp] algorithm is used instead.
+Let us try a serial loop first:
 
 [source,python]
-----    
+----
 from fcmaes.optimizer import dtime
 
 def test_loop(prob, algo):
@@ -98,7 +95,7 @@ def test_loop(prob, algo):
     while True:
         pop = pg.population(prob, 1)
         pop = algo.evolve(pop)
-        print('time', dtime(t0), 'champion_f', pop.champion_f[0], "Feasible?:", 
+        print('time', dtime(t0), 'champion_f', pop.champion_f[0], "Feasible?:",
               prob.feasibility_x(pop.champion_x))
 
 ----
@@ -119,14 +116,13 @@ time 679.41 champion_f -18.03371887092075 Feasible?: False
 time 682.53 champion_f -14.166934956585262 Feasible?: False
 ----
 
-Quite inconsistent results, we even get lots of infeasible solutions. 
-Using a serial loop is not the way we should approach optimizations. Fortunately PYGMO has a 
-concept for parallel execution called archipelago:
+The results are quite inconsistent. We even get many infeasible solutions.
+A serial loop is not a good way to tackle this problem. PYGMO provides a parallel execution model called `archipelago`:
 
 === Parallelization using PYGMO archipelago
 
 [source,python]
-----    
+----
 def test_arch(prob, algo):
     I = mp.cpu_count()
     archi = pg.archipelago(n=I, algo = algo, prob = prob, pop_size=1)
@@ -144,11 +140,11 @@ def test_arch(prob, algo):
                 if fs[i][0] < best:
                     best = fs[i][0]
                     x = xs[i]
-        print('time', dtime(t0), 'champion_f', best, "Feasible?:", 
+        print('time', dtime(t0), 'champion_f', best, "Feasible?:",
               prob.feasibility_x(x))
 ----
 
-All 16 cores of our 3950x are under load, we get:
+All 16 cores of the 3950x are busy, and we get:
 
 ----
 time 135.98 champion_f -18.857680581263764 Feasible?: True
@@ -157,24 +153,22 @@ time 385.02 champion_f -18.859897566652382 Feasible?: True
 time 509.38 champion_f -18.85990086555996 Feasible?: True
 ----
 
-Applying `pg.archipelago` to non population based algorithms is a bit unusual but it works as intended. 
-We get much more consistent results and can compute about 20 times more optimizations as with the serial loop. 
-In our case we have `mp.cpu_count() = 32` which means we performed `32*4 = 128` optimizations in 509 seconds. 
+Using `pg.archipelago` with a non-population-based algorithm is unusual, but it works as intended.
+The results become much more consistent, and we can run about 20 times more optimizations than with the serial loop.
+In our case, `mp.cpu_count() = 32`, so we performed `32*4 = 128` optimizations in 509 seconds.
 
 === Applying fcmaes retry to PAGMO problems and algorithms
 
-Lets see what the fcmaes parallel retry can do. fcmaes provides a retry mechanism `pygmoretry` specially for PYGMO2 problems and algorithms.
-Wrapping these would not work since fcmaes normally expects the objective function to return a single fitness value, not a 
-vector representing constraints or multiple objectives. `pygmoretry` does not work with fcmaes optimizers, its purpose
-is to provide a simple to use parallel retry mechanism for constrained or multi objective problems. 
- 
+Next, let us see what `fcmaes` parallel retry can do. `fcmaes` provides `pygmoretry` specifically for PYGMO2 problems and algorithms.
+A normal wrapper would not work because `fcmaes` usually expects the objective function to return a single fitness value, not a vector with constraints or multiple objectives. `pygmoretry` does not work with `fcmaes` optimizers themselves. Its purpose is to provide a simple parallel retry mechanism for constrained or multi-objective PYGMO problems.
+
 [source,python]
 ----
     from fcmaes import pygmoretry
     from fcmaes.optimizer import logger
-    ret = pygmoretry.minimize(prob, algo, num_retries = 640, 
+    ret = pygmoretry.minimize(prob, algo, num_retries = 640,
                     logger = logger())
-    print(ret.fun, ret.nfev, ret.x)    
+    print(ret.fun, ret.nfev, ret.x)
 ----
 
 results in:
@@ -188,37 +182,35 @@ results in:
 485.77 372 174 180927 -18.858432 -18.69 0.19 ...
 ----
 
-This time we have 174 optimizations in 485 seconds, fcmaes retry scaling is better than the `pg.archipelago` based one. 
-It is about factor 28 which is quite good for 16 cores / 32 logical cpus. 
-After 101 seconds we find a good solution with fitness = -18.8584. 
+This time we complete 174 optimizations in 485 seconds. The scaling is better than with `pg.archipelago`.
+The speedup is about a factor of 28, which is quite good for 16 cores and 32 logical CPUs.
+After 101 seconds we already find a good solution with fitness `-18.8584`.
 
-Reasons for the inferior scaling of the `pg.archipelago` could be:
+Possible reasons why `pg.archipelago` scales less well are:
 
-- We didn't find documentation how to force the archipelago to use 
+- We did not find documentation showing how to force the archipelago to use
 https://esa.github.io/pagmo2/docs/cpp/islands/fork_island.html[fork_island]
-instead of https://esa.github.io/pagmo2/docs/cpp/islands/thread_island.html[thread_island]. 
-fcmaes uses python multiprocessing which creates separate processes. 
-- fcmaes doesn't require the threads to wait on others as in `archi.wait()`. All processes
-run independent loops which synchronize using shared memory. So even if each optimization needs
-a different amount of time, there is no waiting.
+instead of https://esa.github.io/pagmo2/docs/cpp/islands/thread_island.html[thread_island].
+`fcmaes` uses Python multiprocessing, which creates separate processes.
+- `fcmaes` does not require workers to wait for each other as in `archi.wait()`. All processes run independent loops and synchronize through shared memory. If individual optimizations take different amounts of time, there is no global waiting point.
 
 === How to convert constraints into penalties?
 
-Next lets see if we can get rid of the constraints. The idea is to replace the constraints by some penalty value. 
-PYGMO2 provides a special class for that: 
-https://esa.github.io/pagmo2/docs/cpp/problems/unconstrain.html[unconstrain] but lets see if we can do this ourself. 
+Next, let us see whether we can remove the explicit constraints. The idea is to replace them with a penalty term.
+PYGMO2 provides a special class for this,
+https://esa.github.io/pagmo2/docs/cpp/problems/unconstrain.html[unconstrain], but let us implement it ourselves.
 
-In https://github.com/esa/pykep/blob/532f9767385785fbed938f124fa593a6b5b60156/pykep/trajopt/_lt_margo.py#L138[constraint scaling]
-we see that the position / velocity / mass mismatches are already scaled equally:
+In https://github.com/esa/pykep/blob/532f9767385785fbed938f124fa593a6b5b60156/pykep/trajopt/_lt_margo.py#L138[constraint scaling],
+the position, velocity, and mass mismatches are already scaled in a consistent way:
 
-- using AU - earth distance from sun - for the position mismatch 
-- earth velocity for the velocity mismatch
-- start mass for the mass mismatch
+- using AU, the Earth-Sun distance, for the position mismatch
+- using Earth velocity for the velocity mismatch
+- using start mass for the mass mismatch
 
-Making different mismatches non dimensional is a good idea in general. 
+In general, it is a good idea to make different mismatches dimensionless.
 
 [source,python]
-----    
+----
 from fcmaes import retry
 from fcmaes.optimizer import logger, Cma_cpp
 
@@ -228,60 +220,57 @@ def penalty(val, prob):
     nc = prob.get_nc()
     peneq = np.sum([abs(val[i+1])+1 for i in range(nec) if abs(val[i+1]) > c_tol[i]])
     peniq = np.sum([val[i+1]+1 for i in range(nec, nc) if val[i+1] > c_tol[i]])
-    return 20*peneq + 20*peniq           
-    
+    return 20*peneq + 20*peniq
+
 class margo_problem:
-     
+
     def __init__(self, udp):
         self.prob = pg.problem(udp)
         self.prob.c_tol = [1e-5] * self.prob.get_nc()
-        self.name = self.prob.get_name() 
+        self.name = self.prob.get_name()
         self.fun = self.fitness
         lb, ub = self.prob.get_bounds()
         self.bounds = Bounds(lb, ub)
-       
+
     def fitness(self,X):
         val = self.prob.fitness(X)
-        return val[0] + penalty(val, self.prob)    
-    
+        return val[0] + penalty(val, self.prob)
+
     def guess(self):
-        return np.random.uniform(self.bounds.lb, self.bounds.ub) 
+        return np.random.uniform(self.bounds.lb, self.bounds.ub)
 
 def test_penalty(udp):
     mprob = margo_problem(udp)
-    ret = retry.minimize(mprob.fitness, bounds=mprob.bounds, 
+    ret = retry.minimize(mprob.fitness, bounds=mprob.bounds,
                              optimizer=Cma_cpp(300000, popsize=13),
-                             num_retries = 640, logger = logger())       
+                             num_retries = 640, logger = logger())
 ----
 
-Note that we add a kind of "mini death" penalty for constraint violations which makes the objective function
-non-smooth - which is no problem for the fcmaes optimizers. 
+Note that we add a kind of "mini death" penalty for constraint violations. This makes the objective function non-smooth, which is not a problem for the `fcmaes` optimizers.
 
 We get:
 
 ----
-183.97 1630 32 300002 1.284878 
-184.51 4877 34 900006 1.278997 
-185.53 16169 41 3000020 -18.678094 
-187.69 27172 48 5100034 -18.828764 
-190.06 31569 51 6000040 -18.853587 
+183.97 1630 32 300002 1.284878
+184.51 4877 34 900006 1.278997
+185.53 16169 41 3000020 -18.678094
+187.69 27172 48 5100034 -18.828764
+190.06 31569 51 6000040 -18.853587
 ----
 
-We find a solution scored -18.85358 in 190 seconds, which doesn't look too bad, but CMA-ES is neither as fast nor as reliable
-as https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/#slsqp[NLopt slsqp].
+We find a solution with score `-18.85358` in 190 seconds. That is not a bad result, but CMA-ES is neither as fast nor as reliable as https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/#slsqp[NLopt slsqp].
 
 Advantages of the penalty approach using CMA-ES:
 
-- We don't need to think about gradients, 
+- We do not need to work with gradients.
 https://github.com/esa/pykep/blob/532f9767385785fbed938f124fa593a6b5b60156/pykep/trajopt/_lt_margo.py#L170[gradient_sparsity] is not trivial to define.
-- The objective function can be non-smooth and doesn't need to be derivable.
-- We can apply the coordinated retry which may be needed for hard optimization problems.
+- The objective function can be non-smooth and does not need to be differentiable.
+- We can apply coordinated retry, which may be useful for harder optimization problems.
 
 Problems with the penalty approach using CMA-ES:
 
-- How to determine the weights for the constraints in `return 20*peneq + 20*peniq`? If the weights are too low we get
-  infeasible results. Are they too high, they can "disturb" the optimization process. 
-- Same issue with the parameters for CMA-ES: `optimizer=Cma_cpp(300000, popsize=13)` are good here but need to be adapted for different problems. 
+- How should we choose the weights in `return 20*peneq + 20*peniq`? If they are too low, we get infeasible results. If they are too high, they can "disturb" the optimization process.
+- The same applies to the CMA-ES parameters. `optimizer=Cma_cpp(300000, popsize=13)` works well here, but other problems may need different settings.
 - Can be slower and less reliable than a derivative based optimizer for specific problems.
 
- 
+

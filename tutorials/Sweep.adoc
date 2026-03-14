@@ -10,68 +10,67 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 
 image::logo.gif[]
 
-== Parameter Sweeping for Biochemical Reactions 
+== Parameter Sweeping for Biochemical Reactions
 
 This tutorial
 
 - Is related to https://github.com/StochSS/GillesPy2/blob/main/examples/StartingModels/VilarOscillator/VilarOscillator.py[VilarOscillator.py]
   and http://uu.diva-portal.org/smash/get/diva2:1543699/FULLTEXT01.pdf[Large-scale simulation-based experiments with stochastic models using machine learning assisted approaches].
 
-- It is about semi-automated sweeping of parameters to explore stochastic biochemical reaction networks.
+- Explains semi-automated parameter sweeping for stochastic biochemical reaction networks.
 
-- Shows how to exploit multi-objective optimization to:
+- Shows how to use multi-objective optimization to:
 
     * Parallelize complex expensive stochastic simulations.
-    * Guide the parameter sweeping to search for specific properties of the network.
+    * Guide the parameter sweep toward specific network properties.
 
 The code for this tutorial is
 here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vilar.py[vilar.py]
 
 === Motivation
 
-Stochastic simulations of biochemical reaction networks can model their intrinsic noise, which is important
-if the number of molecular species is low. But they are expensive and the noise complicates the evaluation
-of model parameters. Therefore http://uu.diva-portal.org/smash/get/diva2:1543699/FULLTEXT01.pdf[Fredrik Wrede]
-proposes a machine learning based interactive method for model exploration via parameter sweeps
-using a multi-node network of CPUs (see https://www.dropbox.com/s/o0wszm7xdsnc7ri/paper1.mp4[video]).
+Stochastic simulations of biochemical reaction networks can capture intrinsic noise. This matters when
+the number of molecular species is low. These simulations are expensive, and the noise makes parameter
+evaluation harder. For this reason, http://uu.diva-portal.org/smash/get/diva2:1543699/FULLTEXT01.pdf[Fredrik Wrede]
+proposes a machine-learning-based interactive method for model exploration through parameter sweeps on
+a multi-node CPU network. See the corresponding https://www.dropbox.com/s/o0wszm7xdsnc7ri/paper1.mp4[video].
 
-Our idea is similar, but uses a different 
-kind of human interaction: The design of multi-objective fitness functions guiding the parameter
-sweep via optimization. So we don't use optimization to find an optimum, but to add some "bias" to the
-parameter sweep - in the direction of "interesting" model properties. Specially for high dimensional
-parameter spaces scanning it completely is not a feasible option. Of course both approaches could be 
-combined, the time series generated during the optimization process could feed the 
-machine learning based interactive method.  
+Our idea is similar, but it uses a different kind of human interaction. Here the user designs a
+multi-objective fitness function, and optimization then guides the parameter sweep. The goal is not to
+find a single optimum. Instead, we introduce some "bias" into the sweep so it moves toward "interesting"
+model properties. This is especially useful in high-dimensional parameter spaces, where exhaustive
+scanning is not practical. The two approaches could also be combined. The time series generated during
+optimization could feed the machine-learning-based interactive method.
 
 === The Vilar Oscillator
 
 In https://www.pnas.org/doi/10.1073/pnas.092133899[Mechanisms of noise-resistance in genetic oscillators] Jose M.G.Vilar
-showed a biochemical model of a "circadian clock" which enables organisms to keep internal sense of daily time.
-This model can be simulated using https://github.com/StochSS/GillesPy2[GillesPy2], see 
- https://github.com/StochSS/GillesPy2/blob/main/examples/StartingModels/VilarOscillator/VilarOscillator.py[VilarOscillator.py].
- The Vilar-model has 15 parameters and the question is:
- 
+presented a biochemical model of a "circadian clock" that lets organisms maintain an internal sense of daily time.
+This model can be simulated using https://github.com/StochSS/GillesPy2[GillesPy2], see
+https://github.com/StochSS/GillesPy2/blob/main/examples/StartingModels/VilarOscillator/VilarOscillator.py[VilarOscillator.py].
+The Vilar model has 15 parameters, and we want to understand:
+
  - Is the oscillating behavior of the model dependent on specific parameter settings?
  - Can we find parameters which can affect the oscillating property of the model negatively?
  - Or does the model have "self-regulating" properties preserving the steady oscillation?
- 
+
 === Multi-Objective Function
-  
-The basic idea of our approach is to use multi-objective optimization which requires a fitness function. 
-How can we analyze the result of a simulation run (a number of time series for each species) to characterize
-the "steady oscillation" property?
+
+The core idea is to use multi-objective optimization, which requires a fitness function.
+The question is how to analyze the result of one simulation run, which produces time series for each species,
+so that we can characterize the "steady oscillation" property.
 
 [source,python]
 ----
     # multi processing result list
-    results = mp.Manager().list() 
-    
+    results = mp.Manager().list()
+
     class fcmaes_problem():
-         
+
         def __init__(self):
             self.bounds = get_bounds(VilarOscillator(), 100)
             self.dim = len(self.bounds.ub)
-             
+
         def fitness(self, x):
             model = VilarOscillator()
             set_params(model, x)
@@ -91,38 +90,39 @@ the "steady oscillation" property?
             return [-sdev_peak_dist, -sdev_amp, freq]----
 ----
 
-There may be more sophisticated approaches, for instance using FFT transformations. 
-We simply use scipys `argrelextrema` to identify the maxima of the `R`-species. Then we determine the
-standard deviation of the amplitude and of the peak time distances. Small values of these standard
-deviations indicate a steady oscillation, so we use them as objectives to maximize.
-Additionally we add "frequency" as a third objective to increase the set of non-dominated solutions,  
-the so called pareto-front.  
-Note that the optimizer can handle any scaling of the different parameters and objectives. We also 
-could mark objectives as constraints to exclude specific model properties from the parameter sweep. 
-The optimizer prioritizes constraints as long as they are violated, and ignores them completely if not. 
-Calling a multi-objective optimizer and plotting the result is easy:
+There are more sophisticated options, for example FFT-based analysis.
+Here we keep it simple and use scipys `argrelextrema` to identify maxima in the `R` species.
+From these peaks we compute the standard deviation of the amplitude and the standard deviation of the
+peak time distances. Small values for these standard deviations indicate a steady oscillation, so we
+use them as objectives to maximize. We also add "frequency" as a third objective. This increases the
+set of non-dominated solutions, the so-called pareto front.
+
+The optimizer can handle different scalings of both parameters and objectives. We could also define
+objectives as constraints to exclude specific model properties from the sweep. Constraints are given
+priority while they are violated and are ignored once they are satisfied. Calling a multi-objective
+optimizer and plotting the result is straightforward:
 
 [source,python]
----- 
+----
     popsize = 64 # population size of the evolutionary algorithm
     max_evaluations = popsize*16 # maximum number of evaluation
     # popsize = 256 # population size of the evolutionary algorithm
     # max_evaluations = popsize*96 # maximum number of evaluation
     nobj = 3 # number of objectives
     ncon = 0 # number of constraints
-    # stores all values; if capacity is reached, content is replaced by the pareto front 
-    store = mode.store(problem.dim, nobj, capacity=max_evaluations) 
+    # stores all values; if capacity is reached, content is replaced by the pareto front
+    store = mode.store(problem.dim, nobj, capacity=max_evaluations)
     # perform the parameter sweep by multi objective optimization
-    xs, ys = mode.minimize(mode.wrapper(problem.fitness, 3, interval=64, store=store), 
+    xs, ys = mode.minimize(mode.wrapper(problem.fitness, 3, interval=64, store=store),
                                     nobj, ncon,
-                                    problem.bounds, popsize = popsize, 
-                                    max_evaluations = max_evaluations, 
+                                    problem.bounds, popsize = popsize,
+                                    max_evaluations = max_evaluations,
                                     nsga_update=True, workers=min(popsize, mp.cpu_count()))
     # save last population of the evolutionary algorithm
-    np.savez_compressed("sweep", xs=xs, ys=ys)     
+    np.savez_compressed("sweep", xs=xs, ys=ys)
     # save all evaluations
     xs, ys = store.get_xs(), store.get_ys()
-    np.savez_compressed("sweep_all", xs=xs, ys=ys)   
+    np.savez_compressed("sweep_all", xs=xs, ys=ys)
     # show results
     for x, res in results[:10]:
         print(list(x), list(res['R']))
@@ -130,16 +130,18 @@ Calling a multi-objective optimizer and plotting the result is easy:
     plot3d(xs, ys, "sweep_3d") # plot 3d
 ----
 
-The `workers` parameter enables parallel simulations using Python multiprocessing. This way we achieve
-about 8 simulations/sec on a 16 core AMD 5950 CPU. Although not covered by the example, we also could
-use https://www.dask.org/[dask] to distribute optimizations to different nodes (as done in 
- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6954658/ ) and simply join the optimization results. 
-The `store` object stores all parameter settings and their objective values. We define
-`capacity=max_evaluations` to make sure all evaluations fit. `store` resolves parallel-access conflicts 
-using a `multiprocessing.Lock`.  The simulation time series together with the corresponding 
-parameter settings are collected in `results = mp.Manager().list()`.  
- 
-The computed pareto front shows that the maximal standard deviation of the amplitude is around 260, and of the peak time distance only around 2.95:
+The `workers` parameter enables parallel simulations through Python multiprocessing. On a 16 core AMD 5950 CPU,
+this gives about 8 simulations per second. This example stays on one machine, but the same approach could
+also use https://www.dask.org/[dask] to distribute optimization runs across multiple nodes, as in
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6954658/[this paper], and then merge the results.
+
+The `store` object keeps all parameter settings together with their objective values. We set
+`capacity=max_evaluations` so every evaluation fits. `store` resolves parallel access conflicts with
+a `multiprocessing.Lock`. The simulation time series and their corresponding parameter settings are
+collected in `results = mp.Manager().list()`.
+
+The computed pareto front shows that the maximal standard deviation of the amplitude is around 260,
+while the maximal standard deviation of the peak time distance is only around 2.95:
 
 [source]
 ----
@@ -175,11 +177,12 @@ The computed pareto front shows that the maximal standard deviation of the ampli
 [-0.618241233033047, -258.4637305309973, 0.0399002493765586] [2860.71177, 29392.31481, 0.55805, 3573.22623, 0.5, 357.77082, 85.8377, 515.86832, 45.87822, 6.8493, 48.78439, 90.04616, 70.66459, 245.69653, 10000.0]
 ----
 
-Specially the standard deviation of the peak time distances remains stable, although we see some amplitude deviations.
+In particular, the standard deviation of the peak time distances stays stable, although we do see some
+amplitude deviations.
 
 image::sweep.png[]
 
-Now lets see if this also works in the opposite direction: We want to identify parameters which stabilize the oscillation and
+Now let us try the opposite direction. We want to identify parameters that stabilize the oscillation and
 minimize both standard deviations:
 
 [source,python]
@@ -190,7 +193,7 @@ minimize both standard deviations:
             return [sdev_peak_dist, sdev_amp, freq]
 ----
 
-This time we guided the parameter sweep in the opposite direction and get many low-sdev solutions:
+This time the parameter sweep is guided in the opposite direction, and it finds many low-standard-deviation solutions:
 
 [source]
 ----
@@ -222,23 +225,22 @@ image::sweep2.png[]
 
 === Visualizing all evaluations
 
-If we visualize all stored evaluations during optimization / parameter sweep we see that there is not too much difference between both runs. 
-First the one maximizing the standard deviations:
+If we visualize all stored evaluations from the optimization-driven parameter sweep, there is not much
+difference between the two runs. First, the run that maximizes the standard deviations:
 
 image::sweep_all.png[]
 
-Then the one minimizing the standard deviations:
+Then the run that minimizes the standard deviations:
 
 image::sweep_all2.png[]
 
-Finally a 3d view: 
+Finally, a 3D view:
 
 image::sweep3d.png[]
 
 ==== Conclusion
 
-- Multi objective optimization can speed up the parameter sweep of a stochastic biochemical reaction network model.
+- Multi-objective optimization can speed up the parameter sweep of a stochastic biochemical reaction network model.
 - Simulations are executed in parallel utilizing all processor cores.
-- The objective function guides the parameter sweep to "interesting" model properties - or in our
-  example case, tries to destroy these properties. 
-
+- The objective function guides the parameter sweep toward "interesting" model properties or, in our
+  example, tries to destroy them.

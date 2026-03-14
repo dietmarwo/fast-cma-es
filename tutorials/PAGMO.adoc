@@ -10,21 +10,23 @@ image::logo.gif[]
 
 == Solving the GTOPX Benchmark Problems using PYGMO2/PAGMO2
 
-fcmaes performs really well for the very hard http://www.midaco-solver.com/data/pub/GTOPX_Benchmarks.pdf[GTOPX benchmarks]
-as shown here: https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Performance.adoc[Performance]. 
-Here we want to analyze what part of the library is responsible: 
-The specific implementation of the basic algorithms (DE -> CMA), or the coordinated retry / boundary management meta algorithm. 
-To check this we replace the fcmaes versions of DE and CMA by the ones provided by 
-https://github.com/esa/pygmo2[pygmo2] / https://github.com/esa/pagmo2[pagmo2]. 
-It seems it is mostly the meta algorithm, as the results are very similar.
-We choose a sequence of pg.de1220 and pg.cma called `de_cma_pyg` in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/benchmark_gtop_pygmo.py[benchmark_gtop_pygmo.py]. 
+fcmaes performs very well on the hard http://www.midaco-solver.com/data/pub/GTOPX_Benchmarks.pdf[GTOPX benchmarks],
+as shown in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Performance.adoc[Performance].
+This tutorial looks at why. We want to separate two effects: the implementation of the base algorithms
+(DE -> CMA) and the coordinated retry / boundary management meta algorithm.
+
+To do that, we replace the fcmaes versions of DE and CMA with the ones from
+https://github.com/esa/pygmo2[pygmo2] / https://github.com/esa/pagmo2[pagmo2].
+The results are very similar, which suggests that the meta algorithm is doing most of the work.
+For this comparison we use the sequence `pg.de1220` followed by `pg.cma`, called `de_cma_pyg`
+in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/benchmark_gtop_pygmo.py[benchmark_gtop_pygmo.py].
 
 === Performance of the PYGMO2/PAGMO2 optimization algorithms
-Install pygmo (`pip install pygmo`) and fcmaes (`pip install fcmaes`) and
-execute https://github.com/dietmarwo/fast-cma-es/blob/master/examples/benchmark_gtop_pygmo.py[benchmark_gtop_pygmo.py]
-to reproduce the results. The same optimization algorithm
-was applied for all problems, using the same parameters both for the optimization algorithm and the coordinated retry.
-The solution times given in the tables below are for Linux / AMD 5950x CPU. 
+Install pygmo (`pip install pygmo`) and fcmaes (`pip install fcmaes`), then run
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/benchmark_gtop_pygmo.py[benchmark_gtop_pygmo.py]
+to reproduce the results. The same optimization algorithm was used for all problems.
+The same parameters were used both for the optimizer and for coordinated retry.
+The solution times in the tables below were measured on Linux with an AMD 5950x CPU.
 
 .GTOP coordinated retry results for stopVal = 1.005*absolute_best
 [width="80%",cols="3,^2,^2,^2,^2,^2,^2",options="header"]
@@ -41,35 +43,40 @@ The solution times given in the tables below are for Linux / AMD 5950x CPU.
 |Messenger Full |10 |1.9579 |1.96769 |20% |8664.12s |1114.35s
 |=========================================================
 
-Note that 'stopVal' is the threshold value determining success and 'mean time' includes the time for failed runs.
-Note that these results are preliminary for Messenger Full 
-we will replace these soon by more accurate numbers.
+`stopVal` is the threshold that defines success, and `mean time` includes failed runs.
+The Messenger Full results are still preliminary. They will be replaced by more accurate numbers.
 
-The results prove that https://github.com/esa/pygmo2[pygmo2] provides
-excellent optimization algorithms sufficient to solve the  
+These results show that https://github.com/esa/pygmo2[pygmo2] provides
+optimization algorithms that are good enough to solve the
 http://www.midaco-solver.com/data/pub/GTOPX_Benchmarks.pdf[GTOPX benchmarks].
 
-Here is a visualization of the coordinated retry runs for Tandem EVEES Constrained which was not solved 
+Here is a visualization of the coordinated retry runs for Tandem EVEES Constrained, which was not solved
 until 2013:
 
-image::coordTandem.png[] 
+image::coordTandem.png[]
 
-And now the 10 coordinated retry runs for Messenger Full:
+The next figure shows the 10 coordinated retry runs for Messenger Full:
 
-image::coordMess.png[] 
+image::coordMess.png[]
 
-Note that the rate PAGMO generates a solution below 2.0 km/s (> one per hour) on a single CPU at 4.0 GHZ is 
-higher than what has been reported in http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper] using 1000 cores of the Hokudai Supercomputer using Intel Xeon Gold 6148 CPU’s with a clock rate of 2.7 GHz.  
-It cannot compete with the https://github.com/dietmarwo/fcmaes-java/blob/master/README.adoc[Java variant of fcmaes], but this is an unfair comparison, since the overhead for the coordinated retry meta algorithm is much lower using Java compared to Python. It could be even lower in C++, may be the PAGMO team sees this as a chance to grab the record? 
+PAGMO generates solutions below 2.0 km/s at a rate of more than one per hour on a single 4.0 GHZ CPU.
+That is higher than what was reported in the http://www.midaco-solver.com/data/pub/PDPTA20_Messenger.pdf[MXHCP paper],
+which used 1000 cores of the Hokudai Supercomputer with Intel Xeon Gold 6148 CPUs at 2.7 GHz.
+It still cannot compete with the https://github.com/dietmarwo/fcmaes-java/blob/master/README.adoc[Java variant of fcmaes],
+but that is not a fair comparison. The coordinated retry meta algorithm has much lower overhead in Java than in Python.
+It could be even lower in C++. Maybe the PAGMO team sees this as a chance to grab the record?
 
 === Challenge
-Can you reproduce these results without using fcmaes relying on the https://github.com/esa/pygmo2[pygmo2]
+Can you reproduce these results without using fcmaes, relying on the https://github.com/esa/pygmo2[pygmo2]
 https://esa.github.io/pygmo2/archipelago.html[parallelization mechanisms]?
 
 === Further Improvement
-The result the two PAGMO algorithms could achieve was better than expected. But may be only one of the two algorithms: 
-pg.de1220 and pg.cmaes, were responsible for this. To check this we tried to combine the PAGMO algorithms with the ones
-from fcmaes. It turned out that the pg.de1220 -> fcmaes.cmaescpp sequence is a winner. This sequence is called `de_pyg_cma` in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/benchmark_gtop_pygmo.py[benchmark_gtop_pygmo.py]. 
+The combined result of the two PAGMO algorithms was better than expected.
+But perhaps only one of them, `pg.de1220` or `pg.cmaes`, was responsible.
+To test that, we combined PAGMO algorithms with the ones from fcmaes.
+The best sequence turned out to be `pg.de1220 -> fcmaes.cmaescpp`.
+In https://github.com/dietmarwo/fast-cma-es/blob/master/examples/benchmark_gtop_pygmo.py[benchmark_gtop_pygmo.py]
+this sequence is called `de_pyg_cma`.
 
 .GTOP coordinated retry results for stopVal = 1.005*absolute_best
 [width="80%",cols="3,^2,^2,^2,^2,^2,^2",options="header"]
@@ -85,12 +92,12 @@ from fcmaes. It turned out that the pg.de1220 -> fcmaes.cmaescpp sequence is a w
 |Messenger full |46 |1.9579 |2.0 |43% |3003.63s |2132.3s
 |=========================================================
 
-Tests were executed using a single AMD 5950x CPU, specially the Tandem EVEES Constrained result is
-impressive:
+These tests were executed on a single AMD 5950x CPU.
+The Tandem EVEES Constrained result is especially impressive:
 
 image::coordTandem2.png[]
 
-Seems the adaptive de1220 differential evolution variant is worth to get its own fcmaes implementation.
-Messenger Full is also solved quite fine:
+This suggests that the adaptive `de1220` differential evolution variant is worth its own fcmaes implementation.
+Messenger Full is also solved quite well:
 
 image::coordMess2.png[]

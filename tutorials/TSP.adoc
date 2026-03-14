@@ -13,27 +13,23 @@ image::logo.gif[]
 
 This tutorial
 
-- Shows how to implement the noisy TSP problem aiming at a robust route efficiently using https://numba.pydata.org/[numba].
-- Compares with an alternative implementation.
-- Compares different optimization algorithms applied to both implementations
-- Use optimization to evaluate machine learning based results for another TSP variant
+- shows how to implement the noisy TSP efficiently with https://numba.pydata.org/[numba] when the goal is a robust route,
+- compares this with an alternative implementation,
+- compares different optimization algorithms on both implementations,
+- uses optimization to evaluate machine-learning-based results for another TSP variant.
 
-There is a dramatic performance difference > factor 10000 when comparing optimization algorithms  
-and objective function implementations. The purpose of this tutorial is to "sharpen your senses"
-regarding how to implement this kind of objective function and which optimization algorithm to choose
-when you selected Python as implementation language. Don't underestimate the influence of
-your specific implementation of a problem, not only regarding evaluations/second but also regarding
-the number of evaluations required applying the same optimization algorithm. 
+The performance differences are dramatic. Depending on the optimizer and the objective-function implementation, the gap can exceed a factor of 10000.
+The tutorial is meant to sharpen your instincts for this kind of problem. In Python, both the objective-function design and the optimizer choice matter a lot.
+They affect not only evaluations per second, but also how many evaluations the same optimizer needs.
 
-As starting point we use 
+As a starting point we use
 https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/TSP.py[TSP.py]
-from the 'ExpensiveOptimBenchmark' suite from the Technical University of Delft. 
-In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] we discuss four other
-problems from this problem suite, but only for this one we provide our own alternative implementation. 
+from the `ExpensiveOptimBenchmark` suite of the Technical University of Delft.
+In https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] we discuss four other problems from the same suite.
+For this TSP problem, however, we also provide our own alternative implementation.
 
-All results were produced using a 16 core / 32 thread AMD CPU 5950x. Some algorithms use only a single thread, 
-others utilize the whole processor.  
-
+All results were produced on a 16-core / 32-thread AMD CPU 5950x.
+Some algorithms use only a single thread. Others use the whole processor.
 
 === Motivation
 
@@ -41,55 +37,61 @@ From https://arxiv.org/abs/1911.08817[Black-box Combinatorial Optimization using
 
 "When a black-box optimization objective can only be evaluated with costly or noisy measurements, most standard optimization algorithms are unsuited to find the optimal solution. Specialized algorithms that deal with exactly this situation make use of surrogate models."
 
-Such a method - specialized for integer-valued minima - is presented in the paper (https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/IDONE[IDONE]) and applied to a noisy variant of an asymmetric traveling salesman problem (17 cities).
+The paper presents such a method, specialized for integer-valued minima:
+(https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/IDONE[IDONE]).
+It is applied to a noisy variant of an asymmetric traveling salesman problem with 17 cities.
 
-The statement "most standard optimization algorithms are unsuited" is probably true, but what about the other ones?
-We will identify "suited" standard optimization algorithms and prove
-that they work fine for https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/TSP.py[TSP.py],
-the implementation of the objective function used in the paper. Additionally we can show that for an
-alternative implementation of the same noisy TSP problem (100 iterations, noise=1.0)  
-https://github.com/dietmarwo/fast-cma-es/blob/master/examples/noisy_tsp.py[noisy_tsp.py] standard optimization algorithms
-can solve the noisy 17 cities problem BR17 in about 2 seconds utilizing the parallel threads modern CPUs provide. 
+The claim that "most standard optimization algorithms are unsuited" is probably fair.
+But that still leaves an important question: which standard algorithms are suited?
+Here we identify standard algorithms that work well on
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/TSP.py[TSP.py],
+the objective-function implementation used in the paper.
+We also show that an alternative implementation of the same noisy TSP problem
+(100 iterations, noise=1.0),
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/noisy_tsp.py[noisy_tsp.py],
+can solve the noisy 17-city problem BR17 in about 2 seconds by using the parallel threads of modern CPUs.
 
-The other problem shown in the paper is artificial and based on matrix multiplication using 
-random matrices with objective function: 
+The paper also studies another problem. That one is artificial and is based on matrix multiplication with random matrices and the objective function
 
-- `f(x) = (x − x^∗ )^T A(x − x^∗)` 
+- `f(x) = (x − x^∗ )^T A(x − x^∗)`
 
-applied to binary input values. Here IDONE indeed uses far less function 
-evaluations as all standard algorithms we tried. But what happens if
-instead dimension = 100 we use dimension = 5000 ? IDONE doesn't scale very well, I wasn't able to apply it successfully. 
-A standard algorithm (BiteOpt) uses about 900.000 function evaluations and about 5 hours (single threaded), 
-but at least I got the problem solved. You could argue: Real world problems are too expensive to apply their objective
-function so often, but on the other hand they usually cannot be solved so exceptionally well using IDONE.
+for binary input values.
+There IDONE does use far fewer function evaluations than all standard algorithms we tried.
+But what happens if we change the dimension from 100 to 5000?
+IDONE does not scale well in that setting. I was not able to apply it successfully.
+A standard algorithm, BiteOpt, needs about 900.000 function evaluations and about 5 hours on a single thread, but it does solve the problem.
+One possible objection is that real-world problems are too expensive to evaluate that often.
+On the other hand, real-world problems are usually not so exceptionally well suited to IDONE either.
 
 === The noisy Traveling Salesman Problem / TSP
 
-The https://en.wikipedia.org/wiki/Traveling_salesman_problem[Traveling Salesman Problem/TSP] asks the question:
- "Given a list of cities and the distances between each pair of cities, what is the shortest possible 
- route that visits each city exactly once and returns to the origin city?"
-It appears as subproblem in many other areas, is very well studied and there are methods solving it for large numbers
-of cities. 
+The https://en.wikipedia.org/wiki/Traveling_salesman_problem[Traveling Salesman Problem/TSP] asks:
+"Given a list of cities and the distances between each pair of cities, what is the shortest possible
+route that visits each city exactly once and returns to the origin city?"
+It appears as a subproblem in many domains, has been studied extensively, and there are methods that solve very large instances.
 
-But what if the distance between cities is not known exactly? 
-This problem can be "simulated" by adding some random noise to the individual distances and determining a "robust"
-solution: We compute the path length n times and determine the "worst case", the longest path we got for all iterations
-each time adding different random noise to the individual distances. For all our experiments we use 100 iterations
-and a random noise between 0 and 1 added to all distances. 
+Now consider the case where the distances are not known exactly.
+We can simulate this by adding random noise to the individual distances and searching for a "robust" solution.
+For each candidate route we compute the path length `n` times.
+Each time we add different random noise to the distances.
+We then take the worst case, meaning the longest path observed over those iterations.
+In all experiments here we use 100 iterations and add random noise between 0 and 1 to all distances.
 
-Solving this "noisy TSP" is more challenging, standard branch and bound algorithms like https://github.com/LukasErlenbach/tsp_solver[tsp_solver] cannot be applied. 
+This noisy TSP is harder to solve.
+Standard branch-and-bound algorithms such as https://github.com/LukasErlenbach/tsp_solver[tsp_solver] are no longer applicable.
 
 === The original implementation
 
-Lets first have a look at https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/TSP.py[TSP.py],
-an implementation of an objective function computing the robust path length for continuous input values (mapped to discrete integers) determining
-the selected tour. 
+First, look at
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/TSP.py[TSP.py],
+an objective function that computes the robust path length for continuous input values.
+These values are mapped to discrete integers that define the tour.
 
 [source,python]
----- 
+----
    def evaluate(self, x):
         robust_total_route_length = 0.0
-        
+
         for iteration in range(self.n_iter):
             current = 0
             unvisited = list(range(1, self.d+2))
@@ -108,108 +110,105 @@ the selected tour.
             total_route_length += self.noise_rng.random() * self.noise_factor
 
             robust_total_route_length = max(total_route_length, robust_total_route_length)
-        
+
         return robust_total_route_length
 ----
 
 
-This implementation aims at minimizing the number of input variables: The number of cities N minus two. 
-Since the tour is always a ring you can choose any fixed city as a starting point. When you have
-performed N-2 steps there is only one city left, you haven't really a choice. 
-`next_up = unvisited.pop(int(round(i)))` maps continuous input variables to integer values used
-for the selection. At least for continuous optimizers you should use a different approach as we will
-show below. 
+This implementation tries to minimize the number of input variables.
+It uses the number of cities `N` minus two.
+Since the tour is always a ring, any fixed city can be used as the start.
+After `N-2` steps only one city is left, so there is no real choice anymore.
+
+`next_up = unvisited.pop(int(round(i)))` maps continuous input variables to the integer values used for selection.
+For continuous optimizers, this is not a good representation.
+Below we show a better alternative.
 
 === Optimization algorithms
 
 At https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers[solvers]
-we find a number of optimization algorithms to test. Many are not applicable for the TSP problem, 
-so we choose the following selection for testing:
+we find several optimization algorithms to test.
+Many are not suitable for the TSP problem, so we focus on:
 
 - https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/MVRSM[MVRSM]
 - https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/IDONE[IDONE]
 - https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/SA[Simulated Annealing]
 
-We don't need a huge problem instance to drive these algorithms at and beyond their limits:
-http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/atsp/br17.atsp.gz[br17] is a small TSP instance involving only 
-17 cities. According to http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/ATSP.html[ATSP-solutions] the shortest path without noise 
-has length 39.
+We do not need a large problem instance to push these algorithms to their limits.
+http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/atsp/br17.atsp.gz[br17] is a small TSP instance with only 17 cities.
+According to http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/ATSP.html[ATSP-solutions] the shortest path without noise has length 39.
 
 image::original_solvers_comparison.png[]
 
-Next lets have a look how fcmaes standard optimization algorithhms perform - also single threaded:
-We use the Python wrapper of the following three algorithms implemented using Eigen/{cpp}: 
+Next, look at how the standard fcmaes optimizers perform in the same single-threaded setting.
+We use the Python wrappers for these three algorithms implemented with Eigen/{cpp}:
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/deoptimizer.cpp[Differential Evolution].
-- https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/biteoptimizer.cpp[BiteOpt] from Aleksey Vaneev, see also https://github.com/avaneev/biteopt[BiteOpt]. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/biteoptimizer.cpp[BiteOpt] from Aleksey Vaneev, see also https://github.com/avaneev/biteopt[BiteOpt].
 - https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[CMA-ES].
 
 image::fcmaes_single_thread_original_problem.png[]
 
-The fcmaes CMA variant terminates fast, but provides inconsistent results. 
+The fcmaes CMA variant terminates quickly, but its results are inconsistent.
 
-fcmaes supports the parallel retry of optimization algorithms, lets see what happens if we apply 32 optimization
-runs in parallel using https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/retry.py[retry.py] :
+fcmaes also supports parallel retry for optimization algorithms.
+Now apply 32 optimization runs in parallel with
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/retry.py[retry.py]:
 
 image::fcmaes_32_thread_original_problem.png[]
 
-The original algorithms are clearly outperformed, 
-even CMA-ES performs quite well when applied in a parallel retry scenario. 
+The original algorithms are clearly outperformed.
+Even CMA-ES works well in this parallel-retry setting.
 
 ==== UPDATE: Mixed integer support
 
-Both the Differential Evolution and multiobjective DE/NSGA (MODE) algorithm got an update: 
+Both the Differential Evolution and multiobjective DE/NSGA (MODE) algorithms were updated:
 
-- Both algorithms now have specific mixed-integer support. If you tell the algo via a new boolean
-array `ints` parameter which are your discrete integer variables, convergence will be much faster. 
-This works both for the Python and the C++ variants. `ints = [True, True, False]` for instance means
-that the first two variables are discrete. Using `np.argsort(x)` together with continuous variables for
-sequences as shown below is still a valid option. But this trick doesn't work if the same discrete value
-can occur in different variables. The original problem is now solvable in about 10 seconds using multiple
-threads.    
+- Both algorithms now support mixed-integer optimization directly. With the new boolean array parameter `ints`, you can mark which variables are discrete integer variables, and convergence becomes much faster. This works in both the Python and C++ variants. `ints = [True, True, False]` means, for example, that the first two variables are discrete. Using `np.argsort(x)` with continuous variables for sequences, as shown below, is still a valid option. But that trick does not work when the same discrete value can appear in different variables. The original problem is now solvable in about 10 seconds using multiple threads.
 
 image::fcmaes_DE_mixed_integer_original_problem.png[]
 
 ==== An alternative implementation of the objective function
 
-The new implementation 
-(https://github.com/dietmarwo/fast-cma-es/blob/master/examples/noisy_tsp.py[noisy_tsp.py]) 
-uses https://numba.pydata.org/[numba] to speed up the objective function evaluation quite significantly: 
+The new implementation
+(https://github.com/dietmarwo/fast-cma-es/blob/master/examples/noisy_tsp.py[noisy_tsp.py])
+uses https://numba.pydata.org/[numba] to speed up the objective-function evaluation significantly:
 
 [source,python]
----- 
-@njit(fastmath=True) 
+----
+@njit(fastmath=True)
 def evaluate_tsp(x, W, d, noise_factor, iter_num):
-    robust_total_route_length = 0   
+    robust_total_route_length = 0
     order = np.argsort(x) + 1
     for _ in range(iter_num):
         total_route_length = 0
-        total_route_length += W[0, order[0]] + np.random.random() * noise_factor            
-        total_route_length += W[order[d-1], 0] + np.random.random() * noise_factor    
+        total_route_length += W[0, order[0]] + np.random.random() * noise_factor
+        total_route_length += W[order[d-1], 0] + np.random.random() * noise_factor
         for i in range(d-1):
             total_route_length += W[order[i], order[i+1]] + np.random.random() * noise_factor
         robust_total_route_length = max(total_route_length, robust_total_route_length)
     return robust_total_route_length
 ----
- 
 
-This implementation uses `np.argsort(x)` to determine the order the cities are visited. 
-The first city is fixed, so we have the number of cities N minus one argument variables `x`.  
-This is one variable more, but it nevertheless works much better with continuous optimization
-algorithms. We used this idea also in 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling] 
-and https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop]. 
- 
-Applying fcmaes standard optimization algorithms to the modified objective function 
- 
-image::fcmaes_32_thread_optimized_problem.png[] 
- 
-results in a solution time of about 2 seconds, even for CMA-ES its only about 5 seconds. 
- 
-Here a table comparing the number of function evaluations per second for all algorithms and 
-objective function variants. https://numba.pydata.org/[numba] and the way the new implementation is designed 
-speeds up the computation by about factor 100 thereby also improving convergence:
- 
+
+This version uses `np.argsort(x)` to determine the visit order.
+The first city is fixed, so the number of argument variables is the number of cities `N` minus one.
+That is one variable more, but it works much better with continuous optimization algorithms.
+We use the same idea in
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling]
+and https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop].
+
+Applying the standard fcmaes optimization algorithms to the modified objective function
+
+image::fcmaes_32_thread_optimized_problem.png[]
+
+gives a solution time of about 2 seconds.
+Even for CMA-ES it is only about 5 seconds.
+
+The following table compares the number of function evaluations per second for all algorithms and objective-function variants.
+https://numba.pydata.org/[numba] and the design of the new implementation increase throughput by about a factor of 100.
+They also improve convergence.
+
 .Evaluations / second on CPU AMD 5950x
 [width="80%",cols="2,^2,^2,^2",options="header"]
 |=========================================================
@@ -226,11 +225,10 @@ speeds up the computation by about factor 100 thereby also improving convergence
 
 ==== Increasing the noise
 
-What happens if we increase the noise? 
-Another experiment uses the symmetrical TSP http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/tsp/gr17.tsp.gz[gr17]. 
-This time we configured `noise_factor=50`. 
-According to http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/STSP.html[TSP-solutions] the shortest path without noise 
-has length 2085. 
+What happens if we increase the noise?
+The next experiment uses the symmetric TSP http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/tsp/gr17.tsp.gz[gr17].
+This time we set `noise_factor=50`.
+According to http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/STSP.html[TSP-solutions] the shortest path without noise has length 2085.
 
 image::original_solvers_comparison_b.png[]
 
@@ -238,22 +236,21 @@ The CMA algorithm shown here is not the one from fcmaes, but the original one:
 
 - https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/CMA[CMA-ES]
 
-The CMA results are hard to see, reason is that we get a "termination on tolstagnation" 
-after about 8000 function evaluations. It seems the default termination criteria don't work for the TSP problem.
-As we will later see, this is not a problem with the CMA-ES algorithm itself. 
+The CMA results are hard to see because the run ends with "termination on tolstagnation"
+after about 8000 function evaluations.
+The default termination criteria do not seem to work well for this TSP problem.
+As we will see, that is not a problem with CMA-ES itself.
 
-https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/CMA[CMA-ES] is based on 
-https://github.com/CMA-ES/pycma[pycma] from Nikolaus Hansen. 
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/CMA[CMA-ES] is based on
+https://github.com/CMA-ES/pycma[pycma] from Nikolaus Hansen.
 
-Here are the results applying fcmaes-CMA (not the original one) 
-and BiteOpt, both utilizing all 32 threads provided by the processor:
+Here are the results for fcmaes-CMA, not the original one,
+and BiteOpt, both using all 32 threads of the processor:
 
 image::BiteOpt_fcmaes_CMA_original_comparison.png[]
 
-Finally we see a direct comparison of the different objective function 
-implementations for the same optimization algorithm. Beside 
-the speedup (evaluations/sec) we find better robust tours using both
-algorithms. 
+Finally, we can compare the two objective-function implementations directly with the same optimization algorithm.
+In addition to the speedup in evaluations per second, both algorithms also find better robust tours.
 
 image::BiteOpt_comparison.png[]
 
@@ -261,20 +258,17 @@ image::fcmaes_CMA_comparison.png[]
 
 ==== Conclusion
 
-We have to be very careful when implementing an objective function representing a specific problem. 
-Not always the implementation requiring the least number of variables wins. Use https://numba.pydata.org/[numba]
-whenever possible for the time critical parts. BiteOpt or Differential Evolution, specially if used with parallel retry, 
-are very good algorithm choices which should be tried early, if the problem is single objective and there are no
-constraints (which cannot be easily expressed using the weighted sum approach). 
-Algorithms with huge overhead like IDONE and MSVRM should only be applied for very expensive
-objective functions. Noisy TSP can be evaluated nearly 1.2 million times / sec, so it definitely
-doesn't fall into that category. 
+We need to be careful when implementing an objective function for a specific problem.
+The representation with the fewest variables does not always win.
+Use https://numba.pydata.org/[numba] whenever possible for the time-critical parts.
+BiteOpt or Differential Evolution, especially with parallel retry, are good choices to try early when the problem is single-objective and unconstrained, or when constraints can be expressed with a weighted-sum approach.
+Algorithms with high overhead such as IDONE and MSVRM should be reserved for very expensive objective functions.
+Noisy TSP can be evaluated at nearly 1.2 million evaluations per second, so it clearly does not belong in that category.
 
 === One more noisy TSP problem
 
-Lets have a look at https://github.com/paulorocosta/ai-for-tsp-competition[ai-for-tsp-competition] which contains
-the Python code for a machine learning competition to solve another TSP variant called TD-OPSWTW.  
-Results and the details of the TSP variant are described in https://arxiv.org/abs/2201.10453[BliekEtAl2021]:
+Now look at https://github.com/paulorocosta/ai-for-tsp-competition[ai-for-tsp-competition], which contains the Python code for a machine-learning competition on another TSP variant called TD-OPSWTW.
+Results and details of this variant are described in https://arxiv.org/abs/2201.10453[BliekEtAl2021]:
 
 "The stochastic travel times between locations are only revealed as the salesman
 travels in the network. The salesman starts from a depot and must return to the depot at the end of the tour.
@@ -285,57 +279,48 @@ time to serve the customer. Lastly, the tour must not violate a total travel tim
 in the network. The goal is to collect the most prizes in the network while respecting the time windows and
 the total travel time of a tour allowed to the salesman."
 
-We will focus on the first task described by the paper: A specific 65 node instance of this TSP
-has to be solved using machine learning techniques. Lets suppose we are the organizer of this competition
-and want to evaluate the applicability of machine learning for this problem by comparing the winner results
-with a pure optimization based approach. 
+We focus on the first task from the paper.
+A specific 65-node instance of this TSP must be solved with machine-learning techniques.
+Now suppose we are organizing the competition and want to assess how competitive machine learning really is for this problem.
+We can compare the winning results with a pure optimization-based approach.
 
-We do (as with the first TSP problem above) the following
+As with the first TSP problem above, we do the following:
 
-- Apply numba to speed up the evaluation of a solution tour
-- Formulate an objective function which needs to be fast to evaluate thereby being accurate enough for the final test - 
-  which in this case is computing the average of 10000 noisy tour evaluations. 
-- Apply the BiteOpt optimizer with parallel retry.   
+- apply numba to speed up the evaluation of a tour,
+- formulate an objective function that is fast to evaluate while still accurate enough for the final test, which here is the average of 10000 noisy tour evaluations,
+- apply the BiteOpt optimizer with parallel retry.
 
 ==== Speeding up the evaluation of a tour (numbafication)
 
-The central routine evaluating a given tour is 
-https://github.com/paulorocosta/ai-for-tsp-competition/blob/8dda7ce1ed4f4805db40e47055a4d7df747a4e61/op_utils/op.py#L59[tour_check]
-which we have to adapt: 
+The central routine for evaluating a given tour is
+https://github.com/paulorocosta/ai-for-tsp-competition/blob/8dda7ce1ed4f4805db40e47055a4d7df747a4e61/op_utils/op.py#L59[tour_check].
+We need to adapt it:
 
 [source,python]
 ----
 from numba import njit
 
 def tour_check(tour, x, time_matrix, maxT_pen, tw_pen, n_nodes):
-    return tour_check_numba(np.array(tour, dtype=np.int32), np.array(x, dtype=np.float32), 
+    return tour_check_numba(np.array(tour, dtype=np.int32), np.array(x, dtype=np.float32),
                             np.array(time_matrix, dtype=np.int32), maxT_pen, tw_pen, n_nodes)
 
-@njit(fastmath=True) 
-def tour_check_numba(tour, x, time_matrix, maxT_pen, tw_pen, n_nodes): 
+@njit(fastmath=True)
+def tour_check_numba(tour, x, time_matrix, maxT_pen, tw_pen, n_nodes):
 ----
 
-numba is very picky regarding argument array types, so we have to wrap it converting into float32 and int32 arrays which
-make numba happy. This minimal change causes a factor 8 speedup of the evaluation of TSP tours. 
+numba is very strict about argument array types, so we add a wrapper that converts the inputs to `float32` and `int32`.
+That small change already gives about an 8x speedup for tour evaluation.
 
 ==== Objective function for TD-OPSWTW
 
-The fitness object representing the objective function used for optimization gets an
-https://github.com/paulorocosta/ai-for-tsp-competition/blob/master/env.py[Env] object representing a problem instance as
-argument. 
+The fitness object that represents the objective function for optimization receives an
+https://github.com/paulorocosta/ai-for-tsp-competition/blob/master/env.py[Env] object representing a problem instance.
 
-- Progress is monitored using `mp.RawValue` variables which share their values between processes. 
-- We define the bounds for all continuous variables as `[0,1]` which in `solution` is converted into
-an integer vector representing the tour using the `np.argsort` sorting trick.
-- `value` computes the minimal or average score performing `n` calls to `check_solution` 
-which gives a noisy tour evaluation. For small `n` the minimum is a more reliable value. 
-- The objective function itself `{call}` uses `value` for incremental `n` values to compute
-the final evaluation of the tour. This method represents a compromise between accuracy and performance.
-For low `n` penalized noisy values may be overlooked. For good candidates we have to increase `n` to get
-a reliable result which works with `n=10000` used for the final test. 
-- Note that the optimizer could find noisy "outliers" delivering worse results when called again. 
-  Therefore we finally use `n=100000`, because `n=10000` inside the objective function didn't 
-  deliver reliable results.
+- Progress is monitored with `mp.RawValue` variables, which share values between processes.
+- We set the bounds of all continuous variables to `[0,1]`. In `solution`, these values are converted into an integer tour using the `np.argsort` sorting trick.
+- `value` computes the minimum or average score over `n` calls to `check_solution`, which gives a noisy tour evaluation. For small `n`, the minimum is the more reliable value.
+- The objective function itself `{call}` uses `value` with increasing `n` to compute the final tour evaluation. This is a compromise between accuracy and performance. For low `n`, penalized noisy values may be missed. For good candidates we therefore increase `n`, and this works with `n=10000`, which is used for the final test.
+- The optimizer can still find noisy outliers that look worse when evaluated again. We therefore use `n=100000` in the end, because `n=10000` inside the objective function was not reliable enough.
 
 [source,python]
 ----
@@ -343,7 +328,7 @@ a reliable result which works with `n=10000` used for the final test.
 from scipy.optimize import Bounds
 import time, math
 import ctypes as ct
-import multiprocessing as mp 
+import multiprocessing as mp
 from fcmaes.optimizer import logger, Bite_cpp, dtime
 from fcmaes import retry
 
@@ -351,13 +336,13 @@ class fitness:
 
     def __init__(self, env):
         self.evals = mp.RawValue(ct.c_long, 0)  # writable across python processes
-        self.best_y = mp.RawValue(ct.c_double, math.inf) 
+        self.best_y = mp.RawValue(ct.c_double, math.inf)
         self.t0 = time.perf_counter()
         self.env = env
         self.d = env.n_nodes
 
     def bounds(self):
-        return Bounds(np.zeros(self.d), np.array([1]*self.d))    
+        return Bounds(np.zeros(self.d), np.array([1]*self.d))
 
     def value_min(self, sol, n):
         val = math.inf
@@ -374,11 +359,11 @@ class fitness:
             _, rewards, pen, _ = self.env.check_solution(sol)
             val += rewards + pen
         return val/n
-    
+
     def solution(self, x): # disjoined all locations
         return [1] + [int(xi) for xi in (np.argsort(x) + 1)]
-        
-    def __call__(self, x):  
+
+    def __call__(self, x):
         self.evals.value += 1
         sol = self.solution(x)
         n = 10
@@ -388,22 +373,22 @@ class fitness:
                 return y
             n *= 10
         if y < self.best_y.value:
-            self.best_y.value = y            
+            self.best_y.value = y
             logger().info("evals = {0}: time = {1:.1f} y = {2:.5f} x= {3:s}"
                   .format(self.evals.value, dtime(self.t0), y, str(sol)))
         return y
-    
+
     def optimize(self):
         self.bestY = 1E99
-        self.bestX = []  
-        ret = retry.minimize(self, self.bounds(), optimizer=Bite_cpp(200000,M=16,stall_iterations=3), num_retries=32) 
+        self.bestX = []
+        ret = retry.minimize(self, self.bounds(), optimizer=Bite_cpp(200000,M=16,stall_iterations=3), num_retries=32)
         sol = self.solution(ret.x)
         num = 10000
         logger().info("val" + str(num) + " = " + str(self.value(sol, num)))
         return sol
-        
-if __name__ == '__main__':    
-    
+
+if __name__ == '__main__':
+
     env = Env(n_nodes=65, seed=6537855)
     sol = fitness(env).optimize()
 ----
@@ -429,13 +414,13 @@ val10000 = 11.319876970495283
 
 ==== Conclusion
 
-Both the machine learning and the optimization approach achieve almost the same result of `11.32`.
-Optimization reaches `11.20` consistently after about 400-500 sec, but can need up to 1800 sec to reach `11.32`
-for the TD-OPSWTW instance from the competition using an AMD-5950x 16 core CPU. 
+The machine-learning approach and the optimization approach both reach almost the same result: `11.32`.
+Optimization reaches `11.20` consistently after about 400-500 seconds, but can need up to 1800 seconds to reach `11.32`
+for the TD-OPSWTW instance from the competition on an AMD-5950x 16-core CPU.
 
-Even for 10000 evaluations there is still some noise, so the final test is slightly worse although
-we use 100000 evaluations inside the objective function. It seems pure optimization is a valid alternative for TD-OPSWTW
-and other realistic TSP variants.  
+Even with 10000 evaluations there is still some noise.
+That is why the final test can be slightly worse, even though we use 100000 evaluations inside the objective function.
+Pure optimization therefore looks like a valid alternative for TD-OPSWTW and other realistic TSP variants.
 
-Compare yourself with the machine learning based approach of one of the winners:
-https://github.com/mustelideos/td-opswtw-competition-rl . Which solution do you prefer? 
+Compare it yourself with the machine-learning-based approach of one of the winners:
+https://github.com/mustelideos/td-opswtw-competition-rl . Which solution do you prefer?

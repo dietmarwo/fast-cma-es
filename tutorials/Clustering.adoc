@@ -13,33 +13,34 @@ image::logo.gif[]
 
 This tutorial
 
-- Is related to Google's or-tools example https://github.com/google/or-tools/blob/stable/examples/python/clustering_sat.py[clustering_sat.py].
+- is related to Google's or-tools example https://github.com/google/or-tools/blob/stable/examples/python/clustering_sat.py[clustering_sat.py].
 
-- It is about dividing a set of cities into four equal sized subsets, so that the sum of the distances inside a cluster is minimized.
+- looks at how to divide a set of cities into four equal-sized subsets so that the sum of the distances inside each cluster is minimized.
 
-- Does the sat-solver based solution proposed by Google scale well with the number of cities?
+- asks whether the SAT-solver-based solution proposed by Google still scales when the number of cities grows.
 
-- What should we do if it does not?
+- shows what to do when it does not.
 
 The code for this tutorial is
 here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/clustering.py[clustering.py]
 
 === Motivation
 
-Google's https://github.com/google/or-tools[or-tools] represent an excellent implementation of many optimization algorithms.
-As for fcmaes there is a fast {cpp}-written backend and it supports multi threaded optimization. In fact it
-complements very nicely derivative free algorithms. I can think of objective functions using or-tools to solve
-sub-problems. But be careful in classifying problems prematurely. A problem may switch its class assignment faster
-as you think because of minor modifications related to its size or because of additional constraints. 
+Google's https://github.com/google/or-tools[or-tools] provide excellent implementations of many optimization algorithms.
+fcmaes also has a fast {cpp}-based backend and supports multi-threaded optimization. The two libraries complement each other well.
+It is easy to build objective functions that use or-tools to solve sub-problems.
+
+Still, it is worth being careful when classifying a problem too early. Small changes in problem size, or a few extra constraints,
+can move a problem into a different practical category.
 
 The "dividing a set of cities into four equal sized subsets, so that the sum of the distances inside a cluster is minimized"
-problem seems to fit really well into the "sat-solver" category. But Paul Rulkens showed in 
+problem seems to fit very well into the "sat-solver" category. But Paul Rulkens showed in
 https://www.youtube.com/watch?v=VNGFep6rncY[Why the majority is always wrong] that it is sometimes
-worth to look "outside the box".  
- 
+worth looking "outside the box".
+
 === Problem with the sat solver
 
-The problem can easily been observed when we change the size of the problem from 40 to 200 cities:
+The scaling issue becomes obvious when we increase the problem size from 40 to 200 cities:
 
 [source,python]
 ----
@@ -50,16 +51,16 @@ distance_matrix = np.repeat(distance_matrix, repeat, 0)
 distance_matrix = np.repeat(distance_matrix, repeat, 1)
 ----
 
-Executing https://github.com/google/or-tools/blob/stable/examples/python/clustering_sat.py[clustering_sat.py]
-with this modification at first failed completely on a 16 core AMD 5950 machine with 128GM RAM. 
-But the following modification helped:
+Running https://github.com/google/or-tools/blob/stable/examples/python/clustering_sat.py[clustering_sat.py]
+with this change first failed completely on a 16 core AMD 5950 machine with 128 GB RAM.
+The following modification helped:
 
 [source,python]
 ----
     solver.parameters.num_search_workers = 32
 ----
 
-Now we can utilize all 16 cores of our CPU. Using 118 GB memory after about 90 minutes we see 
+Now the solver can use all 16 CPU cores. After about 90 minutes, and with 118 GB of memory in use, we get
 a result:
 
 [source]
@@ -88,7 +89,7 @@ Group 2 : 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 7
 Group 3 : 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149
 ----
 
-Although successful the CP-SAT solver definitely is at its limits. But we have a reference solution to test an alternative method:
+The CP-SAT solver succeeds, but it is clearly at its limit here. Still, we now have a reference solution for testing an alternative method:
 
 [source]
 ----
@@ -97,13 +98,15 @@ objective: 82393100
 
 === Out of the box solution
 
-Applying continuous optimization to this clustering problem may be not "out of the box" as a fcmaes-tutorial.
-But I bet for many people it is surprising that such a "trivial" method works.
-The "guessing with feedback"-like approach of a continuous derivative-free algorithm should get in trouble with the sheer number
-of possible clusterings for 200 cities, shouldn't it? And in fact, for many algorithms this is true
-(Exercise: check this statement). 
+Using continuous optimization for this clustering problem may be unusual in an fcmaes tutorial.
+Still, it is surprising how well such a simple approach works. A continuous derivative-free algorithm seems like a poor fit
+for the huge number of possible clusterings of 200 cities. For many algorithms, that intuition is correct
+(Exercise: check this statement).
 
-To define the objective function is trivial:
+This example shows a useful fcmaes pattern. We can encode a discrete assignment with continuous variables and let the optimizer
+search over the induced permutations.
+
+Defining the objective function is simple:
 
 [source,python]
 ----
@@ -119,35 +122,35 @@ def sum_distance(s):
                 dist += distance_matrix[g[i,v],g[i,w]]
     return dist
 
-def unique(x):    
+def unique(x):
     return np.argsort(x)
 
 def fitness(x):
     return sum_distance(unique(x))
 ----
 
-Definitely less work than to create the CP-SAT solver configuration. 
-We only have to remember the Python-rule: 
-"No nested inner loop without https://numba.pydata.org[Numba]" to avoid
-a severe performance penalty. 
+This is much less work than building the CP-SAT solver configuration.
+We only need to remember one Python rule:
+"No nested inner loop without https://numba.pydata.org[Numba]".
+Otherwise the performance penalty is severe.
 
-Calling the optimizer is easy too:
+Calling the optimizer is straightforward too:
 
 [source,python]
 ----
-def opt():    
+def opt():
     print('Num nodes =', num_nodes)
-    res = retry.minimize(wrapper(fitness), 
-                         Bounds([0]*num_nodes, [1]*num_nodes), 
-                         optimizer=Bite_cpp(500000, stall_criterion = 3), 
+    res = retry.minimize(wrapper(fitness),
+                         Bounds([0]*num_nodes, [1]*num_nodes),
+                         optimizer=Bite_cpp(500000, stall_criterion = 3),
                          num_retries=32)
 ----
 
-For this kind of problems we should try https://github.com/avaneev/biteopt[biteopt] first. 
-`retry.minimize` automatically uses all available parallel threads (32 on the AMD 5950), 
-and we see now the solution after about 3.5 to 8 seconds with less than 2GB memory
-usage. Note that we used the `np.argsort` trick to get a sequence of unique integers out 
-of a list of continuous variables.  
+For this kind of problem, we should try https://github.com/avaneev/biteopt[biteopt] first.
+`retry.minimize` automatically uses all available parallel threads (32 on the AMD 5950),
+and we now get the solution in about 3.5 to 8 seconds with less than 2 GB of memory
+usage. Note that we use the `np.argsort` trick to get a sequence of unique integers from
+a list of continuous variables.
 
 [source]
 ----
@@ -165,13 +168,12 @@ of a list of continuous variables.
    67  76  73  92  59  51  83  69  70  86  65  61  68  75  96  89  57  53
    66  97  50  78  63  74  80  93  98  77  82  88  90  56]] 82393100
 ----
- 
+
 ==== Conclusion
 
-- Google's or-tools provide an excellent implementation of many important algorithms complementing fcmaes. 
-- Use what fits best - or a combination of methods - but never classify a problem prematurely. 
-- Minor modifications related to the problem size or additional constraints may change the optimal method to apply. 
-- Never underestimate what a good continuous optimizer can do regarding discrete problems. 
-- Use the `np.argsort` trick if you need a sequence of unique integers.   
-- Try https://github.com/avaneev/biteopt[biteopt] first for this kind of problems. 
-
+- Google's or-tools provide excellent implementations of many important algorithms and complement fcmaes well.
+- Use the method that fits best, or a combination of methods, but do not classify a problem too early.
+- Small changes in problem size or extra constraints may change which method works best.
+- A good continuous optimizer can solve some discrete problems surprisingly well.
+- Use the `np.argsort` trick if you need a sequence of unique integers.
+- Try https://github.com/avaneev/biteopt[biteopt] first for this kind of problem.

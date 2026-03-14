@@ -9,185 +9,209 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 
 image::logo.gif[]
 
-== Multi-objective optimization with MODE 
+== Multi-objective optimization with MODE
 
-- Clarifies when to apply which multi-objective optimization method to which
-kind of real world optimization problem. 
+- Explains when to use which multi-objective optimization method for which
+kind of real-world optimization problem.
 
-- Discusses a new multi-objective algorithm fcmaes-MODE supporting constraints 
-which comes with two variants:
+- Discusses a new fcmaes-MODE multi-objective algorithm with constraint support.
+It comes with two variants:
     * NSGA-II population update
     * Differential Evolution population update
 
 === Motivation
 
-The development of fcmaes initially was driven by applications in the space flight mission design domain. 
-When later focussing on other real world optimization problems, new (meta-)-algorithms were added,
-covering mixed integer problems, constraints and multi-objective problems. 
-Multi-objective algorithms can help to understand the tradeoffs between competing objectives.
+The initial development of fcmaes was driven by applications in space flight mission design.
+Later, work on other real-world optimization problems added new meta-algorithms for mixed-integer problems, constraints, and multi-objective optimization.
+Multi-objective methods help us understand the tradeoffs between competing objectives.
 
 === When to apply which multi-objective algorithm using Python
 
-As long as the problem is not trivial, you should utilize parallelization. 
-Beside either using cloud resources or investing in a modern many-core CPU this means: 
-Use a commercial optimizer certified for your OS, or, if you plan to use an open source solution:
+If the problem is not trivial, use parallelization.
+That usually means either using cloud resources or investing in a modern many-core CPU.
+It also means choosing tools carefully:
 
-- You should either avoid non-Unix operating systems (like windows) or use 
-the Linux subsystem for Windows https://docs.microsoft.com/en-us/windows/wsl/[WSL], because Python multi-processing has issues
-on Windows. 
+- If you use an open-source solution, avoid non-Unix operating systems like Windows, or use the Linux subsystem for Windows https://docs.microsoft.com/en-us/windows/wsl/[WSL], because Python multiprocessing has issues on Windows.
 
-- If you plan to use https://github.com/anyoptimization/pymoo[pymoo] check first how well its parallelization mechanisms
-scale. Its overhead is huge for objective functions which are fast to evaluate. 
+- If you plan to use https://github.com/anyoptimization/pymoo[pymoo], check first how well its parallelization mechanisms scale.
+Its overhead is huge for objective functions that are fast to evaluate.
 
-- If you plan to use some other open source optimizer, check if it supports parallelism for your OS 
-at all and how well it scales for your problem.
+- If you plan to use some other open-source optimizer, check whether it supports parallelism on your OS at all, and how well it scales for your problem.
 
-Either implement the objective function in C++ and add a Python interface, for instance using `ctypes`,
-or if using Python, use https://numba.pydata.org/[numba] for the time critical parts. 
+Either implement the objective function in C++ and add a Python interface, for instance using `ctypes`, or use https://numba.pydata.org/[numba] for the time-critical parts if you stay in Python.
 
-Many real world problems can be implemented surprisingly efficient this way even in Python. 
+Many real-world problems can still be implemented surprisingly efficiently this way, even in Python.
 
-Use a simplified model easy to evaluate and then transfer good optimization results back into 
-the more accurate but hard to evaluate model. For space mission design this can mean
-to use an impulse based approximation for the optimization 
-even if we finally plan to use a continuous thrust engine.  
+It also helps to optimize a simplified model first, then transfer good results back to the more accurate but harder-to-evaluate model.
+In space mission design, for example, this can mean using an impulse-based approximation during optimization even if the final system uses continuous thrust.
 
-If you decide to use fcmaes, there are many options:
+If you decide to use fcmaes, there are several options:
 
 ==== moretry.minimize
-A meta algorithm which applies a single-objective algorithm using the weighted sum approach. It runs parallel optimizations using 
-random weights for the objectives to produce a pareto front. The weight distribution is configurable. Should only be used if
+
+A meta-algorithm that applies a single-objective optimizer through the weighted-sum approach.
+It runs parallel optimizations with random weights for the objectives to produce a Pareto front.
+The weight distribution is configurable.
+Use it only if
 
 - The objective function is fast to evaluate, since it needs many evaluations.
-- There are not more than two objectives. 
-- One of the objectives has a strong connection to one or more decision variables. For instance the ToF (time of flight) for a space mission
-when the start time is one of the variables. In this case MO-algorithms tend to overemphasize this variable. Using moretry we can 
-force (via weight distribution) the focus on the other one. 
-- When only the very best single objective algorithms have a chance to optimize for one of the objectives. For instance 
-optimizing the delta velocity (fuel consumption) for a multi planet gravity assist space mission.  
+- There are not more than two objectives.
+- One objective is strongly connected to one or more decision variables.
+For instance, the ToF (time of flight) in a space mission when start time is one of the variables.
+In this case, MO algorithms tend to overemphasize this variable.
+Using moretry, we can force the focus toward the other objective through the weight distribution.
+- Only the very best single-objective algorithms have a chance to optimize one of the objectives.
+An example is delta velocity (fuel consumption) for a multi-planet gravity-assist mission.
 
 ==== mode.minimize
-A new fcmaes multi-objective algorithm implemented in Python equivalent to modecpp.minimize. Use only if modecpp.minimize has issues
-- missing shared library for your OS or problems with parallel fitness function evaluation in your environment.  
+
+A new fcmaes multi-objective algorithm implemented in Python and equivalent to modecpp.minimize.
+Use it only if modecpp.minimize has issues:
+
+- missing shared library for your OS
+- problems with parallel fitness function evaluation in your environment
 
 ==== modecpp.minimize
-A new fcmaes multi-objective algorithm implemented in C++. Use if
 
-- Your objective function is expensive. In this case use parallel fitness function evaluation. 
-- Your problem has constraints. With moretry you have to use either the weighted sum or the Chebycheff method, modecpp supports 
-  constraints directly
-- No objective is directly connected to a decision variable
-- There are more than two obejctives
+A new fcmaes multi-objective algorithm implemented in C++.
+Use it if
+
+- Your objective function is expensive.
+In this case, use parallel fitness function evaluation.
+- Your problem has constraints.
+With moretry, you need either the weighted-sum or the Chebycheff method.
+modecpp supports constraints directly.
+- No objective is directly connected to a decision variable.
+- There are more than two objectives.
 
 ==== modecpp.retry
-Same optimization algorithm as modecpp.minimize and mode.minimize, implemented in C++. Don't uses parallel function evaluation, instead
-it performs multiple optimization runs in parallel and joins the results into a single pareto front. Use if
 
-- Your objective function is fast to evaluate or you you have plenty of time for the optimization. 
-- Any of the other criteria for modecpp.minimize apply. 
+The same optimization algorithm as modecpp.minimize and mode.minimize, implemented in C++.
+It does not use parallel function evaluation.
+Instead, it performs multiple optimization runs in parallel and joins the results into a single Pareto front.
+Use it if
 
-Scaling - the increase of the number of function evaluations per second per CPU-core - is much better using modecpp.retry, so 
-it should be preferred if the cost of the objective function evaluation doesn't prevent its application. 
+- Your objective function is fast to evaluate, or you have plenty of time for the optimization.
+- Any of the other criteria for modecpp.minimize apply.
+
+Scaling, meaning the increase in function evaluations per second per CPU core, is much better with modecpp.retry.
+Prefer it when the cost of objective function evaluation does not prevent its use.
 
 ==== mode.retry
-Doesn't exist. Use modecpp.retry instead. Or mode.minimize / modecpp.minimize if your objective function is expensive.
+
+Doesn't exist.
+Use modecpp.retry instead.
+Or use mode.minimize / modecpp.minimize if your objective function is expensive.
 
 ==== nsga_update
-All fcmaes mode variants have the `nsga_update` parameter. It determines the population update mechanism used: Either NSGA-II or 
-DE (differential evolution). Try `nsga_update=True` first since it tends to produce reasonable results faster.  
-Try `nsga_update=False` to see if the results improve for longer runs. 
+
+All fcmaes MODE variants have the `nsga_update` parameter.
+It determines the population update mechanism: either NSGA-II or DE (Differential Evolution).
+Try `nsga_update=True` first, since it tends to produce reasonable results faster.
+Then try `nsga_update=False` to see whether results improve in longer runs.
 
 ==== population size
-Usually needs to be larger than for single objective algorithms. Use `popsize=64` or bigger. `modecpp.minimize` usually
-needs a larger population size than 'modecpp.retry`. Same with `nsga_update=True` compared to `nsga_update=False`. 
-Dependent on the number of decision variables and the complexity of the problem. Don't exceed `popsize=200` for the first
-experiment, increase later if necessary.
+
+Population size usually needs to be larger than for single-objective algorithms.
+Use `popsize=64` or bigger.
+`modecpp.minimize` usually needs a larger population size than `modecpp.retry`.
+The same holds for `nsga_update=True` compared to `nsga_update=False`.
+The right value depends on the number of decision variables and the complexity of the problem.
+Do not exceed `popsize=200` in the first experiment.
+Increase later if necessary.
 
 ==== mixed integer
-All fcmaes mode variants support the `ints` parameter, but only if `nsga_update=False` (DE population update) 
-is configured. If you have integer
-decision variables, use the `ints` parameter to mark them for the algorithm, if applicable. Same holds for the
-single objective differential evolution variants (de.minimize and decpp.minimize). 
 
-If you have discrete float input values, 
-use an int->float conversion table inside the objective function and denote the variables using the ìnts`parameter. 
+All fcmaes MODE variants support the `ints` parameter, but only if `nsga_update=False` (DE population update) is configured.
+If you have integer decision variables, use `ints` to mark them for the algorithm where applicable.
+The same holds for the single-objective Differential Evolution variants (`de.minimize` and `decpp.minimize`).
 
-If you have a permutation as input, don't use `ints` but declare the variables as box constraint floats in the [0,1] interval
-and use numpy.argsort to produce an integer permutation inside the objective function.  
+If you have discrete float input values, use an int-to-float conversion table inside the objective function and denote the variables using the `ints` parameter.
+
+If you have a permutation as input, do not use `ints`.
+Instead, declare the variables as box-constrained floats in the [0,1] interval and use numpy.argsort inside the objective function to produce an integer permutation.
 
 
 == MO-DE a new multiobjective optimization algorithm supporting constraints
 
-In https://github.com/dietmarwo/fast-cma-es/blob/master/MultiObjective.adoc[Multi-Objective] and https://github.com/dietmarwo/fast-cma-es/blob/master/TopTrumps.adoc[gbea TopTrumps Benchmark] we showed that in the context of parallel optimization retry it
-makes sense to consider the weighted sum approach in connection with strong 
-single objective optimizers like https://github.com/avaneev/biteopt[BiteOpt] or fcmaes-DE. We can apply random weights to cover the pareto front in parallel. But for very expensive simulation based fitness functions (like https://www.researchgate.net/publication/334220017_Single-_and_multi-objective_game-benchmark_for_evolutionary_algorithms[TopTrumps]) it could be better to perform a single run and parallelize function evaluation instead. So we adapted the single objective Python implementation
-of differential evolution https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/de.py[de.py] to multi objective problems: https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py] and added a {cpp}/Eigen based implementation: https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[modeoptimizer.cpp]. 
+In https://github.com/dietmarwo/fast-cma-es/blob/master/MultiObjective.adoc[Multi-Objective] and https://github.com/dietmarwo/fast-cma-es/blob/master/TopTrumps.adoc[gbea TopTrumps Benchmark], we showed that parallel retry with the weighted-sum approach can make sense when combined with strong single-objective optimizers like https://github.com/avaneev/biteopt[BiteOpt] or fcmaes-DE.
+Random weights can cover the Pareto front in parallel.
+For very expensive simulation-based fitness functions, such as https://www.researchgate.net/publication/334220017_Single-_and_multi-objective_game-benchmark_for_evolutionary_algorithms[TopTrumps], a single run with parallel function evaluation can be a better choice.
 
-Two innovations from NSGA-II, fast non-dominated sort
-and the crowding distance are crucial for the performance of a MO-optimizer and are
-therefore adapted here. But since the DE algorithm performs sorting instead of tournament selection efficient sorting based variants of these concepts are applied. 
+For this reason, we adapted the single-objective Python Differential Evolution implementation https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/de.py[de.py] to multi-objective problems: https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py].
+We also added a {cpp}/Eigen-based implementation: https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[modeoptimizer.cpp].
 
-After observing that NSGA-II converged better for parts of the pareto front for some problems, we added
-a configuration parameter so that you can switch from the DE population update
-mechanism to the one from NGSA-2 - the update code is 
-derived from https://github.com/ChengHust/NSGA-II/blob/master/GLOBAL.py[GLOBAL.py] which 
-provides an efficient Python implementation. 
+Two ideas from NSGA-II are crucial for MO optimizer performance: fast non-dominated sorting and crowding distance.
+Both are adapted here.
+Since DE uses sorting instead of tournament selection, the implementation uses sorting-based variants of these concepts.
 
-So the https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py] optimizer provides some interesting new features:
+For some problems, NSGA-II converged better on parts of the Pareto front.
+Because of that, we added a configuration parameter that switches the population update mechanism from DE to the NSGA-II update.
+The NSGA-II update code is derived from https://github.com/ChengHust/NSGA-II/blob/master/GLOBAL.py[GLOBAL.py], which provides an efficient Python implementation.
 
-- Enables the comparison of DE and NSGA-II population update mechanism with everything else kept identical.
-- Support of parallel execution of the fitness function. 
-- Convergence and crowdedness are similar to other NSGA-II implementations if the NSGA-II population update mechanism is chosen. 
+This gives https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py] some useful features:
 
-It seems that the population update mechanism, and not the tournament selection is the 'crucial' part of NGSA-II responsible for its success. 
+- It lets you compare DE and NSGA-II population update mechanisms while keeping everything else identical.
+- It supports parallel execution of the fitness function.
+- If the NSGA-II population update is chosen, convergence and crowdedness are similar to other NSGA-II implementations.
 
-For cheap to execute but difficult to solve fitness functions like the 
-ones derived from ESAs GTOP space flight trajectory benchmarks we recommend
-parallel retry with random weights https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/moretry.py[moretry.py]. https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py] is for very expensive fitness functions if your time budged is limited. This is the reason no C++ variant of mode.py is implemented (yet) since for 
-expensive fitness the algorithm overhead is relatively low. 
+This suggests that the population update mechanism, not tournament selection, is the crucial part of NSGA-II.
 
-It can be better to run both variants (DE and NSGA-II population update)
-with half the time budged - or if you have two machines / processing nodes available, 
-so that the deficiencies of these variants cancel each other out.
+For cheap but difficult fitness functions, such as those derived from ESA's GTOP space flight trajectory benchmarks, we recommend parallel retry with random weights using https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/moretry.py[moretry.py].
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py] is intended for very expensive fitness functions when your time budget is limited.
+That is also why no C++ variant of mode.py is implemented yet.
+For expensive fitness functions, algorithm overhead is relatively low.
+
+It can also make sense to run both variants, DE and NSGA-II population update, with half the time budget each.
+If you have two machines or processing nodes, run them in parallel.
+Their weaknesses may cancel each other out.
 
 === Comparison to GDE3
 
-In https://ieeexplore.ieee.org/document/1554717[GDE3] another multi-objective DE algorithm is described. It is implemented in https://github.com/jMetal/jMetal/blob/master/jmetal-algorithm/src/main/java/org/uma/jmetal/algorithm/multiobjective/gde3/GDE3.java[GDE3.java]. JMetal also supports parallel function evaluation and implements NGSAII, but a Java framework is not as easy to use in a Python environment. 
+https://ieeexplore.ieee.org/document/1554717[GDE3] describes another multi-objective DE algorithm.
+It is implemented in https://github.com/jMetal/jMetal/blob/master/jmetal-algorithm/src/main/java/org/uma/jmetal/algorithm/multiobjective/gde3/GDE3.java[GDE3.java].
+JMetal also supports parallel function evaluation and implements NSGAII, but a Java framework is less convenient in a Python environment.
 
 Differences to GDE3 are:
 
-- GDE3 uses the DE/rand/1/bin strategy where mode.py uses the pareto front to generate the offspring, similar to 
-the DE/best/1/bin strategy for the single objective variant. 
+- GDE3 uses the DE/rand/1/bin strategy, while mode.py uses the Pareto front to generate offspring.
+This is similar to the DE/best/1/bin strategy in the single-objective variant.
 
-- GDE3 directly compares a new decision vector with its anchestor and decides depending on dominance and crowding value which one survives. mode.py uses the pareto hierarchy and the crowdedness value to sort the whole population, only the
-best survive. Adding constraint support to mode.py could is implemented as follows: 
-We compute - and priorize - the pareto hierarchy for feasible decision vectors, and then the constraint 
-pareto hierarchy for the infeasible ones. The crowdedness/diversity value is only interesting for the hierarchy level
-at the "population size border" since diversity has the lowest priority in the decision whether an individual survives. 
+- GDE3 directly compares a new decision vector with its ancestor and decides which one survives based on dominance and crowding value.
+mode.py sorts the whole population using Pareto hierarchy and crowdedness, and only the best survive.
+Constraint support in mode.py is implemented as follows:
+We compute, and prioritize, the Pareto hierarchy for feasible decision vectors, then the constraint Pareto hierarchy for the infeasible ones.
+The crowdedness or diversity value matters only at the hierarchy level that lies on the population-size border, since diversity has the lowest priority in the survival decision.
 
-- GDE3 uses variable population size because of the "direct comparison" approach. If for two decision vectors none of them dominates the other, both are kept in the population. mode.de s' sorting mechanism avoids this, which can be advantageous in the context of parallel fitness function evaluation. If the population size is fixed and a multiple
-of the maximal number of parallel threads supported by the CPU, better CPU utilization is guaranteed. 
+- GDE3 uses a variable population size because of the direct-comparison approach.
+If neither of two decision vectors dominates the other, both stay in the population.
+mode.py's sorting mechanism avoids this.
+That can be an advantage for parallel fitness function evaluation.
+If population size is fixed and is a multiple of the maximum number of parallel CPU threads, CPU utilization is better.
 
-- In GDE3 only one population update strategy is implemented. Note that if you change that optionally to the NSGA-II one as mode.py does, the resulting algorithm cannot longer be called "differential evolution".  
+- GDE3 implements only one population update strategy.
+If you optionally switch it to NSGA-II as mode.py does, the resulting algorithm can no longer be called "Differential Evolution".
 
-Another NGSA-II implementation supporting parallel function evaluation can be found here https://esa.github.io/pygmo/tutorials/spea_ii_nsga_ii_and_ns_pso.html[Pygmo/Pagmo], but here it is difficult to use parallel function evaluation if your fitness function is implemented in Python. 
+Another NSGA-II implementation with parallel function evaluation is available in https://esa.github.io/pygmo/tutorials/spea_ii_nsga_ii_and_ns_pso.html[Pygmo/Pagmo], but parallel function evaluation is difficult there when the fitness function is implemented in Python.
 
 === Crowdedness
 
-Multi-objective optimizers have to fulfill two criteria:
+Multi-objective optimizers have to satisfy two criteria:
 
-- Convergence: How far is the computed pareto front "above" the "real" pareto front?
-- Crowdedness/diversity: How evenly are the computed results distributed along the pareto front? 
+- Convergence: How far is the computed Pareto front "above" the real Pareto front?
+- Crowdedness/diversity: How evenly are the computed results distributed along the Pareto front?
 
-Often missing is this third criteria:
+There is also a third criterion that is often missing:
 
-- Coverage: Is the whole pareto front covered? 
+- Coverage: Is the whole Pareto front covered?
 
-This is not equivalent to the "crowdedness" criteria as we show with the following example:
+Coverage is not the same as crowdedness.
+The following example shows the difference.
 
-Both results represent optimization runs for the second multi objective TopTrump benchmark, variant 5, dimension = 128, see https://www.researchgate.net/publication/334220017_Single-_and_multi-objective_game-benchmark_for_evolutionary_algorithms[Single- and multi-objective game-benchmark for evolutionary algorithms] or https://github.com/ttusar/coco-gbea/blob/main/code-experiments/rw-problems/GBEA.md[GBEA]. 
+Both results represent optimization runs for the second multi-objective TopTrump benchmark, variant 5, dimension = 128.
+See https://www.researchgate.net/publication/334220017_Single-_and_multi-objective_game-benchmark_for_evolutionary_algorithms[Single- and multi-objective game-benchmark for evolutionary algorithms] or https://github.com/ttusar/coco-gbea/blob/main/code-experiments/rw-problems/GBEA.md[GBEA].
 
-- Application of https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[(mode.py)] with popsize = 200, 500k evaluations, NGSA-II population update: 
+- Application of https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[(mode.py)] with popsize = 200, 500k evaluations, NSGA-II population update:
 
 image::all_rw-top-trumps-biobj_f2i5d128_mode_200_500k_ngsa_up.png[]
 
@@ -195,19 +219,28 @@ image::all_rw-top-trumps-biobj_f2i5d128_mode_200_500k_ngsa_up.png[]
 
 image::all_rw-top-trumps-biobj_f2i5d128r2000_8k512_de_cpp.png[]
 
-Both algorithms use parallelization, but the second test involves a much higher budged.
-Although both times crowdedness and convergence are not really an issue, 
-for the first experiment a large chunk of the pareto front is missing. 
+Both algorithms use parallelization, but the second test uses a much higher budget.
+In both cases, crowdedness and convergence are not the main problem.
+In the first experiment, a large part of the Pareto front is simply missing.
 
-Although of high practical relevance, this problem seems "under-represented" in the literature because it is a phenomenon which mostly occurs for hard real world problems. 
-Fortunately recently "real world MO problems" like TopTrumps gain popularity in the optimization research community. With this "under-representation" comes an under-rating of the algorithm solving the issue: the weighted sum approach with random weights applied to parallel retries as it is implemented in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/moretry.py[moretry.py]. Keep this in mind when using https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py] with parallel fitness function evaluation instead. NSGA-II and DE may miss parts of the pareto front. To be save, try to apply moretry.py with limited budged. You may loose crowdedness and convergence, but probably gain coverage. This way you will be at least aware of the issue - and rethink your budged decision. The DE population update is as affected by this problem as is the NSGA-II population update, although a bit less here: 
+This issue is highly relevant in practice, but it seems underrepresented in the literature.
+It mostly appears on hard real-world problems.
+Fortunately, real-world MO problems such as TopTrumps are becoming more common in optimization research.
+
+Because the issue is underrepresented, the method that addresses it is often underrated as well: the weighted-sum approach with random weights applied to parallel retries, as implemented in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/moretry.py[moretry.py].
+Keep this in mind when using https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py] with parallel fitness function evaluation instead.
+NSGA-II and DE may miss parts of the Pareto front.
+To be safe, try moretry.py with a limited budget.
+You may lose crowdedness and convergence, but gain coverage.
+At least you will see the issue and can rethink your budget decision.
+The DE population update is affected as well, although a bit less in this example:
 
 - Application of https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[(mode.py)] with popsize = 200, 500k evaluations, DE population update:
 
 image::all_rw-top-trumps-biobj_f2i5d128_mode_200_500k_de_up.png[]
- 
-But there are other problems, like the bi-objective variant of ESAs https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1] space mission design benchmark - using the mission time as second objective 
-showing exactly the opposite.
+
+But other problems show the opposite behavior.
+One example is the bi-objective variant of ESA's https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini1] space mission design benchmark, using mission time as the second objective.
 
 - Application of https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[(mode.py)] with popsize = 200, 1000k evaluations, NSGA-II population update:
 
@@ -217,27 +250,29 @@ image::all_Cassini1_mode_200_1000k_ngsa_up.png[]
 
 image::all_Cassini1_mode_200_1000k_de_up.png[]
 
-Here the left side looks good, but there are convergence issues at the right side. Lets try a second time:
+Here the left side looks good, but there are convergence issues on the right side.
+Let's try a second run:
 
 - Application of https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[(mode.py)] with popsize = 200, 1000k evaluations, DE population update, 2nd try:
 
 image::all_Cassini1_mode_200_1000k_de_up2.png[]
 
-Now the left side is partly missing. We may utilize diverse results for different retries to our advantage simply by
-merging them to a single result. We didn't observe this "diversity" for the NSGA-II update. At least not for population size 200. So if you plan only one single run, the NSGA-II update may be advantageous. 
+Now part of the left side is missing.
+We may be able to use this diversity across retries to our advantage by merging results into a single set.
+We did not observe this kind of diversity for the NSGA-II update, at least not with population size 200.
+So if you plan only one run, the NSGA-II update may be the better choice.
 
-All these results miss a small part of the pareto front on the left - the low delta velocity (first objective) results
-using > 6000 days (second objective) are missing as we see here: 
+All of these results still miss a small part of the Pareto front on the left.
+The low delta-velocity (first objective) solutions using more than 6000 days (second objective) are missing, as shown here:
 
 - Application of a DE-CMA sequence using https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/moretry.py[(moretry.py)], popsize=31 using 4k weighted sum parallel retries, 50k evaluations each:
 
 image::all_ret.Cassini1_4k50k_de_cma_front.png[]
 
-The right side was cutted on purpose here to focus in the more interesting low delta velocity parts of the pareto front. These weighted sum based experiments may reveal interesting insights in the used single objective algorithms. Although the pareto front is quite similar, the equivalent picture for the https://github.com/avaneev/biteopt[BiteOpt] algorithm looks very different:
+The right side was cut on purpose here to focus on the more interesting low-delta-velocity part of the Pareto front.
+These weighted-sum experiments can also reveal useful properties of the single-objective algorithms being used.
+Although the Pareto front is quite similar, the equivalent picture for the https://github.com/avaneev/biteopt[BiteOpt] algorithm looks very different:
 
 - Application of the https://github.com/avaneev/biteopt[BiteOpt] algorithm using https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/moretry.py[(moretry.py)], using 4k weighted sum parallel retries, 50k evaluations each:
 
 image::all_ret.Cassini1_4k50k_bite_front.png[]
-
-
- 

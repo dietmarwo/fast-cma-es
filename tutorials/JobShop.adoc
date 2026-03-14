@@ -10,73 +10,81 @@ image::logo.gif[]
 
 This tutorial:
 
-- Applies continuous optimization and https://numba.pydata.org/[numba] to solve 
-the Flexible job shop problem (FJSP). 
-- On modern many core CPUs dedicated algorithms often can be replaced by generic
-optimization still delivering good results. 
-- Advantages are:
-* Ease of implementation.
-* Can easily be adapted to additional constraints / objectives or noise. 
-- This flexibility is shown by solving a problem variant optimizing asteroid harvesting. 
+- Uses continuous optimization and https://numba.pydata.org/[numba] to solve
+the Flexible job shop problem (FJSP).
+- Shows that on modern many-core CPUs, generic optimization can often replace
+dedicated algorithms while still delivering good results.
+- Has practical advantages:
+* Easy to implement.
+* Easy to adapt to additional constraints, objectives, or noise.
+- Demonstrates this flexibility with a problem variant for asteroid harvesting.
 
 == Solving the flexible job shop scheduling problem using continuous optimization
 
-Production scheduling is concerned with allocating available
-production resources to tasks and deciding the sequence of operations so that all constraints are met and
-the optimization objectives are optimized. 
+Production scheduling assigns available resources to tasks. It also determines
+an execution order that satisfies all constraints while optimizing one or more
+objectives.
 
-The Flexible job shop problem (FJSP) determines the most appropriate machine for each operation (called machine selection)
-and the sequence of the operations on machines (called operation sequencing). The optimization
-objective is to minimize makespan, maximum tardiness and some other indicators. 
+In the Flexible job shop problem (FJSP), we must choose a machine for each
+operation and decide the order of operations on the machines. These decisions
+are usually called machine selection and operation sequencing. Typical goals
+are to minimize makespan, maximum tardiness, and related indicators.
 
-There are many commercial tools applicable like
+Many commercial tools can solve this kind of problem, including
 https://www.researchgate.net/publication/323859275_IBM_ILOG_CP_optimizer_for_scheduling_20_years_of_scheduling_with_constraints_at_IBMILOG[CP]
-or https://www.localsolver.com/benchmarkfjsp.html[LocalSolver and Gurobi].
-So we will focus on an aspect these tools are not as good at: Optimizing for multiple objectives computing a 
-so called "pareto front", a set of "optimal" solutions where improving one variable is impossible without harming the others. 
-It can be seen as a list of "choices" were we can choose the compromise we will finally accept. 
-For ILOG_CP you can formulate multiple objectives, but you have to prioritize them in advance. 
+and https://www.localsolver.com/benchmarkfjsp.html[LocalSolver and Gurobi].
+Here we focus on something these tools handle less naturally: multiple
+objectives and the computation of a Pareto front. A Pareto front is a set of
+solutions where improving one objective necessarily worsens another. In
+practice, it gives a set of trade-off choices. With ILOG_CP you can formulate
+multiple objectives, but you must prioritize them in advance.
 
-And, in case you don't have a commercial tool available, we also will address the single objective case. 
-The solution showed here may also be interesting for very large problem instances, 
-where the number of constraints handled by ILOG_CP can easily explode. We apply the highly efficient optimizers 
+We also cover the single-objective case. That matters if you do not have a
+commercial solver available. The approach shown here can also help on very
+large instances, where the number of constraints handled by ILOG_CP can grow
+quickly. We use the highly efficient optimizers
 https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe] and
 https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/include/biteopt.h[BiteOpt] implemented in {cpp}.
 
 The full Python code for this tutorial is here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/jobshop.py[jobshop.py] and
 here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/harvesting.py[harvesting.py]
 
-We will also show how to handle:
+We also show how to handle:
 
-- additional constraints, like the maximal number of machines which can be active at a given time. 
-- relaxations, like the sequence ordering of the operations relaxed to an acyclic graph. 
+- additional constraints, such as the maximal number of machines that may be
+  active at a given time.
+- relaxations, such as replacing strict sequence ordering by an acyclic graph.
 
-Using continuous optimization for a problem with discrete input variables (selection and sequence) may look a bit strange, 
-but is actually a quite common application, see for instance https://onlinelibrary.wiley.com/doi/10.1111/itor.12199[overview 1]
-or https://www.researchgate.net/publication/333946807_Review_on_flexible_job_shop_scheduling[overview 2]. One 
-reason may be that the "indirect encoding" of the real parameters can resolve constraints in a flexible and efficient way. 
+Using continuous optimization for a problem with discrete decisions may look
+unusual, but it is a common approach. See for instance
+https://onlinelibrary.wiley.com/doi/10.1111/itor.12199[overview 1] or
+https://www.researchgate.net/publication/333946807_Review_on_flexible_job_shop_scheduling[overview 2].
+One reason is that the indirect encoding of real-valued parameters can resolve
+constraints in a flexible and efficient way.
 
 ==== Indirect Encoding
 
-A decoder is required to express the parameters given by their encoding as a vector of continuous variables. 
-The constraints associated with the optimization problem are handled by the decoder and will 
-guarantee the validity of the solution. 
+A decoder maps the encoded parameters to a solution expressed by a vector of
+continuous variables. The decoder handles the constraints of the optimization
+problem and guarantees that the decoded solution is valid.
 
-See as an example the sequence constraint. For each job the sequence of the 
-operation execution is determined by parts of our continuous (float) input vector `x` extracted by `x[n_operations:]` .
-First we apply the numpy argsort operator resulting of an array of integer values representing the order of its input. 
+Consider the sequence constraint. For each job, the execution order of the
+operations is determined by the part of the continuous input vector `x`
+extracted by `x[n_operations:]`. We first apply the numpy `argsort` operator.
+It returns integer values that describe the order of its input.
 
 [source,python]
----- 
+----
 order = np.argsort(x[n_operations:])
-----        
+----
 
-The encoding operation is now performed by the `reorder` operation in a tricky way to avoid an expensive 
-nested loop. `job_ids` and `job_indices` look like `1,1,1,2,2,2,2,3,3,...` and `0,3,7,...`.
+The actual decoding step is performed by `reorder`. It avoids an expensive
+nested loop. `job_ids` and `job_indices` look like `1,1,1,2,2,2,2,3,3,...` and
+`0,3,7,...`.
 
 [source,python]
----- 
-@njit(fastmath=True) 
+----
+@njit(fastmath=True)
 def reorder(tasks, order, n_operations, job_ids, job_indices):
     ids = job_ids[order]
     ordered = np.empty((n_operations,4))
@@ -87,98 +95,97 @@ def reorder(tasks, order, n_operations, job_ids, job_indices):
         op_index[machine] += 1
         ordered[i] = tasks[index]
     return ordered
-----        
+----
 
-Using an encoder enforcing the constraint means we can easily relax the constraint by enforcing only
-a partial order `order_relation` - this time we need a nested loop and have to rely on 
-https://numba.pydata.org/[Numba's] capabilities to speed up its execution. 
+An encoder that enforces the full constraint also makes it easy to relax that
+constraint. If we enforce only a partial order `order_relation`, we need a
+nested loop, so we rely on https://numba.pydata.org/[Numba] to keep it fast.
 
 [source,python]
----- 
-@njit(fastmath=True) 
+----
+@njit(fastmath=True)
 def reorder(tasks, order_relation):
     n = tasks.shape[0]
     for i in range(n):
-        for j in range(i+1, n):           
+        for j in range(i+1, n):
             if tasks[i][0] == tasks[j][0]: # same job
                 if not order_relation(tasks[i][1], tasks[j][1]): # swap if task order doesn't fit
                     tasks[i], tasks[j] = tasks[j].copy(), tasks[i].copy()
     return tasks
-----        
+----
 
 ==== Objective function
 
-First let us formulate the flexible job shop problem (FJSP) more precisely:
+We can now state the flexible job shop problem more precisely:
 
-A set of jobs must be processed on a set of machines uninterruptedly, 
-where each job is a sequence of consecutive operations. Each operation
-can alternatively be executed on a specific set of machines, were
-the execution time is machine-specific. Machines are continuously available 
-and can process one operation at a time. A solution to this problem is a schedule
-and an operation-machine assignment. 
+A set of jobs must be processed on a set of machines without interruption. Each
+job is a sequence of consecutive operations. Each operation can run on a
+specific set of machines, and its execution time depends on the chosen
+machine. Machines are continuously available and can process one operation at a
+time. A solution consists of both a schedule and an operation-machine
+assignment.
 
-Here is a solution of the problem for Brandimartes first benchmark instance
-(which can be downloaded here https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip[Kefalas]). 
+Here is a solution for Brandimartes first benchmark instance
+(which can be downloaded here https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip[Kefalas]).
 
 image::brandi1.40.png[]
 
-Colors represent jobs and the numbers are associated to the operations. As you can see, the
-operations of each job are executed sequentially. Executing the tutorial code
-https://github.com/dietmarwo/fast-cma-es/blob/master/examples/jobshop.py[jobshop.py] results in
-a similar Gantt diagram generated from a freshly computed solution. 
+Colors represent jobs, and the numbers identify operations. As expected, the
+operations of each job are executed sequentially. Running the tutorial code
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/jobshop.py[jobshop.py]
+produces a similar Gantt diagram from a freshly computed solution.
 
-As objectives we define
+We use the following objectives:
 
 - makespan: maximum of the completion time for all jobs
 - total workload: sum of the execution time for all operations
 - maximum workload: maximum of the overall execution time for all machines
 
-as in https://www.honda-ri.de/pubs/pdf/3949.pdf[Honda]. 
-This paper can also be found at https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip[Kefalas] accompanied by 
-their Python-implementation, their results and problem instances we use for comparison. 
-Compared to their implementation ours is much more focused on efficiency - 
-the number of function evaluations performed per second. 
- 
-As a user of a method you want to obtain a reasonable result investing a specific amount of time. 
-If an implementation is 20x faster and
-needs 10x evaluations you don't care about the number of evaluations. you get the result
-twice as fast. Both implementations rely on Python multithreading, but the scaling
-achieved is vastly different, because we parallelize whole optimizations, not objective
-function evaluations. This reduces the number of processes created and killed
-and the corresponding overhead. Beside that we use https://numba.pydata.org/[Numba] which implies that
-the objective function needs to be implemented based on vectors (numpy arrays) instead
-of classes/objects.  
+as in https://www.honda-ri.de/pubs/pdf/3949.pdf[Honda].
+This paper can also be found at https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip[Kefalas],
+together with their Python implementation, results, and the problem instances
+we use for comparison. Compared to their implementation, ours is more focused
+on efficiency, meaning the number of function evaluations performed per second.
+
+As a user, you care about result quality within a fixed amount of time. If one
+implementation is 20x faster but needs 10x more evaluations, it still reaches
+a result about twice as fast. Both implementations rely on Python
+multithreading, but the scaling differs a lot because we parallelize whole
+optimizations, not individual objective evaluations. That reduces the number
+of processes created and destroyed and lowers overhead. We also use
+https://numba.pydata.org/[Numba], so the objective function is written in terms
+of vectors (numpy arrays) instead of classes or objects.
 
 ==== Implementation
 
-First the problem is converted into a list of 4-tuples:
-(job-id, operation-id, machine-id, execution-time) where each of the ids is an integer
-and the execution-time a float value. Each possible machine assignment
-for a job/operation results in a separate tuple listed consecutively in
-the list. 
+We first convert the problem into a list of 4-tuples:
+(job-id, operation-id, machine-id, execution-time). The ids are integers and
+the execution time is a float. Each possible machine assignment for a given
+job/operation becomes a separate tuple, and these tuples are stored
+consecutively.
 
-The objective function performs four operations:
+The objective function performs four steps:
 
-1) Filtering tuples so that only one machine assignment per job/operation is kept. 
-The selection is performed according to the input vector. 
+1) Filter tuples so that only one machine assignment per job/operation is kept.
+The selection is performed according to the input vector.
 
-2) Reordering of the filtered list according to the input vector thereby maintaining
-   the sequence constraint.  
-   
-3) Executing the operations represented by the final tuple list in the given order. 
-The assigned machine is used as soon as it becomes available and the 
-previous operation of the same job is completed. 
+2) Reorder the filtered list according to the input vector while maintaining
+   the sequence constraint.
 
-4) Collecting our objectives.
+3) Execute the operations represented by the final tuple list in the given order.
+The assigned machine is used as soon as it becomes available and the previous
+operation of the same job has completed.
+
+4) Collect the objective values.
 
 In the Python code (see https://github.com/dietmarwo/fast-cma-es/blob/master/examples/jobshop.py[jobshop.py]) this looks as follows:
 
 [source,python]
----- 
+----
     # step 1 + 2
-    tasks = filtered_tasks(x, self.task_data, self.n_operations, self.n_machines, 
+    tasks = filtered_tasks(x, self.task_data, self.n_operations, self.n_machines,
                            self.job_indices, self.job_ids)
-    # step 3               
+    # step 3
     machine_time, job_time, machine_work_time = exec_tasks(tasks, self.n_jobs, self.n_machines)
     # step 4
     span = np.amax(machine_time)
@@ -186,10 +193,10 @@ In the Python code (see https://github.com/dietmarwo/fast-cma-es/blob/master/exa
     wmax = np.amax(machine_work_time)
 ----
 
-Step 1 and 2 are performed in `filtered_tasks`.
+Steps 1 and 2 are combined in `filtered_tasks`.
 
 [source,python]
----- 
+----
     @njit(fastmath=True)
     def filtered_tasks(x, task_data, n_operations, n_machines, job_indices, job_ids):
         # step 1
@@ -200,13 +207,13 @@ Step 1 and 2 are performed in `filtered_tasks`.
         return tasks
 ----
 
-Execution of the resulting list of operations (called "tasks") is straightforward. 
-We maintain the actual time for each machine and job - when the current job finishes - 
-and the sum of the execution times for each machine. 
+Execution of the resulting list of operations, called `tasks`, is
+straightforward. We track the current finish time for each machine and each
+job. We also accumulate the execution time for each machine.
 
 [source,python]
----- 
-    @njit(fastmath=True) 
+----
+    @njit(fastmath=True)
     def exec_tasks(tasks, n_jobs, n_machines):
         machine_time = np.zeros(n_machines)
         machine_work_time = np.zeros(n_machines)
@@ -218,92 +225,101 @@ and the sum of the execution times for each machine.
             # previous task needs to be finished and machine needs to be available
             end_time = max(machine_time[machine], job_time[job]) + time
             machine_time[machine] = end_time
-            job_time[job] = end_time  
+            job_time[job] = end_time
             machine_work_time[machine] += time
         return machine_time, job_time, machine_work_time
 ----
 
-For single objective optimization we use the weighted sum approach after calling the multi-objective function `fun`: 
+For single-objective optimization, we call the multi-objective function `fun`
+and combine its outputs with a weighted sum:
 
 [source,python]
 ----
-   def __call__(self, x): # single objective function        
+   def __call__(self, x): # single objective function
         ys = self.fun(x)
-        return sum(self.weights*ys) # weighted sum   
+        return sum(self.weights*ys) # weighted sum
 ----
 
-As multi-objective optimizer we use https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe]
-implemented in {cpp}. We call it using the parallel retry mechanism: 
+For multi-objective optimization, we use
+https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe]
+implemented in {cpp}. We call it through the parallel retry mechanism:
 
 [source,python]
 ----
-    xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=32, popsize = 48, 
+    xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=32, popsize = 48,
               max_evaluations = 960000, nsga_update = True, logger = logger(), workers=16)
     logger().info(name + " modecpp.retry(num_retries=32, popsize = 48, max_evals = 960000, nsga_update = True, workers=16" )
     logger().info(str([tuple(y) for y in front]))
 ----
 
-For collecting of the optimization results - the pareto front computed by each optimization - the parallel retry uses `mode.store`,
-which uses a `multiprocessing.Lock` to enable parallel access. 
+To collect optimization results, the parallel retry stores the Pareto front
+computed by each run in `mode.store`. A `multiprocessing.Lock` enables safe
+parallel access.
 
 https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe]
-provides two population update mechanisms: One derived from NSGA-II and one from DE. Experiments have shown that for this 
-application the NSGA-II-update works better.
-Note that this algorithm uses (if configured) the NSGA-II population update, but differs in other aspects
-significantly from NSGA-II. There is no tournament selection and MoDe can handle constraints. 
+provides two population update mechanisms: one derived from NSGA-II and one
+from DE. Experiments have shown that the NSGA-II-style update works better for
+this application. Even in that configuration, the algorithm still differs
+significantly from standard NSGA-II. There is no tournament selection, and
+MoDe can handle constraints.
 
 For single objective optimization https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/include/biteopt.h[BiteOpt]
-from https://github.com/avaneev[Aleksey Vaneev] works very good. Parallel optimization is already covered by `fcmaes.retry`.
+from https://github.com/avaneev[Aleksey Vaneev] works very well. Parallel
+optimization is already covered by `fcmaes.retry`.
 
 [source,python]
 ----
-    store = retry.Store(fit, bounds, logger=logger()) 
+    store = retry.Store(fit, bounds, logger=logger())
     logger().info(name + " Bite_cpp(960000,M=1).minimize, num_retries=256)" )
-    retry.retry(store, Bite_cpp(960000,M=1).minimize, num_retries=256)    
----- 
+    retry.retry(store, Bite_cpp(960000,M=1).minimize, num_retries=256)
+----
 
 === Asteroid harvesting
 
-We implemented a variation of FJSP https://github.com/dietmarwo/fast-cma-es/blob/master/examples/harvesting.py[harvesting.py]
-to illustrate how easy it is to add additional constraints. 
-The scenario is related to the fact that resources on our planet are more and more depleted. 
-One possible solution involves the harvesting of resources - and the production of goods using these - 
-on asteroids. This idea leads to the following problem:
+We implemented a variation of FJSP in
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/harvesting.py[harvesting.py]
+to show how easily additional constraints can be added. The scenario is
+motivated by the gradual depletion of resources on Earth. One possible
+long-term idea is to harvest resources, and produce goods from them, on
+asteroids. This leads to the following simplified problem:
 
-N movable identical factories are deployed on N asteroids to perform operations associated to m jobs.
-As in FJSP the operations need to be executed in the order specified by the job. 
-The equivalent to a machine in FJSP is a factory deployment to a specific asteroid. Its resources
-determine its capability to execute job operations. Therefore - using this simplified
-model - asteroid harvesting can be viewed as a FJSP with two additional constraints:
+N movable identical factories are deployed on N asteroids to perform operations
+associated with m jobs. As in FJSP, the operations must be executed in the
+order specified by the job. The counterpart of a machine in FJSP is a factory
+deployment to a specific asteroid. The resources on that asteroid determine
+which job operations can be executed there. In this simplified model, asteroid
+harvesting can be viewed as an FJSP with two additional constraints:
 
-- Moving factories is expensive, therefore a factory can only be deployed once on an asteroid, 
- it is active for a single consecutive time window. 
-- The upper limit of active machines (factory deployments) is determined by N, the number
- of factories. 
+- Moving factories is expensive, so a factory can only be deployed once on an
+  asteroid. It is active for a single consecutive time window.
+- The upper limit of active machines, or factory deployments, is determined by
+  N, the number of factories.
 
-Here is a solution of the problem for Brandimartes first benchmark problem instance
-with an upper limit of 4 active factories. 
+Here is a solution for Brandimartes first benchmark problem instance
+with an upper limit of 4 active factories.
 
 image::brandi1.45.png[]
 
-Executing the tutorial code
-https://github.com/dietmarwo/fast-cma-es/blob/master/examples/harvesting.py[harvesting.py] results in
-a similar Gantt diagram generated from a freshly computed solution. 
+Running the tutorial code
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/harvesting.py[harvesting.py]
+produces a similar Gantt diagram from a freshly computed solution.
 
-This kind of constraint is not new, using ILOG CP you can express it and compute a solution.
-So our focus is again on the multi-objective variant of the problem.  
+These constraints are not new. With ILOG CP, you can express them and compute a
+solution. Our focus is again the multi-objective variant of the problem.
 
 ==== Implementation
 
-The main difference compared to the FJSP implementation above 
-is that we have `2*n_machines+1` additional input variables:
+Compared to the FJSP implementation above, the main difference is that we have
+`2*n_machines+1` additional input variables:
 
-- The upper time limit any machine/factory can be active (`max_time`).
-- The start times each machine is activated (the factory is moved to the corresponding asteroid) (`start`).
-- The duration each machine remains active (the factory stays at the asteroid). (`duration`).
+- The upper time limit for which any machine or factory can be active (`max_time`).
+- The start time at which each machine is activated, meaning the factory is
+  moved to the corresponding asteroid (`start`).
+- The duration for which each machine remains active, meaning the factory stays
+  at the asteroid (`duration`).
 
 [source,python]
----- 
+----
     max_time = x[-1]
     start = x[-self.n_machines-1:-1]*max_time
     duration = x[-2*self.n_machines-1:-self.n_machines-1]*max_time
@@ -313,12 +329,13 @@ is that we have `2*n_machines+1` additional input variables:
         return np.array([0, 0, 0, 10000])
 ----
 
-`exec_tasks` will now - as part of the constraint enforcing parameter encoding - call
-`adjust_timing` which shifts the timing so that the `max_active` constraint is fulfilled: 
+`exec_tasks` now calls `adjust_timing` as part of the constraint-enforcing
+parameter encoding. `adjust_timing` shifts the timing so that the `max_active`
+constraint is satisfied:
 
 [source,python]
----- 
-@njit(fastmath=True) 
+----
+@njit(fastmath=True)
 def exec_tasks(tasks, n_jobs, n_machines, max_active, start, duration):
     success, start, stop = adjust_timing(start, duration, max_active)
     if not success:
@@ -327,29 +344,31 @@ def exec_tasks(tasks, n_jobs, n_machines, max_active, start, duration):
     return machine_time, job_time, machine_work_time, fails
 ----
 
-- Note that `adjust_timing` may fail. In this case the objective function will return a very high
-value to guide the optimization towards valid timings. 
-- There is an additional return value `fails` counting the number of operations which cannot
-be executed. This happens when the selected machine is already shut down (the factory moved to another asteroid). 
+- `adjust_timing` may fail. In that case, the objective function returns a very
+  high value to guide the optimization toward valid timings.
+- There is an additional return value `fails` counting the number of
+  operations that cannot be executed. This happens when the selected machine is
+  already shut down, meaning the factory moved to another asteroid.
 
 [source,python]
----- 
+----
     end_time = max(machine_time[machine], job_time[job]) + time
     if end_time > stop[machine]: # machine already shut down
         fails += 1 # failure to execute task at all
 ----
 
-`fails` should not be handled simply as another objective, since all solutions with `fails > 0` are
-invalid. Reduction of `fails` should be prioritized by the optimization process. Luckily 
-'modecpp.minimize' supports constraints as a special kind of objective. 
+`fails` should not be treated like an ordinary objective, because all
+solutions with `fails > 0` are invalid. Reducing `fails` must be prioritized by
+the optimization process. Luckily `modecpp.minimize` supports constraints as a
+special kind of objective.
 
 After calling `modecpp.retry` we filter infeasible results:
 
 [source,python]
 ----
-def retry_modecpp(fit, retry_num = 32, popsize = 48, max_eval = 500000, 
+def retry_modecpp(fit, retry_num = 32, popsize = 48, max_eval = 500000,
                   nsga_update = True, logger = logger(), workers=mp.cpu_count()):
-    xf, yf = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, retry_num, popsize, 
+    xf, yf = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, retry_num, popsize,
                   max_evaluations = 960000, nsga_update = nsga_update, logger = logger, workers=workers)
     xs = []; ys = []
     for i in range(len(yf)):
@@ -359,11 +378,11 @@ def retry_modecpp(fit, retry_num = 32, popsize = 48, max_eval = 500000,
     return np.array(xs), np.array(ys)
 ----
 
-and have to declare the new objective as constraint:
+and declare the new quantity as a constraint:
 
 [source,python]
 ----
-class fitness: 
+class fitness:
 
     def __init__(self, task_data, bounds, n_jobs, n_operations, n_machines, max_active, name):
         ...
@@ -372,38 +391,43 @@ class fitness:
         ...
 ----
 
-Of course this doesn't work for single objective optimization, where we have to assign a high weight to the constraint: 
+Of course this does not work for single-objective optimization. There we assign
+a high weight to the constraint:
 
 [source,python]
 ----
-self.weights = np.array([1, 02, 001, 1000]) # only used for single objective optimization 
+self.weights = np.array([1, 02, 001, 1000]) # only used for single objective optimization
 ----
 
-=== Results 
+=== Results
 
-All results may be reproduced by executing:
+All results can be reproduced by executing:
 
 [source,python]
 ----
     optall(multi_objective = True)
 ----
 
-For FJSP whe can compare with Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip[Kefalas] . 
-Unfortunately no timings are given there. We tried to reproduce their results using the Python code but got
-slightly worse results - probably a parameterization issue.
+For FJSP we can compare with `Results_TSM.txt` from
+https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip[Kefalas].
+Unfortunately, no timings are given there. We tried to reproduce their results
+using the Python code but got slightly worse values, probably because of a
+parameterization issue.
 
-Note that there exists no results in the literature for Mk11-15, probably because these benchmarks are hard
-to find. Luckily they are included in https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip[Kefalas].
- 
-Our timings are produced using a 16 core AMD 5950x CPU using 16 threads. Hyperthreading (`workers= mp.cpu_count()`)
-only helps for the single objective optimization using BiteOpt.   
+There do not seem to be results in the literature for Mk11-15, probably because
+these benchmarks are hard to find. Luckily they are included in
+https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip[Kefalas].
+
+Our timings were produced on a 16-core AMD 5950x CPU using 16 threads.
+Hyperthreading (`workers= mp.cpu_count()`) only helps for the single-objective
+optimization with BiteOpt.
 
 [source,python]
 ----
 Results
 ===============
 
-Mk01: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip 
+Mk01: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement.zip
 
 [(40, 168, 37),  (40, 174, 36),  (41, 167, 36),  (41, 162, 39),  (41, 165, 37),  (41, 164, 38),  (42, 159, 39),  (42, 160, 38),  (42, 163, 37),  (42, 165, 36),  (43, 155, 40),  (43, 158, 39),  (44, 154, 40),  (46, 153, 42)]
 
@@ -533,10 +557,12 @@ Mk15: modecpp.retry with retry_num=32, popsize = 48, max_eval = 960000, workers=
 
 ==== Challenges
 
-We observe a big result difference for Mk10, where the best single objective result found in the literature has `makespan < 200`. 
-The best solution published with a Gantt-Diagram we found has `makespan=213`, see https://www.researchgate.net/publication/282906979_Solving_the_Flexible_Job_Shop_Scheduling_Problem_With_Makespan_Optimization_by_Using_a_Hybrid_Taguchi-Genetic_Algorithm[Hao]
+Mk10 stands out. The best single-objective result we found in the literature
+has `makespan < 200`. The best published solution we found with a Gantt diagram
+has `makespan=213`, see
+https://www.researchgate.net/publication/282906979_Solving_the_Flexible_Job_Shop_Scheduling_Problem_With_Makespan_Optimization_by_Using_a_Hybrid_Taguchi-Genetic_Algorithm[Hao]
 
-===== FJSP 
+===== FJSP
 
 Our multi-objective solution
 
@@ -556,12 +582,13 @@ Mk10: Results_TSM.txt from https://moda.liacs.nl/code/KefalasEtAl2019-Supplement
 [(300, 2157, 224),  (311, 2128, 256),  (313, 2190, 220),  (313, 2127, 242),  (313, 2132, 241),  (314, 2133, 230),  (315, 2156, 220),  (316, 2128, 220),  (317, 2127, 211),  (318, 2113, 239),  (318, 2125, 230),  (321, 2101, 259),  (322, 2122, 223),  (323, 2113, 224),  (324, 2112, 217),  (325, 2094, 220),  (326, 2090, 221),  (331, 2109, 214),  (332, 2171, 210),  (333, 2137, 210),  (335, 2106, 218),  (336, 2087, 233),  (336, 2112, 208),  (339, 2082, 229),  (343, 2109, 213),  (345, 2107, 216),  (353, 2105, 215),  (357, 2082, 220),  (358, 2111, 212),  (359, 2069, 253),  (359, 2091, 208),  (362, 2080, 250),  (362, 2081, 236),  (363, 2057, 242),  (364, 2054, 210),  (364, 2128, 205),  (368, 2115, 206),  (390, 2092, 205),  (397, 2050, 248),  (416, 2084, 206),  (427, 2127, 204),  (452, 2082, 206),  (460, 2078, 209),  (515, 2132, 202)]
 ----
 
-What happens if we invest significantly more time and adapt the optimization parameters? 
-Using three objectives we find the following parato front containing a `makespan=216` solution:
+What happens if we invest much more time and adapt the optimization
+parameters? Using three objectives, we find the following Pareto front, which
+contains a `makespan=216` solution:
 
 image::brandi10.216b.png[]
 
-The optimization needed 34644 seconds, 5366235220 function evaluations.
+The optimization needed 34644 seconds and 5366235220 function evaluations.
 
 [source,python]
 ----
@@ -570,12 +597,13 @@ Mk10: modecpp.retry with retry_num=640, popsize = 500, max_eval = 16000000, work
 [(216.0, 1934.0, 212.0), (217.0, 1923.0, 210.0), (217.0, 1937.0, 207.0), (217.0, 1933.0, 208.0), (217.0, 1944.0, 203.0), (217.0, 1952.0, 201.0), (217.0, 1941.0, 205.0), (217.0, 1947.0, 202.0), (218.0, 1936.0, 205.0), (218.0, 1989.0, 200.0), (218.0, 1918.0, 212.0), (218.0, 1921.0, 210.0), (218.0, 1939.0, 203.0), (218.0, 1924.0, 207.0), (218.0, 1949.0, 201.0), (218.0, 1944.0, 202.0), (219.0, 1921.0, 208.0), (219.0, 1918.0, 210.0), (219.0, 1913.0, 212.0), (220.0, 1936.0, 203.0), (220.0, 1915.0, 210.0), (220.0, 1971.0, 200.0), (220.0, 1933.0, 205.0), (221.0, 1956.0, 200.0), (221.0, 1963.0, 196.0), (221.0, 1941.0, 202.0), (221.0, 1930.0, 205.0), (221.0, 1977.0, 195.0), (221.0, 1905.0, 221.0), (221.0, 1910.0, 217.0), (221.0, 1911.0, 214.0), (222.0, 1928.0, 205.0), (222.0, 1920.0, 207.0), (222.0, 1934.0, 204.0), (222.0, 1908.0, 214.0), (222.0, 1912.0, 210.0), (222.0, 1946.0, 201.0), (222.0, 1898.0, 216.0), (222.0, 1953.0, 200.0), (222.0, 1905.0, 215.0), (222.0, 1974.0, 195.0), (222.0, 1962.0, 197.0), (222.0, 1910.0, 212.0), (223.0, 1960.0, 198.0), (223.0, 1914.0, 209.0), (223.0, 1945.0, 200.0), (223.0, 1919.0, 207.0), (223.0, 1917.0, 208.0), (223.0, 1905.0, 213.0), (223.0, 1934.0, 203.0), (223.0, 1931.0, 204.0), (223.0, 1926.0, 205.0), (223.0, 1901.0, 215.0), (223.0, 1910.0, 210.0), (223.0, 1907.0, 212.0), (224.0, 1916.0, 207.0), (224.0, 1897.0, 216.0), (224.0, 1935.0, 201.0), (224.0, 1931.0, 203.0), (224.0, 1925.0, 205.0), (224.0, 1933.0, 202.0), (224.0, 1915.0, 208.0), (224.0, 1906.0, 210.0), (224.0, 1898.0, 215.0), (224.0, 1901.0, 213.0), (224.0, 1910.0, 209.0), (224.0, 1903.0, 212.0), (224.0, 1896.0, 219.0), (225.0, 1929.0, 204.0), (225.0, 1959.0, 199.0), (225.0, 1988.0, 194.0), (225.0, 1897.0, 215.0), (225.0, 1899.0, 212.0), (225.0, 1919.0, 205.0), (225.0, 1894.0, 216.0), (225.0, 1904.0, 210.0), (226.0, 1929.0, 203.0), (226.0, 1902.0, 210.0), (226.0, 1908.0, 209.0), (226.0, 1891.0, 217.0), (226.0, 1913.0, 208.0), (227.0, 1889.0, 220.0), (227.0, 1926.0, 204.0), (227.0, 1957.0, 196.0), (227.0, 1893.0, 216.0), (227.0, 1912.0, 208.0), (227.0, 1895.0, 215.0), (227.0, 1897.0, 212.0), (227.0, 1900.0, 210.0), (227.0, 1915.0, 205.0), (227.0, 1952.0, 197.0), (227.0, 1936.0, 200.0), (227.0, 1947.0, 199.0), (227.0, 1934.0, 201.0), (228.0, 1895.0, 214.0), (228.0, 1965.0, 195.0), (228.0, 1979.0, 194.0), (228.0, 1896.0, 212.0), (228.0, 1883.0, 220.0), (228.0, 1892.0, 215.0), (228.0, 1889.0, 216.0), (228.0, 1886.0, 217.0), (228.0, 1914.0, 206.0), (228.0, 1934.0, 200.0), (228.0, 1927.0, 201.0), (228.0, 1924.0, 204.0), (228.0, 1903.0, 209.0), (228.0, 1899.0, 210.0), (229.0, 1962.0, 195.0), (229.0, 1893.0, 212.0), (229.0, 1910.0, 208.0), (229.0, 1882.0, 220.0), (229.0, 1898.0, 211.0), (229.0, 1956.0, 196.0), (229.0, 1889.0, 215.0), (229.0, 1923.0, 204.0), (229.0, 1888.0, 216.0), (229.0, 1885.0, 217.0), (229.0, 1926.0, 203.0), (230.0, 1879.0, 220.0), (230.0, 1892.0, 212.0), (230.0, 1909.0, 208.0), (230.0, 1895.0, 210.0), (230.0, 1878.0, 230.0), (230.0, 1951.0, 198.0), (230.0, 1901.0, 209.0), (230.0, 1885.0, 215.0), (231.0, 1900.0, 209.0), (231.0, 1882.0, 218.0), (231.0, 1884.0, 217.0), (231.0, 1907.0, 208.0), (231.0, 1887.0, 212.0), (231.0, 1894.0, 210.0), (231.0, 1911.0, 207.0), (231.0, 1913.0, 205.0), (231.0, 1920.0, 204.0), (231.0, 1949.0, 198.0), (232.0, 1946.0, 199.0), (232.0, 1910.0, 206.0), (232.0, 1977.0, 194.0), (232.0, 1883.0, 215.0), (232.0, 1878.0, 225.0), (232.0, 1892.0, 211.0), (232.0, 1882.0, 216.0), (233.0, 1912.0, 205.0), (233.0, 1873.0, 225.0), (233.0, 1885.0, 214.0), (233.0, 1891.0, 210.0), (233.0, 1897.0, 209.0), (233.0, 1906.0, 208.0), (233.0, 1877.0, 224.0), (233.0, 1878.0, 220.0), (233.0, 1933.0, 200.0), (233.0, 1879.0, 215.0), (233.0, 1939.0, 199.0), (233.0, 1941.0, 198.0), (233.0, 1924.0, 203.0), (234.0, 1875.0, 218.0), (234.0, 1872.0, 220.0), (234.0, 1938.0, 199.0), (234.0, 1870.0, 227.0), (234.0, 1877.0, 216.0), (234.0, 1869.0, 230.0), (234.0, 1911.0, 205.0), (235.0, 1929.0, 200.0), (235.0, 1988.0, 191.0), (235.0, 1918.0, 204.0), (235.0, 1926.0, 201.0), (235.0, 1952.0, 196.0), (235.0, 1976.0, 194.0), (235.0, 1923.0, 203.0), (235.0, 1909.0, 207.0), (235.0, 1944.0, 197.0), (236.0, 1870.0, 225.0), (236.0, 1915.0, 204.0), (236.0, 1908.0, 205.0), (237.0, 1905.0, 208.0), (237.0, 1864.0, 227.0), (237.0, 1869.0, 225.0), (237.0, 1951.0, 196.0), (238.0, 1868.0, 225.0), (238.0, 1863.0, 235.0), (238.0, 1914.0, 204.0), (238.0, 1973.0, 194.0), (238.0, 1885.0, 212.0), (238.0, 1869.0, 220.0), (238.0, 1979.0, 191.0), (239.0, 1866.0, 226.0), (239.0, 1960.0, 195.0), (239.0, 1903.0, 208.0), (239.0, 1890.0, 211.0), (239.0, 1907.0, 205.0), (240.0, 1866.0, 225.0), (240.0, 1974.0, 191.0), (240.0, 1889.0, 210.0), (240.0, 1994.0, 190.0), (240.0, 1972.0, 194.0), (241.0, 1902.0, 208.0), (241.0, 1895.0, 209.0), (242.0, 1877.0, 215.0), (242.0, 1883.0, 212.0), (242.0, 1887.0, 211.0), (242.0, 1861.0, 230.0), (243.0, 1860.0, 240.0), (243.0, 1955.0, 195.0), (244.0, 1906.0, 207.0), (245.0, 2010.0, 189.0), (247.0, 1993.0, 190.0), (247.0, 1858.0, 240.0), (247.0, 1859.0, 236.0), (248.0, 1861.0, 227.0), (248.0, 1860.0, 235.0), (248.0, 1868.0, 224.0), (248.0, 1865.0, 225.0), (249.0, 1866.0, 224.0), (249.0, 1901.0, 208.0), (249.0, 1863.0, 225.0), (250.0, 1855.0, 240.0), (250.0, 1973.0, 193.0), (250.0, 1856.0, 236.0), (251.0, 1858.0, 230.0), (252.0, 1854.0, 250.0), (253.0, 1970.0, 191.0), (253.0, 1967.0, 192.0), (255.0, 2001.0, 189.0), (255.0, 1966.0, 194.0), (256.0, 1900.0, 208.0), (259.0, 1860.0, 228.0), (260.0, 1853.0, 260.0), (260.0, 1857.0, 235.0), (260.0, 1858.0, 228.0), (261.0, 1854.0, 245.0), (262.0, 1855.0, 230.0), (262.0, 1852.0, 240.0), (262.0, 1853.0, 236.0), (263.0, 1851.0, 250.0), (264.0, 1850.0, 260.0), (267.0, 1990.0, 190.0), (270.0, 1849.0, 270.0), (272.0, 1925.0, 202.0), (273.0, 1997.0, 189.0), (280.0, 1848.0, 280.0), (290.0, 1847.0, 290.0)]
 ----
 
-Eliminating the last objective simplifies the task significantly, we find a
-`makespan = 208` solution, not far away from the best solution ever found using single objective optimization.  
+Eliminating the last objective simplifies the task significantly. In that
+setting we find a `makespan = 208` solution, which is not far from the best
+solution ever found using single-objective optimization.
 
 image::brandi10.208.png[]
 
-The optimization needed 3669 seconds, 1207225466 function evaluations.
+The optimization needed 3669 seconds and 1207225466 function evaluations.
 
 [source,python]
 ----
@@ -584,11 +612,12 @@ Mk10: modecpp.retry with retry_num=640, popsize = 480, max_eval = 16000000, work
 [(208.0, 1978.0), (209.0, 1973.0), (210.0, 1967.0), (211.0, 1966.0), (212.0, 1959.0), (213.0, 1955.0), (214.0, 1941.0), (215.0, 1928.0), (216.0, 1926.0), (217.0, 1923.0), (218.0, 1917.0), (219.0, 1913.0), (220.0, 1910.0), (221.0, 1903.0), (222.0, 1900.0), (223.0, 1896.0), (224.0, 1895.0), (225.0, 1894.0), (226.0, 1882.0), (229.0, 1881.0), (230.0, 1875.0), (231.0, 1874.0), (233.0, 1869.0), (234.0, 1866.0), (237.0, 1864.0), (239.0, 1863.0), (241.0, 1861.0), (242.0, 1858.0), (248.0, 1855.0), (250.0, 1854.0), (259.0, 1853.0), (260.0, 1850.0), (270.0, 1849.0), (280.0, 1848.0), (290.0, 1847.0)]
 ----
 
-Alternatively, a `makespan = 210` solution with better second objective:
+Alternatively, we get a `makespan = 210` solution with a better second
+objective:
 
 image::brandi10.210.png[]
 
-The optimization needed 605 seconds, 194758803 function evaluations.
+The optimization needed 605 seconds and 194758803 function evaluations.
 
 [source,python]
 ----
@@ -597,25 +626,31 @@ Mk10: modecpp.retry with retry_num=640, popsize = 480, max_eval = 16000000, work
 (210.0, 1944.0), (212.0, 1933.0), (214.0, 1930.0), (215.0, 1924.0), (216.0, 1921.0), (217.0, 1913.0), (219.0, 1911.0), (220.0, 1907.0), (221.0, 1899.0), (222.0, 1896.0), (225.0, 1892.0), (226.0, 1888.0), (227.0, 1886.0), (228.0, 1882.0), (229.0, 1878.0), (233.0, 1875.0), (234.0, 1873.0), (235.0, 1868.0), (237.0, 1866.0), (240.0, 1864.0), (243.0, 1860.0), (244.0, 1858.0), (247.0, 1857.0), (250.0, 1854.0), (252.0, 1853.0), (255.0, 1851.0), (260.0, 1850.0), (270.0, 1849.0), (280.0, 1848.0), (290.0, 1847.0)]
 ----
 
-This time we deployed a sophisticated termination check `is_terminate(ys, workers, max_evals)`. 
-Its idea is to prematurely stop the `modecpp` optimization if the result so far
-is below average with limited impact on the overall result. We configure three 'checkpoints':  
+This time we used a custom termination check
+`is_terminate(ys, workers, max_evals)`. Its purpose is to stop a `modecpp`
+optimization run early if the intermediate result is below average and is
+unlikely to affect the final overall result much. We configure three
+checkpoints:
 
 [source,python]
 ----
 self.checks = [int(max_evals/33), int(max_evals/10), int(max_evals/3.3)]
 ----
 
-`ys = mp.RawArray(ct.c_double, workers)` is shared between threads and communicates the progress between them. 
-`self.limits[i] = np.sort(np.array(int(yi) for yi in self.ys[:]]))` takes a snapshot of the progress when
-the checkpoint is reached the first time. This 'snapshot' provides the threshold for the termination check. We take
-the 9th, 5th and 3rd best value as threshold for the first, second and third checkpoint. Note that we have to take
-a snapshot because the actual progress improves further as we proceed, so the thresholds would become much harder
-to reach over time. `modecpp.retry` calls `is_terminate.reinit` before each parallel optimization so we can
-reinitialize the thread local variables. Note that all variables beside `ys` are thread local. We created only 
-one instance of class `is_terminate` but Python multiprocessing creates 16 more, one for each worker process
-created by `modecpp.retry`. `is_terminate` maintains all the information it needs for its termination decision
-using the function values `y` it gets when it is called via `__call__(self, x, y)`. 
+`ys = mp.RawArray(ct.c_double, workers)` is shared between workers and records
+their current progress. `self.limits[i] = np.sort(np.array(int(yi) for yi in self.ys[:]]))`
+takes a snapshot when a checkpoint is reached for the first time. This snapshot
+defines the threshold for the termination check. We use the 9th, 5th, and 3rd
+best values as thresholds for the first, second, and third checkpoint. A
+snapshot is necessary because progress keeps improving as the run continues, so
+the thresholds would otherwise become harder to reach over time.
+`modecpp.retry` calls `is_terminate.reinit` before each parallel optimization,
+so we can reinitialize the thread-local variables. All variables except `ys`
+are thread local. We create only one instance of `is_terminate`, but Python
+multiprocessing creates 16 more, one for each worker process created by
+`modecpp.retry`. `is_terminate` keeps all information needed for its
+termination decision from the function values `y` it receives through
+`__call__(self, x, y)`.
 
 [source,python]
 ----
@@ -636,7 +671,7 @@ class is_terminate(object):
         self.count = 0
         self.score = 1E99
         self.terminate = False
-    
+
     def __call__(self, x, y):
         self.count += 1
         pid = os.getpid() % self.workers
@@ -644,36 +679,38 @@ class is_terminate(object):
             self.ys[pid] = y[0]
         if y[0] < self.score:
             self.score = y[0]
-        for i in range(len(self.limits)):            
+        for i in range(len(self.limits)):
             if self.count == self.checks[i]:
                 if self.limits[i] is None:
                     self.limits[i] = np.sort(np.array([int(yi) for yi in self.ys[:]]))
                 if self.score >= self.limits[i][self.ci[i]]:
-                    self.terminate = True        
-        return self.terminate            
+                    self.terminate = True
+        return self.terminate
 
     ...
     workers = 16
     max_evals = 16000000
     ys = mp.RawArray(ct.c_double, workers)
     for i in range(workers): ys[i] = 1E99
-    xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=6400, popsize = 480, 
-              max_evaluations = max_evals, nsga_update = True, logger = logger(), 
-              is_terminate = is_terminate(ys, workers, max_evals), 
+    xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=6400, popsize = 480,
+              max_evaluations = max_evals, nsga_update = True, logger = logger(),
+              is_terminate = is_terminate(ys, workers, max_evals),
               workers=workers)
 ----
 
 ===== Asteroid harvesting
 
-Asteroid harvesting for Mk10 with 5 factories, single objective optimization results in `makespan = 484`:
+For Mk10 asteroid harvesting with 5 factories, single-objective optimization
+gives `makespan = 484`:
 
 image::brandi10.484bite.png[]
 
-The optimization needed 21916 seconds, 2865206239 function evaluations, BiteOpt was called using 
+The optimization needed 21916 seconds and 2865206239 function evaluations.
+BiteOpt was called using
 
 [source,python]
 ----
-    retry.retry(store, Bite_cpp(1960000,M=1).minimize, num_retries=1600)    
----- 
+    retry.retry(store, Bite_cpp(1960000,M=1).minimize, num_retries=1600)
+----
 
-Would be interesting to see if these results can be improved using other methods. 
+It would be interesting to see whether other methods can improve these results.

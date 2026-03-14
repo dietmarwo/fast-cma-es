@@ -14,42 +14,39 @@ image::logo.gif[]
 
 This tutorial
 
-- Discusses the use of customized surrogate models based on the Mazda car design optimization problem
-- Compares with the application of a generic surrogate model.
+- discusses customized surrogate models using the Mazda car design optimization problem
+- compares this approach with the use of a generic surrogate model.
 
 === Motivation
 
-Since 2006 I am participating in the https://sophia.estec.esa.int/gtoc_portal/[GTOC] competition about
-global space trajectory optimization problems. Up to now (2022) there were eleven competitions, each
-including optimization problems not solvable without a surrogate model approximating the real world
-model specified in the tasks. In almost all cases the participants choose to use a customized
-domain specific surrogate. 
-See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc[Tutorials] for details
-about the first competition https://sophia.estec.esa.int/gtoc_portal/?page_id=13[Save the Earth].
-In this case continuous thrust specified by ODEs is modeled by so called 
+Since 2006 I have participated in the https://sophia.estec.esa.int/gtoc_portal/[GTOC] competition on
+global space trajectory optimization problems. Up to 2022 there were eleven competitions. Each one
+included problems that are hard to solve without a surrogate model that approximates the real-world
+model described in the task. In almost all cases, participants used a customized domain-specific
+surrogate. See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc[Tutorials]
+for details about the first competition https://sophia.estec.esa.int/gtoc_portal/?page_id=13[Save the
+Earth]. There, continuous thrust defined by ODEs is approximated by
 http://nbodyphysics.com/blog/gravity-engine-doc-1-3-2-2-2/demonstrations-2/lambert-transfer/Lambert/[Lambert transfers].
-Local optimization applied to segments of the trajectories is used to convert the surrogate model results
-into a trajectory fulfilling the ODEs of the real problem. 
+Local optimization is then applied to trajectory segments to turn the surrogate solution into one that
+satisfies the ODEs of the real problem.
 
-Is this approach specific to the space flight dynamics domain? 
+The same idea also appears outside space flight dynamics.
 
-Another example for a customized surrogate model is the http://ladse.eng.isas.jaxa.jp/benchmark/[Mazda Benchmark Problem]
-jointly developed by the Mazda Motor
-Corporation, Japan Aerospace Exploration Agency, and Tokyo
-University of Science. The problem is 
-multi-objective involving 222 discrete decision variables,
-and 54 inequality constraints.
-Three cars are designed simultaneously thereby minimizing their weight and maximizing 
-the number of common thickness parts among the three types of cars - which minimizes their production 
-cost. The original constraints of the problem simulate collisions to evaluate car safety. In the 
-benchmark these expensive simulations are modeled by response surface approximations which can be 
-viewed as a domain specific surrogate model. After generating solutions for the approximated
-model, real collision simulations can be applied to the solution to filter solutions valid in the real world. 
+Another example is the http://ladse.eng.isas.jaxa.jp/benchmark/[Mazda Benchmark Problem], jointly
+developed by the Mazda Motor Corporation, Japan Aerospace Exploration Agency, and Tokyo University of
+Science. It is a multi-objective problem with 222 discrete decision variables and 54 inequality
+constraints. Three cars are designed at the same time. The goals are to minimize their combined weight
+and maximize the number of common thickness parts across the three car types, because that reduces
+production cost. The original constraints use collision simulations to evaluate safety. In the
+benchmark, these expensive simulations are replaced by response surface approximations. These
+approximations already act as a domain-specific surrogate model. After generating solutions for the
+approximated model, real collision simulations can be used to filter solutions that also remain valid in
+the real world.
 
-Is it a good idea to apply an additional "generic surrogate layer" to solve this problem? To check
-this we will compare results from   
+Should we add another "generic surrogate layer" on top of this problem? To answer that question, we
+compare with results from
 https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions].
-This paper contains an interesting debatable statement: 
+The paper contains an interesting and debatable statement:
 
 - "However, when one single
 objective or constraint function evaluation potentially takes
@@ -59,158 +56,166 @@ sense to use a surrogate-based method given the substantial
 improvement in the best feasible solution obtained through
 the surrogate."
 
-"Surrogate" in this statement means generic surrogate methods like radial basis functions. 
-We will show the obvious fact:
+"Surrogate" in this statement means generic surrogate methods such as radial basis functions. Here the
+point is simpler:
 
-- It is a bad idea to apply a generic surrogate model to a problem where we have already a domain specific
-surrogate model and therefore can execute a large number of function / constraints evaluations. 
+- It is a bad idea to apply a generic surrogate model to a problem that already has a domain-specific
+surrogate model and therefore allows a large number of function / constraint evaluations.
 
-A result which needs about 6 hours using the method proposed by the paper needs about 8 seconds using fcmaes. 
-We use a cheap 600$ CPU (AMD5950x), so it is not the hardware responsible for the difference.  
-Parallel function evaluation enables about 6000 evaluations per second (including the 54 constraints and the
-optimization algorithm overhead). In the paper only 4000 function evaluations are required, 
-but does this really help if these need over 6 hours instead of a single second? Additionally, 
-our optimization starts from a random population and don't require a feasible solution as input 
-as CONDOR, the method from the paper.  
+A result that needs about 6 hours with the method from the paper needs about 8 seconds with fcmaes. We
+use a cheap 600$ CPU (AMD5950x), so the difference is not caused by unusual hardware. Parallel function
+evaluation enables about 6000 evaluations per second, including the 54 constraints and the optimization
+overhead. In the paper, only 4000 function evaluations are required. But that does not help if those
+evaluations take more than 6 hours instead of about a second. In addition, our optimization starts from
+a random population and does not require a feasible input solution, unlike CONDOR, the method from the
+paper.
 
-The interesting question is about the statement above:
+That leads to the broader question:
 
-- Should we apply a generic or a domain specific customized surrogate model? Of course 
-it is easier to use a generic surrogate, but for many domains like space flight dynamics
-and car design there exist already domain specific surrogate models which can be reused. 
+- Should we apply a generic or a domain-specific customized surrogate model? A generic surrogate is
+often easier to apply, but in many domains, such as space flight dynamics and car design, reusable
+domain-specific surrogate models already exist.
 
-Even when it is impossible to create a domain specific surrogate, we still can think of
-other means to speed up the simulation:
+Even when a domain-specific surrogate is not available, there are other ways to speed up the
+simulation:
 
 - Parallelization: Utilizing all cores of the CPU.
-- Clusterization: Distributing expensive simulations on separate cluster nodes. 
+- Clusterization: Distributing expensive simulations across separate cluster nodes.
 See https://github.com/dietmarwo/fcmaes-java/blob/master/temporal/README.adoc[Temporal-tutorial] for an example.
-- Applying https://numba.pydata.org/[numba] can speed up simulations by factor 10-100 as shown
-in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[Crypto Trading], 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[Noisy TSP],    
+- Applying https://numba.pydata.org/[numba] can speed up simulations by a factor of 10-100, as shown
+in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[Crypto Trading],
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[Noisy TSP],
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop] and
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling].
 
-Most generic surrogate methods - with the exception of 
-https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/MVRSM[MVRSM] - 
-share one deficiency:  
+Most generic surrogate methods, with the exception of
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/MVRSM[MVRSM],
+share one weakness:
 
-- They are very good for the first few hundred function evaluations, but often don't scale well for larger budgets.
+- They are very good for the first few hundred function evaluations, but often do not scale well to
+larger budgets.
 
 === Car design
 
 From the https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc[README], section
-"Engineering Design Optimization" we know already that the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[MODE]
-algorithm can solve the two-objective Mazda car design task. This problem requires the corresponding
-shared library which is not included in fcmaes for licensing reasons. Therefore we will show how to define the corresponding 
-objective function, but this code cannot be executed without the shared library. 
+"Engineering Design Optimization", we already know that the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[MODE]
+algorithm can solve the two-objective Mazda car design task. This problem requires a corresponding
+shared library, which is not included in fcmaes for licensing reasons. We therefore show how to define
+the objective function, but the code cannot be executed without that shared library.
 
 ==== Single objective variant results
 
-To compare with 
+To compare with
 https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions].
-we have to use a single objective variant of the Mazda car design problem optimizing only for the combined masses of the car models. 
-In the real world a result for this problem variant is of limited value, since the low number of shared part thicknesses obtained largely 
-increase the production cost. This problem is an order of magnitude easier to solve than the two objective variant, which 
-we will see later by comparing the results for both cases.  
-We only need a few seconds to obtain a good feasible solution. We can either apply Differential Evolution using the 
-weighted sum approach for the constraints: 
+we use a single-objective variant of the Mazda car design problem that optimizes only the combined
+masses of the car models. In practice, this variant is of limited value, because too few shared part
+thicknesses tend to increase production cost. It is also an order of magnitude easier to solve than the
+two-objective variant, as we will see later. A good feasible solution appears after only a few seconds.
+One option is Differential Evolution with a weighted-sum approach for the constraints:
 
-In the following image we see a comparison of the three discussed methods with a tim budged of 160 seconds (AMD 5950x using 32 threads)
+The following image compares three methods with a time budget of 160 seconds on an AMD 5950x using 32
+threads:
 
 - fcmaes Differential Evolution, population size = 64, weighted sum approach.
 - fcmaes MODE, nsga_update=False, population size = 64, using constraints.
 - fcmaes MODE, nsga_update=False, population size = 64, weighted sum approach.
 
-The results show that:
+The results show:
 
-- All fcmaes methods surpass the best result from 
-https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions].
-(2.65) after a few seconds. 
-- After 160 seconds results between 2.578 and 2.625 are reached. Either investing over 6 hours was not enough, or initializing CONDOR with 
-feasible solutions (fcmaes starts with random solutions) traps the search in local minima. 
-- fcmaes MODE works better here than fcmaes DE, even with a single objective and if the same weighted sum approach is used for the constraints. 
-  Reason could be the DE/rand/1 strategy (nsga_update=False) - DE uses DE/best/1 strategy. 
-- fcmaes MODE works best with explicit constraints, since these are prioritized by the algorithm. 
+- All fcmaes methods surpass the best result from
+https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions]
+(2.65) after a few seconds.
+- After 160 seconds, results between 2.578 and 2.625 are reached. Either more than 6 hours was still
+not enough, or initializing CONDOR with feasible solutions, while fcmaes starts from random solutions,
+traps the search in local minima.
+- fcmaes MODE works better here than fcmaes DE, even with a single objective and with the same
+weighted-sum approach for the constraints. One possible reason is the DE/rand/1 strategy
+(`nsga_update=False`); DE uses the DE/best/1 strategy.
+- fcmaes MODE works best with explicit constraints, since these are prioritized by the algorithm.
 
-Note that both DE and MODE utilize the `ints = np.array([True]*dim)' parameter indicating that we only have discrete decision variables. 
+Note that both DE and MODE use the `ints = np.array([True]*dim)` parameter to indicate that all decision
+variables are discrete.
 
 image::Mazda_single_objective_mixed_integer_constrained_problem.png[]
 
 ==== Multi objective variant results
 
-The multi-objective problem variant optimizes both for the masses of the car models and for the number of shared part thicknesses. 
-First we see all pareto fronts computed after 160 seconds (AMD 5950x CPU utilizing 32 threads) for about 20 optimization runs. 
-Best masses vary between 2.65 and 2.79 and best common part thicknesses are between 41 and 59. The red line is the pareto front of all 
-20 runs combined. 
+The multi-objective variant optimizes both the car masses and the number of shared part thicknesses.
+The first figure shows all Pareto fronts computed after 160 seconds on an AMD 5950x CPU using 32
+threads, across about 20 optimization runs. Best masses vary between 2.65 and 2.79, and the best
+numbers of common part thicknesses vary between 41 and 59. The red line is the Pareto front obtained by
+combining all 20 runs.
 
 image::Mazda_multi_objective_MODE_32_threads_160_sec.png[]
 
-Increasing the time budged by factor 10 (1600 sec) changes the picture significantly.
-Best masses vary between 2.57 and 2.63 and best common part thicknesses are between 71 and 74.
-Even for a good mass of 2.7 we get 64 - 69 common parts, a quite consistent result for the 20 runs
-executed. The red line which combines the results for all runs can be viewed as a reference
-for other methods and can reduce production cost significantly. These results cannot be reproduced
-using NSGA-II update (nsga_update=True), but this setting proved to be superior for other problems. 
+Increasing the time budget by a factor of 10 to 1600 sec changes the picture significantly. Best
+masses vary between 2.57 and 2.63, and the best numbers of common part thicknesses vary between 71 and
+74. Even for a good mass of 2.7, we get 64 - 69 common parts. The 20 runs are quite consistent. The
+red line, which combines all runs, can serve as a reference for other methods and points to a
+significant reduction in production cost. We could not reproduce these results with NSGA-II update
+(`nsga_update=True`), although that setting proved superior for other problems.
 
 image::Mazda_multi_objective_MODE_32_threads_1600_sec.png[]
 
-Looking at the picture above, there is an idea which can be derived from it: Instead of parallel function evaluation we 
-could use parallel retries and use the combined pareto front as result:
+The picture above suggests another idea. Instead of parallel function evaluation, we can use parallel
+retries and take the combined Pareto front as the result:
 
 image::Mazda_multi_objective_MODE_32_parallel_retries_popsize_96.png[]
 
-We exchanged x- and y- axis to enable direct comparison with the
+We exchanged the x- and y-axis to enable direct comparison with the
 https://www.jstage.jst.go.jp/article/tjpnsec/9/2/9_86/_article/-char/en[Evolutionary Competition 2017] results:
 
 image::mazdacomp.png[]
 
-In the competition there was a evaluation number limit of 30000. Considering this the shown results are
-excellent, but unfortunately the used algorithms cannot be found as open source, so they are hard
-to reproduce. Hypervolume 0.45 after 30000 evaluations is really fast, MODE converges much slower:
+In the competition, there was an evaluation limit of 30000. Under that limit, the shown results are
+excellent. Unfortunately, the algorithms do not seem to be available as open source, so they are hard
+to reproduce. A hypervolume of 0.45 after 30000 evaluations is very fast. MODE converges much more
+slowly:
 
 image::Mazda_multi_objective_MODE_32_parallel_retries_hypervolume_popsize_96.png[]
 
-On the other hand: If you for instance really want to produce the three car models using a specific combined mass of 2.625, the number of common part thicknesses shown for the best competition results is
-31. MODEs number is 62, twice as much, although the hypervolume looks similar: 0.49 for MODE, 0.45
-for the best competition results. 62 common part thicknesses compared to 31 has a significant impact
-on production cost, which means the competition results are not really relevant in practice. 
-Is 10 hours execution time using a single mainstream CPU really an issue? Unfortunately we cannot 
-check if, and with which evaluation/time budged the competition methods can reach hypervolume 0.49. 
+On the other hand, if you really want to produce the three car models at a combined mass of 2.625, the
+best competition results show 31 common part thicknesses. MODE reaches 62, about twice as many,
+although the hypervolume looks similar: 0.49 for MODE and 0.45 for the best competition results. The
+difference between 62 and 31 common part thicknesses has a significant impact on production cost. That
+means the competition results are not very relevant in practice. Whether 10 hours of execution time on a
+single mainstream CPU is really an issue depends on the use case. Unfortunately, we cannot check
+whether, or with which evaluation and time budget, the competition methods can reach hypervolume 0.49.
 
 === Reference Solution
 
-The following optimizer configuration was used to produce the `Hypervolume = 0.4959` reference solution below.
+The following optimizer configuration was used to produce the `Hypervolume = 0.4959` reference solution
+shown below.
 
 [source,python]
----- 
-            x, y = modecpp.retry(fun, problem.nobj, problem.ncon, problem.bounds, popsize = 256, 
+----
+            x, y = modecpp.retry(fun, problem.nobj, problem.ncon, problem.bounds, popsize = 256,
                                 max_evaluations = 5000000, ints = np.array([True]*dim),
                                 nsga_update=False, num_retries = 16, workers=16)
             np.savez_compressed(pname, xs=x, ys=y)
             moretry.plot(pname, problem.ncon, x, y)
 ----
 
-16 parallel `mode` optimization runs were the pareto fronts were joined, 5E6 evaluations each. It was executed twice
-in parallel on the AMD 5950x 16 core CPU to maximize CPU utilization. Combined evaluation rate was 8400 evals/second. 
+16 parallel `mode` optimization runs were executed, and their Pareto fronts were joined, with 5E6
+evaluations each. This setup was executed twice in parallel on the AMD 5950x 16 core CPU to maximize
+CPU utilization. The combined evaluation rate was 8400 evals/second.
 
 image::front_mazda_all.png[]
 
 === Wrapping the objective function
-First download the http://ladse.eng.isas.jaxa.jp/benchmark/Mazda_CdMOBP.zip[Mazda sources]. 
-We show everything only for the three car problem, the two car problem is very similar. 
+First download the http://ladse.eng.isas.jaxa.jp/benchmark/Mazda_CdMOBP.zip[Mazda sources]. We show
+everything only for the three-car problem. The two-car problem is very similar.
 
-Calling the C++ code via command line causes a significant overhead - much more than the
-function execution itself, and there are only executables
-for linux+win64. Therefore we first we need to enable calling the C++ code via 
-Python and add the following to `mazda_mop.cpp`:
+Calling the C++ code through the command line adds significant overhead, much more than the function
+execution itself. There are also only executables for linux+win64. We therefore enable direct calls
+from Python and add the following to `mazda_mop.cpp`:
 
 [source,c++]
----- 
+----
 extern "C" {
 
-    void fitness_MazdaMop_C(double* x, int dim, double* objs, double* constr) {    
-        try { 
+    void fitness_MazdaMop_C(double* x, int dim, double* objs, double* constr) {
+        try {
             bp::MazdaMop mop;
             if (dim != mop.nvar) {
                 cerr << "[Error] The number of variables is different from the benchmark problem." << endl;
@@ -221,7 +226,7 @@ extern "C" {
             vector<double> var(mop.nvar);
             for (int i = 0; i < mop.nvar; i++)
                 var[i] = x[i];
-            vector<double> obj(mop.nobj); 
+            vector<double> obj(mop.nobj);
             vector<double> con(mop.ncon);
             mop.evaluate(var, obj, con);
             for (int i = 0; i < mop.nobj; i++)
@@ -238,12 +243,13 @@ extern "C" {
 }
 ----
 
-Undefine the `cout << "[Info] Acknowledge of your ...` line because this doesn't work from Python. 
+Undefine the `cout << "[Info] Acknowledge of your ...` line, because it does not work when called from
+Python.
 
-Next we create a CMakeList.txt to create the library file 
+Next we create a CMakeList.txt to build the library file.
 
 [source]
----- 
+----
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
 INCLUDE_DIRECTORIES(/path_to/Mazda_CdMOBP/Mazda_CdMOBP/src/RSM/)
@@ -260,28 +266,29 @@ add_library(mazda SHARED mazda_mop.cpp mazda_mop_sca.cpp RSM/g01_SUV_FrFL.cpp  R
 set(CMAKE_INSTALL_LIBDIR ${CMAKE_BINARY_DIR}/../Mazda_CdMOBP/lib)
 ----
 
-By executing cmake and make we should get a libmazda.so / libmazda.dll file we can read from Python:
+After running `cmake` and `make`, we should get a `libmazda.so` / `libmazda.dll` file that Python can
+load:
 
-Now we can use this code from Python:
+We can then load the library from Python:
 
 [source,python]
----- 
+----
 basepath = os.path.dirname(os.path.abspath(__file__))
 if sys.platform.startswith('linux'):
-    libmazda = ct.cdll.LoadLibrary(basepath + '/../fcmaes/lib/libmazda.so')  
+    libmazda = ct.cdll.LoadLibrary(basepath + '/../fcmaes/lib/libmazda.so')
 else:
     os.environ['PATH'] = (basepath + '/lib') + os.pathsep + os.environ['PATH']
-    libmazda = ct.cdll.LoadLibrary(basepath + '/../fcmaes/lib/libmazda.dll')  
+    libmazda = ct.cdll.LoadLibrary(basepath + '/../fcmaes/lib/libmazda.dll')
 
 fitness_MazdaMop = libmazda.fitness_MazdaMop_C
-fitness_MazdaMop.argtypes = [ct.POINTER(ct.c_double), ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double)]         
+fitness_MazdaMop.argtypes = [ct.POINTER(ct.c_double), ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_double)]
 ----
 
-From Info_Mazda_CdMOBP.xlsx we need to copy the info about the discrete values for the 222 decision variables
-and define fitness(x) which calls the C++ library: 
+From `Info_Mazda_CdMOBP.xlsx`, we need to copy the discrete values for the 222 decision variables and
+define `fitness(x)`, which calls the C++ library:
 
 [source,python]
----- 
+----
 dim = 222
 nobj = 5
 ncon = 54
@@ -509,7 +516,7 @@ decision_x = [   \
     [2.0, 2.2, 2.3, 2.4, 2.6], \
     [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.2, 1.3], \
     ]
-    
+
 def fitness(x):
     try:
         x = np.array(x)
@@ -517,22 +524,22 @@ def fitness(x):
         c = np.empty(ncon)
         x = np.array([decision_x[i][int(xi)] for i, xi in enumerate(x)])
         x_p = x.ctypes.data_as(ct.POINTER(ct.c_double))
-        y_p = y.ctypes.data_as(ct.POINTER(ct.c_double))  
-        c_p = c.ctypes.data_as(ct.POINTER(ct.c_double))  
+        y_p = y.ctypes.data_as(ct.POINTER(ct.c_double))
+        c_p = c.ctypes.data_as(ct.POINTER(ct.c_double))
         if two_cars:
-            fitness_MazdaMop_sca(x_p, dim, y_p, c_p)  
+            fitness_MazdaMop_sca(x_p, dim, y_p, c_p)
         else:
-            fitness_MazdaMop(x_p, dim, y_p, c_p)   
+            fitness_MazdaMop(x_p, dim, y_p, c_p)
         return np.array(list(y[:2]) + list(c * -1))
     except Exception as ex:
-        return None 
+        return None
 ----
 
-We are only interested in the first two objectives and need to negate the constraint values, 
-therefore the `return np.array(list(y[:2]) + list(c * -1))`. Now we can define the problem class:
+We are interested only in the first two objectives, and we need to negate the constraint values. That
+is why the code returns `np.array(list(y[:2]) + list(c * -1))`. We can now define the problem class:
 
 [source,python]
----- 
+----
 
 max_decision_x = [len(x)-1 for x in decision_x]
 
@@ -547,48 +554,48 @@ class madzda_problem(object):
 
     def eval(self, x, is_multi):
         y = fitness(x)
-        constr = np.maximum(y[self.nobj:], 0) # we are only interested in constraint violations       
-        fval = np.array(list(y[:self.nobj]) + list(constr))              
+        constr = np.maximum(y[self.nobj:], 0) # we are only interested in constraint violations
+        fval = np.array(list(y[:self.nobj]) + list(constr))
         ys = self.eval_single(fval, is_multi)
         return y, ys, fval, constr
-        
+
     def fun(self, x): # multi objective value
         _, _, fval, _ = self.eval(x, True)
         return fval
-        
+
     def sfun(self, x): # single objective value, constraint via weighted sum
         _, ys, _, _ = self.eval(x, False)
         return ys
 
     def sfun_c(self, x): # single objective value, separate constraints
-        y, _, _, constr = self.eval(x, False)           
+        y, _, _, constr = self.eval(x, False)
         return np.array([y[0]] + list(constr))
-           
-    def sfun_m(self, x): # MODE expects a list / array as result. 
+
+    def sfun_m(self, x): # MODE expects a list / array as result.
         return [self.sfun(x)]
-        
+
     def eval_single(self, fval, is_multi):
         # constraints get a higher weight than the objectives
         weights = np.array([1, 1] + [3]*self.ncon) if is_multi else np.array([1, 0] + [3]*self.ncon)
-        return sum(weights*fval)         
+        return sum(weights*fval)
 ----
 
 
 === Configuring fcmaes Differential Evolution - single objective weighted sum
 
-Adapt `workers` to your processor. It may be better to not utilize all threads (hyperthreading),
-on the AMD5950x it is ok to use all 16 cores / 32 threads.  
+Adapt `workers` to your processor. It may be better not to use all hyperthreaded threads. On the
+AMD5950x, using all 16 cores / 32 threads works well.
 
-We use population size 64. DE uses always the best population member
-to generate the descendants, but has a special mechanism (killing old population members)
-to avoid getting stuck in a local minimum. 
+We use population size 64. DE always uses the best population member to generate descendants, but it
+also has a special mechanism for removing old population members. That reduces the risk of getting
+stuck in a local minimum.
 
 [source,python]
-----        
+----
         for i in range(20):
             problem = madzda_problem()
             ret = decpp.minimize(optimizer.wrapper(problem.sfun), dim, problem.bounds,
-                                max_evaluations = 1000000, 
+                                max_evaluations = 1000000,
                                 popsize=64, workers=32, ints=np.array([True]*dim))
 ----
 
@@ -596,105 +603,104 @@ to avoid getting stuck in a local minimum.
 
 ==== Single objective weighted sum
 
-We again use population size 64 and use "better" population members with higher probability
-to generate the descendants `pareto_update=1`. `sfun_m` uses the weighted sum approach to handle
-the constraints, with a 3 times higher weight on constraint values compared to objective values. 
+Again we use population size 64. Better population members are chosen with higher probability to
+generate descendants via `pareto_update=1`. `sfun_m` handles the constraints with a weighted-sum
+approach and gives constraint values three times the weight of objective values.
 
 [source,python]
----- 
+----
         problem = madzda_problem()
-        x, y = modecpp.minimize(mode.wrapper(problem.sfun_m, 1), 
-                                 1, 0, problem.bounds, popsize = 64, 
+        x, y = modecpp.minimize(mode.wrapper(problem.sfun_m, 1),
+                                 1, 0, problem.bounds, popsize = 64,
                                  max_evaluations = 1000000, pareto_update=1, log_period = 100000,
                                  nsga_update=False, workers=32, ints=np.array([True]*dim))
 ----
 
 ==== Single objective, separate constraints
 
-We again use the same setting as above, just leave the treatment of constraints to MODE this time.
-This way we not only get better results, we avoid having to "guess" good weight values. 
+We use the same setting as above, but this time we leave the treatment of constraints to MODE. This not
+only gives better results, it also avoids having to "guess" good weight values.
 
 [source,python]
----- 
+----
         problem = madzda_problem()
-        x, y = modecpp.minimize(mode.wrapper(problem.sfun_c, 1), 
-            1, problem.ncon, problem.bounds, popsize = 64, 
+        x, y = modecpp.minimize(mode.wrapper(problem.sfun_c, 1),
+            1, problem.ncon, problem.bounds, popsize = 64,
             max_evaluations = 1000000, pareto_update=1, log_period=100000,
             nsga_update=False, workers=32, ints = np.array([True]*dim))
 ----
 
 ==== Multi objective, separate constraints
 
-We increase the population size to 256 and use each population member with the same probability
-to generate the descendants `pareto_update=0`. Again we leave the treatment of constraints to MODE, so 
-we don't have to "guess" weights both for the objectives and the constraints. 
+We increase the population size to 256 and use each population member with the same probability to
+generate descendants via `pareto_update=0`. Again we leave the treatment of constraints to MODE, so we
+do not have to "guess" weights for either the objectives or the constraints.
 
 [source,python]
----- 
+----
        store = mode.store(dim, problem.nobj, 10240)
-       fun = mode.wrapper(problem.fun, problem.nobj, store, plot=False, name="mazda")            
-       x, y = modecpp.minimize(fun, problem.nobj, problem.ncon, problem.bounds, popsize = 256, 
+       fun = mode.wrapper(problem.fun, problem.nobj, store, plot=False, name="mazda")
+       x, y = modecpp.minimize(fun, problem.nobj, problem.ncon, problem.bounds, popsize = 256,
                                 max_evaluations = 12000000, ints = np.array([True]*dim), #pareto_update=1,
                                 nsga_update=False, workers=16)
 ----
 
-The code above uses parallel function evaluation. If we instead switch to parallel retries,
-we can lower population size. Progress is slower, but the result is more reliable. We
-get more or less the same pareto front if we repeat the parallel retry experiment. 
+The code above uses parallel function evaluation. If we switch to parallel retries instead, we can lower
+the population size. Progress is slower, but the result is more reliable. Repeating the parallel-retry
+experiment gives more or less the same Pareto front.
 
-On a 16 core CPU as our AMD 5950x it is best to perform two parallel experiments each 
-using 16 worker threads with parallel function evaluation. Using parallel retry
-we can use all 32 parallel threads in a single run and reach about 8000 evaluations per second. 
-Note that `mode.wrapper`, the wrapper used to monitor progress of all parallel threads,
-uses a shared `mode.store` and logs the pareto front each 100000 evaluations. This number is
-configurable (parameter `interval`)
+On a 16 core CPU such as the AMD 5950x, it is best to perform two experiments in parallel, each using
+16 worker threads, when using parallel function evaluation. With parallel retry, we can use all 32
+threads in a single run and reach about 8000 evaluations per second. Note that `mode.wrapper`, which
+monitors progress across all parallel threads, uses a shared `mode.store` and logs the Pareto front
+every 100000 evaluations. This number is configurable using the `interval` parameter.
 
 [source,python]
----- 
+----
            store = mode.store(dim, problem.nobj, 10240)
-           fun = mode.wrapper(problem.fun, problem.nobj, store, plot=False, name="mazda")            
-           xs, front = modecpp.retry(fun, 
-                                    problem.nobj, problem.ncon, problem.bounds, popsize = 96, 
+           fun = mode.wrapper(problem.fun, problem.nobj, store, plot=False, name="mazda")
+           xs, front = modecpp.retry(fun,
+                                    problem.nobj, problem.ncon, problem.bounds, popsize = 96,
                                 max_evaluations = 12000000, ints = np.array([True]*dim),
                                 nsga_update=False, workers=32)
 ----
 
 
-=== What about the competition ? 
+=== What about the competition?
 
-There are not many open source optimization libraries out there matching the functionality of fcmaes regarding 
-support for parallelization, multiple objectives and constraints. https://pymoo.org/[pymoo] fulfills these
-criteria, has excellent documentation and is quite easy to use. Here is the code to apply it to the mazda car
-design problem. Check
-https://pymoo.org/algorithms/index.html for a list of alternative algorithms. 
+There are not many open source optimization libraries that match fcmaes in support for parallelization,
+multiple objectives, and constraints. https://pymoo.org/[pymoo] meets these criteria, is well
+documented, and is quite easy to use. Here is the code to apply it to the Mazda car design problem.
+Check
+https://pymoo.org/algorithms/index.html for a list of alternative algorithms.
 
 [source,python]
 ----
-    from pymoo.core.problem import ElementwiseProblem 
+    from pymoo.core.problem import ElementwiseProblem
     from pymoo.algorithms.moo.nsga2 import NSGA2
     from pymoo.algorithms.moo.age import AGEMOEA
     from pymoo.algorithms.moo.ctaea import CTAEA
-    from pymoo.factory import get_sampling, get_crossover, get_mutation    
+    from pymoo.factory import get_sampling, get_crossover, get_mutation
     from pymoo.factory import get_termination, get_reference_directions
     from pymoo.core.problem import starmap_parallelized_eval
     from multiprocessing.pool import ThreadPool
     from pymoo.operators.sampling.lhs import LHS
     from fcmaes import mode
     import multiprocessing
-     
+
     lb, ub = np.array([0]*dim), np.array(max_decision_x)
-    wrapped = mode.wrapper(fitness, 2)        
-            
+    wrapped = mode.wrapper(fitness, 2)
+
     class MyProblem(ElementwiseProblem):
-    
+
         def __init__(self, **kwargs):
             super().__init__(n_var=dim,
                              n_obj=2,
                              n_constr=ncon,
                              xl=np.array(lb),
                              xu=np.array(ub), **kwargs)
-    
-        def _evaluate(self, x, out, *args, **kwargs):   
+
+        def _evaluate(self, x, out, *args, **kwargs):
             y = wrapped(x)
             out["F"] = y[:2]
             out["G"] = y[2:]
@@ -704,7 +710,7 @@ https://pymoo.org/algorithms/index.html for a list of alternative algorithms.
     problem = MyProblem(runner=pool.starmap, func_eval=starmap_parallelized_eval)
 
     ref_dirs = get_reference_directions("das-dennis", problem.n_obj, n_partitions=12)
-     
+
     algorithm = NSGA2(
         pop_size=768,
         n_offsprings=10,
@@ -712,17 +718,17 @@ https://pymoo.org/algorithms/index.html for a list of alternative algorithms.
         crossover=get_crossover("int_sbx", prob=0.9, eta=15),
         mutation=get_mutation("int_pm", eta=20),
         eliminate_duplicates=True
-    )    
-    
+    )
+
     algorithm2 = AGEMOEA(
         pop_size=768,
         n_offsprings=10,
         sampling=get_sampling("int_random"),
         crossover=get_crossover("real_sbx", prob=0.9, eta=15),
         mutation=get_mutation("real_pm", eta=20),
-        eliminate_duplicates=True        
+        eliminate_duplicates=True
     )
-    
+
     algorithm3 = CTAEA(ref_dirs=ref_dirs,
         sampling=get_sampling("int_random"),
         crossover=get_crossover("int_sbx, prob=0.9, eta=15"),
@@ -732,7 +738,7 @@ https://pymoo.org/algorithms/index.html for a list of alternative algorithms.
 
     from pymoo.optimize import minimize
     import matplotlib.pyplot as plt
-        
+
     res = minimize(problem,
                    algorithm,
                    get_termination("n_gen", 500000),
@@ -746,67 +752,69 @@ https://pymoo.org/algorithms/index.html for a list of alternative algorithms.
     plt.savefig('NSGSII-objective-space.png')
 ----
 
-Using `pool = multiprocessing.Pool(32)` resulted in an 
-"AttributeError: Can't pickle local object 'check_pymoo.<locals>.MyProblem" exception. pymoos 
-scaling utilizing multiple threads is comparable with fcmaes MODE python variant, but cannot
-compete with modecpp which uses C++ based multi-threading. 
-About 600 evaluations per second are possible on the AMD5950x 16 core
-processor (compared to > 5000 for modecpp). It is better to run 4 optimization experiments in parallel
-each using 8 threads, this way 4x486 = 1944 evaluations per seconds can be achieved.  
+Using `pool = multiprocessing.Pool(32)` resulted in an
+"AttributeError: Can't pickle local object 'check_pymoo.<locals>.MyProblem'" exception. Pymoo scaling
+with multiple threads is comparable to the Python variant of fcmaes MODE, but it cannot compete with
+modecpp, which uses C++ based multi-threading. About 600 evaluations per second are possible on the
+AMD5950x 16 core processor, compared to > 5000 for modecpp. It is better to run 4 optimization
+experiments in parallel, each using 8 threads. This way 4x486 = 1944 evaluations per second can be
+achieved.
 
-We tried AGEMOEA, CTAEA and NSGA2. 
+We tried AGEMOEA, CTAEA and NSGA2.
 
-- AGEMOEA slows down dramatically after about 20000 generations, so only a very limited number of generations
-could be tested (50000 using population size 768). The results are disappointing, 
-each run took about 3 hours:
+- AGEMOEA slows down dramatically after about 20000 generations, so only a very limited number of
+generations could be tested: 50000 with population size 768. The results are disappointing, and each
+run took about 3 hours:
 
 image::AGO768.50k.png[]
 
-- CTAEA seems not to be able to find feasible solutions. Very soon it shows very good objective values
-(2.1, 74) but there are severe constraint violations, even with 500000 generations.
+- CTAEA does not seem able to find feasible solutions. It quickly shows very good objective values
+`(2.1, 74)`, but there are severe constraint violations, even with 500000 generations.
 
-- NSGA2 finally works as expected - as long as you don't use `save_history=True` which quite soon
-exhausts your available memory. We used population size 768 - three times as much as needed for modecpp
-using DE update (NSGA update needs more). The result obtained after 500000 generations
-(about 2.5 hours per optimization run on the AMD5950x CPU) is not sufficient to "solve" the car design problem, 
-we miss about 15-20 common part thicknesses. But compared with the results shown in  
+- NSGA2 finally works as expected, as long as you do not use `save_history=True`, which soon exhausts
+your available memory. We used population size 768, three times as much as needed for modecpp using DE
+update, because NSGA update needs more. The result obtained after 500000 generations, about 2.5 hours
+per optimization run on the AMD5950x CPU, is not sufficient to "solve" the car design problem. We
+still miss about 15-20 common part thicknesses. But compared with the results shown in
 https://www.researchgate.net/publication/326239326_Proposal_of_benchmark_problem_based_on_real-world_car_structure_design_optimization[Mazda benchmark description]
-there is a significant improvement. 
-Because of parallelization and since we call the objective function 
-via `ctypes` and not via command line we can afford a bigger population size and use more generations. 
- 
+there is a significant improvement. Because of parallelization, and because we call the objective
+function via `ctypes` instead of the command line, we can afford a bigger population size and use more
+generations.
+
 image::NSGAII768.500k.png[]
 
-These results are quite far away from what we saw above what fcmaes MODE (modecpp) can do using only 1600 seconds using DE update. 
-But using NSGAII update the results are quite consistent.
-Here are 4 modecpp runs with NSGA- update using population size 768 each taking about 40 minutes each:
+These results are still far from what fcmaes MODE (`modecpp`) can do in only 1600 seconds with DE
+update. But with NSGAII update, the results are quite consistent. Here are 4 modecpp runs with NSGA
+update using population size 768, each taking about 40 minutes:
 
 image::MODE_NSGA768.10M.png[]
 
 === Conclusion
 
-The comparison with the results of https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions].
-is not intended to be "fair", if you consider the number
-of objective function evaluations. Instead we want to highlight:
+The comparison with the results of https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions]
+is not intended to be "fair" if you compare only the number of objective function evaluations. The
+point is different:
 
-- The Mazda benchmark function, if not called via command line but as shared library and in parallel, can be 
-executed several thousand times per second, so it is in fact not expensive to execute. 
-- Exploiting this fact and using optimization algorithms which can handle multiple parallel function executions,
-this benchmark can easily be "solved", both for the single objective and the multiple objective case. 
-- The Mazda benchmark's collision analysis already uses a kind if domain specific surrogate / approximation
-which renders the application of a very expensive generic surrogate based method to this problem useless. 
+- The Mazda benchmark function, when called as a shared library and evaluated in parallel instead of
+via the command line, can be executed several thousand times per second. In that setup, it is not
+expensive to execute.
+- Once this is exploited, optimization algorithms that can handle many parallel function evaluations can
+"solve" the benchmark, both for the single-objective and the multi-objective case.
+- The Mazda benchmark's collision analysis already uses a kind of domain-specific surrogate /
+approximation, which makes a very expensive generic surrogate-based method largely useless for this
+problem.
 
-This should serve as a motivation to search for alternative implementations / parallelization / clustering
-before using generic surrogate based methods which often don't scale well for higher evaluation budgets
-and often are slow to execute. Trivial changes like:
+This should motivate looking for better implementations, parallelization, or clustering before using
+generic surrogate-based methods. Those methods often do not scale well to higher evaluation budgets and
+are often slow to execute. Simple changes such as:
 
 - Calling a library via `ctypes` instead of using the command line.
 - Using https://numba.pydata.org/[Numba] for objective functions coded in Python.
-- Utilizing all threads of a modern many-core-CPU properly: Make sure the used method scales well with the number of cores used.
-- Creating a domain specific "surrogate" approximating costly simulations to be used for global optimization.
+- Utilizing all threads of a modern many-core-CPU properly: Make sure the used method scales well with
+the number of cores used.
+- Creating a domain-specific "surrogate" approximating costly simulations to be used for global optimization.
 
-can cause a dramatic speedup. https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions].
-reports 21 minutes for 4440 function evaluations even without using the expensive generic surrogate. 
-This is a whopping factor > 1000 compared to our implementation. Note that both are based on the
-same unmodified Mazda benchmark code implemented in C++.
-
+can cause a dramatic speedup. https://www.researchgate.net/publication/348261709_Large-Scale_Discrete_Constrained_Black-Box_Optimization_Using_Radial_Basis_Functions[Large Scale Discrete Constrained Black Box Optimization Using Radial Basis Functions]
+reports 21 minutes for 4440 function evaluations even without using the expensive generic surrogate.
+That is a factor > 1000 compared to our implementation. Note that both are based on the same
+unmodified Mazda benchmark code implemented in C++.

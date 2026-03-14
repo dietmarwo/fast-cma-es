@@ -13,104 +13,74 @@ image::logo.gif[]
 
 This tutorial
 
-- Applies a new combination of optimization algorithms, https://arxiv.org/abs/2201.11422[CR-FM-NES] and https://github.com/avaneev/biteopt[BiteOpt] applied in
-a sequence, to different scheduling and packing problems of practical relevance: MMKP and VRPTW.
+- Applies a new combination of optimization algorithms, https://arxiv.org/abs/2201.11422[CR-FM-NES] and https://github.com/avaneev/biteopt[BiteOpt], in sequence to different scheduling and packing problems of practical relevance: MMKP and VRPTW.
 - Compares the results for typical benchmark problems to reference solutions.
-- Shows how to define efficient fitness functions to these problems in Python.
-- Discusses when to apply the new method
+- Shows how to define efficient fitness functions for these problems in Python.
+- Discusses when to apply the new method.
 
 === Motivation
 
-While experimenting with different problems with discrete decision variables like scheduling
-and packing two optimization algorithms, CR-FM-NES and BiteOpt,  
-stood out because of their specific properties:
+While experimenting with problems that use discrete decision variables, such as scheduling and packing, two optimization algorithms stood out: CR-FM-NES and BiteOpt.
 
-- Minimal algorithmic overhead even with large number of decision variables (> 1000).
-- High diversity of the results when performing multiple runs. 
-- Resilience to discontinuous, multi-modal or noisy objective functions.
-- Work well with integer decision variables - we convert continuous variables using 
-  numpys `argsort` or `astype(int)`.  
+- Minimal algorithmic overhead, even with a large number of decision variables (> 1000).
+- High diversity across multiple runs.
+- Good resilience on discontinuous, multi-modal, or noisy objective functions.
+- Good support for integer decision variables. We convert continuous variables using numpy's `argsort` or `astype(int)`.
 
-CR-FM-NES converges faster but BiteOpt is better at evading local minima, so in the context
-of parallel retry applying CR-FM-NES first and then use the result as initial guess for BiteOpt
-is an obvious idea. We tried the  CR-FM-NES -> BiteOpt sequence for
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[Multi-UAV Task Assignment]
-where it outperformed several problem specific algorithm implementations like GA, PSO and ACO.    
+CR-FM-NES converges faster. BiteOpt is better at escaping local minima. In a parallel retry setting, it is therefore natural to run CR-FM-NES first and then use its result as the initial guess for BiteOpt.
 
-In this tutorial we will extend its application to MMKP and VRPTW, two very different problems
-of high practical relevance. 
+We tried this CR-FM-NES -> BiteOpt sequence for https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[Multi-UAV Task Assignment]. There it outperformed several problem-specific algorithm implementations such as GA, PSO, and ACO.
+
+In this tutorial, we extend that idea to MMKP and VRPTW, two very different problems with high practical relevance.
 
 ==== Do we need a problem specific optimization algorithm
 
-Traditionally, even if we apply a heuristic method, we create the optimization algorithm in
-a problem specific way, see for instance https://github.com/robin-shaun/Multi-UAV-Task-Assignment-Benchmark[UAV1] where three heuristic approaches (GA, ACO and PSO) are compared. We already
-showed in a fork https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark[UAV2] that
-results may improve when we give up this idea and instead apply a generic algorithm. 
+Traditionally, even when heuristic methods are used, the optimizer is designed for one specific problem. See https://github.com/robin-shaun/Multi-UAV-Task-Assignment-Benchmark[UAV1], for example, where three heuristic approaches, GA, ACO, and PSO, are compared. We already showed in a fork, https://github.com/dietmarwo/Multi-UAV-Task-Assignment-Benchmark[UAV2], that results may improve when we give up this idea and apply a generic algorithm instead.
 
-For packing, scheduling and vehicle routing there exist many problem variants of practical relevance. Adapting and reimplementing successful algorithms for other variants is a very demanding task. For vehicle routing we already see more generic approaches covering multiple variants:  
-https://hal.inria.fr/hal-02178171/document[A generic exact solver for vehicle routing and related problems]. Even better would be, if we could avoid the creation of a 
-problem specific algorithm completely. Then we only have to find an efficient implementation 
-of the objective function, the "scoring" of a solution, which can easily be adapted to 
-all possible variants. Such a "one for all" approach would be helpful in many situations:
+Packing, scheduling, and vehicle routing all have many practically relevant variants. Adapting and reimplementing successful algorithms for each new variant is demanding. In vehicle routing, more generic approaches already exist that cover multiple variants:
+https://hal.inria.fr/hal-02178171/document[A generic exact solver for vehicle routing and related problems]. Better still would be to avoid creating a problem-specific algorithm entirely.
 
-- We are faced with a very specific problem variant where there is no good algorithm yet available to us.
-- Our programming skills are sufficient to code an objective function in Python, but not to create a problem specific solver. 
-- We want to avoid learning the complex API of a problem specific solver like https://github.com/google/or-tools[or-tools]  or https://www.optaplanner.org/[OptaPlanner]. 
-- There exists no good open source solution for our specific problem supporting the programming language we want to use.
-- We have multiple competing objectives and search for the pareto front representing non-dominated
-choices. 
+In that case, we only need an efficient implementation of the objective function, the "scoring" of a solution. That part can often be adapted more easily to many variants. Such a "one for all" approach is useful in several situations:
 
-To analyze the tradeoff "how much do we loose using the generic approach", we can apply it to well
-known problem variants where researchers had decades to improve the specific algorithms. 
-They tried hardest for problems of practical relevance like MMKP and VRPTW, so we expect meaningful
-results here. But we don't see these as the main application area of the approach.   
+- We face a very specific problem variant and do not have a good algorithm for it.
+- Our programming skills are sufficient to code an objective function in Python, but not to build a problem-specific solver.
+- We want to avoid learning the complex API of a problem-specific solver such as https://github.com/google/or-tools[or-tools] or https://www.optaplanner.org/[OptaPlanner].
+- There is no good open source solution for our specific problem in the programming language we want to use.
+- We have multiple competing objectives and want the pareto front of non-dominated choices.
+
+To study the tradeoff, "how much do we lose with the generic approach", we can test it on well-known problem variants where researchers had decades to improve specialized algorithms. MMKP and VRPTW are good candidates because they are important in practice and heavily studied. Still, we do not see these benchmark problems as the main application area of the approach.
 
 ==== Optimization needs to be "tweaked" to support parallelism
 
-Recently manufacturers of CPUs are investing in many-core architectures and 
-cloud computing offers affordable large-scale parallelism. This trend greatly enhances the
-capabilities of continuous optimization far beyond its traditional application areas. But
-optimization algorithms need to be "tweaked" differently in such an application context. 
-High diversity of the results when performing multiple optimization runs becomes much more relevant. This may explain why the sequence CR-FM-NES -> BiteOpt performs better than alternative choices. 
+CPU vendors are investing in many-core architectures, and cloud computing offers affordable large-scale parallelism. This trend extends the reach of continuous optimization far beyond its traditional application areas. In this setting, optimization algorithms need different tuning. High diversity across repeated runs becomes much more important. This may explain why the CR-FM-NES -> BiteOpt sequence performs better than the alternatives we tried.
 
-Note: CR-FM-NES doesn't have this property in general, we need to lower the 
-initial step size parameter "input_sigma". 
+Note: CR-FM-NES does not have this property in general. We need to lower the initial step size parameter `input_sigma`.
 
-Note: The fcmaes implementation of parallelism works much better on Linux. On Windows 
-think about using the Linux subsystem for Windows https://docs.microsoft.com/en-us/windows/wsl/[WSL].
+Note: The fcmaes implementation of parallelism works much better on Linux. On Windows, consider using the Linux subsystem for Windows https://docs.microsoft.com/en-us/windows/wsl/[WSL].
 
 === MMKP Multiple-choice Multidimensional Knapsack Problem
 
-MMKP is a knapsack/packing problem which is of practical importance since several real world optimization problems can be 
-mapped to it. Examples are:
+MMKP is a knapsack and packing problem of practical importance because several real-world optimization problems can be mapped to it. Examples are:
 
 - https://www.sciencedirect.com/science/article/abs/pii/S0377221715000284[Redundancy allocation for series-parallel systems].
-- https://apps.dtic.mil/sti/citations/ADA360808[Quality of service management] for timeliness, reliability, security, etc.
-- https://onlinelibrary.wiley.com/doi/10.1111/j.1475-3995.2005.00523.x[Optimal number of warehouses needed to store a set of items] preventing incompatible items to be stored together.
+- https://apps.dtic.mil/sti/citations/ADA360808[Quality of service management] for timeliness, reliability, security, and related criteria.
+- https://onlinelibrary.wiley.com/doi/10.1111/j.1475-3995.2005.00523.x[Optimal number of warehouses needed to store a set of items] while preventing incompatible items from being stored together.
 - https://www.sciencedirect.com/science/article/abs/pii/S0377221799004518[Budgeting with bounded multiple-choice constraints].
 
 ==== Problem description
 
-We have n sets composed of mutually exclusive items. 
-The goal is to select exactly one item per set, maximizing the overall value, 
-without violating a family of resource constraints. For each resource the sum of the resource values for the chosen items
-must not exceed a resource-specific threshold.
+We have `n` sets composed of mutually exclusive items. The goal is to select exactly one item from each set and maximize the overall value without violating a family of resource constraints. For each resource, the sum of the resource values of the chosen items must not exceed a resource-specific threshold.
 
-Check for instance https://www.researchgate.net/publication/220901552_Solving_the_Multi-dimensional_Multi-choice_Knapsack_Problem_with_the_Help_of_Ants[MMKP-Ants] for the mathematical details. 
+See https://www.researchgate.net/publication/220901552_Solving_the_Multi-dimensional_Multi-choice_Knapsack_Problem_with_the_Help_of_Ants[MMKP-Ants] for the mathematical details.
 
-Note: https://hal.archives-ouvertes.fr/hal-02367635/document[Hard multidimensional multiple choice knapsack problems]
-states: "An instance is hard to solve when all classes contain the same profit vector and the weights are correlated with the profits"
-Selection of the benchmark problems may influence the results,
+Note: https://hal.archives-ouvertes.fr/hal-02367635/document[Hard multidimensional multiple choice knapsack problems] states: "An instance is hard to solve when all classes contain the same profit vector and the weights are correlated with the profits". The selection of benchmark problems may influence the results.
 
 ==== Reference solutions
 
-We use the well known MMKP benchmark problems
-https://github.com/dietmarwo/fast-cma-es/blob/master/examples/mmkp/problems["I01-I13"] cited
-in most related publications. In the literature excellent results are reported 
-(see http://www.wseas.us/journal/pdf/information/2013/a045705-342.pdf[hybrid algorithm]) but we didn't find corresponding
-solution instances. We applied https://github.com/shah314/samultichoiceknapsack[Simulated Annealing] for 1E8
-iterations, multiple retries, to produce at least some kind of 
-https://github.com/dietmarwo/fast-cma-es/blob/master/examples/mmkp/solutions_sa["reference solutions"] which can be verified:
+We use the well-known MMKP benchmark problems
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/mmkp/problems["I01-I13"], which are cited in most related publications. The literature reports excellent results
+(see http://www.wseas.us/journal/pdf/information/2013/a045705-342.pdf[hybrid algorithm]), but we did not find the corresponding solution instances. We therefore applied https://github.com/shah314/samultichoiceknapsack[Simulated Annealing] for 1E8 iterations with multiple retries to produce at least some kind of
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/mmkp/solutions_sa["reference solutions"], which can be verified:
 
 .MMKP benchmark results for simulated annealing
 [width="27%",options="header"]
@@ -131,14 +101,14 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/examples/mmkp/solutions_sa[
 |I13|97712.0|0.75
 |===
 
-Note, that http://www.wseas.us/journal/pdf/information/2013/a045705-342.pdf[hybrid algorithm] 
+Note that both http://www.wseas.us/journal/pdf/information/2013/a045705-342.pdf[hybrid algorithm]
 and https://www.researchgate.net/publication/277326960_A_Reactive_Local_Search-Based_Algorithm_for_the_Multiple-Choice_Multi-Dimensional_Knapsack_Problem[Hifi]
-both report better solutions. The latter used a 250 Mhz CPU with 128 Mb of RAM generating an I13 result of 98429 in 160 seconds single threaded. 
-Please contact me if you know where the corresponding code can be found. 
+report better solutions. The latter used a 250 Mhz CPU with 128 Mb of RAM and generated an I13 result of 98429 in 160 seconds single-threaded.
+Please contact me if you know where the corresponding code can be found.
 
 ==== Benchmark results for continuous optimization
 
-This are the benchmark results for continuous optimization computed on a 16 core AMD 5950x CPU using 32 parallel threads using the code at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/mmkp/mmkp.py[mmkp.py]:
+These benchmark results for continuous optimization were computed on a 16 core AMD 5950x CPU using 32 parallel threads with the code at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/mmkp/mmkp.py[mmkp.py]:
 
 .MMKP benchmark results for continuous optimization
 [width="50%",options="header"]
@@ -159,30 +129,30 @@ This are the benchmark results for continuous optimization computed on a 16 core
 |I13|97077.0|1.39|2342|95
 |===
 
-As you can see, we loose about 0.5% accuracy compared to the reference solutions above. And we reach 2% accuracy in less than a minute even for larger instances. The following diagram shows the relation between the number of groups / decision variables and the time to reach 2% accuracy:
+As you can see, we lose about 0.5% accuracy compared to the reference solutions above. We still reach 2% accuracy in less than a minute, even for the larger instances. The following diagram shows the relation between the number of groups or decision variables and the time to reach 2% accuracy:
 
 image::MMKP_time.png[]
 
-It is almost linear. So we can expect to handle even bigger instances with reasonable effort. 
+The relation is almost linear. That suggests we can handle even larger instances with reasonable effort.
 
 ==== Alternative approaches
 
 Github repositories related to MMKP are:
 
-- https://github.com/shah314/samultichoiceknapsack[Simulated Annealing] {Cpp} algorithm solving the problem slightly better than our approach. But it is MMKP specific and you need to implement some interface if you want to use it from Python.   
+- https://github.com/shah314/samultichoiceknapsack[Simulated Annealing] {Cpp} algorithm solving the problem slightly better than our approach. But it is MMKP-specific, and you need to implement some interface if you want to use it from Python.
 
-- https://github.com/kzyma/MMKP_Heuristics[MMKP Heuristics] . Nice comparison of different older {Cpp} algorithms, none of which seems to work better than https://github.com/shah314/samultichoiceknapsack[Simulated Annealing].  
+- https://github.com/kzyma/MMKP_Heuristics[MMKP Heuristics]. A nice comparison of different older {Cpp} algorithms, none of which seems to work better than https://github.com/shah314/samultichoiceknapsack[Simulated Annealing].
 
 Both http://www.wseas.us/journal/pdf/information/2013/a045705-342.pdf[hybrid algorithm] and
-https://www.researchgate.net/publication/277326960_A_Reactive_Local_Search-Based_Algorithm_for_the_Multiple-Choice_Multi-Dimensional_Knapsack_Problem[Hifi] report better results, but there seems to be no related open source code available. 
+https://www.researchgate.net/publication/277326960_A_Reactive_Local_Search-Based_Algorithm_for_the_Multiple-Choice_Multi-Dimensional_Knapsack_Problem[Hifi] report better results, but there seems to be no related open source code available.
 
 ==== Implementation
 
 The complete code for the MMKP problem is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/mmkp/mmkp.py[mmkp.py].
-To apply continuous optimization we represent a problem instance as Python class MMKP:
+To apply continuous optimization, we represent a problem instance as Python class `MMKP`:
 
 [source,python]
-----   
+----
 class MMKP():
     def __init__(self, problem):
         self.problem = problem
@@ -192,34 +162,34 @@ class MMKP():
         self.dim = self.n
         self.bounds = Bounds([0]*self.dim, [self.l-1E-12]*self.dim)
 
-    def fitness(self, x):   
+    def fitness(self, x):
         vsum, penalty = fitness_(x.astype(int), self.n, self.l, self.avail, \
                 self.values, self.resources)
         if penalty > 0:
-            penalty += 100    
-        return self.deviation(vsum) + penalty   
+            penalty += 100
+        return self.deviation(vsum) + penalty
 ----
 
-We extract the problem parameters by parsing the instance file: 
+We extract the problem parameters by parsing the instance file:
 
 - Available resources: `self.avail`
 - Resource consumption for each item: `self.resources`
 - Value of each item: `self.values`
 - Reference solution value: `self.best_val`
-- Number of groups: `self.n` 
+- Number of groups: `self.n`
 - Number of items to choose from per group: `self.l`
 
-The number of decision variables `self.dim` is equal to the number of groups, the boundaries are `[0, self.l-1E12]`. The fitness function maps each continuous decision vector to a vector of integers in the `[0, self.l-1]` interval representing a selection of items per group using numpys `astype(int)` function.  `fitness` delegates to a fast https://numba.pydata.org/[numba] function `fitness_` checking resource consumption and returning the overall value together with a penalty value representing resource violations. 
+The number of decision variables, `self.dim`, is equal to the number of groups. The boundaries are `[0, self.l-1E-12]`. The fitness function maps each continuous decision vector to a vector of integers in the `[0, self.l-1]` interval using numpy's `astype(int)`. These integers represent the selected item for each group. `fitness` delegates to a fast https://numba.pydata.org/[numba] function, `fitness_`, which checks resource consumption and returns the overall value together with a penalty value for resource violations.
 
 [source,python]
-----   
+----
 @njit(fastmath=True)
 def fitness_(x, n, l, avail, values, resources):
     vsum = 0
     rsum = np.zeros(l, dtype=numba.int32)
     for i in range(n):
         vsum += values[i][x[i]]
-        rsum += resources[i][x[i]]   
+        rsum += resources[i][x[i]]
     rsum = np.maximum(rsum - avail, np.zeros(l, dtype=numba.int32))
     pen = np.sum(rsum)
     return vsum, pen
@@ -227,131 +197,113 @@ def fitness_(x, n, l, avail, values, resources):
 
 ==== Problem variants
 
-This function is much easier to adapt to problem variants than optimization algorithms utilizing the "internal structure" of a problem instance. Usually these support incremental changes of a given solution by computing the score delta. 
+This function is much easier to adapt to problem variants than optimization algorithms that use the "internal structure" of a problem instance. Those algorithms usually support incremental changes of a solution by computing the score delta.
 See for instance https://github.com/shah314/samultichoiceknapsack/blob/master/saMultiChoiceKnapsack.cpp[saMultiChoiceKnapsack.cpp].
 
-As an example let us assume we need not only to optimize the sum of the item values, but also want to achieve a balanced resource consumption. We can express this as the standard deviation of the consumed resources divided by their availability. 
-Only a minor modification of the fitness/objective function is required:
+As an example, assume we want not only to maximize the sum of item values, but also to achieve balanced resource consumption. We can express this by the standard deviation of the consumed resources divided by their availability.
+Only a small modification of the fitness or objective function is required:
 
 [source,python]
----- 
+----
 @njit(fastmath=True)
 def fitness_(x, n, l, avail, values, resources):
     vsum = 0
     rsum = np.zeros(l, dtype=numba.int32)
     for i in range(n):
         vsum += values[i][x[i]]
-        rsum += resources[i][x[i]] 
-    sdev = np.std(rsum/avail)  
+        rsum += resources[i][x[i]]
+    sdev = np.std(rsum/avail)
     rsum = np.maximum(rsum - avail, np.zeros(l, dtype=numba.int32))
     pen = np.sum(rsum)
     return vsum, pen, sdev
 
 ...
-    def fitness(self, x):   
+    def fitness(self, x):
         vsum, penalty, sdev = fitness_(x.astype(int), self.n, self.l, self.avail, \
                 self.values, self.resources)
         if penalty > 0:
-            penalty += 100    
+            penalty += 100
         return self.deviation(vsum) + penalty + 10*sdev
 ----
 
-We applied a specific weight `10` to the standard deviation. For smaller problem 
-instances alternatively we could apply a multi-objective algorithm to generate the 
-complete pareto front - which also comes with fcmaes and is applied in many other tutorials. 
+We applied a specific weight `10` to the standard deviation. For smaller problem instances, we could instead apply a multi-objective algorithm to generate the complete pareto front. That algorithm also comes with fcmaes and is used in many other tutorials.
 
 ==== Exercise
 
-Apply the same modification to https://github.com/shah314/samultichoiceknapsack/blob/master/saMultiChoiceKnapsack.cpp[saMultiChoiceKnapsack.cpp]. Hint: This may be a bit tricky. Note
-that this optimization algorithm is not only problem specific - it is benchmark-specific: 
-It exploits the fact that for most benchmarks the resource limit for all resources is equal. 
+Apply the same modification to https://github.com/shah314/samultichoiceknapsack/blob/master/saMultiChoiceKnapsack.cpp[saMultiChoiceKnapsack.cpp]. Hint: This may be a bit tricky. Note that this optimization algorithm is not only problem-specific, it is benchmark-specific.
+It exploits the fact that for most benchmarks the resource limit for all resources is equal.
 Here
-https://github.com/shah314/samultichoiceknapsack/blob/cfc453aef9b2bb827d4fdb94e07253cfedb8b3ce/saMultiChoiceKnapsack.cpp#L545[double ratio = value/weight] the resource consumption `weight` is 
-not normalized using the resource availability as it should be.
+https://github.com/shah314/samultichoiceknapsack/blob/cfc453aef9b2bb827d4fdb94e07253cfedb8b3ce/saMultiChoiceKnapsack.cpp#L545[double ratio = value/weight] the resource consumption `weight`
+is not normalized using the resource availability as it should be.
 
 ==== MMKP Optimization
 
-Parallelization of optimization runs and the optimization algorithm comes for free
-if we use the fcmaes library: 
+Parallelization of optimization runs and of the optimization algorithm comes for free if we use the fcmaes library:
 
 [source,python]
-----            
+----
 stop_fitness = 2.0
 popsize = 500
 
 opt = crfmnes_bite(max_evaluations, popsize=popsize, M=4, stop_fitness = stop_fitness)
-    
+
 def optimize(mmkp, opt, num_retries = 32):
-    ret = retry.minimize(wrapper(mmkp.fitness), 
-                               mmkp.bounds, num_retries = num_retries, 
+    ret = retry.minimize(wrapper(mmkp.fitness),
+                               mmkp.bounds, num_retries = num_retries,
                                stop_fitness = stop_fitness, optimizer=opt)
 ----
 
-- `crfmnes_bite` represents a sequence of CR-FM-NES and BiteOpt, 
-- `wrapper` monitors and logs the progress for all parallel runs and 
-- `stop_fitness` tells the algorithm to stop when a specific value / deviation is reached. 
-- `popsize` and `M` are configuration parameters of the used optmizers.
+- `crfmnes_bite` represents a sequence of CR-FM-NES and BiteOpt.
+- `wrapper` monitors and logs the progress for all parallel runs.
+- `stop_fitness` tells the algorithm to stop when a specific value or deviation is reached.
+- `popsize` and `M` are configuration parameters of the used optimizers.
 
-These settings are sufficient if you aim for a 2% deviation from the optimum (`stop_fitness = 2.0`). 1.5% deviation is much harder to achieve, you may consider to increase the number of retries  `num_retries`. The number of parallel retries is CPU dependent, for the AMD 5950x this is 32 and may be overwritten using the `workers` argument. We experimented with lower 
-population size for smaller instances, but there is not much to gain. Both 
-CR-FM-NES and BiteOpt are largely self-adapting.  
+These settings are sufficient if you aim for a 2% deviation from the optimum (`stop_fitness = 2.0`). A 1.5% deviation is much harder to achieve, so you may want to increase the number of retries, `num_retries`. The number of parallel retries depends on the CPU. For the AMD 5950x it is 32, and this can be overwritten using the `workers` argument. We experimented with smaller population sizes for smaller instances, but there is not much to gain. Both CR-FM-NES and BiteOpt are largely self-adapting.
 
 === VRPTW capacitated Vehicle Routing Problem with Time Windows
 
-VRPTW is a variant of the vehicle routing problem for multiple vehicles considering customer demands, capacity and time window constraints and a customer service time.  
-Because of its practical relevance it is one of the best studied optimization problems in 
-computer science. There exists a huge amount of literature, sophisticated problem specific algorithms and benchmarks including reference solutions proven to be optimal. 
-See https://developers.google.com/optimization/routing/vrp for a nice introduction into
-the topic. 
+VRPTW is a variant of the vehicle routing problem for multiple vehicles with customer demands, capacity constraints, time windows, and customer service times.
+Because of its practical relevance, it is one of the best-studied optimization problems in computer science. There is a large body of literature, many sophisticated problem-specific algorithms, and benchmark sets with reference solutions proven to be optimal.
+See https://developers.google.com/optimization/routing/vrp for a nice introduction.
 
-Open source libraries like https://github.com/google/or-tools[or-tools] support a vehicle routing specific API and produce nearly perfect results (see https://github.com/dietmarwo/VRPTW/blob/master/Results.adoc[VRPTW results]). 
+Open source libraries such as https://github.com/google/or-tools[or-tools] provide a vehicle-routing-specific API and produce nearly perfect results (see https://github.com/dietmarwo/VRPTW/blob/master/Results.adoc[VRPTW results]).
 
-Although the "optimization without a problem specific optimizer" approach should not be
-applied here, it is nevertheless interesting to analyze how much we loose if we try it nevertheless. The code can easily adapted to other problem variants adding more constraints and different objectives - this is where this approach really shines. 
+The "optimization without a problem-specific optimizer" approach should not be applied here if the standard problem is all you need. Still, it is interesting to measure how much we lose when we try it anyway. The code can also be adapted easily to other variants with additional constraints or different objectives. That is where this approach is most useful.
 
 ==== Problem description
 
-We plan the routes for a fleet of vehicles in 
-order to serve a given set of customer demands. 
-There is a capacity constraint on the total
-demand served by any given vehicle as well as time window
-constraints attached to each customer demand node.
-A customer specific service time is to be considered. Possible objectives
-are the number of vehicles used and the overall distance traveled by all vehicles.
-If only one vehicle is available, the problem becomes a variant of TSP (the Traveling Salesman Problem). 
+We plan routes for a fleet of vehicles to serve a set of customer demands. Each vehicle has a capacity constraint on the total demand it serves. Each customer node has a time window, and customer-specific service times must be considered.
+Possible objectives are the number of vehicles used and the overall distance traveled by all vehicles. If only one vehicle is available, the problem becomes a variant of TSP, the Traveling Salesman Problem.
 
-Possible variants include variable vehicle speed, noisy distances / demands and additional
-constraints. 
+Possible variants include variable vehicle speed, noisy distances or demands, and additional constraints.
 
 ==== Benchmarks
 
-Many different benchmarks are used in the literature. We choose the 100 customer instances of the Solomon's benchmark http://web.cba.neu.edu/~msolomon/problems.htm because there are reference solutions available and they are referenced in most related publications. 
+Many different benchmarks are used in the literature. We choose the 100-customer instances of Solomon's benchmark http://web.cba.neu.edu/~msolomon/problems.htm because reference solutions are available and the benchmark is cited in most related publications.
 
-There exist two different objectives for the Solomon's VRPTW benchmark:
+There are two different objectives for Solomon's VRPTW benchmark:
 
-- Minimizing the overall distance / time serving all customers: http://web.cba.neu.edu/~msolomon/problems.htm[solomon].
-- A hierarchical objective minimizing the number of vehicles with the distance as secondary objective: 
+- Minimizing the overall distance or time needed to serve all customers: http://web.cba.neu.edu/~msolomon/problems.htm[solomon].
+- A hierarchical objective that minimizes the number of vehicles, with distance as the secondary objective:
 https://www.sintef.no/projectweb/top/vrptw/100-customers/[sintef].
 
-The single objective variant can be solved almost perfectly using https://github.com/google/or-tools[or-tools] so we choose this. 
-See https://github.com/dietmarwo/VRPTW/blob/master/optimize_or.py[optimize_or.py] for the or-tools implementation to generate the reference results used for comparison here. 
-We found other reference solutions at http://vrp.galgos.inf.puc-rio.br/index.php/en/[galgos], 
-but some of them didn't pass our validation. These solution assume rounding of the distances, which makes them incompatible to the interpretation of the problem used here. 
+The single-objective variant can be solved almost perfectly using https://github.com/google/or-tools[or-tools], so we choose that one.
+See https://github.com/dietmarwo/VRPTW/blob/master/optimize_or.py[optimize_or.py] for the or-tools implementation used to generate the reference results for comparison here.
+We found other reference solutions at http://vrp.galgos.inf.puc-rio.br/index.php/en/[galgos], but some of them did not pass our validation. These solutions assume rounding of the distances, which makes them incompatible with the interpretation of the problem used here.
 
 ==== Alternative implementations
 
-Beside  https://github.com/dietmarwo/VRPTW/blob/master/optimize_or.py[optimize_or.py]
-there are a myriad of implementations for this problem, at
-http://vrp.galgos.inf.puc-rio.br/index.php/en/links some of them are linked. 
-This is not the case for optimization without a problem specific algorithm.
-May be because most continuous optimization algorithms don't work well here. 
+Besides https://github.com/dietmarwo/VRPTW/blob/master/optimize_or.py[optimize_or.py],
+there are many implementations for this problem. http://vrp.galgos.inf.puc-rio.br/index.php/en/links links to some of them.
+That is not the case for optimization without a problem-specific algorithm.
+Maybe that is because most continuous optimization algorithms do not work well here.
 
 ==== Implementation
 
-The complete code for the VRPTW problem is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vrptw/vrptw.py[mmkp.py]. To apply continuous optimization we represent a problem instance as Python class VRPTW:
+The complete code for the VRPTW problem is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vrptw/vrptw.py[vrptw.py]. To apply continuous optimization, we represent a problem instance as Python class `VRPTW`:
 
 [source,python]
-----   
+----
 class VRPTW():
     def __init__(self, problem):
         self.problem = problem
@@ -360,14 +312,14 @@ class VRPTW():
             self.due, self.service = parse_problem(filename)
         self.dim = len(self.demand) - 1
         self.bounds = Bounds([0]*self.dim, [1]*self.dim)
-        
+
     def fitness(self, x):
         fit = fitness_(np.argsort(x), self.capacity, self.dtime, self.demand, \
-                    self.ready, self.due, self.service)   
-        return 10*fit[0] + fit[1] 
+                    self.ready, self.due, self.service)
+        return 10*fit[0] + fit[1]
 ----
 
-We extract the problem parameters by parsing the instance file: 
+We extract the problem parameters by parsing the instance file:
 
 - Vehicle capacities: `self.capacity`
 - Distance matrix: `self.dtime`
@@ -376,20 +328,15 @@ We extract the problem parameters by parsing the instance file:
 - Customer due time: `self.due`
 - Customer service time: `self.service`
 
-The number of decision variables `self.dim` is equal to the number of customer locations.
-Note that all tables include a 0-entry for the start/end location.  
-We use as boundary the  `[0, 1]` interval. The fitness function converts the continuus 
-argument vector into a list of unique integers using `np.argsort(x)`.
-`fitness` delegates to a fast https://numba.pydata.org/[numba] function `fitness_` 
-executing all tours thereby evaluating the objectives and the constraints. 
+The number of decision variables, `self.dim`, is equal to the number of customer locations.
+Note that all tables include a 0-entry for the start and end location.
+We use the `[0, 1]` interval as boundary. The fitness function converts the continuous argument vector into a list of unique integers using `np.argsort(x)`.
+`fitness` then delegates to a fast https://numba.pydata.org/[numba] function, `fitness_`, which executes all tours and evaluates both the objectives and the constraints.
 
-Instead of ignoring the vehicle number, we use it applying some weight, although we
-are finally only interested in the overall distance. This can be viewed as a
-kind of heuristics supporting the optimization process as we observed 
-good solutions usually come with a quite low vehicle number. 
+Instead of ignoring the vehicle number, we include it with some weight, even though we are ultimately interested only in the overall distance. This acts as a heuristic that supports the optimization process. We observed that good solutions usually use a fairly low number of vehicles.
 
 [source,python]
-----   
+----
 @njit(fastmath=True)
 def fitness_(seq, capacity, dtime, demands, readys, dues, services):
     n = len(seq)
@@ -406,7 +353,7 @@ def fitness_(seq, capacity, dtime, demands, readys, dues, services):
         due = dues[customer]
         service = services[customer]
         if sum_demand + demand > capacity or \
-                time + dtime[last, customer] > due: 
+                time + dtime[last, customer] > due:
             # end vehicle tour, return to base
             dt = dtime[last, 0]
             sum_dtime += dt
@@ -416,10 +363,10 @@ def fitness_(seq, capacity, dtime, demands, readys, dues, services):
             last = 0
         # go to customer
         dt = dtime[last, customer]
-        time += dt 
+        time += dt
         if time < ready:
             time = ready
-        time += service       
+        time += service
         sum_demand += demand
         sum_dtime += dt
         last = customer
@@ -428,42 +375,37 @@ def fitness_(seq, capacity, dtime, demands, readys, dues, services):
 
 ==== VRPTW Optimization
 
-You will probably notice that this code is almost exactly the same as for `MMKP` above. 
-Even the `popsize` parameter is equal. 
+You will probably notice that this code is almost exactly the same as for `MMKP` above.
+Even the `popsize` parameter is the same.
 
 [source,python]
-----            
+----
 popsize = 500
 opt = crfmnes_bite(max_evaluations, popsize=popsize, M=4)
 
 def optimize(vrptw, opt, num_retries = 64):
-    ret = retry.minimize(wrapper(vrptw.fitness), 
+    ret = retry.minimize(wrapper(vrptw.fitness),
                         vrptw.bounds, num_retries = num_retries, optimizer=opt)
 ----
 
-- `crfmnes_bite` represents a sequence of CR-FM-NES and BiteOpt, 
-- `wrapper` monitors and logs the progress for all parallel runs and 
-- `popsize` and `M` are configuration parameters of the used optmizers.
+- `crfmnes_bite` represents a sequence of CR-FM-NES and BiteOpt.
+- `wrapper` monitors and logs the progress for all parallel runs.
+- `popsize` and `M` are configuration parameters of the used optimizers.
 
 ==== Exercise
 
-Modify the fitness function to handle a problem variant supporting noisy demands - 
-for instance when using `demands[customer]` multiply with a random factor 
-in the `[0.8,1.2]` interval. You have to call `fitness_` multiple times to 
-compute a "worst case" value used as fitness. See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc where this was done for TSP. 
-Can you do this using https://github.com/google/or-tools[or-tools] instead by modifying 
+Modify the fitness function to handle a problem variant with noisy demands.
+For example, when using `demands[customer]`, multiply it with a random factor in the `[0.8,1.2]` interval.
+You then need to call `fitness_` multiple times and use a "worst case" value as the fitness.
+See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc where this was done for TSP.
+Can you do the same using https://github.com/google/or-tools[or-tools] by modifying
 https://github.com/dietmarwo/VRPTW/blob/master/optimize_or.py[optimize_or.py]?
 
 ==== Results
 
-Continuous optimization is performed by a sequence 
-of CR-MF-NES and BiteOpt, executing 64 runs, 
-32 runs performed in parallel. On an AMD 5950x 16 core
-CPU which takes about 7 minutes. 
+Continuous optimization is performed by a sequence of CR-FM-NES and BiteOpt, with 64 runs in total and 32 runs performed in parallel. On an AMD 5950x 16 core CPU, this takes about 7 minutes.
 
-Compared to the https://github.com/google/or-tools[or-tools] result which serves as a reference 
-we loose about 0.2% for the clustered problem instances and about 
-3% for the random problem instances.
+Compared to the https://github.com/google/or-tools[or-tools] result, which serves as the reference, we lose about 0.2% on the clustered problem instances and about 3% on the random problem instances.
 
 .Average distance single objective
 [width="70%", options="header"]
@@ -483,7 +425,7 @@ we loose about 0.2% for the clustered problem instances and about
 |%difference|0.0|0.0|5.0|-1.67|5.71|8.0
 |===
 
-.Continous single objective results compared to or-tools
+.Continuous single objective results compared to or-tools
 [width="50%", options="header"]
 |===
 |problem |vehicles | distance | % vehicles difference | % distance difference
@@ -547,16 +489,10 @@ we loose about 0.2% for the clustered problem instances and about
 
 === Conclusion
 
-Concluding our results we can derive: 
+From these results we can conclude:
 
-- Standard tools like or-tools are hard to beat for problems they are designed for.
-- For variants like additional constraints, objectives or noisiness we first have to 
-  check if standard tools are applicable.
-- Think twice before developing a problem specific algorithm. It may be not worth it
-  if your are not aiming for a perfect solution. 
-- The penalty for applying a generic optimization method which only requires a fast
-  fitness implementation may be lower than you think. Specially if parallelism 
-  and recent advances in continuous optimization are taken in account. 
-- The sequence CR-FM-NES and BiteOpt proved to be an excellent choice both for vehicle routing
-  (VRPTW) and packing (MMKP) if you want to use Python and want to utilize a modern many-core 
-  CPU or want to leverage multi-node cloud computing resources.  
+- Standard tools like or-tools are hard to beat on the problems they were designed for.
+- For variants with additional constraints, objectives, or noisiness, we first need to check whether those standard tools still apply.
+- Think twice before developing a problem-specific algorithm. It may not be worth the effort if you are not aiming for a perfect solution.
+- The penalty for using a generic optimization method that only requires a fast fitness implementation may be lower than expected, especially when parallelism and recent advances in continuous optimization are taken into account.
+- The CR-FM-NES and BiteOpt sequence proved to be an excellent choice for both vehicle routing (VRPTW) and packing (MMKP) if you want to use Python and take advantage of a modern many-core CPU or multi-node cloud computing resources.

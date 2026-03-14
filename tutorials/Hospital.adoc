@@ -10,89 +10,92 @@ image::logo.gif[]
 
 == Reactive Programming and Real World Optimization
 
-This tutorial is about:
+This tutorial:
 
-- Discusses the relation between reactive programming and optimization using parallel fitness evaluations. 
-- Applies parallel fitness evaluation to a real live hospital management related problem.
-- Parallel fitness evaluation leads to in increased evaluation count. 
-- Shows that the advantage of using surrogates / approximations / gaussian processes gets lost as the evaluation count grows.
+- discusses the relation between reactive programming and optimization with parallel fitness evaluations.
+- applies parallel fitness evaluation to a live hospital management problem.
+- shows that parallel fitness evaluation increases the number of evaluations.
+- shows that the advantage of surrogates, approximations, or gaussian processes can disappear as the evaluation count grows.
 
 === Reactive Programming
 
 Recently https://blog.oakbits.com/introduction-to-rxpy.html[reactive programming]
-has gained a lot of traction, reactive frameworks like https://spring.io/reactive[Spring Reactive]
-get more and more adapted. 
+has gained a lot of traction. Reactive frameworks such as https://spring.io/reactive[Spring Reactive]
+are adopted more and more widely.
 
 === Real World Optimization
 
-Real world optimization recently became the focus of the research on optimization algorithms, see for instance the
-https://www.th-koeln.de/informatik-und-ingenieurwissenschaften/gecco-2021-industrial-challenge-call-for-participation_82086.php[Hospital Management Problem], 
-the optimization of hospital management during a pandemy.
-Real world optimization usually involves expensive simulation based objective functions. 
+Real-world optimization has recently become a major focus in optimization research. One example is the
+https://www.th-koeln.de/informatik-und-ingenieurwissenschaften/gecco-2021-industrial-challenge-call-for-participation_82086.php[Hospital Management Problem],
+which studies hospital management during a pandemic.
+Real-world optimization usually involves expensive simulation-based objective functions.
 
-=== How are these connected? 
+=== How are these connected?
 
-A reactive program sees its environment as sequences of asynchronous events it receives and emits. 
-In the context of optimization this means: An optimizer emits a stream of argument vectors and receives a stream of
-results - computed by an expensive simulation based objective function. 
-On the other side there is a reactive function evaluator, receiving argument vectors and emitting results. 
+A reactive program sees its environment as sequences of asynchronous events that it receives and emits.
+In optimization, this means an optimizer emits a stream of argument vectors and receives a stream of
+results computed by an expensive simulation-based objective function.
+On the other side there is a reactive function evaluator, which receives argument vectors and emits results.
 
 === What is the advantage of reactive programming for optimization?
 
 The function evaluator may decide to:
- 
-- Spawn separate threads/processes executing the simulation. See for instance 
+
+- Spawn separate threads or processes that execute the simulation. See for instance
   https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/evaluator.py[evaluator.py]
 
-- Spawn separate jobs in a cloud cluster. See for instance 
+- Spawn separate jobs in a cloud cluster. See for instance
   https://github.com/dietmarwo/fcmaes-java/blob/master/temporal/src/main/java/fcmaes/temporal/core/OptimizerActivityImpl.java[OptimizerActivityImpl.java]
-  which uses the https://temporal.io/[temporal.io] workflow management framework which optionally can distribute tasks (called activities)
-  in a cloud environment. 
-  
-The Hospital Management Problem spawns https://docs.docker.com/engine/reference/run/[Docker runs] to execute its hospital simulation.  
-In a kubernetes based cloud environment this could involve running a https://kubernetes.io/docs/tasks/job/[kubernetes job] which is
-physically executed on a different CPU or even a different cluster. 
+  which uses the https://temporal.io/[temporal.io] workflow management framework and can optionally distribute tasks (called activities)
+  in a cloud environment.
 
-Spawning a separate process / running a kubernetes job is inherently asynchronous. 
-It is done to speed up the optimization by distributing the expensive evaluation of the objective function. 
-Problem is that the reactive function evaluator is only part of the solution. 
-It requires a reactive counterpart: The optimizer. 
+The Hospital Management Problem spawns https://docs.docker.com/engine/reference/run/[Docker runs] to execute its hospital simulation.
+In a kubernetes-based cloud environment this could mean running a https://kubernetes.io/docs/tasks/job/[kubernetes job]
+that is physically executed on a different CPU or even in a different cluster.
+
+Spawning a separate process or running a kubernetes job is inherently asynchronous.
+The goal is to speed up optimization by distributing expensive objective function evaluations.
+But the reactive function evaluator is only one part of the solution.
+It also needs a reactive counterpart: the optimizer.
 
 === Bridging reactive flows and blocking calls
 
-In an ideal world both sides, the optimizer and the parallel function evaluator are implemented using the reactive style
-avoiding blocking calls. But often we have to deal with blocking APIs like 
+In an ideal world, both sides, the optimizer and the parallel function evaluator, would use a reactive style
+and avoid blocking calls. In practice, we often have to deal with blocking APIs like
 https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/642056f8d94c7f953e50c3cd05bbbf9f39ad5c3d/expensiveoptimbenchmark/problems/base.py#L9[this].
 
-A parallel function evaluator can serve as a bridge between these worlds in both directions:
+A parallel function evaluator can serve as a bridge in both directions:
+
 - To the blocking function evaluation: https://github.com/dietmarwo/fast-cma-es/blob/85742f420dabd4130d6c052ef3201a532a535901/fcmaes/evaluator.py#L72['y = fun(x)'].
 - To its caller it can provide a blocking API: https://github.com/dietmarwo/fast-cma-es/blob/85742f420dabd4130d6c052ef3201a532a535901/fcmaes/evaluator.py#L19[eval_parallel].
 
-Unfortunately this "bridge" idea doesn't work at the optimizer side: An optimizer which expects its argument vectors sequentially cannot be parallelized. 
-This is true for all optimizers in https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers[solvers]. 
+Unfortunately this bridge idea does not work on the optimizer side.
+An optimizer that expects argument vectors sequentially cannot be parallelized.
+This is true for all optimizers in https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers[solvers].
 
 === Backpressure
 
-https://medium.com/@jayphelps/backpressure-explained-the-flow-of-data-through-software-2350b3e77ce7[Backpressure] is the 
+https://medium.com/@jayphelps/backpressure-explained-the-flow-of-data-through-software-2350b3e77ce7[Backpressure] is the
 "Resistance or force opposing the desired flow of data through software."
-For optimization this means: There is a limit where parallelization of objective function evaluation makes sense. 
-For population based algorithms usually the number of parallel workers should not exceed the population size. 
-This limit induces "backpressure" into the optimization data flow, the exchange of argument vectors and results. 
-One of the advantages of reactive frameworks is that they support the configuration of backpressure limits propagated
-over a chain of reactive processing flows.  
-In the case of real world optimization backpressure defines the rate the parallel evaluator receives its argument vectors. 
-To evaluate an optimization method we need results for different backpressure limits which corresponds to the 
-maximum level of parallelization. Higher backpressure limit / parallelization usually means a larger population size 
-which can slow down convergence but lowers the chance to get stuck at a local minimum. 
+In optimization, this means there is a limit beyond which parallel objective function evaluation stops making sense.
+For population-based algorithms, the number of parallel workers should usually not exceed the population size.
+This limit induces backpressure in the optimization data flow, that is, in the exchange of argument vectors and results.
+One advantage of reactive frameworks is that they support configurable backpressure limits that can be propagated
+through a chain of reactive processing flows.
+In real-world optimization, backpressure defines the rate at which the parallel evaluator receives argument vectors.
+To evaluate an optimization method, we need results for different backpressure limits, which correspond to different
+maximum levels of parallelization.
+Higher backpressure, or more parallelization, usually means a larger population size.
+That can slow convergence, but it also lowers the chance of getting stuck in a local minimum.
 
 === What does that mean for the optimizer?
 
-A reactive optimizer needs an asynchronous event based interface. 
-Lets have a look how the optimizers in https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers[solvers]
-work, for instance https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/CMA/wCMA.py[CMA]
+A reactive optimizer needs an asynchronous, event-based interface.
+Let's have a look at how the optimizers in https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers[solvers]
+work, for instance https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/CMA/wCMA.py[CMA]:
 
 [source,python]
----- 
+----
 def f(x):
 ...
         return r
@@ -100,70 +103,72 @@ def f(x):
 res = fmin(f, x0 / cmascale, sigma0, options=opts)
 ----
 
-A synchronous function f is forwarded to the optimizer `fmin` which means it is impossible to parallelize the evaluation of `f`. 
-Reason is that the optimizer expects the results "in order". Only after returning a result we obtain a new argument vector
-for evaluation. 
+A synchronous function `f` is passed to the optimizer `fmin`, which means the evaluation of `f` cannot be parallelized.
+The optimizer expects results in order. Only after one result is returned do we get a new argument vector
+for evaluation.
 
-In the optimization context the asynchronous interface we need is known as "ask/tell" interface, for instance implemented in the 
-https://facebookresearch.github.io/nevergrad/optimization.html[nevergrad] framework. fcmaes supports this interface
-for its differential evolution and CMA-ES implementations, and if multiple objectives and constraints
-are involved, with its MO-DE optimizer which integrates ideas from DE and NSGA-II. 
+In the optimization context, the asynchronous interface we need is known as an ask/tell interface. It is implemented, for instance, in the
+https://facebookresearch.github.io/nevergrad/optimization.html[nevergrad] framework. `fcmaes` supports this interface
+for its differential evolution and CMA-ES implementations. If multiple objectives and constraints
+are involved, it also supports it through the MO-DE optimizer, which integrates ideas from DE and NSGA-II.
 
-Providing a reactive/asynchronous interface imposes some restrictions for the optimization:
+Providing a reactive or asynchronous interface imposes some restrictions on the optimization:
 
-- Mainly population based algorithms can profit from parallel function evaluation.
-- Population size should be >= the number of parallel threads/processes/jobs. 
+- Mainly population-based algorithms can profit from parallel function evaluation.
+- Population size should be >= the number of parallel threads, processes, or jobs.
 
 === Evaluating surrogate optimization algorithms
 
-https://github.com/AlgTUDelft/ExpensiveOptimBenchmark[ExpensiveOptimBenchmark] aims at the evaluation of so called surrogate model
-using real world problems. Problem is that in the "real world" when faced with such an optimization problem
-you would exploit every possibility to parallelize function evaluation using multiple cores of your processor or even multiple processor
-nodes in your cluster. The evaluation of surrogate models should be compared to these parallel algorithms, not to sequential ones. 
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark[ExpensiveOptimBenchmark] aims to evaluate surrogate models
+on real-world problems. But in the real world, when you face such an optimization problem,
+you would exploit every option to parallelize function evaluation, using multiple cores or even multiple cluster nodes.
+So surrogate models should be compared to these parallel algorithms, not to sequential ones.
 
 === Optimizing the hospital management problem
 
-Lets suppose we are a hospital manager interested in a solution of the 
-https://www.th-koeln.de/informatik-und-ingenieurwissenschaften/gecco-2021-industrial-challenge-call-for-participation_82086.php[Hospital Management Problem]
-implemented here https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerHospitalBenchmark.py[DockerHospitalBenchmark.py]
+Suppose we are a hospital manager looking for a solution to the
+https://www.th-koeln.de/informatik-und-ingenieurwissenschaften/gecco-2021-industrial-challenge-call-for-participation_82086.php[Hospital Management Problem],
+implemented here:
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerHospitalBenchmark.py[DockerHospitalBenchmark.py]
 See also https://gecco-2021.sigevo.org/Competitions#id_Real-World%20Multi-Objective%20Optimization%20Competition[Competition].
 
-To justify the last hardware investment the manager first tries to execute standard optimization methods 
-which are able to fully exploit all the fancy cores the newly bought machine provides. 
+To justify the latest hardware investment, the manager first tries standard optimization methods
+that can fully use all cores of the newly bought machine.
 
-It is a single objective problem without separate constraints, so he 
+This is a single-objective problem without separate constraints, so we
 could use https://facebookresearch.github.io/nevergrad/optimization.html[nevergrad]
-or fcmaes, both support the asynchronous ask/tell interface and parallel function evaluation. Another alternative is ESAs Pygmo using 
-https://esa.github.io/pygmo2/tutorials/using_archipelago.html[archipelagos], but this approach needs a lot of function calls and
-parallel function evaluation doesn't work "out of the box". 
+or `fcmaes`. Both support the asynchronous ask/tell interface and parallel function evaluation.
+Another alternative is ESA's Pygmo using
+https://esa.github.io/pygmo2/tutorials/using_archipelago.html[archipelagos], but this approach needs many function calls and
+parallel function evaluation does not work out of the box.
 
-Since this is a fcmaes tutorial our virtual hospital manager chooses fcmaes, but nevergrad would work as well. 
-We need to adapt 
-https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerHospitalBenchmark.py[DockerHospitalBenchmark.py] 
-for use with fcmaes: 
+Since this is an `fcmaes` tutorial, our virtual hospital manager chooses `fcmaes`, although nevergrad would work as well.
+We need to adapt
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerHospitalBenchmark.py[DockerHospitalBenchmark.py]
+for use with `fcmaes`:
 
-- To monitor progress we need some variables shared across python processes and wrap `evaluate(xs)`.
-- We add a method `optimize(self, popsize, max_evaluations)` calling the optimizer.
-- We intitialize `self.ints`, a list of booleans indicating which variables are discrete. Used by the `de` algorithm. 
+- To monitor progress, we need some variables shared across Python processes, and we wrap `evaluate(xs)`.
+- We add a method `optimize(self, popsize, max_evaluations)` that calls the optimizer.
+- We initialize `self.ints`, a list of booleans indicating which variables are discrete. This is used by the `de` algorithm.
 
-Most of the changes are for the super class `BaseProblem`. We adapt the other classes similarly. 
-If on Linux you may replace the `de` and `cmaes` by their {cpp} counterparts `decpp` and `cmaescpp` which are 
-slightly more efficient. 
+Most of the changes are in the super class `BaseProblem`. We adapt the other classes in the same way.
+If you are on Linux, you may replace `de` and `cmaes` with their {cpp} counterparts `decpp` and `cmaescpp`,
+which are slightly more efficient.
 
 [source,python]
----- 
+----
 ...
 from scipy.optimize import Bounds
 from fcmaes import de, cmaes, decpp, cmaescpp
 import time
 import ctypes as ct
-import multiprocessing as mp 
+import multiprocessing as mp
 from fcmaes.optimizer import logger, dtime
 import math
 
 class BaseProblem:
 
-    def __init__(self):                
+    def __init__(self):
         self.evals = mp.RawValue(ct.c_long, 0)  # writable across python processes
         self.best_y = mp.RawValue(ct.c_double, math.inf) # writable across python processes
         self.t0 = time.perf_counter()
@@ -175,34 +180,34 @@ class BaseProblem:
         y = self.evaluate(xs)
         self.evals.value += 1
         if y < self.best_y.value:
-            self.best_y.value = y            
+            self.best_y.value = y
             logger().info("evals = {0}: time = {1:.1f} y = {2:.5f} x= {3:s}"
-                          .format(self.evals.value, dtime(self.t0), y, 
+                          .format(self.evals.value, dtime(self.t0), y,
                                   '[' + ", ".join([f"{xi:.16f}" for xi in xs]) + ']'
                     ))
         return y
-        
+
     def optimizeDE(self):
         self.bestY = 1E99
         self.bestX = []
-        return de.minimize(self.fun, 
+        return de.minimize(self.fun,
             dim = self.dims(),
-            bounds = self.bounds(), 
-            popsize = 24, 
+            bounds = self.bounds(),
+            popsize = 24,
             ints = [v != 'cont' for v in problem.vartype()],
-            max_evaluations = 5000, 
+            max_evaluations = 5000,
             workers = 12,
         )
 
     def optimizeCMA(self):
         self.bestY = 1E99
         self.bestX = []
-        return cma.minimize(self.fun, 
-            bounds = self.bounds(), 
-            popsize = 24, 
-            max_evaluations = 5000, 
+        return cma.minimize(self.fun,
+            bounds = self.bounds(),
+            popsize = 24,
+            max_evaluations = 5000,
             workers = 12,
-        )   
+        )
     ...
 
 class DockerHospitalBenchmarkProblem(BaseProblem):
@@ -210,7 +215,7 @@ class DockerHospitalBenchmarkProblem(BaseProblem):
     def __init__(self, name, d, lbs, ubs, vartype, direction, errval):
         super().__init__()
         ...
-        
+
     ...
 
 if __name__ == '__main__':
@@ -218,125 +223,133 @@ if __name__ == '__main__':
     # Hospital.optimizeCMA()
 ----
 
-After about four hours runtime (using a standard 16 core CPU AMD 5950x) we get a result 
+After about four hours of runtime on a standard 16-core AMD 5950x CPU, we get a result:
 
 - around 12.3 using DE (differential evolution) with `popsize = workers = 16`
 - around 12.9 using CMA-ES with `popsize = workers = 16`
 
 image::Hospital_Management_Optimization.png[]
 
-To compare with other results we need the number of evaluations achieved by the parallel optimization 
-algorithm (including the algorithm overhead): 0.2. So in 1000 seconds 200 evaluations can be performed.
-So you have to check the result in the diagram above at 1000 sec for comparisons. 
+To compare these results with others, we need the number of evaluations achieved by the parallel optimization
+algorithm, including algorithm overhead: `0.2`.
+So in 1000 seconds, about 200 evaluations can be performed.
+For comparisons, you therefore need to look at the value in the diagram above at 1000 sec.
 
 ==== Results from the literature
 
 In the literature we found the following results:
 
-- https://ir.cwi.nl/pub/31037/31037.pdf[Optimisation with a Random ReLU Expansion Surrogate Model] 
+- https://ir.cwi.nl/pub/31037/31037.pdf[Optimisation with a Random ReLU Expansion Surrogate Model]
 
-They report a result of their surrogate model based method (which later evolved to
-https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/MVRSM[MVRSM]) of 
+They report the following results for their surrogate-model-based method, which later evolved into
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/MVRSM[MVRSM]:
 
 - 16.29 (+-2.16) and
 - 14.81 (+-0.69) limiting the number of points suggested by the surrogate model
 
-These results are more or less consistent with our DE results after 200 evaluations. 
-Unfortunately it is not stated how many runs were executed. 
+These results are more or less consistent with our DE results after 200 evaluations.
+Unfortunately, the paper does not state how many runs were executed.
 
-From the paper: 
+From the paper:
 "Still, we choose to further fine-tune our approach while
 disregarding other approaches, and look for ways to reduce the variance"
 
-Unfortunately this will not work, since the variance is caused by the simulation itself: 
-Results vary by about +-2 if you run the simulation multiple time for the same input variable values. 
-This value increases further for bad input values. For this reason it would be essential to 
-report the number of experiments performed. 
+Unfortunately this will not work, because the variance is caused by the simulation itself.
+Results vary by about +-2 if you run the simulation multiple times for the same input values.
+This value increases further for bad input values.
+For that reason, it is essential to report the number of experiments performed.
 
 - https://www.researchgate.net/publication/353114806_Surrogate-based_optimisation_for_a_hospital_simulation_scenario_using_pairwise_classifiers[Naharro2021]
 
-The way results are presented here are even worse: Average and best values for all runs
-are given, but not the number of experiments performed.
-Because of the extremely high variation of the simulation results for the same argument vectors
-we need the number of experiments to assess the "best result of all runs". This value will
-definitely improve for higher number of runs or evaluations. So we should completely ignore their
-"best results" and focus on the average values:
+The way results are presented here is even worse.
+Average and best values for all runs are given, but not the number of experiments performed.
+Because of the extremely high variation of the simulation results for the same argument vectors,
+we need the number of experiments to assess the "best result of all runs".
+That value will definitely improve if the number of runs or evaluations increases.
+So we should ignore their "best results" and focus on the average values:
 
 - DE mean after 750 evaluations: 14.26
 - DE + DTC mean after 750 evaluations: 14.52
 - DE + XGBR mean after 750 evaluations: 16.67
 
-They use a Differential Evolution variant (population
-size of 8 and a rand/1/exp as mutation strategy, both mutation and
-recombination factors are set to 0.5) which is very different to fcmaes DE. 
-It is enhanced by "blocking" candidates using different machine learning classifiers/regressors (DTC, XRGB). This "enhancement" seems to have a negative effect on the average results.  
-Compare with our DE average results after 750 evaluations / 3750 sec using the diagram above.   
+They use a Differential Evolution variant with a population
+size of 8 and a rand/1/exp mutation strategy. Both mutation and
+recombination factors are set to 0.5. This is very different from `fcmaes` DE.
+It is enhanced by blocking candidates using different machine learning classifiers or regressors (DTC, XGBR).
+This enhancement seems to have a negative effect on the average results.
+Compare this with our DE average results after 750 evaluations, or 3750 sec, using the diagram above.
 
-Other publications for the hospital management problem only present
-relative but no absolute optimization results. Although
-https://www.youtube.com/watch?v=Riio1eKOSKg&t=711s[Jan Hendrik Schön]  
-proved that you can almost get a nobel price using relative results, 
-see https://en.wikipedia.org/wiki/Sch%C3%B6n_scandal[Schön], this 
-makes it difficult to evaluate the tested methods compared to other ones. 
+Other publications for the hospital management problem present
+relative results, but no absolute optimization results.
+Although
+https://www.youtube.com/watch?v=Riio1eKOSKg&t=711s[Jan Hendrik Schön]
+proved that you can almost get a Nobel prize using relative results,
+see https://en.wikipedia.org/wiki/Sch%C3%B6n_scandal[Schön], this
+makes it difficult to evaluate the tested methods against others.
 
 ==== Exercise: Filtering candidate solutions for DE and MO-DE
 
-Although the results above regarding filtering of DE candidates are discouraging, we created
-an example which shows how that could be done so that you can perform your own experiment. 
-The exercise is to adapt the following example 
-https://github.com/dietmarwo/fast-cma-es/blob/master/examples/filter.py[filter.py] which 
-uses a `xgboost.XGBRegressor(objective='rank:pairwise')` to do the filtering of
-DE (or MO-DE) candidates to another optimization problem. 
+Although the results above for filtering DE candidates are discouraging, we created
+an example that shows how this can be done so you can run your own experiment.
+The exercise is to adapt the following example,
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/filter.py[filter.py], which
+uses a `xgboost.XGBRegressor(objective='rank:pairwise')` to filter
+DE or MO-DE candidates for another optimization problem.
 
 ==== Modifying candidate solutions for DE and MO-DE
 
-Recently explicit support for mixed integer problems was added to fcmaes DE and MO-DE. 
-One of the ideas behind it is that we add random mutations to the algorithm by
-modifying candidate solutions generated by the algorithm. How can we test this idea
-for continuous variables? We can do that, but only using the Python variants of the 
-algorithms `de` and `mode`, `decpp` and `modecpp` don't support this feature yet. 
-We have to specify a method `modifier(x)` and submit it to the algorithms using
+Recently, explicit support for mixed-integer problems was added to `fcmaes` DE and MO-DE.
+One idea behind it is to add random mutations by modifying candidate solutions generated by the algorithm.
+How can we test this idea for continuous variables?
+We can do that, but only with the Python variants of the algorithms.
+`de` and `mode` support it, while `decpp` and `modecpp` do not yet.
+We define a method `modifier(x)` and pass it to the algorithms using
 the `modifier` argument:
 
 [source,python]
----- 
+----
     def optimizeDE(self):
         self.bestY = 1E99
         self.bestX = []
-        
+
         def modifier(x):
             dim = len(x)
             min_mutate = 0.5
             max_mutate = max(1.0, dim/20.0)
             to_mutate = np.random.uniform(min_mutate, max_mutate)
-            return np.array([x if np.random.random() > to_mutate/dim else 
+            return np.array([x if np.random.random() > to_mutate/dim else
                                np.random.uniform(self.lbs()[i], self.ubs()[i])
                                for i, x in enumerate(x)])
-        
-        return de.minimize(self.fun, 
+
+        return de.minimize(self.fun,
             dim = self.dims(),
-            bounds = self.bounds(), 
-            popsize = 24, 
+            bounds = self.bounds(),
+            popsize = 24,
             modifier = modifier,
             ints = [v != 'cont' for v in problem.vartype()],
-            max_evaluations = 5000, 
+            max_evaluations = 5000,
             workers = 12,
         )
 ----
 
-It seems that at least this modification doesn't harm our results significantly:
+It seems that this modification at least does not harm the results significantly:
 
 image::DE_modified_Hospital_Optimization_problem.png[]
 
-Using only 12 (instead of 16) workers increased the number of simulations per second very slightly to `0.22`. It seems with 16 parallel simulations our AMD 5950x 16 core CPU is over its limits. 
-Note that we increased the population size from `16` to `24`, scaling is best when the population size is divisible by the number of workers. 
+Using only 12 workers instead of 16 increased the number of simulations per second slightly to `0.22`.
+It seems that with 16 parallel simulations our AMD 5950x 16-core CPU is already at its limit.
+Note that we increased the population size from `16` to `24`.
+Scaling is best when the population size is divisible by the number of workers.
 
 === Optimizing the CFD Electrostatic Precipitator problem
 
-The CFD Electrostatic Precipitator problem can be found at 
+The CFD Electrostatic Precipitator problem can be found at
 https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py[DockerCFDBenchmark.py],
 see also https://algtudelft.github.io/ExpensiveOptimBenchmark/problems.html[Electrostatic Precipitator]
-An Electrostatic Precipitator is a large gas filtering installation, whose efficiencyis dependent on how well the intake gas is distributed. This installation has slots which can be of various types, each having a different impact on the distribution. This benchmark problem employs the OpenFOAM Computational Fluid Dynamics simulator. The goal is to find a configuration that has the best resulting distribution. 
+An Electrostatic Precipitator is a large gas filtering installation whose efficiency depends on how well the intake gas is distributed.
+This installation has slots that can be of various types, each with a different impact on the distribution.
+This benchmark problem uses the OpenFOAM Computational Fluid Dynamics simulator.
+The goal is to find a configuration that gives the best resulting distribution.
 
 We executed the "ESP" benchmark with parallel differential evolution:
 
@@ -344,8 +357,8 @@ image::CFD_ESP_Optimization.png[]
 
 ==== UPDATE:
 
-After the fcmaes DE algorithm got a "mixed integer" upgrade, we executed the experiment again. Since almost all ESP variables
-are discrete, the result improved significantly:
+After the `fcmaes` DE algorithm got a mixed-integer upgrade, we ran the experiment again.
+Since almost all ESP variables are discrete, the result improved significantly:
 
 image::DE_ESP_CFD_Optimization_problem.png[]
 
@@ -354,41 +367,42 @@ of about `1.4` sec / evaluation.
 
 === Optimizing a Windmill Wake
 
-A windmill wake simulator based optimization using https://github.com/NREL/floris[floris]
+A windmill wake simulator based optimization using https://github.com/NREL/floris[floris],
 see https://algtudelft.github.io/ExpensiveOptimBenchmark/problems.html[Windmill Wake Simulator], code is here:
 https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/windwake.py[windwake.py]
-The layout of the windmills in a wind farm has noticeable impact on the amount of energy it produces. 
-This benchmark problem employs the FLORIS wake simulator to analyse how much power production is lost by
-having windmills be located in each others wake. The objective is to maximize power production.
+The layout of windmills in a wind farm has a noticeable impact on the amount of energy it produces.
+This benchmark problem uses the FLORIS wake simulator to analyse how much power production is lost
+when windmills are located in each other's wake.
+The objective is to maximize power production.
 
 We executed the `WindWakeLayout('example_input.json', n_samples=5)` benchmark using https://raw.githubusercontent.com/NREL/floris/master/examples/example_input.json[example_input.json] with parallel differential evolution:
 
 image::WindWake_Optimization.png[]
 
 Parallel execution on an AMD 5950x CPU enabled an execution time
-of about `0.1` sec / evaluation. 
+of about `0.1` sec / evaluation.
 
 === Optimizing Hyper-Parameters
 
-Hyper-parameter optimization using `xgboost` see https://algtudelft.github.io/ExpensiveOptimBenchmark/problems.html[HPO / XGBoost], code is here:
+Hyper-parameter optimization using `xgboost`, see https://algtudelft.github.io/ExpensiveOptimBenchmark/problems.html[HPO / XGBoost], code is here:
 https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/hpo.py[hpo.py]
-This benchmark makes use of scikit-learn to build an XGBoost classifier with per-feature preprocessing. Evaluation of a solution
-is performed by k-fold cross validation, with the goal to maximize accuracy.
+This benchmark uses scikit-learn to build an XGBoost classifier with per-feature preprocessing.
+Evaluation of a solution is performed by k-fold cross validation, with the goal of maximizing accuracy.
 
-We executed the `HPOSFP` benchmark using the dataset provided by Semeion, Research Center of Sciences of Communication 
+We executed the `HPOSFP` benchmark using the dataset provided by Semeion, Research Center of Sciences of Communication
 with parallel differential evolution:
 
 image::Hyper_Parameter_Optimization2.png[]
 
 ==== UPDATE:
 
-After the fcmaes DE algorithm got a "mixed integer" upgrade, we executed the experiment again. Since many HPO variables
-are discrete, the result improved:
+After the `fcmaes` DE algorithm got a mixed-integer upgrade, we ran the experiment again.
+Since many HPO variables are discrete, the result improved:
 
 image::DE_Hyper_Parameter_Optimization_problem.png[]
 
 Parallel execution on an AMD 5950x CPU enabled an execution time
 of about `0.15` sec / evaluation.
 
-In https://dl.acm.org/doi/10.1145/3449726.3463136[Bliek21] 
-you may find results for surrogate based optimizers for this problem.
+In https://dl.acm.org/doi/10.1145/3449726.3463136[Bliek21]
+you may find results for surrogate-based optimizers for this problem.

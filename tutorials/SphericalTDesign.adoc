@@ -8,7 +8,7 @@ image::logo.gif[]
 
 == Update
 
-Alexander Shvydky (see his work https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_03_Shvydky.pdf[here]) pointed out that many of the results in this tutorial can alternatively be achieved using spherical Fourier transformations. For additional details, consult https://www-user.tu-chemnitz.de/~potts/workgroup/graef/papers/designsS2.pdf[GraefS2] and https://www-user.tu-chemnitz.de/~potts/workgroup/graef/quadrature/[Gauß-type Quadratures on S2]. However, certain t-designs, such as those with N=132, l_max=19 and N=186, l_max=23, remain noteworthy because they use only 3 and 4 distinct weights, respectively—a feature that is particularly advantageous for technical applications like laser fusion reactor design.
+Alexander Shvydky (see his work https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_03_Shvydky.pdf[here]) pointed out that many of the results in this tutorial can also be obtained using spherical Fourier transformations. For details, see https://www-user.tu-chemnitz.de/~potts/workgroup/graef/papers/designsS2.pdf[GraefS2] and https://www-user.tu-chemnitz.de/~potts/workgroup/graef/quadrature/[Gauß-type Quadratures on S2]. Some t-designs still remain especially interesting, including N=132, l_max=19 and N=186, l_max=23, because they need only 3 and 4 distinct weights. That is attractive for technical applications such as laser fusion reactor design.
 
 = Mars Mission: The Lost Harmony
 2064, Low Mars Orbit, Mission Commander: You
@@ -17,91 +17,84 @@ Alexander Shvydky (see his work https://www.lle.rochester.edu/media/publications
 
 image::formation.webp[]
 
-The red planet loomed below, its ochre surface bathed in the faint glow of the twin moons, Phobos and Deimos. The fleet of 42 spacecraft, your fleet, hovered in anticipation—each a node in a vast celestial network, waiting for your command.
+The red planet hung below us, lit by the faint glow of Phobos and Deimos. Our fleet of 42 spacecraft waited in orbit. Each ship was one node in a large celestial array, ready for your command.
 
-The mission had been meticulously planned, years in the making. A quantum computing array, housed on our 43rd ship, the Horizon Prime, was meant to calculate our formations with flawless precision. But two weeks ago, we lost Horizon Prime to a rogue asteroid impact—a silent catastrophe that tore a hole in our processing power just as we arrived in orbit.
+The mission had been planned for years. The 43rd ship, Horizon Prime, carried a quantum computing array that was supposed to compute the formation in real time. Two weeks ago, a rogue asteroid destroyed it. We reached Mars with the fleet intact, but without the machine meant to guide it.
 
-Now, we are left with an aging mainframe, a decade-old relic from an era before real-time gravitational corrections and neural-assisted orbital optimizations. It groans under the weight of calculations that should take nanoseconds, struggling as we feed it equations by hand, hoping it can still guide us.
+Now we rely on an aging mainframe. It comes from a time before real-time gravitational corrections and neural orbital optimization. Jobs that should take nanoseconds now move slowly while we enter equations by hand.
 
 === Mission Objective: The Lost Signal
 
-Our task remains unchanged:
-We must orchestrate the fleet into a spherical t-design, a delicate orbital formation that will minimize interference from the Martian surface and maximize spatial resolution for an interferometric imaging array.
+Our task is unchanged. We must arrange the fleet as a spherical t-design. This formation minimizes interference from the Martian surface and maximizes the spatial resolution of our interferometric imaging array.
 
 === The Challenge
-Every ship must be placed in precisely chosen orbits such that their collective positions form an optimal sampling of the celestial sphere—a mathematical construct that ensures we can resolve hidden structures in Mars’ subsurface, detect deep crustal anomalies, and even search for whispers of past microbial life buried beneath the dust.
+Every ship needs a carefully chosen orbit. Together, the fleet must sample the celestial sphere in a way that lets us resolve subsurface structure on Mars, detect deep crustal anomalies, and perhaps even hint at past microbial life buried beneath the dust.
 
 === The Problem
-Without the lost quantum computer, our ability to solve for the highest l_max is compromised.
+Without Horizon Prime, reaching the highest possible l_max is much harder.
 
 ==== Bonus Task
-The admiral could send us more ships if necessary. So we have
-to check how many ships we need to increase l_max by one or two.
+The admiral can still send more ships if needed. So we also want to know how many additional ships are required to increase l_max by one or two.
 
 ==== Understanding l_max
 
 In simple terms, l_max determines our maximum imaging resolution. The higher the value, the finer the details we can extract from our interferometric measurements.
 
 - In a perfect world, with N = 43 ships and the quantum processor, we might have reached an ideal spherical t-design.
-- With N = 42 ships and only our sluggish classical computer, our goal is to push as high as possible.
+- With N = 42 ships and only our sluggish classical computer, our goal is to push l_max as high as possible.
 
 === The Battle Against Time
 
-We sit aboard the Aurora Ascendant, the command ship, as the mainframe churns through equations, its aging circuits buzzing with every adjustment. The fleet must remain stable—orbital corrections drain precious fuel, and time is against us. We have one shot to get this right before we’re forced to burn resources just to maintain position.
+We sit aboard the Aurora Ascendant while the mainframe grinds through the equations. The fleet must remain stable, but every orbital correction burns fuel. Time is short. We have one chance to get this right before we are forced to spend resources just to hold position.
+
 The fate of the mission rests on your decision. *What is your command?*
 
 === Problem Analysis
 
-So our task is to come up with a spherical t-design. This is a set
-of points on a unit sphere so that all the spherical harmonics cancel out to zero up to and including a given l_max.
+Our task is to find a spherical t-design. That means placing points on the unit sphere so that all spherical harmonics cancel up to and including a given l_max.
 
-Fortunately our old mainframe stored an ancient internet
-archive from the year 2025 where we find:
+Fortunately, the old mainframe still carries an archived internet snapshot from 2025. It contains several useful references:
 
 ==== http://neilsloane.com/sphdesigns/dim3/[sloanes archive]
-Here the best solution which fits is http://neilsloane.com/sphdesigns/dim3/des.3.42.8.txt[3.42.8], a 42-point spherical 8-design - means l_max=8. The smallest l_max=9 solution requires 48 ships, for l_max=10 it is 60 ships.
+The closest match is http://neilsloane.com/sphdesigns/dim3/des.3.42.8.txt[3.42.8], a 42-point spherical 8-design, so l_max=8. The smallest l_max=9 solution needs 48 ships. For l_max=10 it needs 60 ships.
 
 ==== https://web.maths.unsw.edu.au/~rsw/Sphere/EffSphDes/sf.html
-Here the ship numbers for l_max = 8,9,10 are 42, 50 and 62
+This source lists ship counts 42, 50, and 62 for l_max = 8, 9, and 10.
 
 ==== https://web.maths.unsw.edu.au/~rsw/Sphere/EffSphDes/ss.html
-We find ship numbers for l_max = 7,9,11: 32, 48 and 70
+Here the ship counts for l_max = 7, 9, and 11 are 32, 48, and 70.
 
-Since the admiral is very disappointed about what we found we
-ask the ancient AI on our old mainframe. It comes
-up with the idea to use weighted spherical designs like Lebedev.
-Theoretically these give more freedom which could enable
-higher l_max:
+The admiral is not impressed by those numbers, so we ask the ancient AI on the mainframe. It suggests weighted spherical designs such as Lebedev rules. In principle, weights add freedom and may allow a higher l_max:
 
 "For most computational integration tasks, having a weighted spherical design is not a problem—it’s entirely standard. From a purely numerical integration perspective, weights are absolutely normal and pose no fundamental barrier to computing accurate results."
 
-Unfortunately the https://github.com/ifilot/pylebedev/tree/master/pylebedev/data[Lebedev]
-approach frequently relies on negative or highly uneven weights, which are incompatible with the
-antennas on our ships. So we desparately search for new ideas.
-As we continue to scan the archive on the mainframe we stumble upon an
+Unfortunately, the https://github.com/ifilot/pylebedev/tree/master/pylebedev/data[Lebedev]
+approach often relies on negative or highly uneven weights. That does not work with the antennas on our ships. So we keep searching. Deep in the archive, we find an
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SphericalTDesign.adoc[old tutorial covering exactly this problem]:
 
 == The old Tutorial from 2025
 
 === This Tutorial
 
-- Shows how to construct perfect weighted t-designs for l_max = 10,11 and 12 minimizing the number of points.
-- Shows how to design the fitness function and how to apply evolutionary optimization to find perfect solutions.
-- Shows how to utilize all CPU cores by parallelizing the optimisation process.
+- Shows how to construct perfect weighted t-designs for l_max = 10, 11, and 12 with as few points as possible.
+- Shows how to design the fitness function and use evolutionary optimization to find exact solutions.
+- Shows how to use all CPU cores by parallelizing the optimisation process.
+
+This example also shows why `fcmaes` fits this kind of problem well. The search space is continuous, constrained, and highly non-linear. A restart-based global optimizer can work through it without requiring gradients or a carefully crafted initial design.
 
 === Tutorial Code
 
-The complete code corresponding to this tutorial is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/tdesign.py[tdesign.py]
+The complete code for this tutorial is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/tdesign.py[tdesign.py]
 
 === Fitness Function
 
-First we have to define 't_design_error' which computes the "error" in the weighted t-design defined by a list of N spherical points defined by their theta and phi angles, and a list of weights.
+First we define `t_design_error`. It computes the error of a weighted t-design from a list of N spherical points, given by their theta and phi angles, and a list of weights.
 
-- 't_design_error' checks if the spherical harmonics cancel out to zero up to and including a given l_max and measures the error.
-- It computes the real spherical harmonics based on the associated Legendre function implemented in
-scipy.special.lpmv . Alternatively scipy.special.sph_harm_y could be used converting its complex result, but experiments showed that surprisingly this is slower.
-We utilize the fact that numpy/scipy processes all points at once by using arrays. Therefore, we achieve excellent performance, there is no need to use numba.
-- The original version of the symmetry function was contributed by Stephen Pollaine, a specialist in laser design for fusion reactors. The Laboratory for Laser Energetics (LLE) at the University of Rochester employed a spherical 9-design, positioning 60 lasers at the vertices of a modified soccer ball, achieving symmetry for all t <= l_max = 9. Implementing weighted designs in this context would be significantly more challenging due to the irregular distribution of points, requiring each laser to operate at a unique intensity.
+- `t_design_error` checks whether the spherical harmonics cancel up to and including a given l_max, and measures the remaining error.
+- It computes real spherical harmonics from the associated Legendre function in
+scipy.special.lpmv . We could also use scipy.special.sph_harm_y and convert its complex result, but experiments showed that this is slower.
+Because numpy/scipy evaluates all points at once, an array-based implementation is already fast enough. There is no need for numba.
+- The original version of the symmetry function was contributed by Stephen Pollaine, a specialist in fusion-reactor laser design. The Laboratory for Laser Energetics (LLE) at the University of Rochester used a spherical 9-design with 60 lasers placed on a modified soccer ball, achieving symmetry for all t <= l_max = 9. Weighted designs would be much harder to realize there because the irregular point distribution would require each laser to run at a different intensity.
 
 [source,python]
 ----
@@ -187,12 +180,12 @@ def t_design_error(points, l_max, weights=None):
 
 === Utilities
 
-Next we need some utilities:
+Next we need a few helper functions:
 
-- 'cartesian_to_spherical' converting cartesian 3d points to (theta,phi) spherical ones
-- 'x_to_points' extracting the (theta,phi) spherical points from the argument vector
-- 'normalize_weights_to_average_one' we normalize the weights so that their sum is N - as in the unweighted case where all weights are assumed to be 1.
-- 'fibonacci_sphere' a quite bad approximation proposed by the AI which works surprisingly well when used as initial guess. I tried "better" alternatives with diminishing results.
+- `cartesian_to_spherical` converts Cartesian 3D points to spherical `(theta,phi)` coordinates.
+- `x_to_points` extracts the spherical `(theta,phi)` points from the argument vector.
+- `normalize_weights_to_average_one` rescales the weights so their sum is N, matching the unweighted case where every weight is 1.
+- `fibonacci_sphere` is a fairly rough approximation suggested by the AI, but it works surprisingly well as an initial guess. I tried "better" alternatives, but the gains were small.
 
 [source,python]
 ----
@@ -234,10 +227,13 @@ def fibonacci_sphere(N):
 
 === Parallel Optimisation using the https://github.com/avaneev/biteopt[BiteOpt] algorithm.
 
-Finally we are ready to perform the optimization. We use the fcmaes parallel restart mechanism calling the https://github.com/avaneev/biteopt[BiteOpt] algorithm. BiteOpt has a major flaw:
-- Parallelization needs to be at the restart level, it can not parallelize the evaluation of a population performing a single run.
-fcmaes also provides algorithms supporting parallel population evaluation like Differential Evolution,
-CMA-ES or CRFM-NES. But BiteOpts ability to adapt dynamically during optimization compensates for this flaw.
+Now we can run the optimization. We use the `fcmaes` parallel retry mechanism together with the https://github.com/avaneev/biteopt[BiteOpt] algorithm.
+
+BiteOpt has one major drawback:
+
+- Parallelization is only available at the restart level. It cannot parallelize population evaluation inside a single run.
+
+`fcmaes` also provides algorithms such as Differential Evolution, CMA-ES, and CRFM-NES that support parallel population evaluation. In this case, however, BiteOpt's dynamic adaptation makes up for that limitation.
 
 [source,python]
 ----
@@ -266,9 +262,11 @@ def optimize_weights(N, l_max, workers=20, max_evals=1000000, max_iters=1):
 
 === Results
 
+The results below matter for two reasons. First, they improve on the unweighted point counts from the references above. Second, they illustrate that `fcmaes` can find exact constructions in a difficult continuous optimization problem with many variables and constraints.
+
 ==== N=42, l_max = 10
 
-We found a perfect solution up to l_max=10 using only 42 points.
+We found a perfect solution for l_max=10 using only 42 points.
 
 image::42_10.png[]
 
@@ -284,11 +282,11 @@ symmetries =  [1.         0.         0.         0.         0.         0.
  0.06575862 0.02474867]
 symmetry error = 0.0
 ----
-There are minor errors at l=11, l=12 and l=13
+There are only minor errors at l=11, l=12, and l=13.
 
 ==== N=48, l_max = 11
 
-We found a perfect solution up to l_max=11 using only 48 points.
+We found a perfect solution for l_max=11 using only 48 points.
 
 image::48_11.png[]
 
@@ -305,11 +303,11 @@ symmetries =  [1.00000000e+00 0.00000000e+00 0.00000000e+00 0.00000000e+00
  1.14621038e-01 9.45072435e-02 7.03566689e-05]
 symmetry error = 0.0
 ----
-There are minor errors at l=12, l=13 and l=14
+There are only minor errors at l=12, l=13, and l=14.
 
 ==== N=58, l_max = 12
 
-We found a perfect solution up to l_max=12 using only 58 points.
+We found a perfect solution for l_max=12 using only 58 points.
 
 image::58_12.png[]
 
@@ -325,25 +323,25 @@ symmetries =  [1.         0.         0.         0.         0.         0.
  0.         0.0934051  0.06649197 0.01707206]
 symmetry error = 0.0
 ----
-There are minor errors at l=13, l=14 and l=15
+There are only minor errors at l=13, l=14, and l=15.
 
 == Summary
 
-- BiteOpt parallel restart is well suited to search for weighted spherical t-designs.
-- We found N=42, l_max=10, N=48, l_max=11 and N=58, l_max=12 spherical t-designs which by far exceed what is possible without using weights.
-- May be some space mission commander will read this in the future to plan his mission.
+- BiteOpt parallel restart is well suited to searching for weighted spherical t-designs.
+- We found N=42, l_max=10, N=48, l_max=11, and N=58, l_max=12 spherical t-designs. These go well beyond what is possible without weights.
+- Maybe some future space mission commander will read this when planning a mission.
 - Note that we found a significant performance boost of about 15% using Python 12 compared to Python 10 on our 16 core AMD 9950x CPU using Linux Mint 22.
 - Note that we found https://en.wikipedia.org/wiki/Phrases_from_The_Hitchhiker%27s_Guide_to_the_Galaxy%23The_Answer_to_the_Ultimate_Question_of_Life%2C_the_Universe%2C_and_Everything_is_42[The Answer to the Ultimate Question of Life, the Universe, and Everything]
-, it is the question:
-"how many points on a unit sphere are required, so that all the spherical harmonics cancel out to zero up to and including a given l_max = 10" . Excercise: Can you find the correct answer using any existing AI applied to this prompt?
+, namely the question:
+"how many points on a unit sphere are required, so that all the spherical harmonics cancel out to zero up to and including a given l_max = 10" . Exercise: Can you find the correct answer using any existing AI applied to this prompt?
 
 = Laser Fusion Reactor Design
 
 image::reactor.webp[]
 
-As previously mentioned, the Laboratory for Laser Energetics (LLE) at the University of Rochester utilized a spherical 9-design, arranging 60 lasers to converge at the center of the sphere (see https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_03_Shvydky.pdf[Shvydky]). Introducing weighted designs in this setup presents considerable challenges, primarily due to the irregular distribution of points, which necessitates assigning a unique intensity to each laser.
+As mentioned earlier, the Laboratory for Laser Energetics (LLE) at the University of Rochester used a spherical 9-design, arranging 60 lasers to converge at the center of the sphere (see https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_03_Shvydky.pdf[Shvydky]). Weighted designs are harder to realize in this setup because the irregular point distribution would require a different intensity for each laser.
 
-However, we can partially address these challenges by adjusting the optimization process. The generation of uniform t-designs incorporates certain techniques (refer to https://arxiv.org/pdf/math/0207211[Improved Snub Cube]), which we can adapt to our approach. Specifically, by leveraging point generation through permutation and mirroring, we can derive 12 symmetric points from a single reference point.
+We can partially address this by adjusting the optimization process. The construction of uniform t-designs uses techniques we can adapt here (see https://arxiv.org/pdf/math/0207211[Improved Snub Cube]). In particular, permutation and mirroring let us derive 12 symmetric points from a single reference point.
 
 [source,python]
 ----
@@ -367,7 +365,7 @@ def generate_orbits(N, x): # generate 12 symmetries for each reference point
     return np.array(points[:N])
 ----
 
-By applying this method, we significantly reduce the number of decision variables, as we only need to optimize the reference points while automatically generating all 12 symmetries. Although the total number of weights remains unchanged, this strategy narrows the solution space, thereby accelerating the optimization process.
+This method greatly reduces the number of decision variables. We only optimize the reference points and generate the 12 symmetries automatically. The number of weights stays the same, but the search space becomes smaller, which speeds up the optimization.
 
 [source,python]
 ----
@@ -376,7 +374,7 @@ By applying this method, we significantly reduce the number of decision variable
         weights = x[2*n:]
         return t_design_error(points, l_max, weights)
 ----
-Interestingly, experiments have revealed an additional benefit: the number of distinct weights in the solution is greatly minimized, often resulting in a low number of different weight values. For N = 72 this simplification means we only need to construct two types of lasers with varying intensities. Below are the corresponding solutions using 48, 60, 72, 132 and 192 lasers:
+Experiments revealed another benefit. The number of distinct weights often drops sharply, so only a few different intensity levels are needed. For N = 72, for example, we only need two laser types with different intensities. Below are the corresponding solutions for 48, 60, 72, 132, and 192 lasers:
 
 - 48 beams: 2 intensities, l_max = 11
 - 60 beams: 5 intensities, l_max = 12
@@ -384,8 +382,8 @@ Interestingly, experiments have revealed an additional benefit: the number of di
 - 132 beams: 3 intensities, l_max = 19
 - 192 beams: 4 intensities, l_max = 23
 
-We also show intensity distributions plots - compare to https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_03_Shvydky.pdf[Shvydky] for uniform designs.
-Specially the beam designs >= 72 beams show excellent uniformity.
+We also show intensity distribution plots. Compare them to https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_03_Shvydky.pdf[Shvydky] for uniform designs.
+In particular, the beam designs with at least 72 beams show excellent uniformity.
 These plots are computed using Equation 1 from
 https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_03_Shvydky.pdf[Shvydky].
 
@@ -984,46 +982,44 @@ In https://iopscience.iop.org/article/10.1088/1741-4326/aca685/ampdf[Shvydky2] w
 "Future direct-drive ICF laser systems will look to improve uniformity, which means increasing t in t-
 design configurations using the least number of beams N ."
 
-The excellent t-designs from the previous section confirm the statement.
-But are t-designs really the optimal way to address the uniformity issue?
+The strong t-designs from the previous section support that statement.
+But are t-designs really the best way to address uniformity?
 
-The paper decomposes uniformity for different modes `<= l_max`.
-For a typical t-design you need to set `l_max` to about `t+5` to cover
-the modes most relevant for uniformity.
+The paper decomposes uniformity into contributions from different modes `<= l_max`.
+For a typical t-design, you need to set `l_max` to about `t+5` to cover
+the modes that matter most for uniformity.
 
 The uniformity terms for each mode involve two components which are multiplied:
 
 - The first is laser positioning dependent (overall uniformity).
 - The second is beam shape dependent (single beam effect).
 
-If a single beam covers a larger/smaller area, you need to adapt the positioning.
-t-designs have a nice property: The positioning dependent component is zero
-for all modes `<= t`. This ensures good uniformity for all
-beam shapes. You cannot build a new system every time you adapt the laser parameters.
-A good design should cover a whole area of possible configurations.
+If a single beam covers a larger or smaller area, you need to adapt the positioning.
+t-designs have a useful property: the positioning-dependent component is zero
+for all modes `<= t`. That gives good uniformity across many
+beam shapes. In practice, you cannot build a new system every time you adjust the laser parameters.
+A good design should cover a whole range of possible configurations.
 
-So why not focus on t-designs and use the freedom you still
-have if the number of beams N is big enough, to further improve uniformity? Which means
-to minimize the about 5 uniformity components for modes `l = t+1,...,t+5`?
+So why not focus on t-designs and use the remaining freedom, when the number of beams N is large enough, to further improve uniformity? In practice, this means minimizing the roughly 5 uniformity components for modes `l = t+1,...,t+5`.
 
 The main counterarguments are:
 
-- t-designs are a local minimum no optimizer can escape.
-- Limiting the optimization to the last 5 components keeping the t-design property
+- t-designs are a local minimum that no optimizer can escape.
+- Limiting the optimization to the last 5 components while keeping the t-design property
 is too restrictive in practice.
 - Non-t-designs can cover the same beam-shape area as t-designs.
 
-The plots below show the beam shape area covered by designs found by directly optimizing
+The plots below show the beam-shape area covered by designs found by directly optimizing
 uniformity for a specific beam shape. The orange area
-marks the limit outside uniformity rms falls below 0.1%. On the right you see the
-corresponding best t-designs. In all cases the t-design covers a slightly smaller area.
+marks the region where the uniformity rms stays below 0.1%. On the right you see the
+corresponding best t-designs. In all cases, the t-design covers a slightly smaller area.
 
-The presented non-t-designs not only optimize uniformity for a specific beam shape, they also cover a large
-beam shape area. For the optimization we should choose beam shape parameters in the center
+The non-t-designs shown here do not only optimize uniformity for a specific beam shape, they also cover a large
+beam-shape area. For the optimization, we should choose beam-shape parameters in the center
 of the beam shape area we are interested in.
 
-Note, that this approach doesn't work well for designs with N < 132. In this case
-the previous approach shows better results. t-designs cover a larger uniformity rms area.
+Note that this approach does not work well for designs with N < 132. In that case,
+the previous approach gives better results. t-designs cover a larger uniformity-rms area.
 
 === N = 132, l_max = 15
 image::132nt.png[]
@@ -1160,9 +1156,9 @@ minimal relative intensity = 0.999983 rms = 0.00000244
 = Table of Minimal Weighted Spherical t-Designs
 
 Note that https://github.com/ifilot/pylebedev/tree/master/pylebedev/data[Lebedev]
-weighted designs utilize negative or highly uneven weights compared to our approach.
-Additionally, except for the l_max = 27 design, they require more points.
-It seems the optimization approach reaches its limits at l_max = 27.
+weighted designs use negative or highly uneven weights compared to our approach.
+Also, except for the l_max = 27 design, they require more points.
+It seems this optimization approach reaches its limits at l_max = 27.
 
 === N = 2, l_max = 1
 

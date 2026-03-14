@@ -12,57 +12,54 @@ image::logo.gif[]
 
 === Introduction
 
-This tutorial shows one of the main uses of fcmaes.
-Imagine you have a simulation that takes several minutes to run each time. How can you find the best settings for its parameters?
+This tutorial covers one of the most common uses of fcmaes.
+Suppose you have a simulation that takes several minutes per run. How do you still find good parameter settings?
 
-We share what we learned from a real case in aging research: a simulation that finds the marginal distributions of two mutant types in a Moran process. The same methods can be used in similar projects.
+We use a real example from aging research. The simulation computes the marginal distributions of two mutant types in a Moran process. The same approach applies to many similar simulation-based optimization tasks.
 
 - How to speed up the simulation.
-
 - How to use parallel processing to make optimization faster.
-
 - How to pick the right optimization algorithm.
 
 === How to Speed Up the Simulation
 
-The simulation was originally written in Python using Numba. It uses the `@njit(parallel=True)` annotation to enable parallel computation.
+The simulation was originally written in Python with Numba. It used `@njit(parallel=True)` to parallelize the computation.
 
 ==== Converting to Another Programming Language
 
-It was considered converting the simulation to other languages, such as Rust or C++. Using an LLM to convert the code to Rust was successful, but did not yield any speed improvement over the Numba-based Python version.
+We considered moving the simulation to another language such as Rust or C++. An LLM was able to convert the code to Rust, but the Rust version was not faster than the Numba-based Python implementation.
 
 ==== Using LLMs to Improve Numba/Python Code
 
-General guidelines:
+LLMs were more useful for improving the existing Numba/Python code. A few rules helped:
 
 - Use advanced “thinking” models like OpenAI o3 or Anthropic Opus/Sonnet 4.0.
 - Always choose the best models currently available.
 - Instruct the LLM to suggest small, incremental improvements and measure their timing effects separately.
 - Only introduce changes that demonstrate real speed improvements, one at a time.
 - Try suggestions from multiple LLMs, as they may provide different and complementary ideas.
-- Carefully verify accuracy. Some LLM improvements increased speed at the cost of accuracy. We were able to limit accuracy loss while preserving most of the speed gains.
+- Carefully verify accuracy. Some LLM changes improved speed but reduced accuracy. We were able to limit the accuracy loss while preserving most of the speed gains.
 - Consider memory usage. For example, replacing some `float64` arrays with `float32` can help reduce memory consumption and may improve performance when running multiple simulations in parallel, since CPU caches are limited.
 
-When GPT-5 became available, we tested it right away to see if it could further boost performance.
+When GPT-5 became available, we tested it to see whether it could improve performance further.
 
-- Its initial suggestion actually made the code 4.5 times slower.
+- Its first suggestion made the code 4.5 times slower.
+- After we fed back the actual timing results, it found a modest 3% improvement.
 
-- After giving feedback about the real performance, we were able to achieve a modest 3% improvement.
-
-This shows the importance of making changes gradually and always verifying the results.
+This is a good example of why changes should be small and measured carefully.
 
 === Optimizers Tested
 
 ==== Nelder-Mead
 
-Since we only needed to optimize three parameters for Moran, we started with the Nelder-Mead method from the scipy library.
+The Moran example only requires optimization of three parameters, so we started with Nelder-Mead from scipy.
 
 - The initial guess (`x0`) is required.
 - The result depends heavily on this guess. With a good guess, convergence is fast. With a bad guess, the optimizer may get stuck in a local minimum.
 
 ==== Optuna
 
-Next we tried Optuna, which uses a Tree-structured Parzen Estimator (TPE) by default.
+We then tried Optuna, which uses a Tree-structured Parzen Estimator (TPE) by default.
 
 - We observed slow convergence.
 - Convergence improved by switching to `CmaEsSampler` or `GPSampler`.
@@ -72,52 +69,47 @@ Next we tried Optuna, which uses a Tree-structured Parzen Estimator (TPE) by def
 
 `GPSampler` gave good results in the first 200 evaluations but then converged much more slowly than Differential Evolution or CMA-ES.
 
-`CmaEsSampler` delivered strong performance and is especially useful if you need to distribute computations across multiple nodes.
+`CmaEsSampler` performed well and is especially useful when you need to distribute work across multiple nodes.
 
-For simple multiprocessing, `fcmaes.cmaes` and `fcmaes.de` (Differential Evolution) are easier to use, both offering the ask/tell interface. In our Moran simulation, Differential Evolution performed best, and Optuna does not offer a direct equivalent for this method.
+For straightforward multiprocessing on one machine, `fcmaes.cmaes` and `fcmaes.de` are easier to use. Both provide an ask/tell interface. In our Moran simulation, Differential Evolution performed best, and Optuna does not provide a direct equivalent.
 
-To sum up our experience with the Moran simulation:
+In the Moran simulation, our conclusions were:
 
 - If your objective function is very expensive and you can only afford around 200 evaluations, Optuna with TPE or GPSampler can be a good choice. However, for our tests, CmaEsSampler generally worked better, even in the early evaluations.
-
 - If CmaEsSampler gives good results for your problem, consider using fcmaes as an alternative. It also supports differential evolution, which performed best for our use case.
-
-- Optuna is a strong option if you need to parallelize across multiple CPUs or nodes. In our situation, this was not necessary: Our 16-core CPU was able to evaluate a population of 16 candidates in parallel, and increasing the population size further did not help. So, a single CPU was enough.
-
+- Optuna is a strong option if you need to parallelize across multiple CPUs or nodes. We did not need that here. Our 16-core CPU could evaluate a population of 16 candidates in parallel, and a larger population did not help. One CPU was enough.
 - If multiple optimization restarts are needed to find a good solution (which was not the case for us), you still don’t need to synchronize across CPUs. Simply run independent optimizations on all available CPUs.
 
 Use Optuna when:
 
 - TPE or GP outperform CMA-ES and differential evolution for your problem.
-
 - It’s beneficial to distribute objective evaluations across multiple CPUs
 
 
 ==== BiteOpt
 
-Next, we tested `fcmaes.bitecpp.minimize` as a drop-in replacement for Nelder-Mead.
+We also tested `fcmaes.bitecpp.minimize` as a drop-in replacement for Nelder-Mead.
 
 - No initial guess is required.
 - Convergence is slower, but it never got stuck in a local minimum.
 
-This was already a notable improvement. However, we still had to accept the moderate speedup of 3.5x from using `@njit(parallel=True)`.
+This was already a useful improvement. But we still only had the moderate 3.5x speedup from `@njit(parallel=True)`.
 
 
 === Moving Parallelization from Simulation to Optimizer
 
-fcmaes offers algorithms with an ask/tell interface.
+The next step was to move parallelization out of the simulation and into the optimizer. fcmaes supports this through algorithms with an ask/tell interface.
 
-This approach has two main benefits:
+That change has two main advantages:
 
-- We can generate a list of parameter sets with `ask` and evaluate them in parallel using Python multiprocessing. On a 16-core CPU, this usually gives a speedup of 10 times or more, if each simulation runs in a single thread (without `parallel=True`).
+- We can generate a batch of parameter sets with `ask` and evaluate them in parallel with Python multiprocessing. On a 16-core CPU, this often gives a speedup of 10 times or more, as long as each simulation run stays single-threaded and does not use `parallel=True`.
+- We can track progress directly and stop early if the search stalls. No callback is needed, and we keep full control of the optimization loop.
 
-- We can track progress directly and stop the optimization if it stalls. No callback is needed, and we have full access to the loop’s context.
+There is one caveat:
 
-But:
+- The `minimize` function, for example `fcmaes.de.minimize`, also accepts a workers argument and supports Python multiprocessing. With Differential Evolution, `minimize` often keeps worker processes slightly busier than the ask/tell interface. See the section "Alternative: Use minimize" below. For CMA-ES, both interfaces usually perform similarly.
 
-- The `minimize` function (e.g., `fcmaes.de.minimize`) also accepts a workers argument and supports Python multiprocessing. With differential evolution, minimize often keeps the worker processes slightly busier compared to the ask/tell interface. (See the section "Alternative: Use minimize" below.) For CMA-ES, both interfaces generally offer similar performance.
-
-How can it be used:
+Here is how to use it.
 
 ==== fcmaes imports
 
@@ -134,23 +126,22 @@ logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {level} | {message}", level=
 #logger.add("log_{time}.txt", format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
 ----
 
-You can configure logging to set the log level and add additional file outputs.
+You can configure logging here, including the log level and optional log files.
 
 Note for Windows users:
 
-- On Windows, subprocesses are “spawned” and do not share the parent’s file handle. If multiple processes write to the same log file without coordination, this can cause mixed-up log entries, file lock errors, or lost lines.
+- On Windows, subprocesses are “spawned” and do not share the parent’s file handle. If several processes write to the same log file without coordination, you can get mixed log entries, file lock errors, or lost lines.
 
 Workarounds:
 
-- For debugging, run single-threaded on Windows, but use the Linux subsystem for actual optimization runs.
-
+- For debugging, run single-threaded on Windows. For real optimization runs, use the Linux subsystem.
 - Alternatively, redirect standard output to a log file using:
 `python simulation_optimization.py | tee output.log`
 
 
 ==== Defining the objective function which calls the simulation
 
-The objective receives additional fixed arguments `args` provided by `functools.partial`.
+The objective function can receive additional fixed arguments through `functools.partial`.
 
 [source,python]
 ----
@@ -176,7 +167,7 @@ os.environ.setdefault("MKL_NUM_THREADS", "1")
 numba.set_num_threads(1)
 ----
 
-Since the optimizer already runs multiple simulations in parallel using Python multiprocessing, adding more parallelism inside the simulation will only create overhead and slow everything down. This is because the number of CPU cores is limited.
+The optimizer already runs multiple simulations in parallel through Python multiprocessing. Adding more parallelism inside each simulation run only adds overhead and usually makes the whole system slower, because the number of CPU cores is limited.
 
 ==== The Optimization Loop
 
@@ -211,18 +202,14 @@ Since the optimizer already runs multiple simulations in parallel using Python m
 
 ----
 
-- fcmaes.optimizer.wrapper is optional and logs every improvement found during optimization.
-
-- journal_wrapper is also optional and enables support for the Optuna dashboard.
-
-- partial(objFunc, args) creates a version of objFunc with args already set.
+- `fcmaes.optimizer.wrapper` is optional. It logs every improvement found during optimization.
+- `journal_wrapper` is also optional. It adds support for the Optuna dashboard.
+- `partial(objFunc, args)` creates a version of `objFunc` with `args` already fixed.
 
 To use the Optuna dashboard:
 
-- Run pip install optuna-dashboard
-
-- Start the dashboard with optuna-dashboard journalMoran.log
-
+- Run `pip install optuna-dashboard`
+- Start the dashboard with `optuna-dashboard journalMoran.log`
 - Open http://127.0.0.1:8080/ in your browser
 
 image::journal.png[]
@@ -230,38 +217,38 @@ image::journal.png[]
 ==== Explanation of Optimization Parameters
 
 - **bounds**
-  Box boundaries for the parameters, instance of scipy.optimize.Bounds.
+  Box boundaries for the parameters. This is an instance of `scipy.optimize.Bounds`.
 
 - **popsize**
-  This sets the population size used by the evolutionary algorithm (Differential Evolution or CMA-ES).
+  This is the population size used by the evolutionary algorithm, either Differential Evolution or CMA-ES.
   * A larger `popsize` reduces the risk of getting stuck in local minima but makes convergence slower.
   * For best performance, set `popsize` as a multiple of the number of parallel `workers` in `fcmaes.evaluator.parallel`.
   * On a 16-core CPU, `popsize = workers = 16` worked well in our tests and is a good starting point.
 
 - **es** (the optimization algorithm)
-  * `fcmaes.de.DE` (Differential Evolution) is a reliable default option. Setting keep=20 makes the search broader. Use this mainly if you can only afford a very limited number of evaluations.
+  * `fcmaes.de.DE` (Differential Evolution) is a reliable default. Setting `keep=20` makes the search broader. Use this mainly when you can only afford a limited number of evaluations.
   * `fcmaes.decpp.DE_C` ({cpp} version) is a bit faster and supports providing an initial guess (`x0`), which is useful for improving an existing solution.
-  * `fcmaes.cmaes.Cmaes` and `fcmaes.cmaescpp.ACMA_C` are Python and {cpp} versions of CMA-ES; they work, but in our case, Differential Evolution performed slightly better.
+  * `fcmaes.cmaes.Cmaes` and `fcmaes.cmaescpp.ACMA_C` are the Python and {cpp} versions of CMA-ES. They worked, but Differential Evolution performed slightly better for our case.
   * If you have a good initial guess, setting a small `input_sigma` focuses the search.
   * The other fcmaes algorithms with ask/tell support performed poorly for the Moran simulation. Only use them if you are sure they fit your use case.
 
 - **terminate(fvals)**
-  This is an optional user-defined function. It lets you decide when to stop the optimization based on the list of best function values from each iteration.
+  This is an optional user-defined function. It decides when to stop based on the list of best function values from each iteration.
 
 ==== Alternative: Use minimize
 
-If you don't need full control over the optmization process, fcmaes provides a simpler option: `minimize`.
-As `fcmaes.evaluator.parallel` it has a `workers' parameter defining how many Python processes are created for the optimization.
-There are the following variants interesting for the Moran simulation:
+If you do not need full control over the optimization loop, fcmaes provides a simpler option: `minimize`.
+Like `fcmaes.evaluator.parallel`, it has a `workers` parameter that defines how many Python processes are used.
+For the Moran simulation, these variants are relevant:
 
 - `fcmaes.de.minimize`: Differential Evolution, Python variant
 - `fcmaes.cmaes.minimize`: CMA-ES, Python variant
 
 Warning: Avoid using the {cpp} variants `fcmaes.decpp.minimize` and `fcmaes.cmaescpp.minimize` for expensive simulations run from Python. These use {cpp} multithreading, which is limited by Python’s Global Interpreter Lock (GIL) and can lead to poor parallel performance. But you can use these variants in combination with the ask/tell interface.
 
-- `fcmaes.bitecpp.minimize` is very effective, but it doesn’t have a `workers` parameter. Use it when your simulation itself is already parallelized.
+`fcmaes.bitecpp.minimize` is very effective, but it does not have a `workers` parameter. Use it when the simulation itself is already parallelized.
 
-The code for the optimization loop is simpler:
+In that case, the optimization loop becomes simpler:
 
 [source,python]
 ----
@@ -275,4 +262,3 @@ The code for the optimization loop is simpler:
     # if you have a good initial guess
     # result = fcmaes.cmaes.minimize(wrapper(partial(objFunc, args)), bounds, workers=popsize, popsize=popsize, max_evaluations=max_evaluations, x0=guess, input_sigma=0.1)
 ----
-

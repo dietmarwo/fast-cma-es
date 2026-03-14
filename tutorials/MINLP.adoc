@@ -14,109 +14,129 @@ This tutorial:
 
 - Shows how to solve mixed integer problems by enumeration and parallel optimization.
 
-This method is supported by a specific fcmaes meta optimizer `multiretry`. 
-Note that some fcmaes optimizers support discrete arguments (DE and MODE), and some
-work very well with continuous decision variables converted into integers using numpys
-`astype(int)` or `argsort()` (BiteOpt). 
+This method is supported by the fcmaes meta optimizer `multiretry`.
+Some fcmaes optimizers also support discrete arguments directly, for example DE and MODE.
+Others work well when continuous decision variables are mapped to integers using numpy's
+`astype(int)` or `argsort()`, for example BiteOpt.
 
 === Introduction
 
-What if some of the variables of our optimization problem are restricted to be integers
-(see https://github.com/dietmarwo/fast-cma-es/blob/master/examples/gear_train.py[gear_train.py]) - or
-are integer multiples of some real value (see https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vessel.py[vessel.py])?
+What if some variables in an optimization problem must be integers
+(see https://github.com/dietmarwo/fast-cma-es/blob/master/examples/gear_train.py[gear_train.py])?
+Or what if they must be integer multiples of some real value
+(see https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vessel.py[vessel.py])?
 
-We could define all variables as continuous and map these to the nearest feasible value as done in both examples above. The vessel example has shown, that we have to be careful when using an optimizer
-which utilizes derivatives - since this mapping destroys the smoothness of the objective function. 
-All fcmaes algorithms are derivative-free. So we don't expect problems here. 
+One option is to define all variables as continuous and map them to the nearest feasible value.
+That is what both examples above do.
+The vessel example also shows why derivative-based methods need care here.
+This mapping destroys smoothness in the objective function.
+All fcmaes algorithms are derivative-free, so this is usually not a problem.
 
-Alternatively we can view instances of all integer variables as integer sequence and enumerate all sequences. Then we could solve all problems associated with these instances. 
+Another option is to treat the integer variables as an integer sequence and enumerate all sequences.
+We can then solve the continuous optimization problem associated with each sequence.
 
-Example: https://www.esa.int/gsp/ACT/projects/gtop/tandem/[TandEM] is formulated as a set of separate problems, each associated with an integer sequence - the sequence of planets visited on the tour reaching Titan and Enceladus (two moons of Saturn). This set of problems could be combined to a single one using integer variables. Or we could try to solve all problems simultaneously. Lets discuss the advantages and disadvantages of all three methods to find the best solution for the best sequence of integer instances:
+Example: https://www.esa.int/gsp/ACT/projects/gtop/tandem/[TandEM] is formulated as a set of separate problems.
+Each one is associated with an integer sequence, namely the sequence of planets visited on the way to Titan and Enceladus.
+We could combine these problems into a single mixed integer formulation.
+Or we could optimize all sequences simultaneously.
+Let us compare the pros and cons of the three approaches for finding the best solution over all integer instances.
 
 1) Solve all problems sequentially:
 
-- No additional variables means no increased complexity for each problem.
-- Sequential execution means low memory requirements.
-- Existing methods work "out of the box".
+- No additional variables means no extra complexity for each problem.
+- Sequential execution keeps memory requirements low.
+- Existing methods work out of the box.
 
 But:
 
-- There could be a huge number of sequences which means high execution time.
-- Same effort for all sequences, for the bad ones we waste time. 
+- The number of sequences can be huge, which means high execution time.
+- We spend the same effort on bad sequences as on promising ones.
 
-2) Mixed Integer approach - adding integer variables:
+2) Mixed integer approach - add integer variables:
 
-- Moderate memory requirements, since we only need to store data for one optimizing run.
-- Works well with derivative free optimizers
+- Memory requirements stay moderate, because we store data for only one optimization run.
+- It works well with derivative-free optimizers.
 
 But:
 
-- Complexity is much higher because of the additional variables.
-- Integer sequences can only be restricted by boxed bounds. Sometimes sequences can be excluded using domain knowledge. For https://www.esa.int/gsp/ACT/projects/gtop/tandem/[TandEM] using boxed bounds we would get 24 possible sequences (2*3*4),
-but only 18 were identified as feasible by the domain experts from ESA. 
+- The problem becomes much more complex because of the extra variables.
+- Integer sequences can only be restricted by boxed bounds.
+Sometimes domain knowledge lets us exclude additional sequences.
+For https://www.esa.int/gsp/ACT/projects/gtop/tandem/[TandEM], boxed bounds give 24 possible sequences (`2*3*4`),
+but ESA experts identified only 18 as feasible.
 
 3) Simultaneous optimization of all sequences:
 
-- Saves execution time since bad sequences can be filtered out early. 
-- Same complexity than the sequential approach. 
+- It can save execution time because bad sequences can be filtered out early.
+- Each individual problem keeps the same complexity as in the sequential approach.
 
 But:
 
-- Data for all sequences need to be stored in memory which increases memory consumption. 
-- If there are many integer variables not tightly bounded the number of sequences could explode. 
+- Data for all sequences must be stored in memory, which increases memory usage.
+- If there are many integer variables with wide bounds, the number of sequences can explode.
 
 We conclude:
 
-- The sequential approach should only be applied if all problem variations produce similar solutions.  
-- The mixed integer approach is preferable if the number of corresponding sequences is very high and/or
-the problem is not very complex.
-- The simultaneous optimization approach is preferable if sequences can be excluded using domain knowledge
-and their number doesn't cause memory issues and/or the problem is so complex.  
-- If the problem is very complex and we have a huge number of sequences we could start with the mixed integer approach to identify quickly promising sequences, the then apply the simultaneous optimization approach to these sequences. 
+- The sequential approach is best when all problem variants produce similar solutions.
+- The mixed integer approach is preferable when the number of sequences is very high and/or
+the underlying problem is not too complex.
+- The simultaneous optimization approach is preferable when domain knowledge can exclude sequences,
+the remaining number fits into memory, and/or the problem itself is very complex.
+- If the problem is very complex and the number of sequences is huge, we can start with the mixed integer approach to identify promising sequences quickly and then apply the simultaneous optimization approach to those sequences.
 
-For https://www.esa.int/gsp/ACT/projects/gtop/tandem/[TandEM] we will compare the mixed integer approach with the 
+For https://www.esa.int/gsp/ACT/projects/gtop/tandem/[TandEM] we compare the mixed integer approach with the
 simultaneous optimization approach.
 
 ==== TandEm-MINLP
 
-TandEM is an interplanetary mission aimed at reaching Titan and Enceladus (two moons of Saturn). 
-We aim at maximizing the mass delivered to a high eccentricity final orbit. We choose the time limited variant here, which is a more realistic "real world" problem. With 18 parameters TandEM is not easy to solve, even with a fixed planet sequence.  
+TandEM is an interplanetary mission problem that targets Titan and Enceladus, two moons of Saturn.
+The goal is to maximize the mass delivered to a high-eccentricity final orbit.
+We use the time-limited variant here because it is closer to a real mission scenario.
+With 18 parameters, TandEM is already hard to solve even when the planet sequence is fixed.
 
-Start at earth and a target Saturn are given, but there are three planet gravity assist flybys in between. The original problem lists 18 suggested flyby sequences, but we can reformulate the problem as TandEm-MINLP by adding three more integer variables describing the sequence. We restrict the three flybys to "Venus {plus} Earth", "Venus {plus} Earth {plus} Mars" and 
-"Venus {plus} Earth {plus} Mars {plus} Jupiter" respectively resulting in 24 possible sequences which include the 18 suggested ones. 
+The departure from Earth and the arrival at Saturn are fixed, but there are three gravity-assist flybys in between.
+The original problem lists 18 suggested flyby sequences.
+We can reformulate it as TandEm-MINLP by adding three integer variables that describe the sequence.
+We restrict the three flybys to "Venus {plus} Earth", "Venus {plus} Earth {plus} Mars" and
+"Venus {plus} Earth {plus} Mars {plus} Jupiter" respectively.
+This yields 24 possible sequences and includes the 18 suggested ones.
 
-TandEm is included in http://www.midaco-solver.com/data/gtopx/cpp/gtopx.cpp[gtopx.cpp] and 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/astro.py[astro.py] provides its `Tandem_minlp` extension. We apply the coordinated retry as usual:
+TandEm is included in http://www.midaco-solver.com/data/gtopx/cpp/gtopx.cpp[gtopx.cpp], and
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/astro.py[astro.py] provides its `Tandem_minlp` extension.
+We apply coordinated retry in the usual way:
 
 [source,python]
 ----
-def test_optimizer(opt, problem, num_retries = 120000, num = 100, 
+def test_optimizer(opt, problem, num_retries = 120000, num = 100,
                     value_limit = -10.0, log = logger()):
     log.info(problem.name + ' ' + opt.name)
     for _ in range(num):
-        ret = advretry.minimize(problem.fun, problem.bounds, value_limit, 
+        ret = advretry.minimize(problem.fun, problem.bounds, value_limit,
                                 num_retries, log, optimizer=opt)
 
-	
-test_optimizer(de_cma(1500), Tandem_minlp()) 
+
+test_optimizer(de_cma(1500), Tandem_minlp())
 ----
 
 and get
 
 image::tandem-minlp.png[]
 
-TandEm-MINLP is tractable, we find the optimum around 1500 km/s, but the complexity of this 
-problem is comparable with the Messenger-Full problem. 
- 
-==== Eliminating sequences 
+TandEm-MINLP is tractable.
+We find the optimum at around 1500 km/s.
+Still, the complexity of this problem is comparable to Messenger-Full.
 
-Converting TandEm into a mixed integer problem is not the only approach. It pushed the coordinated retry to its limits since we used only a 16 core CPU. Alternatively we could use the simultaneous optimization approach,
-which evaluates all problem variants at the same time. Each iteration the worst 30% are removed, so that
-more time is spent on the promising planet sequences. 
+==== Eliminating sequences
+
+Turning TandEm into a mixed integer problem is not the only option.
+On a 16-core CPU, this formulation already pushed coordinated retry close to its limits.
+Instead, we can optimize all sequence variants simultaneously.
+In each iteration, the worst 30% are removed.
+This shifts more computation toward the promising planet sequences.
 
 [source,python]
 ----
-def test_multiretry(num_retries = 512, 
+def test_multiretry(num_retries = 512,
              keep = 0.7, optimizer = de_cma(1500), logger = logger(), repeat = 50):
     seqs = Tandem(0).seqs
     n = len(seqs)
@@ -133,7 +153,7 @@ def test_multiretry(num_retries = 512,
 test_multiretry(repeat = 50)
 ----
 
-After 1326 sec we get the following sorted list of planet sequences: 
+After 1326 sec we get the following sorted list of planet sequences:
 ----
 [3, 2, 3, 3, 6] -1500.4667571840446
 [3, 2, 2, 3, 6] -1328.751985466045
@@ -161,53 +181,61 @@ After 1326 sec we get the following sorted list of planet sequences:
 [3, 3, 3, 5, 6] -49.047704882833855
 ----
 
-For the best sequence we already got an optimal solution, otherwise we could continue to further evaluate the best ones. 
+For the best sequence we already obtained an optimal solution.
+Otherwise we could continue by evaluating the top-ranked sequences further.
 
 === Cassini1-MINLP
 
-Here http://www.midaco-solver.com/index.php/about/benchmarks/gtopx[Midaco/GTOPX] we find 
-the example Cassini1-MINLP. As the name indicates, this is not a linear programming problem, 
-the objective function is not linear. MILP (Mixed Integer Linear Programming) problems with linear
-objective functions are easy to solve and require different algorithms to maximize efficiency. 
+At http://www.midaco-solver.com/index.php/about/benchmarks/gtopx[Midaco/GTOPX] we find
+the example Cassini1-MINLP.
+Despite the name, this is not a linear programming problem.
+The objective function is nonlinear.
+MILP (Mixed Integer Linear Programming) problems have linear objective functions.
+They are easier to solve and require different algorithms for best efficiency.
 
 It is recommended to read http://www.midaco-solver.com/data/pub/CEC2019_Schlueter_Munetomo.pdf[CEC2019]
-first, it contains a detailed description of the problem:
+first, because it contains a detailed description of the problem.
 
-We have mentioned the https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini] problem already in 
-https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results], Cassini1-MINLP is an extension of this benchmark. The original https://solarsystem.nasa.gov/missions/cassini/overview/[Cassini Mission]
-to Saturn involved four gravity-assists at Venus, Venus, Earth and Jupiter to save fuel. 
-Cassini1-MINLP adds four variables performing the decision which planets to use for the four flybys. 
-We show our results for the problem described in  http://www.midaco-solver.com/data/pub/CEC2019_Schlueter_Munetomo.pdf[CEC2019] for their original integer variable bounds:
+We already mentioned the https://www.esa.int/gsp/ACT/projects/gtop/cassini1/[Cassini] problem in
+https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results].
+Cassini1-MINLP extends that benchmark.
+The original https://solarsystem.nasa.gov/missions/cassini/overview/[Cassini Mission]
+to Saturn used four gravity assists at Venus, Venus, Earth and Jupiter to save fuel.
+Cassini1-MINLP adds four variables that decide which planets are used for the four flybys.
+We show results for the problem from http://www.midaco-solver.com/data/pub/CEC2019_Schlueter_Munetomo.pdf[CEC2019]
+with the original integer variable bounds:
 
 ----
 	lb = [-1000.,30.,100.,30.,400.,1000., 1.0,1.0,1.0,1.0 ],
-	ub = [0.,400.,470.,400.,2000.,6000., 9.0,9.0,9.0,9.0 ]       
+	ub = [0.,400.,470.,400.,2000.,6000., 9.0,9.0,9.0,9.0 ]
 ----
 
-And also for limited bounds where we apply domain knowledge. For the first three flybys we allow only
-Mecury, Venus and Earth, for the last one we allow only Jupiter. 
+We also use limited bounds based on domain knowledge.
+For the first three flybys we allow only Mercury, Venus and Earth.
+For the last flyby we allow only Jupiter.
 
 ----
 	lb = [-1000.,30.,100.,30.,400.,1000., 0.51,0.51,0.51,4.51 ],
-	ub = [0.,400.,470.,400.,2000.,6000., 3.49,3.49,3.49,5.49 ]        
+	ub = [0.,400.,470.,400.,2000.,6000., 3.49,3.49,3.49,5.49 ]
 ----
 
 image::cass1-minlp.png[]
 
-As we can see, both problems are tractable. But we also observe that the best solution around 
-`dv = 3.50` is guarded by a very dominant local optimum at `dv = 3.63` so we could alternatively
-simply try all sequences. You cannot reproduce this result with fcmaes because there is a bug in the
-original result and we reintroduced this bug specifically to get comparable results. The problem
-is that Cassini1 has inequality constraints which are enforced by a penalty inside the GTOP code. 
-These constraints are planet specific and the penalties adapt to the planet sequence. 
-http://www.midaco-solver.com/data/pub/CEC2019_Schlueter_Munetomo.pdf[CEC2019] unfortunately added 
-fixed constraints which only work for the original planet sequence. Although the resulting problem
-has no relation to the "real world" it is nevertheless interesting since it represents a kind of
-worst case scenario for the MINLP approach.  
+As we can see, both problems are tractable.
+We also see that the best solution at around `dv = 3.50` is protected by a dominant local optimum at `dv = 3.63`.
+So another practical option is to try all sequences directly.
+You cannot reproduce this result with fcmaes because there is a bug in the original result, and we reintroduced that bug here to make the comparison possible.
+The issue is that Cassini1 has inequality constraints enforced by a penalty inside the GTOP code.
+These constraints depend on the planet sequence, so the penalties also depend on the sequence.
+http://www.midaco-solver.com/data/pub/CEC2019_Schlueter_Munetomo.pdf[CEC2019] unfortunately replaced them with fixed constraints that only work for the original planet sequence.
+The resulting problem no longer matches the real mission.
+Even so, it is still interesting because it creates a kind of worst-case scenario for the MINLP approach.
 
 === Cassini1-MINLP with correct constraints
 
-Lets apply fcmaes coordinated retry using the default optimizer `de_cma` (see https://github.com/dietmarwo/fast-cma-es/blob/master/examples/cassini_minlp.py[cassini_minlp.py]) allowing all nine planets in the sequence which results in 9^4 = 6561 possible combinations:
+Now let us apply fcmaes coordinated retry using the default optimizer `de_cma`
+(see https://github.com/dietmarwo/fast-cma-es/blob/master/examples/cassini_minlp.py[cassini_minlp.py]).
+We allow all nine planets in the sequence, which gives `9^4 = 6561` possible combinations:
 
 [source,python]
 ----
@@ -220,16 +248,18 @@ def test_optimizer(problem, num_retries = 100000, num = 100, value_limit = 100.0
     for i in range(num):
         ret = minimize(problem.fun, problem.bounds, value_limit, num_retries, log)
 
-test_optimizer(Cassini1minlp()) 
+test_optimizer(Cassini1minlp())
 ----
 
-We set `num_retries = 100000` because we expect the problem to be hard to solve. 
-We execute the code on an AMD 3950x 16 core processor at 4.0GHZ. The results are surprising:
+We set `num_retries = 100000` because we expect the problem to be hard.
+The code was executed on an AMD 3950x 16-core processor at 4.0GHZ.
+The results are surprising:
 
 image::minlp.png[]
 
-We observe strong "resistance" at deltaV = 2.896, but after about 1000 sec this value is 
-improved significantly in many runs. The best solution at deltaV = 2.17576 is reached only once out of 20 runs.
+We observe strong resistance at deltaV = 2.896.
+After about 1000 sec, many runs improve on this value significantly.
+The best solution at deltaV = 2.17576 appears only once in 20 runs.
 
 ----
 Solution 1:
@@ -244,45 +274,54 @@ Solution 2:
 x = [-738.4153386564027, 60.81046673324806, 162.5036882873382, 382.4428551935498,
  1041.1379919643405, 1838.8750084727974, 3, 2, 2, 3]
 
-f(x) = 2.2509707061664836 
+f(x) = 2.2509707061664836
 
 Solution 3:
 
 x = [-749.7212652657448, 30.09190796959058, 175.81322285889598, 120.75196759589647,
  1654.1828907793347, 1648.8003356144363, 3, 2, 1, 3]
 
-f(x) = 2.381303161294389 
+f(x) = 2.381303161294389
 ----
 
 ==== Fixing the objective function
 
-As already mentioned in https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[pykep gym results] there is a fundamental flaw both in the https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] problems as also in their newer replacements https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[pykep gym]:
+As already mentioned in https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[pykep gym results],
+there is a fundamental flaw in both the https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] problems and their newer replacements
+https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[pykep gym]:
 
-Restricting the coasting trajectory legs to single revolution transfers has a number of nasty side effects, specially for the inner planets:
+Restricting the coasting trajectory legs to single-revolution transfers has several nasty side effects,
+especially for the inner planets:
 
-- Global optima are much better "shielded" since for long transfer times it is very unlikely to find a low deltaV single revolution transfer.
-- Many good solutions involving multi-revolution coasting legs are invalid. 
+- Global optima are much better shielded, because for long transfer times it is very unlikely to find a low-deltaV single-revolution transfer.
+- Many good solutions with multi-revolution coasting legs become invalid.
 
-This flaw artificially makes the GTOP problems harder to solve. This is not a "real world" issue, since in the real world there is no reason for the "single revolution" restriction. 
+This flaw makes the GTOP problems artificially harder.
+It is not a real-world issue, because there is no reason to enforce the single-revolution restriction in practice.
 
-Although we don't know which planet sequence is best, we can at least narrow the parameter space. 
-Heading to any planet outer than Earth for the first three flybys makes no sense, it would slow down the trajectory too much. With the same arguments the fourth encounter can be limited to Jupiter or some planet nearer to the sun as Jupiter. Which leads to the following limits with equal continuous intervals associated with each valid planet: 
+Even if we do not know the best planet sequence in advance, we can still narrow the search space.
+For the first three flybys, going to any planet farther out than Earth makes little sense because it would slow the trajectory too much.
+By the same argument, the fourth encounter can be limited to Jupiter or a planet closer to the sun than Jupiter.
+This gives the following bounds, with equal continuous intervals assigned to each valid planet:
 
 ----
 	lb = [-1000.,30.,100.,30.,400.,1000., 0.51,0.51,0.51,2.51 ],
-	ub = [0.,400.,470.,400.,2000.,6000., 3.49,3.49,3.49,5.49 ]       
+	ub = [0.,400.,470.,400.,2000.,6000., 3.49,3.49,3.49,5.49 ]
 ----
 
-After implementing a fix for GTOP using the new PYKEP Lambert solver we repeat the experiment using the restricted bounds excluding the outer planets.
+After implementing a fix for GTOP using the new PYKEP Lambert solver, we repeat the experiment with the restricted bounds that exclude the outer planets.
 
 image::minlp2.png[]
 
-We observe much "smoother" curves which means there are many more good solutions. And the best one with `deltaV = 1.846` using planet sequence "Earth, Venus, Venus, Earth" is found in all ten runs after about 100 - 600 sec. 
+The curves are much smoother, which means there are many more good solutions.
+The best one, with `deltaV = 1.846` and planet sequence "Earth, Venus, Venus, Earth", is found in all ten runs after about 100 - 600 sec.
 
 ==== Why did they use Venus Venus Earth Jupiter for the real Cassini mission?
 
-The question why the sequence Venus, Venus, Earth, Jupiter was chosen for the real Cassini mission can easily be answered by checking the alternative planet sequences we found using the much more accurate model from 
-https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_cassini2.py[pykep cassini2]. In https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results] we find a visualisation of a good solution for the original planet sequence with deltaV = 0.729 km/s. A quick 5 min check for the other sequences shows:
+The choice of Venus, Venus, Earth, Jupiter for the real Cassini mission is easy to explain once we check the alternative planet sequences in the much more accurate model from
+https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_cassini2.py[pykep cassini2].
+In https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results] we show a good solution for the original planet sequence with deltaV = 0.729 km/s.
+A quick 5 min check for the other sequences gives:
 
 - VVEJ: deltaV = 0.729 km/s
 - EVEJ: deltaV = 2.434 km/s
@@ -290,18 +329,25 @@ https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_cassini2.py[pykep ca
 - EVVE: deltaV = 3.534 km/s
 - EMMJ: deltaV = 9.571 km/s
 
-Using deep space maneuvers and a more accurate model of the real mission shows that VVEJ needs only a fraction of the deltaV compared to the other planet sequences.
+Using deep-space maneuvers and a more accurate model of the real mission shows that VVEJ needs only a fraction of the deltaV required by the other planet sequences.
 
 === GTOC1
 
-The https://sophia.estec.esa.int/gtoc_portal/?page_id=13[GTOC1] competition was already discussed in detail in the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc[Tutorials]. This time we will show how to find a good planet sequence. We will use the "fixed multirevolution Lambert" version of the GTOP code which is not yet included in fcmaes. For GTOC1 this is an essential requirement for solutions which improve on the winning one from JPL. And we need a long planet sequence - therefore we had to add a `time of flight <= 30 year` constraint to the code. Our boxed constraints which define the timings are:
+The https://sophia.estec.esa.int/gtoc_portal/?page_id=13[GTOC1] competition was already discussed in detail in the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc[Tutorials].
+Here we focus on finding a good planet sequence.
+We use the "fixed multirevolution Lambert" version of the GTOP code, which is not yet included in fcmaes.
+For GTOC1 this is essential, because it enables solutions that improve on the winning one from JPL.
+We also need a long planet sequence, so we added a `time of flight <= 30 year` constraint to the code.
+Our boxed constraints for the timing variables are:
 
 ----
-       lb = [3000.,14.,14.,14.,14.,14.,14.,300.,300.,300.,300.], 
-       ub = [10000.,2000.,2000.,2000.,2000.,2000.,2000.,3000.,1000.,4000.,1000.] 
+       lb = [3000.,14.,14.,14.,14.,14.,14.,300.,300.,300.,300.],
+       ub = [10000.,2000.,2000.,2000.,2000.,2000.,2000.,3000.,1000.,4000.,1000.]
 ----
-A typical planet sequence is for instance `[3, 2, 2, 3, 2, 2, 3, 3, 6, 5, 10]` with ten trajectory legs starting at Earth (3) and aiming at the asteroid which threatens our planet (10). 
-Using domain knowledge we fix the last two flybys to Saturn and Jupiter and allow only Venus and Earth flybys in between. This leaves us with 2^7 = 128 different planet sequences. We don't expect to find big differences between the sequences, so we decide against using MINLP and for the simultaneous optimization approach:
+A typical planet sequence is `[3, 2, 2, 3, 2, 2, 3, 3, 6, 5, 10]`, with ten trajectory legs starting at Earth (3) and ending at the asteroid that threatens our planet (10).
+Using domain knowledge, we fix the last two flybys to Saturn and Jupiter and allow only Venus and Earth flybys in between.
+That leaves `2^7 = 128` different planet sequences.
+We do not expect large differences between sequences, so instead of using MINLP we choose the simultaneous optimization approach:
 
 [source,python]
 ----
@@ -315,7 +361,7 @@ def sequences():
                             for p7 in range(2, 4):
                                 yield[p1,p2,p3,p4,p5,p6,p7]
 
-def test_multiretry(num_retries = 1024), 
+def test_multiretry(num_retries = 1024),
              keep = 0.7, optimizer = de_cma(1500), logger = logger(), repeat = 100):
     problems = []
     ids = []
@@ -330,9 +376,9 @@ def test_multiretry(num_retries = 1024),
             ps.retry(optimizer)
 ----
 
-Because of the enormous complexity of this task we define a base retry number of 1024 for each iteration. 
-Each iteration 30% of the problem variations / sequences are filtered out. 
-After about 25 minutes using the 3950X 16 core CPU we get our first ranking:
+Because of the enormous complexity of this task, we use a base retry count of 1024 for each iteration.
+In every iteration, 30% of the problem variants and sequences are filtered out.
+After about 25 minutes on a 3950X 16-core CPU, we get the first ranking:
 
 ----
 [3, 3, 3, 3, 2, 3, 3] -1708989.6693652852
@@ -348,7 +394,7 @@ After about 25 minutes using the 3950X 16 core CPU we get our first ranking:
 ...
 ----
 
-But it takes 8 hours more until the final result of the multiretry sorting process appears:
+But the final result of the multiretry sorting process appears only after 8 more hours:
 
 ----
 [2, 2, 3, 2, 3, 3, 3] -1847110.3065493396 -----
@@ -376,7 +422,7 @@ But it takes 8 hours more until the final result of the multiretry sorting proce
 ...
 ----
 
-Further evaluation of the first three sequences using the regular coordinated retry resulted in:
+Further evaluation of the first three sequences with regular coordinated retry gives:
 
 ----
  [3,2,3,2,2,3,3,3,6,5,10] score = -1927767
@@ -384,7 +430,6 @@ Further evaluation of the first three sequences using the regular coordinated re
  [3,3,2,3,2,3,3,3,6,5,10] score = -1906362
 ----
 
-The order of the first three sequences was correctly predicted by the simultaneous retry 
-and probably all of them would have been
-sufficient to win the competition - JPL scored "only" 1850000. 
-They all have very low deltaV impulses so that converting them into a low thrust trajectory is not difficult. 
+The simultaneous retry predicted the order of the first three sequences correctly.
+Most likely, any of them would have been good enough to win the competition, since JPL scored only 1850000.
+All three have very low deltaV impulses, so converting them into a low-thrust trajectory is not difficult.

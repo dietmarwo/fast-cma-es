@@ -22,35 +22,34 @@ here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/powerplant.p
 
 === Motivation
 
-https://github.com/oemof/tespy[tespy] provides a powerful tool to simulate thermal engineering systems. 
-One purpose of such a simulation is the "tweaking" of parameters to improve some properties
-of the system, for instance efficiency, cost or that certain conditions are fulfilled. 
-There is a short 
-https://tespy.readthedocs.io/en/main/tutorials_examples.html#thermal-power-plant-efficiency-optimization[tutorial] but 
-only for a very simple system, a single objective (efficiency) and a trivial constraint.
+https://github.com/oemof/tespy[tespy] is a useful library for simulating thermal engineering systems.
+Such simulations are often used to tune parameters and improve properties like efficiency or cost,
+or to satisfy operating constraints. tespy has a short
+https://tespy.readthedocs.io/en/main/tutorials_examples.html#thermal-power-plant-efficiency-optimization[tutorial],
+but it covers only a very simple system, a single objective, and a trivial constraint.
 
-But before we can handle more complex simulations optimizing multiple objectives and constraints
-we first should analyze and test, which algorithms work in connection with https://github.com/oemof/tespy[tespy].
-tespy is implemented using statics instead of singletons so we expect some issues regarding parallelization. 
-Try to avoid statics if your code can be called in parallel, but also be careful with
+Before moving to larger models with multiple objectives and constraints, it helps to check which
+optimizers work well with https://github.com/oemof/tespy[tespy]. tespy uses statics instead of
+singletons, so parallel execution can become tricky. In general, avoid statics if code must run in
+parallel. Also be careful with
 https://skillenai.com/2020/12/05/singleton-fails-with-multiprocessing-in-python/[singletons in Python].
-  
-The original optimization tutorial uses https://esa.github.io/pygmo2/[pygmo] which supports
-https://esa.github.io/pygmo2/archipelago.html[parallelization],
-but this is implemented in {cpp}. I couldn't get pygmo parallelization working with tespy, 
-may be it is because of the libraries tespy uses. fcmaes uses {cpp} multithreading
-only for parallel function evaluation using the {cpp} variants of differential evolution and 
-the multi-objective MODE algorithm. They don't work either with tespy, but fcmaes 
-has additional Python implementations of these algorithms which work, as does parallel
-optimization retry both with Python and {cpp} algorithms. 
+
+The original optimization tutorial uses https://esa.github.io/pygmo2/[pygmo], which supports
+https://esa.github.io/pygmo2/archipelago.html[parallelization], but that part is implemented in
+{cpp}. I could not get pygmo parallelization working with tespy. The reason may be the libraries
+tespy depends on. fcmaes also uses {cpp} multithreading for parallel function evaluation in the
+{cpp} variants of differential evolution and the multi-objective MODE algorithm. These versions do
+not work with tespy either. However, fcmaes also provides Python implementations of these
+algorithms, and those do work. The same is true for parallel optimization retry, both with Python
+and {cpp} optimizers.
 
 === Thermal Power Plant Efficiency
-Note: tespy doesn't support yet Python 3.9, tested on anaconda with python 3.8 on linux. 
-The power plant model used in 
+Note: tespy doesn't support yet Python 3.9, tested on anaconda with python 3.8 on linux.
+The power plant model used in
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/powerplant.py[powerplant.py]
-can modify the pressure at two "extraction" connections, these pressures are the decision
-variables we want to optimize. After the simulation we divide "power" and "heat" to 
-determine the efficiency we want to maximize:
+changes the pressure at two "extraction" connections. These pressures are the decision
+variables. After each simulation run, we divide "power" by "heat" to get the efficiency we want
+to maximize:
 
 [source,python]
 ----
@@ -64,28 +63,27 @@ determine the efficiency we want to maximize:
         return self.nw.busses['power'].P.val / self.nw.busses['heat'].P.val
 ----
 
-For such a simple problem the https://esa.github.io/pygmo2/algorithms.html?highlight=ihs#pygmo.ihs[harmony search]
-algorithm proposed by the original tutorial is sufficient. But as soon as there are
-more parameters, objectives and constraints, better algorithms and faster function
-evaluation (by parallelization) is necessary. 
+For such a simple problem, the
+https://esa.github.io/pygmo2/algorithms.html?highlight=ihs#pygmo.ihs[harmony search]
+algorithm from the original tutorial is sufficient. Once the model has more parameters,
+objectives, or constraints, we need better optimizers and faster function evaluation through
+parallelization.
 
 === CPU Efficiency
 
-For this section we use a different CPU, a modern 8 core / 16 thread Intel laptop CPU. 
-Reason is that the parallelization scaling issues we want to show are more prominent here.   
+For this section we use a different CPU: a modern 8 core / 16 thread Intel laptop CPU.
+The scaling issues are easier to see on this machine.
 
-We will see the the configuration of the Python interpreter regarding
-BLAS/MKL can have a dramatic effect (up to factor 100) regarding the tespy power plant
-simulation. Lets run the pygmo harmony search optimization as proposed in the
-original tutorial. We only did some minor changes to monitor the number of evaluations
-executed per second. Lets execute:
+The Python BLAS/MKL configuration can have a dramatic effect on tespy performance, in this case
+up to a factor of 100. First, run the pygmo harmony search optimization from the original
+tutorial. We only make small changes to track evaluations per second. Execute:
 
 [source,python]
 ----
     optimize_pygmo()
 ----
 
-which optimizes with pygmo/pagmo harmony search without parallelization:
+This runs pygmo/pagmo harmony search without parallelization:
 
 [source,python]
 ----
@@ -102,9 +100,9 @@ Evolution: 149 Evals 1522 time 188.68 evals/time 8.07
 
 image::CPU96.png[]
 
-This means we have 8.07 model.calculate_efficiency(x) calls per second.
-Surprisingly we see 96 % CPU load, it should be 6% only (8 cores / 16 threads)
-We suspect BLAS/MKL parallelization being the source of the issue. 
+This means we get 8.07 `model.calculate_efficiency(x)` calls per second.
+Surprisingly, CPU load is 96 %. It should be about 6 % on an 8 core / 16 thread machine.
+BLAS/MKL parallelization looks like the cause.
 
 What happens if we restrict to 1 thread for BLAS?
 
@@ -122,109 +120,107 @@ Evolution: 149 Evals 1522 time 97.61 evals/time 15.59
 
 image::CPU6.png[]
 
-We have 6% CPU load now and 15.59 calls per second. Quite a bad scaling, isn't it?
-Actually giving blas what it wants reduces performance by factor 2. 
-Ok, if it is winter, our CPU can serve as a room heater, but I doubt that 
-is what parallelization is about. 
+Now CPU load is 6 % and we get 15.59 calls per second.
+So letting BLAS use many threads cuts performance by a factor of 2.
+The extra heat is real, but the speedup is not.
 
-The dangerous thing is that at least for for anaconda the 
-"room heating" mode is the default.  
+The dangerous part is that, at least for anaconda, this
+"room heating" mode is the default.
 
-But the worst is still to come: What happens if we apply parallel function evaluation
-using fcmaes differential evolution? We configure 16 workers, since we are 
-currently using a 8 core 16 threads intel CPU:
+The next step is worse. What happens if we add parallel function evaluation with fcmaes
+differential evolution? We configure 16 workers because we are using an
+8 core / 16 thread Intel CPU:
 [source,python]
 ----
 
 de.minimize(wrapper(problem.fitness_so), problem.dim, problem.bounds, max_evaluations = 10000, workers=16)
 ----
-We see in the logs:
+We see this in the logs:
 
 [source]
 ----
 395.91 370 1.0 -0.448594894567987 [25.9229649142181, 2.7403404173179116]
 ----
 
-This means 395 seconds for 370 evaluations. Ouch. We had 96% CPU load already 
-for the non-parallel run. Now the CPU is hopelessly overloaded and the machine
-becomes unresponsive. The additional parallelization at the optimizer level
-slows down the computation by factor 8!
+That is 395 seconds for 370 evaluations.
+The non-parallel run already used 96 % CPU load. With optimizer-level parallelization,
+the CPU becomes overloaded and the machine turns unresponsive.
+Instead of speeding things up, parallelization makes the computation about 8 times slower.
 
-Lets modify the fcmaes fitness function:
+Now modify the fcmaes fitness function:
 
 [source,python]
 ----
 def fitness(self, x):
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
             y = -self.efficiency(x)
-----   
+----
 Now we get:
 
 [source]
 ----
-53.73 5365 100.0 -0.4485959420678582 [25.829292859306605, 2.6867346018603175]   
+53.73 5365 100.0 -0.4485959420678582 [25.829292859306605, 2.6867346018603175]
 ----
-100 evaluations per second. This is almost factor 100 compared
-to the previous experiment with only one additional line of code. 
-Now we get at least something for the heat our CPU dissipates. 
+That is 100 evaluations per second.
+Compared to the previous experiment, this is almost a factor of 100 from one extra line of code.
+At this point, the CPU heat at least buys useful work.
 
-Takeways: 
+Takeaways:
 
-- Check the CPU load for single threaded optimization. If it is high, try
-the "with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):" trick. 
-- Parallel optimization only works if function evaluation is single threaded
-- blas parallelization often hurts the performance even without parallelization at
-  the optimizer level. 
-- fcmaes used `os.environ['MKL_NUM_THREADS'] = '1'` to achieve the same, but this doesn't 
+- Check CPU load during single-threaded optimization. If it is high, try
+the `with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):` trick.
+- Parallel optimization only works if function evaluation is single threaded.
+- BLAS parallelization often hurts performance even without parallelization at
+  the optimizer level.
+- fcmaes used `os.environ['MKL_NUM_THREADS'] = '1'` to achieve the same, but this doesn't
   work on all CPUs/python installations.
-- fcmaes now uses "with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):"
+- fcmaes now uses `with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):`
   internally for parallel retry since version 1.3.34. Because of its overhead
-  it is not used for parallel function evaluation, so in this case make sure 
-  you define it in your fitness function if necessary on your CPU.   
+  it is not used for parallel function evaluation, so in this case make sure
+  you define it in your fitness function if necessary on your CPU.
 
-=== Applying fcmaes to optimize the power plant: 
+=== Applying fcmaes to optimize the power plant:
 
-In this tutorial we show how the fcmaes
-algorithms can be applied. As for pygmo, we first wrap the fitness function into
-a python class which collects all information necessary to perform the optimization
-together with two fitness functions: One returning the constraint separately and
-one adding a penalty for constraint violations.
+This tutorial uses fcmaes to optimize the same model.
+As with pygmo, we first wrap the fitness function in a Python class. The class stores
+everything needed for optimization and provides two fitness functions: one that returns
+the constraint separately, and one that adds a penalty for constraint violations.
 
 [source,python]
 ----
     class fcmaes_problem():
-        
+
         def __init__(self):
             self.dim = 2
             self.nobj = 1
             self.ncon = 1
-            self.bounds = Bounds([1]*self.dim, [40]*self.dim)          
+            self.bounds = Bounds([1]*self.dim, [40]*self.dim)
             self.local = threading.local()
-           
+
         def get_model(self):
             if not hasattr(self.local, 'model'):
                 self.create_model()
             return self.local.model
-        
+
         def create_model(self):
             self.local.model = PowerPlant()
-        
-        def efficiency(self, x):   
+
+        def efficiency(self, x):
             try:
                 with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
-                    eff = self.get_model().calculate_efficiency(x)      
+                    eff = self.get_model().calculate_efficiency(x)
                 if not np.isfinite(eff): # model gets corrupted in case of an error
                     self.create_model() # we need to recreate the model
                     return 0
                 return eff
             except Exception as ex:
-                return 0  
-  
+                return 0
+
         def fitness(self, x):
             y = -self.efficiency(x)
             c = -x[0] + x[1]
             return [y, c]
-    
+
         def fitness_so(self, x):
             if x[1] > x[0]: # handle constraint
                 return 1000 + x[1] - x[0]
@@ -232,11 +228,11 @@ one adding a penalty for constraint violations.
 ----
 
 The constraint `c = -x[0] + x[1]` only requires the second pressure to be lower than the
-first one, it can very easily be handled by a simple linear penalty. Advantage is, 
-that we now have a much greater choice of algorithms: BiteOpt, Differential Evolution, 
-CMA-ES, CR-FM-NES and others. The only fcmaes algorithm supporting explicit constraints
-is MODE. There is no need to handle equality constraints separately, since they easily
-can be converted into inequality constraints: a = b -> abs(a-b) <= 0. 
+first. That makes it easy to handle with a simple linear penalty. This gives access to
+many more algorithms, including BiteOpt, Differential Evolution, CMA-ES, CR-FM-NES, and
+others. The only fcmaes algorithm with explicit constraint handling is MODE. Equality
+constraints do not need special treatment because they can be converted into inequality
+constraints: a = b -> abs(a-b) <= 0.
 
 The lines:
 [source,python]
@@ -244,17 +240,18 @@ The lines:
     if not np.isfinite(eff): # model gets corrupted in case of an error
         self.create_model() # we need to recreate the model
 ----
-recreates the model in case of an error. We noticed, that the model produced values
-"too good to be true" after this happened. This problem can be reproduced even with
-non-parallel optimization. We filed a bug for tespy regarding this issue, but 
-until it is solved, we need this workaround. Note that we use thread local model instances
-to avoid multi-threading issues. 
-To perform an experiment you have to run
+recreate the model after an error. We noticed that the model sometimes returned values
+"too good to be true" after such failures. The same problem appears even in
+non-parallel optimization. We filed a tespy bug for this issue, but until it is fixed
+we need this workaround. We also use thread-local model instances to avoid
+multi-threading issues.
+
+To run an experiment, execute
 [source,python]
 ----
 optimize_fcmaes()
 ----
-after uncommenting one of the optimizer calls: 
+after uncommenting one of the optimizer calls:
 
 [source,python]
 ----
@@ -262,86 +259,85 @@ after uncommenting one of the optimizer calls:
     # Parallel retry of different single-objective optimizers
 
     # ret = retry.minimize(wrapper(problem.fitness_so), problem.bounds,
-    #                       num_retries = 32, optimizer=Bite_cpp(20000))            
+    #                       num_retries = 32, optimizer=Bite_cpp(20000))
     #
     # ret = retry.minimize(wrapper(problem.fitness_so), problem.bounds,
-    #                       num_retries = 32, optimizer=De_cpp(20000))     
+    #                       num_retries = 32, optimizer=De_cpp(20000))
     #
     # ret = retry.minimize(wrapper(problem.fitness_so), problem.bounds,
-    #                       num_retries = 32, optimizer=Cma_cpp(20000))       
+    #                       num_retries = 32, optimizer=Cma_cpp(20000))
     #
     # ret = retry.minimize(wrapper(problem.fitness_so), problem.bounds,
-    #                       num_retries = 32, optimizer=Crfmnes_cpp(20000))          
-   
-    # Multi objective optimization parallel retry:   
- 
-    # x, y = modecpp.retry(mode.wrapper(problem.fitness, problem.nobj), problem.nobj, 
-    #              problem.ncon, problem.bounds, 
-    #              popsize = 32, max_evaluations = 1000000, 
+    #                       num_retries = 32, optimizer=Crfmnes_cpp(20000))
+
+    # Multi objective optimization parallel retry:
+
+    # x, y = modecpp.retry(mode.wrapper(problem.fitness, problem.nobj), problem.nobj,
+    #              problem.ncon, problem.bounds,
+    #              popsize = 32, max_evaluations = 1000000,
     #              nsga_update=True, num_retries = 32,
     #              workers=32)
     #
     # # Differential Evolution using parallel function evaluation:
     #
-    ret = de.minimize(wrapper(problem.fitness_so), problem.dim, problem.bounds, max_evaluations = 20000, workers=32)   
-    
-    # Multi objective optimization using parallel function evaluation:         
+    ret = de.minimize(wrapper(problem.fitness_so), problem.dim, problem.bounds, max_evaluations = 20000, workers=32)
 
-    # x, y = mode.minimize(mode.wrapper(problem.fitness, problem.nobj), problem.nobj, 
-    #                            problem.ncon, problem.bounds, 
-    #                            popsize = 32, max_evaluations = 100000, nsga_update=True, 
+    # Multi objective optimization using parallel function evaluation:
+
+    # x, y = mode.minimize(mode.wrapper(problem.fitness, problem.nobj), problem.nobj,
+    #                            problem.ncon, problem.bounds,
+    #                            popsize = 32, max_evaluations = 100000, nsga_update=True,
     #                            workers=32)
 
-    # The C++ version of this algorithm only works single threaded with tespy, but modecpp.retry works multi threaded 
-        
-    # x, y = modecpp.minimize(mode.wrapper(problem.fitness, problem.nobj), problem.nobj, 
-    #                            problem.ncon, problem.bounds, 
-    #                            popsize = 32, max_evaluations = 100000, nsga_update=True, 
+    # The C++ version of this algorithm only works single threaded with tespy, but modecpp.retry works multi threaded
+
+    # x, y = modecpp.minimize(mode.wrapper(problem.fitness, problem.nobj), problem.nobj,
+    #                            problem.ncon, problem.bounds,
+    #                            popsize = 32, max_evaluations = 100000, nsga_update=True,
     #                            workers=1)
-       
+
     # some single threaded single objective optimizers
-          
-    #ret = decpp.minimize(wrapper(problem.fitness_so), problem.dim, problem.bounds, max_evaluations = 20000)            
-    
-    #ret = cmaes.minimize(wrapper(problem.fitness_so), problem.bounds, max_evaluations = 20000)            
-    
-    #ret = bitecpp.minimize(wrapper(problem.fitness_so), problem.bounds, max_evaluations = 20000)            
-    
-    #ret = de_cma(20000).minimize(wrapper(problem.fitness_so), problem.bounds)    
+
+    #ret = decpp.minimize(wrapper(problem.fitness_so), problem.dim, problem.bounds, max_evaluations = 20000)
+
+    #ret = cmaes.minimize(wrapper(problem.fitness_so), problem.bounds, max_evaluations = 20000)
+
+    #ret = bitecpp.minimize(wrapper(problem.fitness_so), problem.bounds, max_evaluations = 20000)
+
+    #ret = de_cma(20000).minimize(wrapper(problem.fitness_so), problem.bounds)
 ----
 
-Preconfigured is 
+The preconfigured option is
 [source,python]
 ----
-de.minimize(wrapper(problem.fitness_so), problem.dim, problem.bounds, max_evaluations = 20000, workers=32) 
+de.minimize(wrapper(problem.fitness_so), problem.dim, problem.bounds, max_evaluations = 20000, workers=32)
 ----
-which executes the fcmaes Differential Evolution algorithm performing parallel function evaluations. 
+This runs fcmaes Differential Evolution with parallel function evaluation.
 
 On an AMD 5950x 16 core CPU we see something like:
 [source]
 ----
 39.15 13535 346.0 -0.4485959202134408 [25.829239333756185, 2.686719511836477]
----- 
+----
 which means:
 
 - time = 39.15 seconds
 - evaluations = 13535
 - 346 evaluations / second
 - -0.4485959202134408 actual efficiency (negative because we maximize and fcmaes minimizes)
-- [25.829239333756185, 2.686719511836477] the configured pressure levels. 
+- [25.829239333756185, 2.686719511836477] the configured pressure levels.
 
-Single threaded we get about 18-19 evaluations per second, so we see a nice scaling with the number
-of CPU scores utilized: 
+In single-threaded mode we get about 18-19 evaluations per second, so this scales well with the
+number of CPU cores used:
 
 image::CPU100.png[]
- 
+
 ==== Conclusion
 
 - fcmaes is a good choice for expensive Python simulations such as https://github.com/oemof/tespy[tespy] models.
 - It supports parallel function evaluations and parallel optimization retries.
-- Modern CPUs scale well with the number of cores utilized - as long as the fitness function is single threaded
+- Modern CPUs scale well with the number of cores used, as long as the fitness function is single threaded.
 - BLAS usage needs to be restricted to one thread, which in case of https://github.com/oemof/tespy[tespy] surprisingly
-also increases performance if the simulation is not called in parallel.
+also increases performance even if the simulation is not called in parallel.
 - Use thread local model instances to avoid parallelization issues.
-- Errors during the simulation can corrupt the model. We mitigate this tespy bug by recreating the model if an error occurs.  
-
+- Errors during the simulation can corrupt the model. We mitigate this tespy bug by recreating the model if an error occurs.

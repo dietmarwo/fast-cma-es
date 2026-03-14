@@ -11,121 +11,113 @@ image::logo.gif[]
 
 == Optimization of a Variational Qubit
 
-This tutorial
+This tutorial starts with a very small quantum optimization problem.
+It then uses that example to compare optimizers and parallelization strategies in `fcmaes`.
 
-- Shows how to optimize a variational quantum-bit (qubit) adapting
+- It adapts
   https://qiskit.org/textbook/ch-applications/vqe-molecules.html#Example-with-a-Single-Qubit-Variational-Form[Example-with-a-Single-Qubit-Variational-Form]
-- Compares results of three fcmaes algorithms (DE, CMA-ES and BiteOpt) to the one proposed by IBM (COBYLA). 
-- Applies different parallelization methods for optimizations using the the "qasm_simulator" from  https://qiskit.org/[Quiskit]. 
+- It compares three fcmaes algorithms (DE, CMA-ES, and BiteOpt) with the IBM choice (COBYLA).
+- It tests different parallelization methods for optimization with the `qasm_simulator` from https://qiskit.org/[Qiskit].
 
-The code for this part of the tutorial is here: 
+The code for this part of the tutorial is here:
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/examples/quant.py[quant.py].
 
-Note that the optimization methods shown can easily be transferred to a vendor-independent 
-quantum infrastructure like https://github.com/qcc4cp/qcc[qcc] . 
+The same optimization ideas can also be transferred to a vendor-independent quantum infrastructure such as https://github.com/qcc4cp/qcc[qcc].
 
 == Optimization of a VQE (Variational Quantum Eigensolver)
 
-In a second part we analyze whether what we learned from the first part is applicable to a 
-bigger experiment: The optimization of a VQE to solve the maxcut graph problem. 
+The second part asks whether the same lessons apply to a larger example: a VQE for the maxcut graph problem.
 
-- Adapts https://qiskit.org/documentation/optimization/tutorials/06_examples_max_cut_and_tsp.html[06_examples_max_cut_and_tsp.html] to check
-  parallel optimization both using fcmaes and qiskit optimizers. 
-- Compares results for different simulation backends.
-- What happens if we add noise ?
+- It adapts https://qiskit.org/documentation/optimization/tutorials/06_examples_max_cut_and_tsp.html[06_examples_max_cut_and_tsp.html] to test
+  parallel optimization with both fcmaes and qiskit optimizers.
+- It compares results for different simulation backends.
+- It checks what changes when noise is added.
 
-The code for this part of the tutorial is here: 
+The code for this part of the tutorial is here:
 
-- https://github.com/dietmarwo/fast-cma-es/blob/master/examples/maxcut.py[maxcut.py]. 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/examples/maxcut.py[maxcut.py].
 
-=== How does a Quantum Computer work ? 
+=== How does a Quantum Computer work?
 
-A quantum computer combines the precision of a digital with the expressive power of an analog computer. 
-https://youtu.be/2Eswqed8agg[Quantum programming], https://qiskit.org/textbook[textbook] and http://mmrc.amss.cas.cn/tlb/201702/W020170224608150507023.pdf[introduction] provide 
-good tutorials you may use to understand the details. Essentially it works as follows:
- 
- - Conventional bits are transformed into qubits.
- - A quantum algorithm is a network of connected qubit gates executed using a simulator or a real quantum computer. 
- - The resulting qubits are transformed back into conventional bits.
+A quantum computer combines digital control with analog-like state evolution.
+If you want a broader introduction, see https://youtu.be/2Eswqed8agg[Quantum programming], the https://qiskit.org/textbook[textbook], and this http://mmrc.amss.cas.cn/tlb/201702/W020170224608150507023.pdf[introduction].
+At a high level it works like this:
 
-A qubit can be represented by a 3-dimensional unit-vector. Qubit
-gates rotate this vector in different directions. You may play with the colored buttons on the 
-https://javafxpert.github.io/grok-bloch/[bloch sphere] to see how these operations work. 
-Control gates correlate multiple qubits, this correlation is called "entanglement". This means
-a "target" qubit rotates (changes probability and phase) dependent on a "control" qubit -
-both qubits are no longer independent.    
+- Conventional bits are transformed into qubits.
+- A quantum algorithm is a network of qubit gates executed on a simulator or a real quantum computer.
+- The resulting qubits are transformed back into conventional bits.
+
+A qubit can be represented by a 3-dimensional unit vector.
+Qubit gates rotate this vector in different directions.
+You can use the colored buttons on the https://javafxpert.github.io/grok-bloch/[bloch sphere] to see these operations directly.
+Control gates correlate multiple qubits.
+This correlation is called "entanglement".
+It means that a target qubit changes its probability and phase depending on a control qubit, so the qubits are no longer independent.
 
 image::bloch.png[]
 
-A qubit represents a probability distribution and a "phase" where
-only the former can be observed. If you check the state of a qubit, it collapses into a conventional bit
-according to the probability distribution. 
+A qubit carries both a probability distribution and a phase.
+Only the probability part can be observed directly.
+When you measure a qubit, it collapses into a conventional bit according to that probability distribution.
 
 The expressive power of a sequence of qubits is based on the following facts:
 
-- A single qubit corresponds to a continuous probability and phase. 
-- N qubits represent 2^N probabilities - one for each bit-combination it can collapse into.  
+- A single qubit corresponds to a continuous probability and phase.
+- N qubits represent 2^N probabilities, one for each bit combination they can collapse into.
 
-How do we make sure that the final state of the qubits, after converting them back into conventional
-bits, represents something meaningful? There are techniques like quantum fourier transform and 
-amplitude amplification based on phase resonance which single out the desired bit combination 
-in the final probability distribution.  
+How do we make sure that the final state means something useful after measurement?
+Techniques such as quantum Fourier transform and amplitude amplification use phase relationships to emphasize the desired bit combinations in the final probability distribution.
 
 === Quantum Optimization
 
-The basis of quantum optimization is a "variational algorithm" which vary a quantum circuit 
-to obtain approximate solutions to an optimization problem.
-From the perspective of classical continuous optimization this means that we implement our fitness function
-using a parameterizable quantum algorithm. This makes most sense in the realm of physics, because
-nature itself "is quantum". See 
-https://physicsworld.com/a/conquering-the-challenge-of-quantum-optimization/[challenge of quantum optimization]. 
-Simulating real quantum effects is time consuming, so things can be speed up using the "real thing" inside
-the fitness function. 
+Quantum optimization often uses a variational algorithm.
+The idea is to vary a parameterized quantum circuit until it gives a good approximation to the solution of an optimization problem.
+From the perspective of classical continuous optimization, this means that the fitness function is implemented by a parameterizable quantum algorithm.
+This is especially natural in physics, because the system being modeled is already quantum.
+See https://physicsworld.com/a/conquering-the-challenge-of-quantum-optimization/[challenge of quantum optimization].
+Simulating real quantum effects is expensive, so in principle a real quantum device can replace that part of the fitness function.
 
-There is a myriad of papers on the topic “quantum approximate optimization algorithm” (QAOA)
-because it can be applied partly already with the flawed quantum computers we have today.  
+There is a large body of work on the "quantum approximate optimization algorithm" (QAOA), because it can already be applied, at least in part, on today's imperfect quantum computers.
 But https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.127.120502 and https://www.nature.com/articles/s41467-018-07090-4
-report "barren plateaus" and theoretical limits of QAOA applied to other domains. Theoretical limits also apply 
-when we train a deep neural network - which is a similar idea to place "something parameterizable" in between 
-our decision variables and the final output. Nevertheless these manage to do amazing stuff. 
-But we have to be careful when "transferring" our experience optimizing DNN parameters/weights to quantum circuits. 
-Where in the DNN domain we can get away with relatively simple optimization methods derived from gradient decent,
-this may not be the case in the quantum domain. As we will see below, even optimizing a trivial 1-qubit circuit
-is not as easy as expected. 
+report "barren plateaus" and theoretical limits when QAOA is applied to other domains.
+There are theoretical limits in deep neural networks too, and that setting has a similar structure: a parameterized system sits between inputs and outputs.
+Even so, deep networks can work extremely well.
+The important point is that experience from optimizing neural networks does not transfer automatically to quantum circuits.
+In deep learning we can often get away with relatively simple methods derived from gradient descent.
+In the quantum setting that may not be enough.
+As we will see below, even a trivial 1-qubit circuit is not as easy to optimize as it looks.
 
-Why is it interesting to optimize using a quantum simulation based on classical computation? Current quantum computers
-often restrict the "wiring" of their qubits incompatible with the requirements of our quantum algorithm design. 
-Instead of waiting for future quantum computers supporting more qubits and a more flexible wiring 
-we can use a simulation today to measure how efficient our method will be in the future.  
+Why is it still useful to optimize quantum algorithms with classical simulation?
+Current quantum hardware often restricts qubit connectivity in ways that do not match the circuit we want to build.
+A simulator lets us study the optimization problem today, instead of waiting for future hardware with more qubits and more flexible wiring.
 
-=== Can optimization related to quantum algorithms be parallelized ?
+=== Can optimization related to quantum algorithms be parallelized?
 
-All qubit gates are rotations of a 3-dimensional unit vector. Some use fixed angles, some are configurable. 
-Optimization often use these gate parameters which are configurable rotation angles as continuous decision variables. 
-Since evaluation of the objective function involves quantum operations parallelization makes 
-currently no sense if the "backend" used to execute these operations is a real quantum computer. Computing resources
-on such a backend is still expensive, although this may change in the future. 
+All qubit gates are rotations of a 3-dimensional unit vector.
+Some use fixed angles.
+Others expose rotation angles that become continuous decision variables for the optimizer.
+If the backend is a real quantum computer, parallelization currently makes little sense because compute time there is still expensive.
+That may change in the future, but not yet.
 
-But there exist other backends for development and testing, which simulate quantum gates using conventional CPUs and GPUs. 
-In this tutorial we will check using a concrete example both timing and quality of the optimization results when
-we apply parallelization to optimize the qubit-parameters using a simulation-backend. But since this example
-is quite small - involving a single qubit - we want to check quiskit's performance for a bigger benchmark: 
-10 runs of a 8-36 qubit inverse fourier transform (see https://gist.github.com/dietmarwo/23d30a89018d62c02294525092093671[gist] )
-We use a 16 core AMD 5950x CPU, a kind of "mainstream" modern many core CPU currently at around 500$. 
+Development and test backends are different.
+They simulate quantum gates on conventional CPUs and GPUs, so parallelization can help.
+In this tutorial we use a concrete example to measure both runtime and solution quality when optimization is parallelized on a simulation backend.
+The single-qubit example is too small to say much about simulator scaling, so we first benchmark qiskit on a larger workload:
+10 runs of an 8-36 qubit inverse Fourier transform (see https://gist.github.com/dietmarwo/23d30a89018d62c02294525092093671[gist]).
+We use a 16 core AMD 5950x CPU, a mainstream many-core CPU at around 500 USD at the time of writing.
 On this CPU we can expect about:
 
 - factor 6-8 scaling for parallel objective function evaluation.
-- factor 12-16 scaling for parallel optimization runs. 
+- factor 12-16 scaling for parallel optimization runs.
 
-As GPU we used a NVIDIA GTX 1660 Ti.
+As GPU we used an NVIDIA GTX 1660 Ti.
 
-For both optimization parallelization options we have to switch off any simulation parallelism
-(no device='GPU', max_parallel_threads=1) so it makes only sense to use them if the simulation
-scales worse:
+For both optimization-level parallelization modes we have to switch off simulator parallelism
+(`no device='GPU', max_parallel_threads=1`), so this only makes sense if the simulator itself scales worse:
 
-- aer_simulator_density_matrix cannot handle 18 or more qubits on our machine, 
-- aer_simulator_statevector fails at 30 qbits (insufficient memory). 
+- aer_simulator_density_matrix cannot handle 18 or more qubits on our machine,
+- aer_simulator_statevector fails at 30 qbits (insufficient memory).
 
 .Simulation benchmark - 10 runs of inverse fourier transform, time in sec
 [width="50%",options="header"]
@@ -147,26 +139,28 @@ scales worse:
 
 Summarizing the results:
 
-- For a small number of qbits (<= 18) aer_simulator, qasm_simulator and aer_simulator_statevector don't scale significantly, neither with multi-threading nor by using a GPU. 
-- For 8 qubits this also is true for aer_simulator_density_matrix, for 12 qubits factor 3.5 can be achieved using multi threading and factor 8.5 by using a GPU. 
-- For 24 and 30 qubits we see for aer_simulator, qasm_simulator and aer_simulator_statevector factor 3.5 using multi threading and factor 5.5 using a GPU. 
-- For 36 qubits stranglely we again don't see significant scaling, maybe internally another simulation method is used. 
+- For a small number of qbits (<= 18), `aer_simulator`, `qasm_simulator`, and `aer_simulator_statevector` do not scale much, neither with multithreading nor with a GPU.
+- For 8 qubits this is also true for `aer_simulator_density_matrix`; for 12 qubits it reaches a factor of 3.5 with multithreading and 8.5 with a GPU.
+- For 24 and 30 qubits, `aer_simulator`, `qasm_simulator`, and `aer_simulator_statevector` reach about factor 3.5 with multithreading and factor 5.5 with a GPU.
+- For 36 qubits, strangely, we again do not see significant scaling. Maybe another simulation method is used internally.
 
-These results mean, that if we don't use aer_simulator_density_matrix and our quantum circuit is relatively small
-(<= 18 qbits) we can switch off parallelism and utilize optimization parallelism. For more than 18 qubits
-we should benchmark our circuit to check how it scales. 
+These results suggest that if we do not use `aer_simulator_density_matrix` and the circuit is relatively small
+(<= 18 qbits), we can switch off simulator parallelism and use optimization-level parallelism instead.
+For larger circuits we should benchmark the concrete circuit first.
 
 === Single Qubit Variational Form
 
-The problem solved by https://qiskit.org/textbook/ch-applications/vqe-molecules.html#Example-with-a-Single-Qubit-Variational-Form[Example-with-a-Single-Qubit-Variational-Form] is similar to ground state energy estimation, it determines the parameterization for a single qubit variational form such that it outputs a probability distribution that is close to some random target distribution. 
-The complete example code can be found at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/quant.py[quant.py]. 
+The problem solved by https://qiskit.org/textbook/ch-applications/vqe-molecules.html#Example-with-a-Single-Qubit-Variational-Form[Example-with-a-Single-Qubit-Variational-Form] is close in spirit to ground-state energy estimation.
+It chooses parameters for a single-qubit variational form so that the output distribution matches a random target distribution as closely as possible.
+The complete example code is in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/quant.py[quant.py].
 
-The `objective_function` is only slightly adapted from the https://qiskit.org/textbook[quiskit textbook]. It uses `qiskit` operations and the "qasm_simulator" backend to determine the distance to the random target distribution `target_distr`.   
+The `objective_function` is only slightly adapted from the https://qiskit.org/textbook[qiskit textbook].
+It uses `qiskit` operations and the `qasm_simulator` backend to measure the distance to the random target distribution `target_distr`.
 
 ==== Objective Function
 
 [source,python]
-----  
+----
 def objective_function(params, target_distr):
     # Obtain a quantum circuit instance from the parameters
     qc = get_var_form(params)
@@ -181,27 +175,26 @@ def objective_function(params, target_distr):
     return cost
 ----
 
-It is wrapped into a callable `Fitness`-object storing the target distribution.  
+It is wrapped in a callable `Fitness` object that stores the target distribution.
 
 [source,python]
 ----
 class Fitness(object):
-    
+
     def __init__(self, target_distr):
         self.target_distr = target_distr
-        self.bounds = Bounds([0]*3, [2]*3)      
-        
-    def __call__(self, x):  
+        self.bounds = Bounds([0]*3, [2]*3)
+
+    def __call__(self, x):
         return objective_function(x, self.target_distr)
 ----
 
-==== Comparison of Different Optmization Algorithms
+==== Comparison of Different Optimization Algorithms
 
-All optimizers are given the same random target distributions generated
-in advance, so that the results are comparable. 
+All optimizers are given the same random target distributions, generated in advance, so the results are comparable.
 
 [source,python]
-----   
+----
     # generate Fitness objects associated to random target distributions
     fits = [Fitness(random_target_distr()) for i in range(10)]
     opt_differential_evolution_loop(fits)
@@ -210,30 +203,30 @@ in advance, so that the results are comparable.
     opt_COBYLA_evolution_loop(fits)
 ----
 
-All fcmaes optimizers are configured to use 16 parallel threads, COBYLA is single threaded. 
-If you have a modern many-core CPU available you may reproduce the results by executing 
-https://github.com/dietmarwo/fast-cma-es/blob/master/examples/quant.py[quant.py]. 
-We used a 16 core AMD 5950x CPU / NVIDIA GTX 1660 Ti GPU for our tests. 
+All fcmaes optimizers are configured to use 16 parallel threads.
+COBYLA is single-threaded.
+If you have a modern many-core CPU, you can reproduce the results by executing https://github.com/dietmarwo/fast-cma-es/blob/master/examples/quant.py[quant.py].
+We used a 16 core AMD 5950x CPU and an NVIDIA GTX 1660 Ti GPU for our tests.
 
-Read https://qiskit.org/documentation/getting_started.html[getting_started] about setting up 
-your Python environment. You need to do:
+Read https://qiskit.org/documentation/getting_started.html[getting_started] for Python environment setup.
+You need:
 
 [source,python]
----- 
+----
     pip install qiskit
 ----
 
-'pip install qiskit-aer-gpu' (GPU support) is not required for executing ' quant.py' - and doesn't work on AMD GPUs. 
+`pip install qiskit-aer-gpu` (GPU support) is not required to execute `quant.py`, and it does not work on AMD GPUs.
 
 ==== COBYLA using no Parallelism
 
-The COBYLA optimization was taken from
-https://qiskit.org/textbook/ch-applications/vqe-molecules.html#Example-with-a-Single-Qubit-Variational-Form[Example-with-a-Single-Qubit-Variational-Form] and serves as a reference point. We increased `maxiter` to rule out that limit of the number of
-iterations is a problem here. 
+The COBYLA setup was taken from
+https://qiskit.org/textbook/ch-applications/vqe-molecules.html#Example-with-a-Single-Qubit-Variational-Form[Example-with-a-Single-Qubit-Variational-Form] and serves as a reference point.
+We increased `maxiter` to rule out the iteration limit as the main issue.
 
 
 [source,python]
----- 
+----
 def opt_COBYLA_evolution_loop(fits):
     for fit in fits:
         params = np.random.rand(3)
@@ -241,12 +234,12 @@ def opt_COBYLA_evolution_loop(fits):
         ret = optimizer.minimize(fun=fit, x0=params)
 ----
 
-COBYLA optimization is fast, it does apply far less than `maxiter` iterations. 
-But the results are terribly bad, it seems COBYLA is not able to solve this quite 
-easy 3-dimensional optimization problem reliably: 
+COBYLA is fast and uses far fewer than `maxiter` iterations.
+The problem is solution quality.
+On this simple 3-dimensional problem, COBYLA is not reliable:
 
 [source,python]
-----   
+----
     COBYLA time 0.6 distance 0.004723912057785329
     COBYLA time 1.22 distance 0.09254840670649922
     COBYLA time 1.79 distance 0.5775480074342264
@@ -257,38 +250,37 @@ easy 3-dimensional optimization problem reliably:
     COBYLA time 4.47 distance 0.015941335709322213
     COBYLA time 4.95 distance 0.015568947833576152
     COBYLA time 5.45 distance 1.2604080177937873
-    
+
     COBYLA mean distance = 0.3572580782883162
     COBYLA std distance = 0.45984856126261725
 ----
 
-Question is if you want to trust this algorithm for optimizing more complex quantum algorithms.
-qiskit maps COBYLA to its scipy implementation. scipy offers more reliable alternatives
-like differential evolution, but there is always a tradeoff between "reliability' and speed of
-convergence - which fcmaes tries to mitigate by supporting parallelism. 
+This raises an obvious question: would you trust the same algorithm on a more complex quantum optimization problem?
+qiskit maps COBYLA to the scipy implementation.
+scipy offers more reliable alternatives such as differential evolution, but there is always a tradeoff between reliability and convergence speed.
+fcmaes tries to mitigate that tradeoff by supporting parallelism.
 
-==== Differential Evolution using Parallel Fitness Evaluation 
+==== Differential Evolution using Parallel Fitness Evaluation
 
-fcmaes offers a different variant of differential evolution compared to scipy, 
-tuned for fast convergence and multiple parallel retrys. 
-In this case it is configured to perform parallel function evaluation
-instead (*workers = 16'):
+fcmaes offers a different variant of differential evolution than scipy.
+It is tuned for fast convergence and multiple parallel retries.
+In this case it is configured for parallel function evaluation instead (`workers=16`):
 
 [source,python]
-----  
+----
     def opt_differential_evolution_loop(fits):
         ...
-        for fit in fits: 
-            ret = de.minimize(fit, 3, fit.bounds, max_evaluations = 1000, 
+        for fit in fits:
+            ret = de.minimize(fit, 3, fit.bounds, max_evaluations = 1000,
                               stop_fitness = 0.00001, workers=16)
             ...
 ----
 
-It uses all 1000 configured fitness evaluation, which means it is still slower than COBYLA,
-but on the other hand very reliable: 
+It uses all 1000 configured fitness evaluations.
+That makes it slower than COBYLA on this tiny problem, but much more reliable:
 
 [source,python]
-----   
+----
     de time 1.08 distance 7.608794221475312e-05
     de time 2.15 distance 5.159329350079567e-05
     de time 3.23 distance 0.00025199256577354556
@@ -299,31 +291,30 @@ but on the other hand very reliable:
     de time 8.62 distance 0.00014133570932223227
     de time 9.71 distance 3.105216642390607e-05
     de time 10.81 distance 0.00020801779378730456
-    
+
     de mean distance = 0.00012240097261537604
     de std distance = 8.258724841147236e-05
 ----
 
-Note that we didn't use the alternative C++ implementation of DE fcmaes offers, because
-parallel function evaluation is slower in this specific application context.  
+We did not use the alternative C++ implementation of DE that fcmaes also offers, because parallel function evaluation is slower there in this specific application context.
 
-==== CMA-ES using Parallel Fitness Evaluation 
+==== CMA-ES using Parallel Fitness Evaluation
 
-The fcmaes CMA-ES implementation also offers parallel fitness evaluation, which we use here:
+The fcmaes CMA-ES implementation also supports parallel function evaluation, which we use here:
 
 [source,python]
-----  
+----
     def opt_differential_evolution_loop(fits):
         ...
-        for fit in fits: 
-            ret = cmaes.minimize(fit, fit.bounds, input_sigma=0.7, 
+        for fit in fits:
+            ret = cmaes.minimize(fit, fit.bounds, input_sigma=0.7,
                         max_evaluations = 1000, stop_fitness = 0.00001, workers=16)            ...
 ----
 
-The results are similar to the one for fcmaes-DE, but slightly worse:
+The results are close to fcmaes-DE, but slightly worse:
 
 [source,python]
-----   
+----
     cmaes time 0.51 distance 0.026598245672092756
     cmaes time 1.55 distance 0.004407006710436312
     cmaes time 2.59 distance 7.25900467107854e-05
@@ -334,36 +325,34 @@ The results are similar to the one for fcmaes-DE, but slightly worse:
     cmaes time 7.87 distance 5.438697928394909e-05
     cmaes time 8.92 distance 4.5451310954014446e-05
     cmaes time 9.98 distance 0.00014988796844872532
-    
+
     cmaes mean distance = 0.003189017023358267
     cmaes std distance = 0.007907630855455892
 ----
 
 
-==== BiteOpt using Parallel Optimization Retry 
+==== BiteOpt using Parallel Optimization Retry
 
-https://github.com/avaneev/biteopt[BiteOpt] is written in C++ and doesn't support parallel
-fitness evaluation as the two algorithms before. It is a very good choice if applied single threaded
-or in the context of multiple parallel optimization retries. This approach sacrifices performance
-for reliability. 
+https://github.com/avaneev/biteopt[BiteOpt] is written in C++ and does not support parallel function evaluation like the two algorithms above.
+It is a good choice in single-threaded mode or in the context of multiple parallel optimization retries.
+That trades some performance for higher reliability.
 
 [source,python]
-----  
+----
 def opt_biteopt_loop(fits):
     ...
-    for fit in fits:  
-        ret = retry.minimize(fit, fit.bounds, logger = None, 
+    for fit in fits:
+        ret = retry.minimize(fit, fit.bounds, logger = None,
                               num_retries=16, optimizer=Bite_cpp(100), workers=16)
     ...
 ----
 
-The results are worse than the ones for differential evolution above, but BiteOpt may turn out
-superior for harder optimization problems / larger quantum algorithms. It also is an excellent choice when applied
-single threaded for multi-threaded/GPU simulations, then multiple sequential retries may be required
-to obtain a reliable result. 
+These results are worse than differential evolution on this example, but BiteOpt may be better for harder optimization problems or larger quantum algorithms.
+It is also a strong option when used single-threaded with multithreaded or GPU-based simulations.
+In that setting, multiple sequential retries may be needed to get a reliable result.
 
 [source,python]
-----   
+----
     bite time 1.96 distance 7.608794221475312e-05
     bite time 3.85 distance 0.0001484067064991823
     bite time 5.76 distance 0.00145199256577358
@@ -374,30 +363,28 @@ to obtain a reliable result.
     bite time 15.23 distance 0.00014133570932223227
     bite time 17.18 distance 3.105216642390607e-05
     bite time 19.11 distance 0.0009919822062127437
-    
+
     bite mean distance = 0.0003397511836935346
     bite std distance = 0.000456672806132943
 ----
 
 ==== Search for Weaknesses of Optimization Algorithms
 
-Finally we apply parallel optimization to search for weaknesses of COBYLA.
-This means the fitness function performs a COBYLA optimization and searches
-for a target distribution and an initial guess maximizing the final distance 
-COBYLA returns:  
+Finally we use parallel optimization to search for weaknesses of COBYLA.
+The fitness function runs a COBYLA optimization and searches for a target distribution and an initial guess that maximize the final distance returned by COBYLA:
 
 [source,python]
-----  
+----
     def find_COBYLA_weakness():
-        
+
         def fitness(x):
             params = x[:3] # use first three decision variables as guess for COBYLA
             target_distr =  x[3:] # use two decision variables as target
-            ...     
+            ...
             fit = Fitness(target_distr)
             ret = COBYLA(maxiter=50000, tol=0.00001).minimize(fun=fit, x0=params)
             return -ret.fun # we maximize the distance
-            
+
         bounds = Bounds([0]*5, [2]*3 + [1]*2)
         ret = de.minimize(wrapper(fitness), 5, bounds, max_evaluations = 300, workers=16)
         print("worst COBYLA distance = " +  str(ret.fun))
@@ -419,88 +406,88 @@ We get
 worst COBYLA distance = 1.9714
 ----
 
-confirming that we can get bad optimization results using COBYLA.
+This confirms that COBYLA can return very poor results on this toy problem.
 
 === Summary
 
-- The COBYLA algorithm proposed in https://qiskit.org/textbook/ch-applications/vqe-molecules.html#Example-with-a-Single-Qubit-Variational-Form[Example-with-a-Single-Qubit-Variational-Form] is quite unreliable even for a 3-dimensional single qubit related optimization problem. 
-- Alternatives adding reliability may converge slower.
-- To mitigate this parallel optimization or parallel fitness evaluation can be used. 
-- All three fcmaes-algorithms tested work reliably for the single qubit variational form optimization problem.
-- Differential Evolution with parallel fitness evaluation offers the best time / reliability compromise.
-- For bigger quantum algorithms "qasm_simulator", "aer_simulator_statevector" and "aer_simulator"
-  work well with multithreading/GPU switched off, so we can profit from the scaling parallel optimization provides. 
-- BiteOpt with parallel optimization retry is a very reliable option for more complex quantum related optimizations. 
-- Differential Evolution with parallel function evaluation can be utilized as a meta-optimizer searching for weaknesses of optimization algorithms.
+- The COBYLA algorithm proposed in https://qiskit.org/textbook/ch-applications/vqe-molecules.html#Example-with-a-Single-Qubit-Variational-Form[Example-with-a-Single-Qubit-Variational-Form] is quite unreliable even on this 3-dimensional single-qubit optimization problem.
+- More reliable alternatives usually converge more slowly.
+- Parallel optimization or parallel fitness evaluation can offset part of that cost.
+- All three fcmaes algorithms tested here work reliably on the single-qubit variational form problem.
+- Differential Evolution with parallel fitness evaluation offers the best time / reliability compromise in this example.
+- For bigger quantum algorithms, `qasm_simulator`, `aer_simulator_statevector`, and `aer_simulator` work well with multithreading and GPU support switched off, so optimization-level parallelism can be used effectively.
+- BiteOpt with parallel optimization retry is a strong option for more complex quantum optimization tasks.
+- Differential Evolution with parallel function evaluation can also serve as a meta-optimizer to search for weaknesses in optimization algorithms.
 
 == VQE (Variational Quantum Eigensolver)
 
-Lets see if what we learned so far is applicable to a bigger example, the parameterization of a VQE to solve
-the maxcut graph problem. Whether to solve maxcut this way is a good idea is questionable for
-two reasons:
+Let us see whether what we learned so far applies to a larger example: parameterizing a VQE for the maxcut graph problem.
+Whether maxcut itself should be solved this way is still debatable for two reasons:
 
-- Classical solvers can compete quite well because of recent improvement in that area. 
-- Noise produced by quantum gates are currently a real issue.  
+- Classical solvers have improved a lot and remain competitive.
+- Noise produced by quantum gates is still a real issue.
 
-But nevertheless this problem can serve as a benchmark for the optimization of VQEs which is useful in many other areas.
-When using https://qiskit.org/documentation/optimization/tutorials/06_examples_max_cut_and_tsp.html[06_examples_max_cut_and_tsp.html] as a basis we noticed that there are several 
-major qiskit refactorings ongoing and not all tutorials are adapted yet, so we had to change several imports.
+Even so, this problem is still a useful benchmark for VQE optimization, which matters in many other areas.
+While using https://qiskit.org/documentation/optimization/tutorials/06_examples_max_cut_and_tsp.html[06_examples_max_cut_and_tsp.html] as a basis, we ran into several qiskit refactorings, so a number of imports had to be changed.
 
 === Compare Different Optimizers
 
-Suppose our task is to compare different optimizers for the maxcut VQE. Preliminary tests revealed that the 
-fcmaes optimizers used in the first section don't work well here. So we are finally faced with two options:
+Suppose our task is to compare optimizers for the maxcut VQE.
+Preliminary tests showed that the fcmaes optimizers from the first section do not work well here.
+That leaves us with two practical options:
 
 - SPSA from qiskit.
-- CR-FM-NES (Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see https://arxiv.org/abs/2201.11422 ) from fcmaes.
+- CR-FM-NES (Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see https://arxiv.org/abs/2201.11422) from fcmaes.
 
-How do we proceed? First we need to wrap CR-FM-NES as a qiskit optimizer so that qiskits VQE implementation can use it:
+First we need to wrap CR-FM-NES as a qiskit optimizer so that qiskit's VQE implementation can use it:
 
-This is done in `class fcmaes_Optimizer(optimizers.Optimizer)` in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/maxcut.py[maxcut.py]. Our wrapper is generic in two ways:
+This is done in `class fcmaes_Optimizer(optimizers.Optimizer)` in https://github.com/dietmarwo/fast-cma-es/blob/master/examples/maxcut.py[maxcut.py].
+The wrapper is generic in two ways:
 
-- It can consume any fcmaes optimizer
-- It has a parameter `max_retries`. If `max_retries > 1` the fcmaes parallel optimization retry mechanism is applied.    
-  Additionally we can restrict the number of parallel workers using parameter `workers`.
+- It can consume any fcmaes optimizer.
+- It has a parameter `max_retries`. If `max_retries > 1`, the fcmaes parallel optimization retry mechanism is applied. Parameter `workers` can also restrict the number of parallel workers.
 
-Lets also take the opposite route, wrapping SPSA as fcmaes algorithm as follows:
+We can also go the other way and wrap SPSA as an fcmaes algorithm:
 
 [source,python]
 ----
     class fcmaes_SPSA(Optimizer):
-    
-        def __init__(self, maxiter=1000):        
+
+        def __init__(self, maxiter=1000):
             Optimizer.__init__(self, maxiter, 'SPSA')
             self.opt = SPSA(maxiter=maxiter) # guessing
-    
+
         def minimize(self, fun, bounds, guess=None, sdevs=None, rg=None, store=None):
             if guess is None: # necessary for parallel retry
                 guess = np.random.uniform(bounds.lb, bounds.ub) if rg is None else \
-                        rg.uniform(bounds.lb, bounds.ub)    
+                        rg.uniform(bounds.lb, bounds.ub)
             ret = self.opt.minimize(fun, guess, bounds=[t for t in zip(bounds.lb, bounds.ub)])
             return ret.x, ret.fun, ret.nfev
-----  
+----
 
-Now we can also execute SPSA in parallel by using a "double-wrapping" configuring 12000 evaluations / 6000 iterations:
+Now we can also execute SPSA in parallel by using a double wrapping with 12000 evaluations / 6000 iterations:
 
 [source,python]
 ----
     optimizer = fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32)
 ----
 
-Note that fcmaes parallel retry doesn't forward an initial guess `x0` to improve the diversity of the runs. 
-We take care of that by generating a random guess in this case. Other parameters of `minimize` are:
+Note that fcmaes parallel retry does not forward an initial guess `x0`, because varying the starting point improves diversity across runs.
+We handle that here by generating a random guess.
+Other parameters of `minimize` are:
 
-- `sdevs` the initial step size used to narrow / widen the search performed by the optimizer. CMA-ES and CR-FM-NES use this parameter. Lowering this value helps to enhance diversity of parallel retries. 
-- `rg` a random generator, helps to preserve diversity if multiple processes are involved. 
-- `store` used to maintain optimization results for statistical evaluation. 
+- `sdevs` is the initial step size used to narrow or widen the search performed by the optimizer. CMA-ES and CR-FM-NES use this parameter. Lowering it can improve the diversity of parallel retries.
+- `rg` is a random generator. It helps preserve diversity if multiple processes are involved.
+- `store` is used to maintain optimization results for statistical evaluation.
 
 === Experiments
 
-Execution of the experiments can be reproduced by adapting/executing https://github.com/dietmarwo/fast-cma-es/blob/master/examples/maxcut.py[maxcut.py]. You need fcmaes version 1.4.3 for these experiments (do `pip install fcmaes --upgrade`).
+You can reproduce the experiments by adapting and executing https://github.com/dietmarwo/fast-cma-es/blob/master/examples/maxcut.py[maxcut.py].
+You need fcmaes version 1.4.3 for these experiments (`pip install fcmaes --upgrade`).
 
-Similar to what is done in the original qiskit tutorial
-https://qiskit.org/documentation/optimization/tutorials/06_examples_max_cut_and_tsp.html[06_examples_max_cut_and_tsp.html].
-we solve the maxcut graph problem, but instead of a tiny graph we increase the number of graph nodes to `n=16`.
+As in the original qiskit tutorial
+https://qiskit.org/documentation/optimization/tutorials/06_examples_max_cut_and_tsp.html[06_examples_max_cut_and_tsp.html],
+we solve the maxcut graph problem, but we increase the graph size to `n=16`.
 
 [source,python]
 ----
@@ -509,17 +496,24 @@ we solve the maxcut graph problem, but instead of a tiny graph we increase the n
         G.edges[u,v]['weight'] = 1
 ----
 
-is used to generate an random 16 node graph using a fixed seed. Using a bigger graph will result in different timings, as the processor cache size becomes the dominating resource limitation. This graph results in 96 continuous decision variables which makes the corresponding optimization problem quite challenging. Even on modern CPUs we have to rely on parallelization to being able to perform multiple optimization runs in reasonable time. All qiskit simulation parallelization is done in its {Cpp} code not publicly visible. It seems qiskit relies on vector / matrix optimizations (BLAS) and some other parallelization kicking in for larger qubit numbers or if you add noise. 
+This generates a random 16-node graph with a fixed seed.
+With larger graphs the timing changes because processor cache size becomes a dominant limit.
+This graph leads to 96 continuous decision variables, which makes the optimization problem quite challenging.
+Even on modern CPUs, parallelization is needed if we want to run enough optimization attempts in reasonable time.
+All qiskit simulation parallelization happens in its {Cpp} code, which is not publicly visible.
+It appears that qiskit relies on vector and matrix optimizations (BLAS) plus some other parallelization that becomes active for larger numbers of qubits or when noise is added.
 
 image::graph16.png[]
 
-All our experiments were executed on a 16 core AMD 5950x CPU with 128 GB RAM on Linux Mint 20.3.  
+All experiments were executed on a 16 core AMD 5950x CPU with 128 GB RAM on Linux Mint 20.3.
 
 ==== maxcut(SPSA(maxiter=6000), n, "aer_simulator")
 
-Lets first check what qiskit-optimization has to offer "out of the box". We use the default qiskit parallelization for this 
-experiment, which means we have to remove temporarily the `with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):`
-and `backend.set_options(max_parallel_threads=1)` from the code. Without adding noise we get:
+Let us first check what qiskit-optimization offers out of the box.
+For this experiment we use qiskit's default parallelization, which means temporarily removing
+`with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):`
+and `backend.set_options(max_parallel_threads=1)` from the code.
+Without noise we get:
 
 [source,python]
 ----
@@ -528,19 +522,20 @@ time: 661.4196128845215
 max-cut objective: -22.994140625
 ----
 
-which means we need more than 10 minutes and failed to reach the optimal energy of 8. 
+This run takes more than 10 minutes and does not reach the optimum.
 
 image::CPU_1.png[]
 
-We see 25% CPU load corresponding to 4 cores on our 16 core CPU. How much did we gain by parallelization?
-Lets restore the `with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):`
-and `backend.set_options(max_parallel_threads=1)` statements and rerun the experiment. 
+We see about 25% CPU load, which corresponds to roughly 4 cores on our 16 core CPU.
+How much does that parallelization actually help?
+Let us restore the `with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):`
+and `backend.set_options(max_parallel_threads=1)` statements and rerun the experiment.
 
 Now we see
 
 image::CPU3p_49deg.png[]
 
-which means only half a core is used now and get:
+This time only about half a core is used, and we get:
 
 [source,python]
 ----
@@ -549,16 +544,17 @@ time: 544.7220184803009
 max-cut objective: -22.9990234375
 ----
 
-Seems that qiskits parallelization attempt produced negative scaling, without it the simulation is significantly
-faster. What happens if we add noise?
+qiskit's built-in parallelization seems to scale negatively here.
+Without it, the simulation is noticeably faster.
+What happens if we add noise?
 
 ==== maxcut(SPSA(maxiter=6000), n, "aer_simulator", add_noise=True)
 
-Using qiskits parallelization we see even higher CPU load:
+With qiskit's parallelization we see even higher CPU load:
 
 image::CPU_N158deg.png[]
 
-and get 
+and get
 
 [source,python]
 ----
@@ -567,33 +563,35 @@ time: 1082.267616033554
 max-cut objective: -22.72363281255
 ----
 
-Generating noise slows things further down. Without qiskits parallelization we get:
+Noise slows things down even more.
+Without qiskit's parallelization we get:
 
 [source,python]
 ----
 energy: -7.71875
 time: 1006.533504486084
 max-cut objective: -23.71875
----- 
+----
 
-Again qiskit's parallelization hurts the performance. And we observe that the optimization results differ (we got lucky here)
-so multiple retries are unavoidable. To compare different algorithms a reasonable number of optimization runs is required
-to generate meaningful results, which requires many CPU-hours for such an experiment. Fortunately there are cloud offerings
-so that we could run our experiments in parallel utilizing multiple cloud nodes. May be there is an cheaper alternative.
+Again qiskit's parallelization hurts performance.
+The optimization results also differ between runs, so multiple retries are unavoidable.
+To compare algorithms in a meaningful way, we need a reasonable number of runs, and that quickly turns into many CPU-hours.
+Cloud machines are one option.
+There is also a cheaper one: parallelize at the optimization level.
 
-During winter time we observe an advantage of qiskits parallelization: CPU temperature raised by 10 degrees Celsius
-so we can at least use our machine as a room heater. May be this is worth the negative scaling? Or we should
-try to get the CPU really hot thereby achieving reasonable scaling: Parallelization performed by the optimization algorithm. 
-But before you do this, make sure there is no other parallelization going on evaluating your fitness function. 
+During winter there is at least one benefit to qiskit's parallelization: CPU temperature rises by about 10 degrees Celsius, so the machine can double as a room heater.
+Whether that compensates for negative scaling is another question.
+A better idea is to push parallelism into the optimizer itself.
+Before doing that, make sure nothing else is already parallelizing fitness evaluation.
 
-First lets try parallel fitness evaluation. As this is not supported by SPSA we have to switch to a fcmaes algorithm:  
+First let us try parallel function evaluation.
+SPSA does not support it, so we switch to a fcmaes algorithm:
 CR-FM-NES (Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see https://arxiv.org/abs/2201.11422).
-SPSA turned out to be superior to the fcmaes algorithms we applied in the first section. 
+SPSA turned out to be better than the fcmaes optimizers from the first section, but CR-FM-NES is the relevant fcmaes comparison here.
 
 ==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator")
 
-`Crfmnes_cpp` uses the evaluation- not the iteration-number as parameter, so we have to 
-use `12000` instead of `6000` to configure the same number of function evaluations. 
+`Crfmnes_cpp` uses the number of evaluations, not iterations, so we use `12000` instead of `6000` to configure the same number of function evaluations.
 
 [source,python]
 ----
@@ -603,25 +601,26 @@ time: 43.56654715538025
 max-cut objective: -24.0
 ----
 
-43 seconds, that means instead of negative scaling we now have factor `544/43.5 = 12.5`. And `661/43.5 = 15` if we compare to
-qiskit parallelization. Below we will investigate whether the good optimization result `8.0` was a "lucky punch".  
+43 seconds means that, instead of negative scaling, we now get factor `544/43.5 = 12.5`.
+Compared to qiskit parallelization, the factor is `661/43.5 = 15`.
+Below we will check whether the good optimization result `-8.0` was just luck.
 
-Using parameter `use_wrapper=True` we configured monitoring of the optimization resulting in output like:
+With parameter `use_wrapper=True` we enable monitoring of the optimization, which produces output like:
 
 [source,python]
 ----
 24.68 7152 290.0 -8.000000000000002 [1.3432903811499826, -2.9505684864231103, ...]
 ----
 
-Where we have:
+This means:
 
-- 39.25 : execution time in seconds.
-- 10000 : number of fitness evaluations so far.
-- 255.0 : number of fitness evaluations per second (eval/sec).
+- 24.68 : execution time in seconds.
+- 7152 : number of fitness evaluations so far.
+- 290.0 : number of fitness evaluations per second (eval/sec).
 - -8.0 : best fitness value so far.
-- [-1.1634306611788974, -2.9237165862940446, ...] : best solution vector so far.
+- [1.3432903811499826, -2.9505684864231103, ...] : best solution vector so far.
 
-Adding noise we get:
+Adding noise gives:
 
 ==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16, workers=16), use_wrapper=True), n, "aer_simulator", add_noise=True)
 
@@ -632,21 +631,22 @@ time: 82.25768613815308
 max-cut objective: -23.744140625
 ----
 
-82.2 seconds which is factor `1082/82.2 = 13.1` compared to SPSA using qiskits parallelization. 
+82.2 seconds, which is factor `1082/82.2 = 13.1` compared to SPSA with qiskit's parallelization.
 
-To seriously compare SPSA with CR-FM-NES we need more runs. We need a multi-restart/retry of both optimizations. 
-Fortunately this can be parallelized using fcmaes also for SPSA. But why do a parallel retry also for CR-FM-NES? 
-We have parallel function evaluation and could apply this mode in a loop. Reason is that parallelization introduces
-an overhead which grows when the tasks are shorter. An optimization lasts much longer than a fitness evaluation, so the
-overhead shrinks which means we get better scaling: The execution of all optimizations needs less time.
-Another reason is that parallelizing fitness evaluation depends on the population size configured by the algorithm. 
-It makes no sense to allocate more workers than the size of the population. Parallelizing whole optimization runs
-doesn't have this restriction, so we can fully utilize all CPU-core.  
+To compare SPSA and CR-FM-NES seriously, we need more runs.
+That means multi-start or retry for both optimizers.
+fcmaes can parallelize this for SPSA as well.
+But why use parallel retry for CR-FM-NES when it already supports parallel function evaluation?
+Because function-level parallelism adds overhead, and that overhead matters more when the individual tasks are short.
+An optimization run is much longer than a single fitness evaluation, so retry-level parallelism often scales better in total wall time.
+There is also a population-size constraint.
+Function-level parallelism cannot use more workers than the population size configured by the algorithm.
+Parallelizing full optimization runs does not have that restriction, so it can keep all CPU cores busy.
 
 - Use parallel fitness evaluation mode if you want a fast result.
-- Use parallel optimization retry if you want to test the reliability of an algorithm. 
+- Use parallel optimization retry if you want to test the reliability of an algorithm.
 
-Lets first execute 32 SPSA optimization runs in parallel:
+Let us first execute 32 SPSA optimization runs in parallel:
 
 ====  maxcut(fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator")
 
@@ -658,7 +658,7 @@ time: 1065.901137828827
 max-cut objective: -24.0
 ----
 
-Parameter `logger=logger()` is used to monitor the results we get from the different parallel runs:
+Parameter `logger=logger()` is used to monitor the stream of results from the parallel runs:
 
 - 1065.9 : execution time in seconds.
 - 360 : number of fitness evaluations per second (eval/sec).
@@ -666,22 +666,23 @@ Parameter `logger=logger()` is used to monitor the results we get from the diffe
 - 384000 : number of fitness calls.
 - -8.000000 : best fitness value so far.
 - -7.28 : mean value of all optimization results.
-- -0.80 : standard deviation of all optimization results.
+- 0.80 : standard deviation of all optimization results.
 - - [-8.0, -7.998, -7.998, -7.9971, -7.9971, -7.9951, ...] list of the 20 best optimization results.
 
-So we have for SPSA(4000):
+So for SPSA(6000) we get:
 
 - 1066 seconds for 32 runs resulting in energy =  `[-8.0, -7.998, -7.998, -7.9971, -7.9971, -7.9951, -7.9951, -7.9951, -7.9941, -7.9932, -7.9922, -7.9912, -7.9883, -7.9883, -7.9883, -7.0, -7.0, -6.9971, -6.9971, -6.9971]`
 - mean result: -7.28
 - standard deviation: 0.80
 
 
-Note that we only see the best 20 runs here. 
-As we see many of the 32 runs got a result very near the absolute optimum of `-8.0`. Using parallel optimization we 
-are faster by factor `32*661/1066 = 19.8` compared to a serial restart. We saved nearly 6 hours CPU time.   
+Note that we only see the best 20 runs here.
+Many of the 32 runs are very close to the absolute optimum of `-8.0`.
+Using parallel optimization we are faster by factor `32*661/1066 = 19.8` compared to serial restarts.
+That saves nearly 6 hours of CPU time.
 
 For CR-FM-NES we get:
- 
+
 ==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
 
 [source,python]
@@ -696,14 +697,14 @@ max-cut objective: -24.000000000000004
 - mean result: -7.59
 - standard deviation: 0.60
 
-Faster and slightly better results than SPSA. 
-Using population size 24 slows things down slightly but produces even better results:
+This is faster and slightly better than SPSA.
+Using population size 24 slows things down slightly but improves the results further:
 
 ==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
 
 [source,python]
 ----
-1110.17 345 32 384000 -8.000000 -7.69 0.58 [-8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0] 
+1110.17 345 32 384000 -8.000000 -7.69 0.58 [-8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0, -8.0]
 energy: -8.000000000000004
 time: 1110.1752026081085
 max-cut objective: -24.000000000000004
@@ -713,7 +714,8 @@ max-cut objective: -24.000000000000004
 - mean result: -7.69
 - standard deviation: 0.58
 
-What about noise? Lets execute 32 SPSA optimization runs in parallel:
+What about noise?
+Let us execute 32 SPSA optimization runs in parallel:
 
 ==== maxcut(fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
 
@@ -729,7 +731,7 @@ max-cut objective: -23.8232421875
 - mean result: -7.25
 - standard deviation: 0.59
 
-We need 1752 seconds for 32 runs which means it is factor `1082*32/1752 = 19.8` faster than qiskits parallelization.  
+We need 1752 seconds for 32 runs, which means factor `1082*32/1752 = 19.8` compared to qiskit's parallelization.
 
 ==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
 
@@ -745,13 +747,14 @@ max-cut objective: -23.87109375
 - mean result: -7.39
 - standard deviation: 0.59
 
-Slightly faster and minimally better results than SPSA. With noise population size 24 doesn't improve things:
+This is slightly faster and marginally better than SPSA.
+With noise, population size 24 does not improve things:
 
 ==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
 
 [source,python]
 ----
-1707.94 224 32 384000 -7.863281 -7.30 0.59 [-7.8633, -7.8418, -7.8271, -7.8018, -7.7979, -7.7529, -7.7441, -7.7324, -7.7295, -7.7246, -7.7236, -7.7031, -7.7002, -7.6982, -7.6875, -7.6836, -7.6807, -7.6572, -7.6475, -6.8662] 
+1707.94 224 32 384000 -7.863281 -7.30 0.59 [-7.8633, -7.8418, -7.8271, -7.8018, -7.7979, -7.7529, -7.7441, -7.7324, -7.7295, -7.7246, -7.7236, -7.7031, -7.7002, -7.6982, -7.6875, -7.6836, -7.6807, -7.6572, -7.6475, -6.8662]
 energy: -7.863281249999998
 time: 1707.9386677742004
 max-cut objective: -23.86328125
@@ -763,17 +766,15 @@ max-cut objective: -23.86328125
 
 ==== Exercises
 
-- Test "qasm_simulator" with and without noise.
-- Try other graph sizes / seeds. 
+- Test `qasm_simulator` with and without noise.
+- Try other graph sizes or seeds.
 
 === Summary
 
-- SPSA is an excellent algorithm for VQE optimization, specially if noise is involved. 
-- CR-FM-NES (Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see 
-https://arxiv.org/abs/2201.11422) is a good alternative which may have advantages for more complex VQEs. 
-- Both can be parallelized using fcmaes parallel restart/retry resulting in very good scaling. 
-- Using parallel function evaluation CR-FM-NES is much faster than SPSA.
-- Maxcut parallelization scaling is best for "qasm_simulator" and "aer_simulator" but we have to make sure that fitness evaluation / quantum circuit simulation is performed single threaded. 
-- Avoid the "room heater", don't execute circuit simulation with VQEs multi-threaded without making sure there is a performance
-  gain on your CPU. At least during summer time. 
-  
+- SPSA is an excellent algorithm for VQE optimization, especially if noise is involved.
+- CR-FM-NES (Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see
+https://arxiv.org/abs/2201.11422) is a good alternative that may have advantages for more complex VQEs.
+- Both can be parallelized with fcmaes parallel restart/retry and show very good scaling.
+- With parallel function evaluation, CR-FM-NES is much faster than SPSA.
+- Maxcut parallelization scales best for `qasm_simulator` and `aer_simulator`, but fitness evaluation and quantum circuit simulation should be kept single-threaded.
+- Avoid the "room heater": do not run VQE circuit simulation multi-threaded until you have verified that it improves performance on your CPU. At least during summer time.

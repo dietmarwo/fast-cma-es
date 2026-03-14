@@ -13,57 +13,56 @@ image::logo.gif[]
 
 This tutorial
 
-- Shows how to apply CR-FM-NES to train deep neural networks (DNN) for real world https://github.com/google/evojax/tree/main/examples[applications], see also 
-https://cloud.google.com/blog/topics/developers-practitioners/evojax-bringing-power-neuroevolution-solve-your-problems[evojax intro].
+- Shows how to apply CR-FM-NES to train deep neural networks (DNNs) for real-world https://github.com/google/evojax/tree/main/examples[applications]. See also the
+https://cloud.google.com/blog/topics/developers-practitioners/evojax-bringing-power-neuroevolution-solve-your-problems[EvoJax intro].
 - Shows how to wrap the {cpp} implementation of CR-FM-NES for use in EvoJax.
 - Shows how to wrap the {cpp} implementation of PGPE for use in EvoJax.
 - Shows how to adapt the Python implementation of CR-FM-NES for use in EvoJax.
-- Compares the performance (wall time per iteration and convergence) of different evolutionary EvoJax optimization algorithms. 
+- Compares the performance (wall time per iteration and convergence) of different evolutionary EvoJax optimization algorithms.
 
 == Introduction
 
 The https://github.com/google/evojax[EvoJax] environment differs significantly from other applications of fcmaes:
 
-- The objective function is the loss-function of a DNN for specific configured weights - the decision variables. 
-CPUs are not well suited for this task, either one or several GPUs or TPUs (Tensor Processing Unit) are required. 
+- The objective function is the loss-function of a DNN for specific configured weights - the decision variables.
+CPUs are not well suited for this task. You usually need one or more GPUs or TPUs (Tensor Processing Units).
 
 - The number of decision variables is extremely high, up to many thousands. Our CMA-ES implementations become
-very slow with > 1000 variables. EvoJax fixes this by re-implementing CMA-ES using https://github.com/google/jax[jax], see
-https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[cma_jax.py]. Executing CMA-ESs` heavy matrix operations on
-a GPU/TPU may speed up things by factor > 100 making CMA-ES a valid choice again. 
+very slow with > 1000 variables. EvoJax addresses this by re-implementing CMA-ES using https://github.com/google/jax[jax], see
+https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[cma_jax.py]. Running CMA-ES's heavy matrix operations on
+a GPU/TPU can speed things up by a factor > 100, which makes CMA-ES a valid choice again.
 
 - Parallelization on the level of optimization runs (parallel retry) or parallel objective function evaluation as provided
-by fcmaes makes no sense here, since the GPU/TPU resources are the bottleneck. Instead it is the optimization algorithm itself
-which could be parallelized. We noticed that here the fcmaes Python implementation of CMA-ES is faster than its {cpp} counterpart, 
-since numpy parallelizes its matrix operations. And https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[cma_jax.py] 
-again is faster than any fcmaes CMA-ES implementation.    
+by fcmaes does not help much here, because GPU/TPU resources are the bottleneck. What matters instead is parallelizing the optimization algorithm itself.
+In this setting, the fcmaes Python implementation of CMA-ES is faster than its {cpp} counterpart, because numpy parallelizes its matrix operations. And
+https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[cma_jax.py] is faster again than any fcmaes CMA-ES implementation.
 
 - CMA-ES has not only performance issues, it may converge slower in case of dependencies between decision variables.
 
-fcmaes provides two algorithms specialized for high dimensional problems: CR-FM-NES and PGPE. We will compare these algorithms with other 
+fcmaes provides two algorithms specialized for high-dimensional problems: CR-FM-NES and PGPE. We will compare them with other
 EvoJax https://github.com/google/evojax/blob/main/evojax/algo[algorithms].
 
-All CPU based algorithms have a disadvantage: The argument and result vectors need to be transferred between CPU and GPU/TPU which causes an overhead. We need concrete experiments to evaluate this overhead in detail. 
+All CPU-based algorithms have one clear disadvantage. Argument and result vectors must be transferred between CPU and GPU/TPU, which adds overhead. We need experiments to see how much this matters in practice.
 
-We will show, that both fcmaes {cpp} implementations of CR-FM-NES and PGPE outperform most EvoJax https://github.com/google/evojax/blob/main/evojax/algo[algorithms], at least on our hardware: AMD 5950x CPU and NVIDIA 3090 GPU. This is a typical hardware configuration since the NVIDIA 3090 GPU is very well suited for machine learning because of its 24GB RAM.
+We will show that both fcmaes {cpp} implementations of CR-FM-NES and PGPE outperform most EvoJax https://github.com/google/evojax/blob/main/evojax/algo[algorithms], at least on our hardware: an AMD 5950x CPU and an NVIDIA 3090 GPU. This is a typical configuration, and the NVIDIA 3090 is well suited for machine learning because of its 24GB RAM.
 
-Both "jaxified" Python implementations of CR-FM-NES and PGPE (only implemented in EvoJax) perform similar to the {cpp} implementations. Differences are:
+Both "jaxified" Python implementations of CR-FM-NES and PGPE, implemented only in EvoJax, perform similarly to the {cpp} implementations. The main differences are:
 
-- The {cpp} implementations uses less GPU/TPU resources.
-- The {cpp} implementations perform better if the EvoJax optimization task is executed only on CPUs. 
-- The {cpp} implementations have higher accuracy (64 bit). For most benchmarks we didn't observe
-a significant difference in the optimization results - 32 bits are sufficient in most cases. 
-- The "jaxified" Python implementations may perform better on fast (multi-) GPUs/TPUs if the number of decision variables is very high. 
+- The {cpp} implementations use fewer GPU/TPU resources.
+- The {cpp} implementations perform better if the EvoJax optimization task runs only on CPUs.
+- The {cpp} implementations have higher accuracy (64 bit). For most benchmarks we did not observe
+a significant difference in the optimization results. In most cases, 32 bits are sufficient.
+- The "jaxified" Python implementations may perform better on fast (multi-) GPUs/TPUs if the number of decision variables is very high.
 
 Our {cpp} implementation of http://mediatum.ub.tum.de/doc/1099128/631352.pdf[PGPE] is derived from its JAX-based https://github.com/google/evojax/blob/main/evojax/algo/pgpe.py[EvoJax implementation].
 
 == Implementation
 
-- The wrapper of {cpp}-CR-FM-NES as EvoJax algorithm used for our tests is here: https://github.com/dietmarwo/evojax/blob/FIX_CFRMNES/evojax/algo/fcrfmc.py[fcrfmc.py]. Its implementation was straightforward, it is derived from existing wrappers like https://github.com/google/evojax/blob/main/evojax/algo/cma_wrapper.py[cma_wrapper.py]
+- The wrapper of {cpp}-CR-FM-NES used as an EvoJax algorithm in our tests is here: https://github.com/dietmarwo/evojax/blob/FIX_CFRMNES/evojax/algo/fcrfmc.py[fcrfmc.py]. The implementation was straightforward. It is derived from existing wrappers such as https://github.com/google/evojax/blob/main/evojax/algo/cma_wrapper.py[cma_wrapper.py]
 
-- The wrapper of {cpp}-CR-FM-NES as EvoJax algorithm used for our tests is here: https://github.com/dietmarwo/evojax/blob/FIX_CFRMNES/evojax/algo/fpgpec.py[fpgpec.py]. It was derived from existing wrappers like the one for {cpp}-CR-FM-NES.
+- The wrapper of {cpp}-PGPE used as an EvoJax algorithm in our tests is here: https://github.com/dietmarwo/evojax/blob/FIX_CFRMNES/evojax/algo/fpgpec.py[fpgpec.py]. It was derived from existing wrappers such as the one for {cpp}-CR-FM-NES.
 
-- The "jaxified" Python implementation of CR-FM-NES is here: https://github.com/dietmarwo/evojax/blob/ADD_CR_FM_NES_JAX/evojax/algo/crfmnes.py[crfmnes.py]. Since there are no for-loops there are not many beneficial applications of 'jax.jit', just converted most 'np.arrays' into 'jnp.arrays' deployed on the GPUs/TPUs.
+- The "jaxified" Python implementation of CR-FM-NES is here: https://github.com/dietmarwo/evojax/blob/ADD_CR_FM_NES_JAX/evojax/algo/crfmnes.py[crfmnes.py]. Since there are no for-loops, there are not many useful applications of `jax.jit`. We mainly converted `np.arrays` into `jnp.arrays` deployed on GPUs/TPUs.
 
 Our benchmark configurations are here:
 
@@ -71,45 +70,45 @@ Our benchmark configurations are here:
 - https://github.com/dietmarwo/evojax/tree/FIX_CFRMNES/scripts/benchmarks/configs/FPGPEC[configs/FPGPEC]
 - https://github.com/dietmarwo/evojax/tree/ADD_CR_FM_NES_JAX/scripts/benchmarks/configs/CRFMNES[configs/CRFMNES]
 
-Note that we used higher iteration numbers for our own benchmarks to identify late bloomers. 
+We used higher iteration counts in our own benchmarks to identify late bloomers.
 
 == Remarks
 
 Note that
 
-- Our results are partly inconsistent with the ones reported in 
+- Our results are partly inconsistent with the ones reported in
 https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks] even if you compare only
-the score after n iterations (should be independent from the used hardware). Since our results are better, it may be
-there are improvements in the problem formulation itself or our hyper-parameter settings were superior. 
-- The benchmarked JAX implementation of https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[CMA-ES] is based on 
+the score after n iterations, which should be independent of the hardware used. Since our results are better, there may have been
+improvements in the problem formulation itself, or our hyper-parameter settings may have been better.
+- The benchmarked JAX implementation of https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[CMA-ES] is based on
 https://github.com/CyberAgentAILab/cmaes/blob/main/cmaes/_cma.py[_cma.py], see https://arxiv.org/abs/1604.00772[1604.00772]. It is from the
 same author as the original CR-FM-NES: https://github.com/nomuramasahir0[Masahiro Nomura].
-- Our {cpp} https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/crfmnes.cpp[implementation] of  CR-FM-NES, beside adding the ask/tell interface, is very close to its Python original.  
-- We performed experiments with both fcmaes CMA-ES implementations: They converge similar to CMA_ES_JAX for high dimensions. Since CMA_ES_JAX is a simpler version of CMA-ES it is both easier to "jaxify" and is slightly faster. 
+- Our {cpp} https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/crfmnes.cpp[implementation] of CR-FM-NES is very close to the original Python version, apart from the added ask/tell interface.
+- We performed experiments with both fcmaes CMA-ES implementations. For high dimensions, they converge similarly to CMA_ES_JAX. Since CMA_ES_JAX is a simpler version of CMA-ES, it is easier to "jaxify" and slightly faster.
 
 == Benchmark Results
 
 We compared several algorithms using these https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks] with the following modifications:
 
 - We monitor the progress of the optimization over time, number of fitness evaluations and number of iterations. We use a higher iteration limit to identify
-late bloomers improving their rank in the end. 
+late bloomers that improve their rank near the end.
 
-- We show both the iteration and evaluation numbers, because EvoJax sometimes profits from higher population size due to parallelization. This effect may increase with 
-multiple / faster GPUs/TPUs.  
+- We show both the iteration and evaluation numbers, because EvoJax sometimes profits from higher population size due to parallelization. This effect may increase with
+multiple / faster GPUs/TPUs.
 
-Our hardware used for all tests: CPU AMD 5950x with 128GB RAM, GPU NVIDIA 3090 with 24GB RAM. 
+All tests used the same hardware: an AMD 5950x CPU with 128GB RAM and an NVIDIA 3090 GPU with 24GB RAM.
 
-The tasks used for the comparison are described here https://github.com/dietmarwo/evojax/tree/ADD_CR_FM_NES/evojax/task[tasks] . 
+The tasks used for the comparison are described here: https://github.com/dietmarwo/evojax/tree/ADD_CR_FM_NES/evojax/task[tasks].
 
-Most algorithms create for each generation a population based on random normal distribution vector. Between generations
-both the mean and standard deviation vectors are updated using algorithm specific methods. Some algorithms "shape" the distribution
-based on a covariance matrix. Full covariance update is expensive, therefore CRFMNES, FCRFMC and Sep-CMA use a
-diagonal based covariance matrix representation.    
+Most algorithms create a population for each generation from a random normal distribution vector. Between generations,
+both the mean and standard deviation vectors are updated using algorithm-specific methods. Some algorithms shape the distribution
+using a covariance matrix. A full covariance update is expensive, so CRFMNES, FCRFMC and Sep-CMA use a
+diagonal covariance matrix representation.
 
-.Algorithm properties 
+.Algorithm properties
 [width="60%",cols="3,^2,^2,^2,^2,^2,^2",options="header"]
 |===
-||ARS |PGPE |FPGPEC | CMA-ES |CRFMNES |FCRFMC    
+||ARS |PGPE |FPGPEC | CMA-ES |CRFMNES |FCRFMC
 |population based on random normal distribution vector|+|+|+|+|+|+
 |symmetric sampling|+|+|+|-|+|+
 |ADAM for mean update|+|+|+|-|-|-
@@ -119,15 +118,15 @@ diagonal based covariance matrix representation.
 |===
 
 Since https://arxiv.org/pdf/1803.07055.pdf[ARS] (Augmented Random Search) is the simplest of all algorithms we additionally show the relative score to
-ARS_native, its JAX-based implementation. It is interesting that PGPE/FPGPEC, which is very similar, and almost as simple as ARS, performs so much better here - 
-giving the distribution shaping covariance based algorithms a real challenge, not only regarding wall time.   
+ARS_native, its JAX-based implementation. PGPE/FPGPEC is very similar to ARS, and almost as simple, yet it performs much better here.
+That makes it a serious competitor to the covariance-based algorithms, not only in wall time.
 
 === Cartpole Easy
 
 image::cartpole_easy_EvoJax_Benchmark_Score.png[]
 
-This benchmark is too easy to derive meaningful conclusions. PGPE/FPGPEC and FCRFMC/CRFMNES (our CR-FM-NES wrapper) lead the pack, CMA_ES_JAX 
-is very slow on our hardware. The "iterations"-diagram shows that convergence - independent form the used hardware - is also slightly inferior to the other algorithms.  
+This benchmark is too easy to derive meaningful conclusions. PGPE/FPGPEC and FCRFMC/CRFMNES (our CR-FM-NES wrapper) lead the pack, CMA_ES_JAX
+is very slow on our hardware. The "iterations" diagram shows that convergence, independent of the hardware used, is also slightly worse than for the other algorithms.
 
 image::cartpole_easy_EvoJax_Score_relative_to_ARS_native.png[]
 
@@ -135,7 +134,7 @@ image::cartpole_easy_EvoJax_Score_relative_to_ARS_native.png[]
 
 image::cartpole_hard_EvoJax_Benchmark_Score.png[]
 
-Almost the same result as for Cartpole Easy. PGPE/FPGPEC and FCRFMC/CRFMNES in the lead, CMA_ES_JAX lagging behind. 
+Almost the same result as for Cartpole Easy. PGPE/FPGPEC and FCRFMC/CRFMNES are in the lead, with CMA_ES_JAX lagging behind.
 All algorithms are > 800 after 1000 iterations, inconsistent with the results reported https://github.com/google/evojax/tree/main/scripts/benchmarks[here].
 
 image::cartpole_hard_EvoJax_Score_relative_to_ARS_native.png[]
@@ -144,8 +143,8 @@ image::cartpole_hard_EvoJax_Score_relative_to_ARS_native.png[]
 
 image::brax_EvoJax_Benchmark_Score.png[]
 
-Again PGPE/FPGPEC and FCRFMC/CRFMNES leading the pack. Since this task is more difficult we get a clearer picture: We see PGPE superior in the beginning, but FCRFMC/CRFMNES improves faster
-and got the lead in the end. Very good performance from OpenES here, CMA_ES_JAX looses again. 
+Again PGPE/FPGPEC and FCRFMC/CRFMNES lead the pack. Since this task is harder, the pattern is clearer. PGPE is better at the beginning, but FCRFMC/CRFMNES improves faster
+and takes the lead in the end. OpenES also performs very well here, while CMA_ES_JAX loses again.
 
 image::brax_EvoJax_Score_relative_to_ARS_native.png[]
 
@@ -153,7 +152,7 @@ image::brax_EvoJax_Score_relative_to_ARS_native.png[]
 
 image::mnist_EvoJax_Benchmark_Score.png[]
 
-PGPE/FPGPEC in the lead, caught in the end by both FCRFMC/CRFMNES and OpenES. CMA_ES_JAX improves slower in later stages, even if we check the hardware independent "iterations"-diagram. 
+PGPE/FPGPEC is in the lead at first, but both FCRFMC/CRFMNES and OpenES catch up in the end. CMA_ES_JAX improves more slowly in later stages, even in the hardware-independent "iterations" diagram.
 
 image::mnist_EvoJax_Score_relative_to_ARS_native.png[]
 
@@ -161,9 +160,9 @@ image::mnist_EvoJax_Score_relative_to_ARS_native.png[]
 
 image::waterworld_EvoJax_Benchmark_Score.png[]
 
-Our waterworld results after 1000 iterations are in general significantly higher than what is reported in https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks],
-but the distance between the algorithms is quite consistent. Again we see PGPE in the lead, caught in the end by FCRFMC/CRFMNES. OpenES performs strongly and CMA_ES_JAX is lagging behind. 
-Note that for OpenES there is no more improvement until 3000 iterations where for PGPE/FPGPEC and FCRFMC/CRFMNES the score is still growing. 
+Our Waterworld results after 1000 iterations are generally much higher than those reported in https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks],
+but the distance between algorithms is quite consistent. Again PGPE leads at first, then FCRFMC/CRFMNES catches up in the end. OpenES performs strongly, while CMA_ES_JAX lags behind.
+Note that OpenES shows no further improvement up to 3000 iterations, while the scores of PGPE/FPGPEC and FCRFMC/CRFMNES are still growing.
 
 image::waterworld_EvoJax_Score_relative_to_ARS_native.png[]
 
@@ -171,9 +170,9 @@ image::waterworld_EvoJax_Score_relative_to_ARS_native.png[]
 
 image::waterworld_ma_EvoJax_Benchmark_Score.png[]
 
-This benchmark has a very small fixed population size (16). 
-Only PGPE/FPGPEC and FCRFMC/CRFMNES are successful. This is the only benchmark where FCRFMC is faster than CRFMNES - may be because
-of its 64-bit accuracy. 
+This benchmark has a very small fixed population size (16).
+Only PGPE/FPGPEC and FCRFMC/CRFMNES are successful. This is the only benchmark where FCRFMC is faster than CRFMNES, perhaps because
+of its 64-bit accuracy.
 
 image::waterworld_ma_EvoJax_Score_relative_to_ARS_native.png[]
 
@@ -181,55 +180,54 @@ image::waterworld_ma_EvoJax_Score_relative_to_ARS_native.png[]
 
 image::slimevolley_EvoJax_Benchmark_Score.png[]
 
-This final benchmark is clearly dominated by CR-FM-NES, even OpenES and CMA-ES can surpass PGPE/FPGPEC. Slimevolley has only 323 decision variables, a fraction compared to the other tasks - this seems no longer PGPE territory - although PGPE's Waterworld MA results contradict that. We expect CR-FM-NES generally being very competitive for "low" dimensional machine learning tasks. Even CMA-ES is back in the game, since its wall time disadvantage shrinks significantly, specially for its JAX based implementation. But it still trails behind CR-FM-NES. The highest dimensionality where we observed top performance using CMA-ES is https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[multi-UAV task assignment] with 104 parameters.   
+This final benchmark is clearly dominated by CR-FM-NES. Even OpenES and CMA-ES can surpass PGPE/FPGPEC here. Slimevolley has only 323 decision variables, a small number compared to the other tasks. That seems to move the problem out of typical PGPE territory, although PGPE's Waterworld MA results contradict that somewhat. We expect CR-FM-NES to be very competitive for "low"-dimensional machine learning tasks in general. Even CMA-ES is back in the game, since its wall-time disadvantage shrinks significantly, especially for the JAX-based implementation. It still trails behind CR-FM-NES. The highest dimensionality where we observed top performance using CMA-ES is https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[multi-UAV task assignment] with 104 parameters.
 
 image::slimevolley_EvoJax_Score_relative_to_ARS_native.png[]
 
 === Increasing the Optimization Budget
 
-We further increase the optimization budged for the two waterworld tasks to investigate:
+We further increase the optimization budget for the two Waterworld tasks to investigate:
 
 - How far did the results listed in https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks] miss the potential maximal score?
 - Does the relative maximal scores of the algorithms change if we increase the budget?
 
-==== Waterworld 
+==== Waterworld
 
 image::waterworld_EvoJax_Benchmark_Score384.png[]
 
-We increased the population size to 384 and applied the best algorithms from the first test. Now the best score is 16.0625, 
+We increased the population size to 384 and applied the best algorithms from the first test. The best score is now 16.0625,
 a lot better than the 11.64 reported at https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks].
 
-.Score/Time for Waterworld task 
+.Score/Time for Waterworld task
 [width="50%",options="header"]
 |===
-|algorithm |score |time in sec 
+|algorithm |score |time in sec
 |CRFMNES|16.0625|6948
 |FCRFMC|16.0625|7781
 |PGPE|16.0625|7983
 |===
 
-All algorithms reach the same score, were the Python/JAX implementation of CR-FM-NES is the fastest one beating both its {cpp}-Variant and PGPE. But we see very clearly now, that PGPE is faster in the beginning and CR-FM-NES at the end. Which "screams" for an idea
-successfully applied for other domains using https://github.com/dietmarwo/fast-cma-es[fcmaes]: The application of different algorithms for the same optimization process. We could try to apply PGPE in the first phase and then supply the resulting PGPE population
-(or just the best result so far) to CR-FM-NES. This would imply an extension of the existing solver API to being able to feed a solver with a whole initial population. 
+All algorithms reach the same score, but the Python/JAX implementation of CR-FM-NES is the fastest, beating both its {cpp} variant and PGPE. The pattern is now very clear: PGPE is faster at the beginning, while CR-FM-NES is better at the end. This strongly suggests an idea
+that has worked well in other domains with https://github.com/dietmarwo/fast-cma-es[fcmaes]: use different algorithms within the same optimization process. One option would be to use PGPE in the first phase and then pass the resulting PGPE population
+(or just the best result so far) to CR-FM-NES. That would require extending the solver API so a solver can be initialized with a whole population.
 
 ==== Waterworld MA
 
 image::waterworld_ma_EvoJax_Benchmark_Score384.png[]
 
-Population size cannot be changed here, it remains 16. Increasing the budged reveals:
+Population size cannot be changed here. It remains 16. Increasing the budget reveals:
 - A score of 3.03125 can be reached, far better than what is reported in https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks].
-- No algorithm can compete with PGPE, which was not visible before. 
+- No algorithm can compete with PGPE, which was not visible before.
 
 === Summary
 
 All measured tasks show consistent results:
 
-- PGPE is slightly superior for lower optimization budgets and proves - together with CRFMNES - that JAX-based optimization algorithms are very competitive in the machine learning domain. 
-- FCRFMC/CRFMNES shows the highest improvement rate for increasing optimization budget and may be an alternative for even more complex tasks. Note that FCRFMC, despite being single CPU-threaded and using very low CPU/GPU/TPU resources is quite competitive. The overhead transferring data between CPU and GPU/TPU seems not being a decisive disadvantage. 
-Use FCRFMC/FPGPEC ({cpp}) on CPUs and on older operating systems or with a lower number of decision variables. 
+- PGPE is slightly superior for lower optimization budgets and shows, together with CRFMNES, that JAX-based optimization algorithms are very competitive in the machine learning domain.
+- FCRFMC/CRFMNES shows the highest improvement rate as the optimization budget increases and may be an alternative for even more complex tasks. Note that FCRFMC, despite being single CPU-threaded and using very low CPU/GPU/TPU resources, is quite competitive. The overhead of transferring data between CPU and GPU/TPU does not seem to be a decisive disadvantage.
+Use FCRFMC/FPGPEC ({cpp}) on CPUs and on older operating systems or with a lower number of decision variables.
 - CRFMNES, the 'jaxified' Python implementation of CR-FM-NES has no significant wall time disadvantage compared to the {cpp}-version FCRFMC, sometimes it is even faster. The reduced accuracy doesn't harm the convergence. Same holds for PGPE compared to FPGPEC.
-- OpenES is a valid alternative only slightly behind. 
-- CMA_ES_JAX: Although JAX brings CMA-ES the biggest performance boost for all algorithms, CMA_ES_JAX is still lagging behind. The low convergence of CMA-ES for high dimensional problems makes it the worst choice in the machine learning domain. Note that as the name of my library (fcmaes) indicates, I am a big fan of this algorithm for lower dimensions. 
-- Wrapping a {cpp} algorithm based on https://eigen.tuxfamily.org/[Eigen] can perform and converge as fast as the best jax based implementations, even single threaded, thereby saving CPU/GPU/TPU resources - as long as no computationally heavy matrix operations are involved - like maintaining a full covariance matrix.
-- Testing revealed that the random generator plays an important role influencing both wall time and convergence. This lead to replacement of the random generator used for all fcmaes algorithms by https://github.com/bab2min/EigenRand[EigenRand].
-
+- OpenES is a valid alternative only slightly behind.
+- CMA_ES_JAX: Although JAX brings CMA-ES the biggest performance boost for all algorithms, CMA_ES_JAX is still lagging behind. The low convergence of CMA-ES for high dimensional problems makes it the worst choice in the machine learning domain. Note that as the name of my library (fcmaes) indicates, I am a big fan of this algorithm for lower dimensions.
+- Wrapping a {cpp} algorithm based on https://eigen.tuxfamily.org/[Eigen] can perform and converge as fast as the best JAX-based implementations, even single threaded, while saving CPU/GPU/TPU resources, as long as no computationally heavy matrix operations are involved, such as maintaining a full covariance matrix.
+- Testing revealed that the random generator plays an important role in both wall time and convergence. This led to replacement of the random generator used for all fcmaes algorithms by https://github.com/bab2min/EigenRand[EigenRand].

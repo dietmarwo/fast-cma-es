@@ -12,160 +12,119 @@ image::logo.gif[]
 
 === This tutorial
 
-- Discusses how to apply QD-algorithms (Quality Diversity) to a an optimization problem
-from the space flight planning domain which has an extremely rugged solution landscape and 
-a huge number of local optima. 
-- Discusses how different configurations / solution-emitters may affect the result. 
-- Explains how CVT MAP-Elites needs to be implemented in Python to provide minimal algorithm overhead and
-maximal scaling with the number of parallel processes. 
-- Shows how CMA-ES can be used to enhance the optimization results or to improve existing solutions. 
+- Shows how to apply QD algorithms (Quality Diversity) to a space-flight planning problem with an extremely rugged solution landscape and a huge number of local optima.
+- Discusses how different configurations and solution emitters affect the result.
+- Explains how CVT MAP-Elites can be implemented in Python with low algorithm overhead and good scaling across parallel processes.
+- Shows how CMA-ES can improve optimization results further or refine existing solutions.
 
 === Remark
 
-If you just want to play around with QD-algorithms, there is a simple example
-https://github.com/dietmarwo/fast-cma-es/blob/master/examples/arm.py[arm.py], the simulation of a planar robot arm. Change the parameters / used algorithms to learn how they work. Note that the problem discussed here is "special" because
-of the extreme "ruggedness" of the solution landscape. For other problems we
-recommend applying the https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[fcmaes diversifier] QD meta-algorithm, see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[Diversity.adoc].
-As we see below diversifier also works fine for the problem discussed here.
+If you just want to try QD algorithms, start with the simple example
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/arm.py[arm.py], a simulation of a planar robot arm. Change the parameters and algorithms to see how they behave. The problem discussed here is "special" because the solution landscape is extremely rugged. For most other problems we recommend the https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[fcmaes diversifier] QD meta-algorithm, see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[Diversity.adoc]. As shown below, diversifier also works well for the problem discussed here.
 
 === Background
 
-Back in 2015 an influential book was published: https://dl.acm.org/doi/book/10.5555/2792412[Why Greatness Cannot Be Planned: The Myth of the Objective], https://engineeringideas.substack.com/p/review-of-why-greatness-cannot-be[review]. It inspired a flurry of research activities in the area of quality diversity (QD): See https://www.frontiersin.org/articles/10.3389/frobt.2016.00040/full[Overview QD], 
-https://github.com/DanieleGravina/divergence-and-quality-diversity[Papers QD] and https://rl-vs.github.io/rlvs2021/class-material/evolutionary/light-virtual_school_qd.pdf[Map-Elites-Overview]. 
+Back in 2015, an influential book was published: https://dl.acm.org/doi/book/10.5555/2792412[Why Greatness Cannot Be Planned: The Myth of the Objective], https://engineeringideas.substack.com/p/review-of-why-greatness-cannot-be[review]. It sparked a wave of research in quality diversity (QD). See https://www.frontiersin.org/articles/10.3389/frobt.2016.00040/full[Overview QD],
+https://github.com/DanieleGravina/divergence-and-quality-diversity[Papers QD] and https://rl-vs.github.io/rlvs2021/class-material/evolutionary/light-virtual_school_qd.pdf[Map-Elites-Overview].
 
-QD-algorithms often find better global solutions compared to traditional algorithms dedicated specifically to find a global optimum. Gradients, if used as indicators directing to better solutions often lead to dead ends. 
-The fcmaes library, although dedicated to diversity by its avoidance of gradients and its
-different parallel retry mechanism didn't include a specific QD-algorithm. Recently I invested more time to investigate the topic to evaluate if QD-algorithms are mature enough to be applied 
-even to the hardest optimization problems - for instance
-to ESAs https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] problems, were these were never applied before. 
+QD algorithms often find better global solutions than traditional methods that are built to return a single optimum. Gradients can help, but they also lead into dead ends. The fcmaes library already leans toward diversity because it avoids gradients and uses a parallel retry mechanism. Still, it did not include a dedicated QD algorithm. I recently spent more time on the topic to see whether QD algorithms are mature enough for very hard optimization problems, including ESA's https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] problems, where they had not been applied before.
 
-Note that the fcmaes library is primarily aimed at problems with dimension <= 1000. Optimizing neural networks may require many thousand decision variables
-and should preferably be run on GPUs/TPUs. You may try https://github.com/google/evojax/blob/main/evojax/algo/map_elites.py[evojax map_elites] or
-https://github.com/dietmarwo/evojax/blob/ADD_DIVERSIFY_SOLVER/evojax/algo/diversifier.py[evojax diversifier] which is derived from https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[fcmaes diversifier] instead.
+Note that fcmaes is mainly aimed at problems with dimension `<= 1000`. Optimizing neural networks may require many thousand decision variables and is better suited to GPUs or TPUs. You may want to try https://github.com/google/evojax/blob/main/evojax/algo/map_elites.py[evojax map_elites] or
+https://github.com/dietmarwo/evojax/blob/ADD_DIVERSIFY_SOLVER/evojax/algo/diversifier.py[evojax diversifier], which is derived from https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[fcmaes diversifier].
 
 === Motivation
 
-Lets start with an example. Suppose we are planning a space exploration mission to Saturn.
-As long as we cannot produce propellant/fuel in space, it is very expensive to
-to overcome earths gravity before our mission can start. Which means we should 
-exploit the gravity "assistance" of several planets we pass to save fuel consumption. 
+Let us start with an example. Suppose we are planning a space exploration mission to Saturn. As long as we cannot produce propellant in space, escaping Earth's gravity remains very expensive. We therefore want to use gravity assists from planets along the way to reduce fuel consumption.
 
-There are simplified models describing such a mission, ESA used one of them to formulate 
-a 22 dimensional https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[optimization benchmark].
-This model uses so called "deep space maneuvers" and is precise enough to produce meaningful
-results, although the solar wind and details of the 3 body problem describing the planet flybys
-are ignored. 
+There are simplified models for this kind of mission. ESA used one of them to define a 22-dimensional https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[optimization benchmark].
+This model includes so-called deep space maneuvers and is accurate enough to produce meaningful results, even though it ignores solar wind and details of the three-body problem during planetary flybys.
 
-The accuracy of the model is sufficient to look for interesting planning alternatives which 
-can be previewed for involving other criteria and then feed into a more detailed planning/optimization
-process.
+The model is accurate enough to search for interesting planning alternatives. These can then be reviewed with additional criteria and passed into a more detailed planning and optimization process.
 
-But there is a problem here: ESAs https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2 benchmark]
-evaluates a single optimization result. From a real world perspective such a result is
-more or less useless:
+But there is a problem: ESA's https://www.esa.int/gsp/ACT/projects/gtop/cassini2/[Cassini2 benchmark]
+evaluates only a single optimization result. From a real-world perspective, that is of limited use:
 
-- The model is not accurate enough to determine that the solutions shown are really the optimal. 
-- No alternative solutions needed for the planning process are required by the benchmark. 
+- The model is not accurate enough to prove that the displayed solutions are really optimal.
+- The benchmark does not require alternative solutions for the planning process.
 
-The only things we can learn from the results are:
+So what do we actually learn from the benchmark results?
 
-- The problem is hard - it took more than a year to find the optimal solution back in 2009. 
-- We have a "reference solution" which can be used to evaluate better methods / algorithms.
-- There is some "diversity" since six different teams produced slightly different results. But if you need
-100 alternatives, do you really want to hire 100 teams?
+- The problem is hard. It took more than a year to find the optimal solution back in 2009.
+- We get a "reference solution" that can be used to compare methods and algorithms.
+- There is some diversity because six different teams produced slightly different results. But if you need 100 alternatives, do you really want to hire 100 teams?
 
-You could try random solutions, which produces beautiful pictures like
+You can try random solutions, which produces beautiful pictures like
 
 image::cassSun1Gb.png[]
 
-if you use a billion of them. But even the best solutions found this way misses the global optimum by factor 2.8. Even testing a billion random solutions
-doesn't help to identify "areas of opportunity" in the two-dimensional feature space - start time / time of flight. A QD-algorithm can produce a picture like
+if you use a billion of them. But even the best random solutions still miss the global optimum by a factor of 2.8. Even a billion random samples do not reveal the promising regions in the two-dimensional feature space of start time and time of flight. A QD algorithm can produce a picture like
 
 image::cassBestSun.png[]
 
-where we clearly see we should start around day -800, and it makes no sense to fly shorter than 1900 and longer than 3500 days.
+where we can clearly see that a start around day -800 is promising, and that flight times shorter than 1900 days or longer than 3500 days make little sense.
 
 ==== Planning Goal
 
-As a mission planner, what do we really want as the result of an optimization algorithm? Perhaps something like this:
+As a mission planner, what do we actually want from an optimization algorithm? Something like this:
 
 image::cassini_2.cma.png[]
 
-This diagram above shows 2159 different solutions to the Cassini2 problem with a fitness value `<= 20`. The fitness value of Cassini2 is proportional to the propellant/fuel requirements of the whole mission.
-We can clearly see for which mission start day and overall mission time we have a valid planning alternative to chose from. Additionally, the global optimum around 8.4 is included, so although we computed all these
-alternatives we still were able to find the real absolute optimum. 
+The diagram above shows 2159 different solutions to the Cassini2 problem with a fitness value `<= 20`. For Cassini2, the fitness value is proportional to the propellant or fuel required for the whole mission.
+We can clearly see which mission start days and total mission times provide valid planning alternatives. The global optimum around 8.4 is also included. So even though we computed many alternatives, we still found the absolute optimum.
 
-Next we would like to have a "fast preview" looking like this:
+Next, we would like a fast preview that looks like this:
 
 image::cassini_2.fast.png[]
 
-Less good solutions (1391), but this preview only took about 12 minutes on a modern 16 core desktop CPU. Note that the good solutions are positioned quite similarly, only their fitness values are slightly worse. 
-Whether we really need the "refinement" of this preview shown above is debatable because
-of the limitations of our model and the preview didn't miss most of the best planning options representing
-the real global optimum. 
+This preview contains fewer good solutions (1391), but it took only about 12 minutes on a modern 16-core desktop CPU. The good solutions appear in very similar regions, only their fitness values are slightly worse.
+Whether we really need the refinement shown above is debatable. The model itself has clear limits, and the preview already captures most of the best planning options around the global optimum.
 
 ==== Existing Python Implementations
 
-The Cassini2 2 benchmark is implemented in {cpp} and wrapped in a Python API. Existing Python implementations fail
-to cover this use case for mainly two reasons:
+The Cassini2 benchmark is implemented in {cpp} and wrapped in a Python API. Existing Python implementations do not cover this use case well for two main reasons:
 
- - The {cpp} wrapper causes issues with the way parallelization is usually implemented in Python - the serialization
- required for transferring objects between processes fails.
+ - The {cpp} wrapper causes problems for the usual Python parallelization approach because serialization fails when objects are transferred between processes.
 
-- If only single fitness calls are parallelized, the overhead for parallelization outweighs its gain
-for very fast fitness functions like Cassini2. 
+- If only individual fitness calls are parallelized, the overhead is larger than the gain for very fast fitness functions such as Cassini2.
 
-It is possible to overcome these issues even in Python, but a completely different approach implementing
-inter-process communication is required: Namely the one fcmaes already uses for parallel optimization
-which is based on shared memory. 
+It is possible to overcome these issues in Python, but it requires a different inter-process communication model. fcmaes already uses one for parallel optimization, based on shared memory.
 
-Fortunately regarding the basic algorithm the "fast preview" use case is already covered by
-https://arxiv.org/abs/1610.05729[CVT Map Elites] 
-where a https://github.com/resibots/pymap_elites[Python reference implementation] is given from which we can learn. 
+Fortunately, the "fast preview" use case is already covered by
+https://arxiv.org/abs/1610.05729[CVT Map Elites],
+which also comes with a https://github.com/resibots/pymap_elites[Python reference implementation].
 
-We can even learn how to implement an "afterburner" improving existing solutions, which is also able 
-to expand the number of solutions: https://arxiv.org/pdf/1912.02400.pdf[CMA-ME] implemented 
-https://github.com/icaros-usc/dqd/blob/main/ribs/emitters/_improvement_emitter.py[here] integrates CMA-ES with MAP-Elites. https://github.com/adaptive-intelligent-robotics/QDax[Here] we can find a JAX based implementation running
-on GPUs/TPUs. 
+We can also learn how to build an "afterburner" that improves existing solutions and can even expand the set of good solutions. https://arxiv.org/pdf/1912.02400.pdf[CMA-ME], implemented
+https://github.com/icaros-usc/dqd/blob/main/ribs/emitters/_improvement_emitter.py[here], integrates CMA-ES with MAP-Elites. https://github.com/adaptive-intelligent-robotics/QDax[Here] we can find a JAX-based implementation that runs on GPUs and TPUs.
 
-The main ideas contributing the the success of these ideas are:
+The main ideas behind these methods are:
 
-- The fitness function is required to additionally return a behavior / description vector which describes
-features of an individual solution used to distinguish them - for instance "start day" and "time of flight"
-for the Cassini2 problem.   
-- Application of Voronoi tessellation to tesselate the behavior space into niches. This works even for higher dimensional behavior spaces. Experiments with
-the Cassini2 problem have shown, that it is advantageous even for two behavior dimensions.
-- Adaption of CMA-ES by sorting solutions not according to their fitness value, but to the fitness-difference to the
-existing elites of their corresponding niche. Since this sorting determines the reshaping of the search space for each generation we "encourage" the algorithm to search for new solutions.    
+- The fitness function must also return a behavior or descriptor vector. It describes features of a solution that we want to distinguish, for example "start day" and "time of flight" for Cassini2.
+- Voronoi tessellation is used to divide the behavior space into niches. This still works for higher-dimensional behavior spaces. Experiments with Cassini2 show that it is advantageous even with only two behavior dimensions.
+- CMA-ES is adapted by sorting solutions not by raw fitness, but by the fitness difference to the current elite of the corresponding niche. Since this sorting drives the search-space reshaping in each generation, it encourages the algorithm to search for new solutions.
 
-But what if the underlying model used as basis of the optimization is not completely accurate - as it is the case
-with ESAs Cassini2 benchmark? Then you probably shouldn't invest too much time in improving existing solutions. 
-Instead you would filter them using a more accurate model - or considering additional criteria / constraints.
-Only these will be used further, and could be further optimized. 
+But what if the model used for optimization is not fully accurate, as in ESA's Cassini2 benchmark? Then it may not be worth spending too much time polishing existing solutions. A better strategy is often to filter the solutions with a more accurate model, or with additional criteria and constraints. Only the filtered solutions would be carried forward and possibly optimized further.
 
-Existing algorithms don't support this use case, so we had to create a new one: We simply apply CMA-ES, but this time we modify the fitness differently: 
+Existing algorithms do not support this use case, so we created a new one. We still apply CMA-ES, but this time we modify the fitness differently:
 
 - We use the new fitness function returning the behavior vector.
-- But instead of returning it we check if we are still in the initial niche. 
-- If yes, we return the fitness value, if not we return infinity. 
+- But instead of returning it we check if we are still in the initial niche.
+- If yes, we return the fitness value, if not we return infinity.
 - Additionally we restrict the box boundaries: We use the minimal/maximal values of
-  the decision variable values for all fitness computations executed during 
+  the decision variable values for all fitness computations executed during
   the preliminary Map-Elites run associated with the niche we optimize.
-  
-For Cassini2 this method works quite well in improving a specific selection of niches.   
+
+For Cassini2 this method works quite well when improving a specific selection of niches.
 
 === Multi Modal Optimization Problems
 
-Most real world optimization problems are multi-modal, which means they have many local minima:
+Most real-world optimization problems are multi-modal. They have many local minima:
 
 image::rastrigin_me.png[]
 
-Often we are not only interested in the best solution, but want to know what are our alternatives. 
+Often we do not want only the single best solution. We also want to understand the alternatives.
 The picture above plots the first two dimensions against the fitness value for the 10-dimensional
-https://en.wikipedia.org/wiki/Rastrigin_function[rastrigin] function. 
-You cannot easily enumerate a complete grid of solution variables because
-the size of such a grid grows exponentially with the number of decision variables. But you could 
-generate millions of random solutions and use these:
+https://en.wikipedia.org/wiki/Rastrigin_function[rastrigin] function.
+You cannot easily enumerate a complete grid of solution variables because the size of such a grid grows exponentially with the number of decision variables. But you can generate millions of random solutions and use these:
 
 [source,python]
 ----
@@ -177,7 +136,7 @@ import math
 @jit
 def rastrigin(x):
     return 10 * x.shape[0] + (x * x - 10 * np.cos(2 * math.pi * x)).sum()
-    
+
 def random_test(dim = 10, rng = default_rng()):
     xs = rng.uniform(np.full(dim, -5), np.full(dim, 5), (10000000, dim))
     best = math.inf
@@ -188,28 +147,26 @@ def random_test(dim = 10, rng = default_rng()):
 ----
 
 Note: Never forget to use https://numba.pydata.org/[numba] or https://jax.readthedocs.io/en/latest/notebooks/quickstart.html[JAX]
-to speed up your fitness function if you don't want to wait forever.
+to speed up your fitness function if you do not want to wait forever.
 
-As a result you usually will get a fitness optimum between 30 and 40. Looking at the picture above you probably guessed
-already: It was generated using a better approach. There are many real world fitness functions 
-were your CPU capabilities restrict the number of evaluations even if parallelization is fully exploited. 
-To analyze the optimization result we also could use a 3d view:
+With this approach you usually get a best fitness somewhere between 30 and 40. The picture above was generated with a better method.
+In many real-world problems, the number of evaluations is limited even if you use all available CPU cores.
+To analyze the optimization result, we can also use a 3d view:
 
 image::rastrigin_me3d.png[]
 
-Such a 3d representation is better analyzed interactively when you can view it from different angles. Questions:
+This 3d representation is easier to analyze interactively from different angles. The key questions are:
 
-- Is there a method which can explore a complex multi-modal fitness function thereby capturing the local minima
-correctly ? 
-- Can it find the global optimum ?
-- Does it work for complex real world applications ?
+- Is there a method that can explore a complex multi-modal fitness function and still capture the local minima correctly?
+- Can it find the global optimum?
+- Does it work for complex real-world applications?
 
-All these question will be addressed below. 
+All of these questions are addressed below.
 
 === Multi-objective optimization
 
-One approach to solve the problem is to apply multi-objective optimization using additional objectives for the 
-x- and y- axis:
+One way to approach the problem is to apply multi-objective optimization and use the
+x- and y-axis as additional objectives:
 
 [source,python]
 ----
@@ -222,28 +179,28 @@ def rastrigin_mo(x):
 
 def mo_test(dim = 10):)
     bounds = Bounds(np.full(dim, -5), np.full(dim, 5))
-    xs, ys = modecpp.retry(rastrigin_mo, 3, 
+    xs, ys = modecpp.retry(rastrigin_mo, 3,
                 0, bounds, num_retries=32, popsize = 1000, max_evaluations = 5000000, workers=32)
 ----
 
-Since fcmaes multi-objective optimization scales very well with the number of cores, on a modern 16-core CPU
-like the AMD 5950x we can execute 32x5000000 evaluations in less than one minute and get the following picture:
+Because fcmaes multi-objective optimization scales well with the number of cores, on a modern 16-core CPU
+such as the AMD 5950x we can execute `32x5000000` evaluations in less than one minute and get the following picture:
 
 image::rastrigin_mo.png[]
 
-We immediately spot the issue: The global optimum was found, but we only see one quadrant of the real solution.
-What happened? By defining `x[0]` and  `x[1]` as additional objectives, we "told" the algorithm to prefer
-solutions having a lower `x[0]` and  `x[1]` value. The pareto-front computation eliminated all dominated
-solutions, so we only see solutions with negative `x[0]` and  `x[1]` values.
+The problem is obvious. The global optimum was found, but we only see one quadrant of the real solution set.
+What happened? By defining `x[0]` and `x[1]` as additional objectives, we told the algorithm to prefer
+solutions with lower `x[0]` and `x[1]` values. The Pareto-front computation then eliminated all dominated
+solutions, so we only see solutions with negative `x[0]` and `x[1]`.
 
-If such a prioritization is not intended, we need another approach:
+If that bias is not intended, we need another approach:
 
-=== Map-Elites 
+=== Map-Elites
 
-A few years ago a new approach to this problem was proposed: https://arxiv.org/abs/1504.04909[Map Elites].
+A few years ago, a new approach to this problem was proposed: https://arxiv.org/abs/1504.04909[Map Elites].
 
-For Map-Elites the fitness function returns not only a fitness value, but additionally a list of 
-"behavior/descriptor" values used ensure solution diversity. We aim at finding good solutions / local minima for different
+In Map-Elites, the fitness function returns not only a fitness value, but also a list of
+"behavior/descriptor" values that enforce solution diversity. We want to find good solutions and local minima for different
 "descriptor" values:
 
 [source,python]
@@ -253,47 +210,45 @@ def fitness_me(x):
     return fitness, np.array[descriptor1, descriptor2, ...]
 ----
 
-In the rastrigin examples above, the descriptor values are `x[0]` and  `x[1]` used as x- and y-axis of the
-diagrams. The returned descriptor vector usually has a lower dimensionality as 'x', so it is easier to 
-tesselate into separate cells.  
-https://rl-vs.github.io/rlvs2021/class-material/evolutionary/light-virtual_school_qd.pdf[Map-Elites] 
-is a well known QD (Quality-Diversity) algorithm which works as follows:
+In the rastrigin examples above, the descriptor values are `x[0]` and `x[1]`, which are used as the x- and y-axis of the
+plots. The descriptor vector usually has lower dimensionality than `x`, so it is easier to
+tessellate into separate cells.
+https://rl-vs.github.io/rlvs2021/class-material/evolutionary/light-virtual_school_qd.pdf[Map-Elites]
+is a well-known QD (Quality-Diversity) algorithm and works as follows:
 
-- Tesselate the descriptor space into n cells called archive. 
-- Initialize each archive cell with a random solution and assign 'math.inf' as fitness value. 
-- Generate candidate solutions by crossover / mutation or other methods based on a random selection of 
+- Tessellate the descriptor space into n cells called archive.
+- Initialize each archive cell with a random solution and assign `math.inf` as fitness value.
+- Generate candidate solutions by crossover, mutation, or other methods based on a random selection of
   solutions from the archive.
-- Evaluate the candidates and determine their descriptors applying 'fitness_me'
-- For each candidate determine its cell and replace its content, if the candidate improves its incumbent.  
+- Evaluate the candidates and determine their descriptors by applying `fitness_me`.
+- For each candidate determine its cell and replace its content if the candidate improves on the incumbent.
 
-But what if we have more than two descriptor dimensions? Then the "curse of dimensionality" applies also here
-and tesselation is less trivial. Fortunately https://arxiv.org/abs/1610.05729[CVT Map Elites] solves this
-issue by using Voronoi tessellation. Even better: There is a https://github.com/resibots/pymap_elites[reference implementation].
+But what if we have more than two descriptor dimensions? Then the "curse of dimensionality" appears here as well, and tessellation becomes less trivial. Fortunately https://arxiv.org/abs/1610.05729[CVT Map Elites] solves this
+issue by using Voronoi tessellation. Even better, there is a https://github.com/resibots/pymap_elites[reference implementation].
 
 ==== Performance Comparison
 
 https://github.com/resibots/pymap_elites/blob/master/examples/cvt_rastrigin.py[cvt_rastrigin.py] already provides the
-application of the 10 dimensional rastrigin function shown above. 
-For our experiments we decrease the number of archive cells to 'n_niches=4000', since otherwise the algorithm is dominated
-by the cost to find the cell associated to a descriptor vector. We increase 'px["dump_period"] = 10000000' to 
-avoid any file writes during optimization. Then we test the performance of the optimization excluding the 
-initialization/archive creation phase. We test both 'px["parallel"] = False' and px["parallel"] = True
-and both regular fitness and applying numba/@jit.
+10-dimensional rastrigin example shown above.
+For our experiments, we reduce the number of archive cells to `n_niches=4000`, because otherwise the algorithm is dominated
+by the cost of finding the cell for a descriptor vector. We increase `px["dump_period"] = 10000000` to
+avoid file writes during optimization. We then benchmark the optimization itself, excluding the
+initialization and archive creation phase. We test both `px["parallel"] = False` and `px["parallel"] = True`,
+and both regular fitness and `numba/@jit`.
 
 .Fitness evaluations per second rastrigin
 [width="60%",cols="3,^2,^2,^2,^2",options="header"]
 |===
-|| parallel=False @jit off |  parallel=False @jit on |  parallel=True @jit off |  parallel=True @jit on  
+|| parallel=False @jit off |  parallel=False @jit on |  parallel=True @jit off |  parallel=True @jit on
 |reference implementation|11527|13526|9480|9632
 |fcmaes Map-Elites|64214|90577|755254|950557
 |===
 
-- If we compare the best settings for each implementation we get a 950557 / 13526 = factor 70 speedup - 
-caused by the different algorithm overhead and the different scaling by parallelization.  
-- Parallelization reduces performance for the reference implementation. 
-- Single threaded we get 90577 / 13526 = factor 6.7 speedup - caused by the algorithm overhead alone. 
+- Comparing the best setting of each implementation gives `950557 / 13526 = factor 70` speedup. This comes from lower algorithm overhead and much better scaling under parallelization.
+- Parallelization reduces performance for the reference implementation.
+- In single-threaded mode we still get `90577 / 13526 = factor 6.7` speedup, caused by lower algorithm overhead alone.
 
-The reference implementation implements parallelism utilizing 'multiprocessing.Pool.map':
+The reference implementation handles parallelism with `multiprocessing.Pool.map`:
 
 [source,python]
 ----
@@ -307,53 +262,53 @@ def parallel_eval(evaluate_function, to_evaluate, pool, params):
 
 This has several disadvantages:
 
-- A parallel call for each fitness evaluation increases the parallelization overhead
-- 'multiprocessing.Pool.map' uses serialization / pickle to transfer data and uses locks to protect against conflicting access. 
-- Serialization causes issues with closures and functions calling C-code. 
-- Locks are not necessary if communication is implemented using shared memory instead as fcmaes does. 
+- A separate parallel call for each fitness evaluation adds a lot of overhead.
+- `multiprocessing.Pool.map` uses serialization and `pickle` to transfer data and relies on locks to avoid conflicting access.
+- Serialization causes problems for closures and functions that call C code.
+- Locks are not needed if communication is implemented with shared memory, as fcmaes does.
 
-fcmaes processes a whole chunk of fitness evaluations in the same process to reduce the overhead.  
+fcmaes instead processes whole chunks of fitness evaluations inside the same process, which reduces overhead.
 
-We performed another test using a far more expensive fitness evaluation:
+We performed another test with a much more expensive fitness evaluation:
 
 .Fitness evaluations per second expensive fitness
 [width="60%",cols="3,^2,^2",options="header"]
 |===
-|| parallel=False @jit off | parallel=True @jit off 
+|| parallel=False @jit off | parallel=True @jit off
 |reference implementation|12.6|200.6
 |fcmaes Map-Elites|17.0|304.8
 |===
 
-As we can see, in this case the disadvantage using 'multiprocessing.Pool.map' shrinks significantly. 
+As expected, the disadvantage of using `multiprocessing.Pool.map` becomes much smaller in this case.
 
-You may argue that real word fitness function are expensive: Examples are complex simulations shown in the 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[FluidDynamics] and 
-https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PowerPlant.adoc[PowerPlant] tutorials. 
-But all these expensive real world fitness functions don't survive the serialization done by
-'multiprocessing.Pool.map'. And often fitness evaluation is very fast if we use numba or implement
-it directly in C as done in many of the other https://github.com/dietmarwo/fast-cma-es/tree/master/tutorials[tutorials].
+You may argue that real-world fitness functions are often expensive. Examples are the complex simulations used in the
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[FluidDynamics] and
+https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PowerPlant.adoc[PowerPlant] tutorials.
+But these expensive real-world fitness functions also do not survive the serialization done by
+`multiprocessing.Pool.map`. And in many of the other https://github.com/dietmarwo/fast-cma-es/tree/master/tutorials[tutorials],
+fitness evaluation is very fast once we use numba or implement it directly in C.
 
 === Space flight mission design
 
-We will use ESAs https://arxiv.org/pdf/2010.07517.pdf[Cassini2 Mission design benchmark] already discusse in 
-https://github.com/dietmarwo/fast-cma-es/tree/master/tutorials/SpaceFlight.adoc[SpaceFlight]. 
+We will use ESA's https://arxiv.org/pdf/2010.07517.pdf[Cassini2 Mission design benchmark], already discussed in
+https://github.com/dietmarwo/fast-cma-es/tree/master/tutorials/SpaceFlight.adoc[SpaceFlight].
 
-It is about the planning of a mission to Saturn involving several planet gravity assist maneuvers. 
-It uses a simplified model involving the start time and velocity, the timings between the planets, the 
-flyby height and angle and the timing of the deep space maneuvers between the planets. 
+It models the planning of a mission to Saturn with several planetary gravity-assist maneuvers.
+The simplified model includes the start time and velocity, the timings between planets, the
+flyby height and angle, and the timing of the deep space maneuvers between planets.
 
-Lets first have a look at the original https://www.esa.int/gsp/ACT/projects/gtop/cassini2[benchmark]
-which uses a fixed planet sequence and requires 22 decision variables. 
-Although not the hardest of the https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] problems, it is not easy to solve, even if you are only interested in the global optimum. 
+Let us first look at the original https://www.esa.int/gsp/ACT/projects/gtop/cassini2[benchmark].
+It uses a fixed planet sequence and requires 22 decision variables.
+Although it is not the hardest of the https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] problems, it is still difficult to solve, even if you only care about the global optimum.
 
-Meaningful Map-elites descriptors are the mission start time and the over all time of flight, since we are interested in our mission options for different start and flight times. 
-Note that since there is a clear preference for earlier starts and a shorter flight time multi-objective optimization using the descriptors as additional objectives is a valid alternative here.  
+Meaningful Map-Elites descriptors are the mission start time and the overall time of flight, because those are the mission options we want to inspect.
+Note that there is a clear preference for earlier starts and shorter flight times, so multi-objective optimization with the descriptors as additional objectives is also a valid alternative here.
 
 ==== CVT MAP-Elites doesn't work for ESAs Cassini2 benchmark
 
-Lets first try the https://github.com/resibots/pymap_elites[Python reference implementation] of CVT MAP-Elites.
-We have to normalize both the solutions and the behavior descriptions, but otherwise the implementation
-is straightforward. We use a fcmaes fitness wrapper to minitor progress end measure the evaluation rate.
+Let us first try the https://github.com/resibots/pymap_elites[Python reference implementation] of CVT MAP-Elites.
+We need to normalize both the solutions and the behavior descriptions, but otherwise the setup is straightforward.
+We use an fcmaes fitness wrapper to monitor progress and measure the evaluation rate.
 
 [source,python]
 ----
@@ -377,38 +332,35 @@ lb = bounds.lb
 scale = bounds.ub - bounds.lb
 
 def fitness(x):
-    x = lb + np.multiply(x,scale)  # denormalize  
+    x = lb + np.multiply(x,scale)  # denormalize
     return -fun(x), get_tof_launch_time(x)
 
-def get_tof_launch_time(x): # normalize   
+def get_tof_launch_time(x): # normalize
     tof = sum(x[4:9]) / 5000.0
-    launch_time = (1000 + x[0]) / 1000.0 
+    launch_time = (1000 + x[0]) / 1000.0
     return np.array([tof, launch_time])
-            
+
 def test_cassini2():
     archive = cvt_map_elites.compute(2, 22, fitness, n_niches=4000, max_evals=1e8, log_file=open('cvt.dat', 'w'), params=px)
- 
+
 if __name__ == '__main__':
     test_cassini2()
 ----
 
-For the configured 1e8 evaluations my machine (AMD 5950x) needs almost 4 hours. Best fitness value found is 10.85, 
-the optimization performed 7150 fitness evaluations / sec. This is by far too slow to be usable. But otherwise
-the reference implementation works fine, for 1e8 evaluations this result is expected since we don't use CMA-ES here. 
+For the configured `1e8` evaluations, my machine (AMD 5950x) needs almost 4 hours. The best fitness value found is 10.85, and the optimization runs at 7150 fitness evaluations per second.
+That is far too slow to be useful. Apart from the speed, the reference implementation behaves as expected. For `1e8` evaluations this result is reasonable because we do not use CMA-ES here.
 
-But with `px["parallel"] = True` the optimization slows down to about 4500 evaluations / sec because of the additional
-process creation overhead which by far outweighs the gain. 
+With `px["parallel"] = True`, the optimization slows down to about 4500 evaluations per second because the additional
+process creation overhead outweighs the benefit by far.
 
 ==== CVT MAP-Elites does work for ESAs Cassini2 benchmark
 
-The code implementing CVT MAP-Elites optimization using fcmaes is here:
+The code implementing CVT MAP-Elites optimization with fcmaes is here:
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py].
-It performs up to 350000 fitness evaluations / sec which is about factor
-50 faster. (factor 78 if you compare with `px["parallel"] = True`). 
-Additionally, because of the CMA-ES emitter, convergence is also improved and we find solutions around 8.6 in about 15 minutes. 
-Above we show plots of the whole archive which contains a great number of good solutions. 
-The code uses https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mapelites.py[mapelites.py], the fcmaes CVT Map-Elites
-implementation.
+It reaches up to 350000 fitness evaluations per second, which is about a factor of 50 faster. The speedup is a factor of 78 if you compare it with `px["parallel"] = True`.
+In addition, the CMA-ES emitter improves convergence, and we find solutions around 8.6 in about 15 minutes.
+The plots shown above display the whole archive, which contains a large number of good solutions.
+The code uses https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mapelites.py[mapelites.py], the fcmaes CVT Map-Elites implementation.
 
 [source,python]
 ----
@@ -421,7 +373,7 @@ def launch(x):
 
 class Cassini2_me():
     ''' Map-Elites wrapper for the ESA Cassini2 benchmark problem'''
-    
+
     def __init__(self, prob):
         ...
         self.bounds = prob.bounds
@@ -429,11 +381,11 @@ class Cassini2_me():
         max_tof = tof(prob.bounds.ub)
         min_launch = launch(prob.bounds.lb)
         max_launch = launch(prob.bounds.ub)
-        self.qd_bounds = Bounds([min_tof, min_launch], [max_tof, max_launch]) 
-                        
+        self.qd_bounds = Bounds([min_tof, min_launch], [max_tof, max_launch])
+
     def qd_fitness(self, x):
         return self.problem.fun(x), np.array([tof(x), launch(x)])
- 
+
 def run_map_elites():
     problem = Cassini2_me(Cassini2())
     me_params = {'generations':100, 'chunk_size':1000}
@@ -445,43 +397,41 @@ def run_map_elites():
           iterations = 50, me_params = me_params, cma_params = cma_params)
 ----
 
-Here the solution and description space are not normalized, which means that we have to provide the
-boundaries to the algorithm (`problem.bounds, problem.qd_bounds`).
-Note that archive objects have a load and save method to save the current status of the optimization 
-to disk. A loaded archive can be forwarded to `mapelites.optimize_map_elites` via the optional 
-`archive` parameter to continue a saved optimization. Reasons for the performance difference 
-to the reference solution:
+Here, neither the solution space nor the descriptor space is normalized, so we have to provide the corresponding
+bounds to the algorithm (`problem.bounds, problem.qd_bounds`).
+Archive objects also have `load` and `save` methods, so the optimization state can be written to disk.
+A saved archive can be passed back to `mapelites.optimize_map_elites` through the optional
+`archive` parameter to continue an earlier run.
+The performance difference compared to the reference implementation has several reasons:
 
-- Although both implementations use `sklearn.neighbors.KDTree` to determine the niche, fcmaes 
-forwards whole chunks of solutions to KDTree which speeds up things significantly. 
-- fcmaes applies the same trick for SBX (Simulated binary crossover) and Iso+Line to avoid 
-slow Python loops
-- Since fcmaes uses shared memory for the contents of the archive, processes can compute the
-fitness of many solutions before they have to synchronize. This way much less process creation/shutdown
-overhead is created. Note that because of the Python global interpreter lock multi threading is not applicable, 
-and process creation is quite heavyweight compared to thread creation.
-- The CVT MAP-elite implementation doesn't support CMA-ES update, so there is no direct comparison there.    
-Because of its computationally expensive covariance matrix update CMA-ES may either become very slow
-for higher solution dimensions, or the underlying matrix library may allocate multiple CPU cores for a single optimization which is counterproductive if the whole optimization is already parallelized.
-For extremly high dimensions (> 1000) there is no alternative to a 
-https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[JAX based implementation] where the matrix operations are delegated to a GPU/TPU. But as the benchmarks results in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/EvoJax.adoc[EvoJax.adoc] show: For these high dimensional problems CMA-ES is not the best choice anyway because of its slow convergence. For MAP-Elites which typically is applied to problems with dimension < 1000, a fast C++ CMA-ES implementation as the fcmaes one is the best choice, since it is always executed single threaded and integrates well with parallelization at a higher level.   
+- Although both implementations use `sklearn.neighbors.KDTree` to determine the niche, fcmaes
+forwards whole chunks of solutions to the `KDTree`, which speeds things up significantly.
+- fcmaes applies the same trick for SBX (Simulated binary crossover) and Iso+Line to avoid
+slow Python loops.
+- Because fcmaes stores the archive in shared memory, processes can evaluate many solutions before they have to synchronize.
+  This greatly reduces process creation and shutdown overhead. Because of Python's global interpreter lock, multithreading is not applicable here, and process creation is relatively heavyweight.
+- The reference CVT MAP-Elites implementation does not support CMA-ES updates, so there is no direct comparison for that part.
+
+Because its covariance matrix update is computationally expensive, CMA-ES can become very slow for higher-dimensional solution spaces. The underlying matrix library may also allocate multiple CPU cores to a single optimization, which is counterproductive if the full optimization is already parallelized.
+For extremely high dimensions (`> 1000`), there is no real alternative to a
+https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[JAX based implementation], where the matrix operations are delegated to a GPU or TPU. But as the benchmark results in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/EvoJax.adoc[EvoJax.adoc] show, CMA-ES is usually not the best choice for such high-dimensional problems anyway because convergence is too slow. For MAP-Elites, which is usually applied to problems with dimension `< 1000`, a fast {cpp} CMA-ES implementation such as the one in fcmaes fits very well because it stays single-threaded and integrates cleanly with higher-level parallelization.
 
 ==== There is an alternative: Diversifier
 
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[diversifier.py] is a new alternative to MAP-Elites. It generalizes ideas from https://arxiv.org/pdf/1912.02400.pdf[CMA-ME] to other wrapped algorithms. It uses the archive from CVT MAP-Elites (https://arxiv.org/abs/1610.05729) implemented in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mapelites.py[mapelites.py]. 
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[diversifier.py] is a newer alternative to MAP-Elites. It generalizes ideas from https://arxiv.org/pdf/1912.02400.pdf[CMA-ME] to other wrapped algorithms. It uses the archive from CVT MAP-Elites (https://arxiv.org/abs/1610.05729), implemented in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mapelites.py[mapelites.py].
 
-Note that there is an equivalent implementation dedicated to the machine learning domain:  
-https://github.com/dietmarwo/evojax/blob/ADD_DIVERSIFY_SOLVER/evojax/algo/diversifier.py[evojax diversifier], able to handle many thousand decision variables. It implements parallelism at a different level: At the fitness function and the optimization algorithm itself.  
+There is also an equivalent implementation for the machine learning domain:
+https://github.com/dietmarwo/evojax/blob/ADD_DIVERSIFY_SOLVER/evojax/algo/diversifier.py[evojax diversifier], which can handle many thousand decision variables. It parallelizes at a different level: in the fitness function and in the optimization algorithm itself.
 
-Both the parallel retry and the archive based modification of the fitness 
-function enhance the diversification of the optimization result.
-The resulting archive may be stored and can be used to continue the
-optimization later.   
+Both the parallel retry mechanism and the archive-based modification of the fitness
+function improve the diversity of the optimization result.
+The resulting archive can be stored and used later to continue the
+optimization.
 
-As MAP-Elites it requires a QD-fitness function returning both an fitness value and a
-behavior vector used to determine the corresponding archive niche using
-Voronoi tesselation. It returns (or improves) an archive of niche-elites containing also for each niche statistics 
-about the associated solutions. 
+Like MAP-Elites, it requires a QD fitness function that returns both a fitness value and a
+behavior vector, which is used to determine the corresponding archive niche through
+Voronoi tessellation. It returns, or improves, an archive of niche elites and also stores statistics
+about the associated solutions for each niche.
 
 [source,python]
 ----
@@ -492,68 +442,67 @@ def run_diversifier():
     opt_params1 = {'solver':'DE_CPP', 'max_evals':50000, 'popsize':31, 'stall_criterion':3}
     opt_params2 = {'solver':'CMA_CPP', 'max_evals':100000, 'popsize':31, 'stall_criterion':3}
     archive = diversifier.minimize(
-         mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.qd_bounds, 
+         mapelites.wrapper(problem.qd_fitness, 2), problem.bounds, problem.qd_bounds,
          workers = 32, opt_params=[opt_params0, opt_params1, opt_params2], max_evals=2000000*32)
     diversifier.apply_advretry(wrapper(problem.fitness), problem.descriptors, problem.bounds, archive, num_retries=20000)
     archive.save(name)
     plot_archive(archive)
 ----
 
-As can be seen by the example code above, it supports the application of arbitrary combination of solvers.
-Solvers are treated as a sequence with the exception of 'solver':'elites' which is executed in parallel. 
-workers':16 means that 16 of the configured 32 parallel processes are allocated to MAP-Elites, the rest to the other
-solvers. In a sequence - here it is DE -> CMA-ES - the optimal solution found is forwarded to the next solver 
-as initial mean of its solution distribution. `max_evals` for `diversifier.minimize` limits the overall number
-of fitness evaluations. For the optimizers `max_evals` limits the number of evaluations for a single optimizer run.  
+As the example code shows, it supports arbitrary combinations of solvers.
+Solvers are treated as a sequence, except for `'solver':'elites'`, which is executed in parallel.
+`'workers':16` means that 16 of the configured 32 parallel processes are allocated to MAP-Elites, and the rest to the other
+solvers. In a sequence, here `DE -> CMA-ES`, the best solution found is passed to the next solver as the initial mean of its solution distribution.
+`max_evals` for `diversifier.minimize` limits the overall number of fitness evaluations. For the individual optimizers, `max_evals` limits the number of evaluations in a single optimizer run.
 
-Note that the use of solver-sequences is specific to space flight planning tasks. In most cases a combination
-of CMA-ES or CR-FM-NES and MAP-Elites executed in parallel works very well. 
+Note that the use of solver sequences is specific to space-flight planning tasks. In most cases, a combination
+of CMA-ES or CR-FM-NES and MAP-Elites running in parallel works very well.
 
-A resulting niche-archive may further be improved by applying a regular non-QD algorithm: the fcmaes 
-advanced parallel retry / smart boundary management meta-algorithm. Archive-contents are transferred
-to its solution store and then back to the QD-archive. This method is very effective in improving
-the best solutions found so far, but doesn't improve the diversity of the solutions much. 
+A resulting niche archive may be improved further by applying a regular non-QD algorithm: the fcmaes
+advanced parallel retry and smart boundary management meta-algorithm. The archive contents are transferred
+to its solution store and then back to the QD archive. This method is very effective at improving
+the best solutions found so far, but it does not improve diversity very much.
 
-The diversifier needs less fitness evaluations for the price of diversity. It may be an interesting
-alternative, if the evaluation budged is limited and/or the fitness evaluation is expensive. 
-Its results are far more diverse than what can be achieved without a QD-archive of niche-elites. 
+The diversifier needs fewer fitness evaluations, at the price of some diversity.
+It can be an interesting alternative when the evaluation budget is limited or the fitness evaluation is expensive.
+Its results are still far more diverse than what can be achieved without a QD archive of niche elites.
 
 === Conclusion
 
-We have shown that: 
+We have shown that:
 
-- CVT MAP-elites can handle even the hardest optimization problems.
-- QD algorithms are more useful for real world problems as optimizers returning a single best solution.  
-- The CMA-ES emitter improves effectively existing archive solutions during optimization. 
-- CMA-ES can be applied after MAP-elites optimization to improve selected niches.
-- Alternatively there is the general diversifier applying a QD-archive to different non-QD algorithms like
-CR-FM-NES, DE, PGPA and CMA-ES or to sequences of these. This flexibility is specially valuable for application domains
-were CMA-ES becomes slow (dimension > 1000, as for machine learning tasks). 
-- QD-archives and fcmaes parallel retry stores can interchange their solutions to improve results further applying
-non-QD (meta-)algorithms.   
+- CVT MAP-Elites can handle even the hardest optimization problems.
+- QD algorithms are often more useful for real-world problems than optimizers that return only a single best solution.
+- The CMA-ES emitter improves existing archive solutions effectively during optimization.
+- CMA-ES can also be applied after MAP-Elites optimization to improve selected niches.
+- Alternatively, there is the general diversifier, which applies a QD archive to different non-QD algorithms such as
+CR-FM-NES, DE, PGPA, and CMA-ES, or to sequences of these. This flexibility is especially valuable in application domains
+where CMA-ES becomes slow, for example at dimension `> 1000`, as in many machine learning tasks.
+- QD archives and fcmaes parallel retry stores can exchange their solutions to improve results further using
+non-QD meta-algorithms.
 
-Our CVT MAP elites (with CMA-Emitter) implementation https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py] introduces a number of novelties enhancing its performance:
+Our CVT MAP-Elites implementation with CMA-Emitter,
+https://github.com/dietmarwo/fast-cma-es/blob/master/examples/elitescass2.py[elitescass2.py], introduces several changes that improve performance:
 
-- Our archive uses shared memory to reduce inter-process communication overhead. 
+- Our archive uses shared memory to reduce inter-process communication overhead.
 
-- The initial behavior space is generated from uniform behavior samples because random solutions may cover only parts of the behavior space. Some parts may only be reachable by optimization. 
+- The initial behavior space is generated from uniform behavior samples because random solutions may cover only part of the behavior space. Some parts may become reachable only through optimization.
 
-- Fitness computations may be expensive - therefore we avoid the computation of fitness values for the initial solution population.     
+- Fitness computations may be expensive. Therefore we avoid computing fitness values for the initial solution population.
 
-- The initial solution space is generated from uniform samples of the solution space. These solutions are never evaluated but serve as initial population for SBX or Iso+LineDD. Their associated fitness value is set to math.inf (infinity). This way we: 
-    * Avoid computing fitness values for the initial population.
-    * Enhance the diversity of initial solutions emitted by SBX or Iso+LineDD.
+- The initial solution space is generated from uniform samples of the solution space. These samples are never evaluated. They serve as the initial population for SBX or Iso+LineDD, and their associated fitness value is set to `math.inf`. This has two effects:
+    * It avoids computing fitness values for the initial population.
+    * It increases the diversity of the initial solutions emitted by SBX or Iso+LineDD.
 
--  Iso+LineDD (https://arxiv.org/pdf/1804.03906) is implemented but doesn't work well with extremely ragged solution
-landscapes. Therefore SBX+mutation is the default setting.
+- Iso+LineDD (https://arxiv.org/pdf/1804.03906) is implemented, but it does not work well with extremely ragged solution
+landscapes. Therefore `SBX+mutation` is the default setting.
 
-- SBX (Simulated binary crossover) is combined with mutation. Both spread factors - for crossover and mutation - are randomized for each application. 
+- SBX (Simulated binary crossover) is combined with mutation. Both spread factors, for crossover and mutation, are randomized for each application.
 
-- Candidates for CMA-ES are sampled with a bias to better niches. 
+- Candidates for CMA-ES are sampled with a bias toward better niches.
 
-- There is a CMA-ES drill down for specific niches - in this mode all solutions outside the niche
-are rejected. Restricted solution box bounds are used derived from statistics maintained by the archive
-during the addition of new solution candidates. 
+- There is a CMA-ES drill-down mode for specific niches. In this mode all solutions outside the niche
+are rejected. Restricted solution box bounds are used, derived from the statistics maintained by the archive
+during the addition of new solution candidates.
 
-Note that the https://github.com/resibots/pymap_elites[Python reference implementation] of CVT MAP-Elites also tesselates the behavior space independent from fitness evaluations of emitted solutions. 
- 
+Note that the https://github.com/resibots/pymap_elites[Python reference implementation] of CVT MAP-Elites also tessellates the behavior space independently of fitness evaluations of emitted solutions.
