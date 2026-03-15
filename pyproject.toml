@@ -10,7 +10,7 @@ name = "fcmaes"
 version = "2.0.0"
 description = "A Python 3 gradient-free optimization library."
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [
   { name = "Dietmar Wolz", email = "drdietmarwolz@yahoo.de" },
 ]
@@ -66,9 +66,8 @@ include = [
 ]
 
 [tool.cibuildwheel]
-build = "cp3{8,9,10,11,12,13}-*"
+build = "cp3{10,11,12,13}-*"
 skip = [
-  "pp*",
   "*-win32",
   "*-manylinux_i686",
   "*-musllinux_*",
