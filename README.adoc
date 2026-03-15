@@ -11,7 +11,7 @@ image::logo.gif[]
 
 fcmaes extends https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy optimize] with additional optimization methods, fast {cpp}/Eigen-based implementations, and a coordinated parallel retry mechanism.
 It supports multi-threaded use of several gradient-free
-https://dietmarwo.github.io/fast-cma-es/fcmaes_documentation.html.html[algorithms].
+https://dietmarwo.github.io/fast-cma-es/fcmaes_documentation.html[algorithms].
 It is designed for real-world problems, including multi-objective and constrained optimization. The main algorithms are available in both Python and C++. They support parallel fitness evaluation as well as parallel retry strategies.
 
 There are many practical https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials] and https://dietmarwo.github.io/fast-cma-es/examples_documentation.html[examples] that show how to use fcmaes in detail.
