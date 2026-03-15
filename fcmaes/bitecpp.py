@@ -10,31 +10,30 @@
 
 import sys
 import os
-import math
-import ctypes as ct
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from numpy.random import PCG64DXSM, Generator
 from scipy.optimize import OptimizeResult, Bounds
-from fcmaes.evaluator import _check_bounds, mo_call_back_type, callback_so, libcmalib
-assert libcmalib is not None, "failed to load libcmalib.so"
+from fcmaes.evaluator import _check_bounds
+from fcmaes._fcmaes_ext import optimize_bite
 
-from typing import Optional, Callable
+from typing import Callable, Optional
 from numpy.typing import ArrayLike
 
-os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
+Objective = Callable[[ArrayLike], float]
 
-def minimize(fun: Callable[[ArrayLike], float],
+def minimize(fun: Objective,
              bounds: Optional[Bounds] = None,
              x0: Optional[ArrayLike] = None,
              max_evaluations: Optional[int] = 100000,
              stop_fitness: Optional[float] = -np.inf,
              M: Optional[int] = 1,
              popsize: Optional[int] = 0,
-             stall_criterion: Optional[int]  = 0,
-             rg: Optional[Generator]  = Generator(PCG64DXSM()),
+             stall_criterion: Optional[int] = 0,
+             rg: Optional[Generator] = Generator(PCG64DXSM()),
              runid: Optional[int] = 0) -> OptimizeResult:
-    """Minimization of a scalar function of one or more variables using a 
-    C++ SCMA implementation called via ctypes.
+    """Minimization of a scalar function of one or more variables using a
+    C++ BiteOpt implementation exposed through nanobind.
      
     Parameters
     ----------
@@ -76,33 +75,28 @@ def minimize(fun: Callable[[ArrayLike], float],
         ``status`` the stopping critera and
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
     
-    lower, upper, guess = _check_bounds(bounds, x0, rg)      
-    dim = guess.size   
-    array_type = ct.c_double * dim 
-    c_callback = mo_call_back_type(callback_so(fun, dim))
-    res = np.empty(dim+4)
-    res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
+    lower, upper, guess = _check_bounds(bounds, x0, rg)
     try:
-        optimizeBite_C(runid, c_callback, dim, int(rg.uniform(0, 2**32 - 1)), 
-                           None if x0 is None else array_type(*guess), 
-                           None if lower is None else array_type(*lower), 
-                           None if upper is None else array_type(*upper), 
-                           max_evaluations, stop_fitness, M, popsize, stall_criterion, res_p)
-        x = res[:dim]
-        val = res[dim]
-        evals = int(res[dim+1])
-        iterations = int(res[dim+2])
-        stop = int(res[dim+3])
+        guess = np.ascontiguousarray(guess, dtype=np.float64)
+        if lower is None:
+            lower = np.empty(0, dtype=np.float64)
+            upper = np.empty(0, dtype=np.float64)
+        else:
+            lower = np.ascontiguousarray(lower, dtype=np.float64)
+            upper = np.ascontiguousarray(upper, dtype=np.float64)
+        x, val, evals, iterations, stop = optimize_bite(
+            fun,
+            guess,
+            lower,
+            upper,
+            seed=int(rg.uniform(0, 2**32 - 1)),
+            runid=runid,
+            max_evaluations=max_evaluations,
+            stop_fitness=stop_fitness,
+            M=M,
+            popsize=popsize,
+            stall_criterion=stall_criterion,
+        )
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
-    except Exception as ex:
+    except Exception:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
-
-if not libcmalib is None: 
-    
-    optimizeBite_C = libcmalib.optimizeBite_C
-    optimizeBite_C.argtypes = [ct.c_long, mo_call_back_type, ct.c_int, ct.c_int, \
-                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-                ct.c_int, ct.c_double, ct.c_int, ct.c_int, ct.c_int, ct.POINTER(ct.c_double)]
-       
-
-

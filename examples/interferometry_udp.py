@@ -24,6 +24,7 @@ from skimage.transform import resize
 import ctypes as ct
 import multiprocessing as mp
 import numpy as np
+np.set_printoptions(legacy='1.25')
 
 import sys 
 from loguru import logger

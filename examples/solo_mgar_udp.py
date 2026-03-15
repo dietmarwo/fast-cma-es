@@ -22,6 +22,7 @@ from pykep.planet import jpl_lp
 import ctypes as ct
 import multiprocessing as mp
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from kepler.resonance import resonance
 from kepler.rvt import rvt_planet, rotate_vector, rvt
 from kepler.lambert import lambert_problem_multirev_ga

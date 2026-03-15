@@ -27,6 +27,7 @@
 import math
 import time
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from scipy.optimize import Bounds, minimize
 from fcmaes import retry, advretry
 from fcmaes.optimizer import dtime, random_x, logger

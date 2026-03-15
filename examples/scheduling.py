@@ -9,6 +9,7 @@
 
 import pandas as pd
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import math, time
 from fcmaes import retry, advretry, mode, modecpp
 from fcmaes.optimizer import Bite_cpp, Cma_cpp, De_cpp, de_cma, dtime, Dual_annealing, Differential_evolution, Minimize

@@ -5,11 +5,11 @@
 
 // Eigen based implementation of active CMA-ES
 
-// Supports parallel fitness function evaluation. 
-// 
+// Supports parallel fitness function evaluation.
+//
 // For expensive objective functions (e.g. machine learning parameter optimization) use the workers
 // parameter to parallelize objective function evaluation. The workers parameter should be limited
-// the population size because otherwize poulation update is delayed. 
+// the population size because otherwize poulation update is delayed.
 
 // Derived from http://cma.gforge.inria.fr/cmaes.m which follows
 // https://www.researchgate.net/publication/227050324_The_CMA_Evolution_Strategy_A_Comparing_Review
@@ -25,6 +25,7 @@
 #include <float.h>
 #include <stdint.h>
 #include <ctime>
+#include "acmaesoptimizer.hpp"
 #include "evaluator.h"
 
 using namespace std;
@@ -55,7 +56,7 @@ public:
 
     AcmaesOptimizer(long runid_, Fitness *fitfun_, int popsize_, int mu_,
             const vec &guess_, const vec &inputSigma_, int maxEvaluations_,
-			double accuracy_, double stopfitness_, double stopTolHistFun_,
+            double accuracy_, double stopfitness_, double stopTolHistFun_,
             int update_gap_, long seed) {
         // runid used for debugging / logging
         runid = runid_;
@@ -279,7 +280,7 @@ public:
 
     mat ask_all() { // undecoded
         // generate popsize offspring.
-    	arz = normal(dim, popsize, *rs);
+        arz = normal(dim, popsize, *rs);
         mat xs(dim, popsize);
         for (int k = 0; k < popsize; k++) {
             vec delta = (BD * arz.col(k)) * sigma;
@@ -289,23 +290,23 @@ public:
         return xs;
     }
 
-    int tell_all(mat ys, mat xs) {
+    int tell_all(const vec &ys, const mat &xs) {
        told = 0;
        for (int p = 0; p < popsize; p++)
-    	   tell(ys(p), xs.col(p));
+           tell(ys(p), xs.col(p));
        computeArz = true;
        return stop;
     }
 
-    int tell_all_asked(mat ys, mat xs) {
+    int tell_all_asked(const vec &ys, const mat &xs) {
        told = 0;
        for (int p = 0; p < popsize; p++)
-    	   tell(ys(p), xs.col(p));
+           tell(ys(p), xs.col(p));
        computeArz = false;
        return stop;
     }
 
-    mat getPopulation() {
+    mat getPopulation() const {
         mat pop(dim, popsize);
         for (int p = 0; p < popsize; p++)
             pop.col(p) = fitfun->decode(fitfun->getClosestFeasibleNormed(popX.col(p)));
@@ -329,12 +330,12 @@ public:
         if (told >= popsize) {
             xmean = fitfun->getClosestFeasibleNormed(xmean);
             if (computeArz) {
-				try {
-					arz = (BD.inverse()
-							* ((arx - xmean.replicate(1, popsize)) / sigma));
-				} catch (std::exception &e) {
-					arz = normal(dim, popsize, *rs);
-				}
+                try {
+                    arz = (BD.inverse()
+                            * ((arx - xmean.replicate(1, popsize)) / sigma));
+                } catch (std::exception &e) {
+                    arz = normal(dim, popsize, *rs);
+                }
             }
             updateCMA();
             told = 0;
@@ -441,62 +442,62 @@ public:
     }
 
     int do_optimize_delayed_update(int workers) {
-    	 iterations = 0;
-    	 fitfun->resetEvaluations();
-    	 evaluator eval(fitfun, 1, workers);
-    	 vec evals_x[workers];
-	     // fill eval queue with initial population
-    	 for (int i = 0; i < workers; i++) {
-    		 vec x = ask();
-    		 vec xdec = fitfun->decode(x);
-    		 eval.evaluate(xdec, i);
-    		 evals_x[i] = x; // encoded
-    	 }
-    	 while (fitfun->evaluations() < maxEvaluations) {
-    		 vec_id* vid = eval.result();
-    		 vec y = vec(vid->_v);
-    		 int p = vid->_id;
-    		 delete vid;
-    		 vec x = evals_x[p];
-    		 tell(y(0), x); // tell evaluated encoded x
-    		 if (fitfun->evaluations() >= maxEvaluations || stop != 0)
-    			 break;
-    		 x = ask();
-    		 eval.evaluate(x, p);
-    		 evals_x[p] = x;
-    	 }
-    	 return fitfun->evaluations();
-	}
+         iterations = 0;
+         fitfun->resetEvaluations();
+         evaluator eval(fitfun, 1, workers);
+         vec evals_x[workers];
+         // fill eval queue with initial population
+         for (int i = 0; i < workers; i++) {
+             vec x = ask();
+             vec xdec = fitfun->decode(x);
+             eval.evaluate(xdec, i);
+             evals_x[i] = x; // encoded
+         }
+         while (fitfun->evaluations() < maxEvaluations) {
+             vec_id* vid = eval.result();
+             vec y = vec(vid->_v);
+             int p = vid->_id;
+             delete vid;
+             vec x = evals_x[p];
+             tell(y(0), x); // tell evaluated encoded x
+             if (fitfun->evaluations() >= maxEvaluations || stop != 0)
+                 break;
+             x = ask();
+             eval.evaluate(x, p);
+             evals_x[p] = x;
+         }
+         return fitfun->evaluations();
+    }
 
-    vec getBestX() {
+    vec getBestX() const {
         return bestX;
     }
 
-    double getBestValue() {
+    double getBestValue() const {
         return bestValue;
     }
 
-    double getIterations() {
+    double getIterations() const {
         return iterations;
     }
 
-    int getStop() {
+    int getStop() const {
         return stop;
     }
 
-    Fitness* getFitfun() {
+    Fitness* getFitfun() const {
         return fitfun;
     }
 
-    int getDim() {
+    int getDim() const {
         return dim;
     }
 
-    int getPopsize() {
+    int getPopsize() const {
         return popsize;
     }
 
-    Fitness* getFitfunPar() {
+    Fitness* getFitfunPar() const {
         return fitfun;
     }
 
@@ -554,168 +555,211 @@ private:
 };
 }
 
-using namespace acmaes;
+namespace acmaes {
 
-extern "C" {
-void optimizeACMA_C(long runid, callback_type func, callback_parallel func_par, int dim,
-        double *init, double *lower, double *upper, double *sigma,
-        int maxEvals, double stopfitness, double stopTolHistFun, int mu, int popsize, double accuracy,
-        long seed, bool normalize, bool use_delayed_update, int update_gap, int workers, double* res) {
+namespace {
 
-    vec guess(dim), lower_limit(dim), upper_limit(dim), inputSigma(dim);
-    for (int i = 0; i < dim; i++) {// guess is mandatory
-    	guess[i] = init[i];
-    	inputSigma[i] = sigma[i];
+void initialize_problem(
+        int dim, const double *init, const double *lower, const double *upper,
+        const double *sigma, bool &normalize, vec &guess, vec &lower_limit,
+        vec &upper_limit, vec &input_sigma) {
+    guess.resize(dim);
+    input_sigma.resize(dim);
+    for (int i = 0; i < dim; i++) {
+        guess[i] = init[i];
+        input_sigma[i] = sigma[i];
     }
-    if (lower != NULL && upper != NULL) {
-		for (int i = 0; i < dim; i++) {
-	        guess[i] = init[i];
-			lower_limit[i] = lower[i];
-			upper_limit[i] = upper[i];
-		}
+    if (lower != nullptr && upper != nullptr) {
+        lower_limit.resize(dim);
+        upper_limit.resize(dim);
+        for (int i = 0; i < dim; i++) {
+            lower_limit[i] = lower[i];
+            upper_limit[i] = upper[i];
+        }
     } else {
         lower_limit.resize(0);
         upper_limit.resize(0);
         normalize = false;
     }
+}
+
+mat encode_population(const Fitness &fitfun, const mat &decoded) {
+    mat encoded(decoded.rows(), decoded.cols());
+    for (int p = 0; p < decoded.cols(); p++)
+        encoded.col(p) = fitfun.encode(decoded.col(p));
+    return encoded;
+}
+
+mat decode_population(const Fitness &fitfun, const mat &encoded) {
+    mat decoded(encoded.rows(), encoded.cols());
+    for (int p = 0; p < encoded.cols(); p++)
+        decoded.col(p) = fitfun.decode(
+            fitfun.getClosestFeasibleNormed(encoded.col(p))
+        );
+    return decoded;
+}
+
+AcmaResult make_result(const AcmaesOptimizer &opt, const Fitness &fitfun) {
+    AcmaResult result;
+    result.x = opt.getBestX();
+    result.y = opt.getBestValue();
+    result.evaluations = fitfun.evaluations();
+    result.iterations = static_cast<int>(opt.getIterations());
+    result.stop = opt.getStop();
+    return result;
+}
+
+}  // namespace
+
+class AcmaState::Impl {
+public:
+    Impl(long runid, int dim, const double *init, const double *lower,
+            const double *upper, const double *sigma, int max_evals,
+            double stop_fitness, double stop_tol_hist_fun, int mu, int popsize,
+            double accuracy, long seed, bool normalize,
+            bool /*use_delayed_update*/, int update_gap) {
+        initialize_problem(dim, init, lower, upper, sigma, normalize, guess,
+                           lower_limit, upper_limit, input_sigma);
+        fitfun = std::make_unique<Fitness>(
+            noop_callback, noop_callback_par, dim, 1, lower_limit, upper_limit
+        );
+        fitfun->setNormalize(normalize);
+        opt = std::make_unique<AcmaesOptimizer>(
+            runid, fitfun.get(), popsize, mu, guess, input_sigma, max_evals,
+            accuracy, stop_fitness, stop_tol_hist_fun, update_gap, seed
+        );
+        population_decoded = guess.replicate(1, opt->getPopsize());
+        asked_x = encode_population(*fitfun, population_decoded);
+    }
+
+    mat ask() {
+        asked_x = opt->ask_all();
+        population_decoded = decode_population(*fitfun, asked_x);
+        return population_decoded;
+    }
+
+    int tell(const vec &ys) {
+        opt->tell_all_asked(ys, asked_x);
+        evaluations += static_cast<int>(ys.size());
+        return opt->getStop();
+    }
+
+    int tell_x(const vec &ys, const mat &xs) {
+        asked_x = encode_population(*fitfun, xs);
+        population_decoded = xs;
+        opt->tell_all(ys, asked_x);
+        evaluations += static_cast<int>(ys.size());
+        return opt->getStop();
+    }
+
+    mat population() const {
+        return population_decoded;
+    }
+
+    AcmaResult result() const {
+        AcmaResult current = make_result(*opt, *fitfun);
+        current.evaluations = evaluations;
+        return current;
+    }
+
+    int dim() const {
+        return opt->getDim();
+    }
+
+    int popsize() const {
+        return opt->getPopsize();
+    }
+
+    int stop() const {
+        return opt->getStop();
+    }
+
+private:
+    vec guess;
+    vec lower_limit;
+    vec upper_limit;
+    vec input_sigma;
+    std::unique_ptr<Fitness> fitfun;
+    std::unique_ptr<AcmaesOptimizer> opt;
+    mat asked_x;
+    mat population_decoded;
+    int evaluations = 0;
+};
+
+AcmaResult optimize_acma(
+        long runid, callback_type func, callback_parallel func_par, int dim,
+        const double *init, const double *lower, const double *upper,
+        const double *sigma, int max_evals, double stop_fitness,
+        double stop_tol_hist_fun, int mu, int popsize, double accuracy,
+        long seed, bool normalize, bool use_delayed_update, int update_gap,
+        int workers) {
+    vec guess, lower_limit, upper_limit, input_sigma;
+    initialize_problem(dim, init, lower, upper, sigma, normalize, guess,
+                       lower_limit, upper_limit, input_sigma);
 
     Fitness fitfun(func, func_par, dim, 1, lower_limit, upper_limit);
     fitfun.setNormalize(normalize);
 
-    AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, inputSigma,
-            maxEvals, accuracy, stopfitness, stopTolHistFun, update_gap, seed);
+    AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, input_sigma,
+            max_evals, accuracy, stop_fitness, stop_tol_hist_fun, update_gap,
+            seed);
+    int evaluations = 0;
     try {
-        int evals = 0;
         if (workers > 1 && use_delayed_update)
-            evals = opt.do_optimize_delayed_update(workers);
+            evaluations = opt.do_optimize_delayed_update(workers);
         else
-            evals = opt.doOptimize();
-        vec bestX = opt.getBestX();
-        double bestY = opt.getBestValue();
-        for (int i = 0; i < dim; i++)
-            res[i] = bestX[i];
-        res[dim] = bestY;
-        res[dim + 1] = evals;
-        res[dim + 2] = opt.getIterations();
-        res[dim + 3] = opt.getStop();
+            evaluations = opt.doOptimize();
     } catch (std::exception &e) {
         cout << e.what() << endl;
     }
+    AcmaResult result = make_result(opt, fitfun);
+    result.evaluations = evaluations;
+    return result;
 }
 
-uintptr_t initACMA_C(long runid, int dim,
-        double *init, double *lower, double *upper, double *sigma,
-        int maxEvals, double stopfitness, double stopTolHistFun, int mu, int popsize, double accuracy,
-        long seed, bool normalize, bool use_delayed_update, int update_gap) {
-
-    vec guess(dim), lower_limit(dim), upper_limit(dim), inputSigma(dim);
-    for (int i = 0; i < dim; i++) {// guess is mandatory
-    	guess[i] = init[i];
-    	inputSigma[i] = sigma[i];
-    }
-    if (lower != NULL && upper != NULL) {
-		for (int i = 0; i < dim; i++) {
-	        guess[i] = init[i];
-			lower_limit[i] = lower[i];
-			upper_limit[i] = upper[i];
-		}
-    } else {
-        lower_limit.resize(0);
-        upper_limit.resize(0);
-        normalize = false;
-    }
-
-    Fitness* fitfun = new Fitness(noop_callback, noop_callback_par, dim, 1, lower_limit, upper_limit); // never used here
-    fitfun->setNormalize(normalize);
-
-    AcmaesOptimizer* opt = new AcmaesOptimizer(runid, fitfun, popsize, mu, guess, inputSigma,
-            maxEvals, accuracy, stopfitness, stopTolHistFun, update_gap, seed);
-    return (uintptr_t) opt;
+AcmaState::AcmaState(
+        long runid, int dim, const double *init, const double *lower,
+        const double *upper, const double *sigma, int max_evals,
+        double stop_fitness, double stop_tol_hist_fun, int mu, int popsize,
+        double accuracy, long seed, bool normalize, bool use_delayed_update,
+        int update_gap)
+        : impl_(std::make_unique<Impl>(runid, dim, init, lower, upper, sigma,
+                  max_evals, stop_fitness, stop_tol_hist_fun, mu, popsize,
+                  accuracy, seed, normalize, use_delayed_update, update_gap)) {
 }
 
-void destroyACMA_C(uintptr_t ptr) {
-    AcmaesOptimizer* opt = (AcmaesOptimizer*)ptr;
-    Fitness* fitfun = opt->getFitfun();
-    delete fitfun;
-    delete opt;
+AcmaState::~AcmaState() = default;
+
+mat AcmaState::ask() {
+    return impl_->ask();
 }
 
-void askACMA_C(uintptr_t ptr, double* xs) {
-    AcmaesOptimizer *opt = (AcmaesOptimizer*) ptr;
-    int n = opt->getDim();
-    int popsize = opt->getPopsize();
-    opt->popX = opt->ask_all();
-    Fitness* fitfun = opt->getFitfun();
-    for (int p = 0; p < popsize; p++) {
-        vec x = fitfun->decode(opt->popX.col(p));
-        for (int i = 0; i < n; i++)
-            xs[p * n + i] = x[i];
-    }
+int AcmaState::tell(const vec &ys) {
+    return impl_->tell(ys);
 }
 
-int tellACMA_C(uintptr_t ptr, double* ys) {
-    AcmaesOptimizer *opt = (AcmaesOptimizer*) ptr;
-    int popsize = opt->getPopsize();
-    vec vals(popsize);
-    for (int i = 0; i < popsize; i++)
-        vals[i] = ys[i];
-    opt->tell_all_asked(vals, opt->popX);
-    return opt->getStop();
+int AcmaState::tell_x(const vec &ys, const mat &xs) {
+    return impl_->tell_x(ys, xs);
 }
 
-int tellXACMA_C(uintptr_t ptr, double* ys, double* xs) {
-    AcmaesOptimizer *opt = (AcmaesOptimizer*) ptr;
-    int popsize = opt->getPopsize();
-    int dim = opt->getDim();
-    Fitness* fitfun = opt->getFitfun();
-    opt->popX = mat(dim, popsize);
-    for (int p = 0; p < popsize; p++) {
-        vec x(dim);
-        for (int i = 0; i < dim; i++)
-            x[i] = xs[p * dim + i];
-        opt->popX.col(p) = fitfun->encode(x);
-    }
-    vec vals(popsize);
-    for (int i = 0; i < popsize; i++)
-        vals[i] = ys[i];
-    opt->tell_all(vals, opt->popX);
-    return opt->getStop();
+mat AcmaState::population() const {
+    return impl_->population();
 }
 
-int populationACMA_C(uintptr_t ptr, double* xs) {
-    AcmaesOptimizer *opt = (AcmaesOptimizer*) ptr;
-    int dim = opt->getDim();
-    int popsize = opt->getPopsize();
-    mat popX = opt->getPopulation();
-    for (int p = 0; p < popsize; p++) {
-        vec x = popX.col(p);
-        for (int i = 0; i < dim; i++)
-            x[i] = xs[p * dim + i];
-    }
-    return opt->getStop();
+AcmaResult AcmaState::result() const {
+    return impl_->result();
 }
 
-int resultACMA_C(uintptr_t ptr, double* res) {
-    AcmaesOptimizer *opt = (AcmaesOptimizer*) ptr;
-    vec bestX = opt->getBestX();
-    double bestY = opt->getBestValue();
-    int n = bestX.size();
-    for (int i = 0; i < bestX.size(); i++)
-        res[i] = bestX[i];
-    res[n] = bestY;
-    Fitness* fitfun = opt->getFitfun();
-    res[n + 1] = fitfun->evaluations();
-    res[n + 2] = opt->getIterations();
-    res[n + 3] = opt->getStop();
-    return opt->getStop();
+int AcmaState::dim() const {
+    return impl_->dim();
 }
 
-int testACMA_C(int n, double* res) {
-    for (int i = 0; i < n; i++) {
-        cout << i << ": " << res[i] << endl;
-        res[i] = -res[i];
-    }
-    return 7;
+int AcmaState::popsize() const {
+    return impl_->popsize();
 }
 
+int AcmaState::stop() const {
+    return impl_->stop();
 }
+
+}  // namespace acmaes

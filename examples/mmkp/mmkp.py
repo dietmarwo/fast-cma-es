@@ -8,6 +8,7 @@
 # See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Oneforall.adoc for a detailed description.
 
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 import os
 from numba import njit
 import numba

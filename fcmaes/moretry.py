@@ -6,6 +6,7 @@
 # parallel optimization retry of a multi-objective problem.
 
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 import math, sys, time, warnings, threadpoolctl
 import multiprocessing as mp
 from multiprocessing import Process
@@ -15,10 +16,13 @@ from fcmaes.optimizer import de_cma, dtime, Optimizer
 from fcmaes import retry, advretry
 from loguru import logger
 
-from typing import Optional, Callable, Tuple
+from typing import Any, Callable, Optional, Tuple
 from numpy.typing import ArrayLike
 
-def minimize(fun: Callable[[ArrayLike], float],
+Objective = Callable[[ArrayLike], float]
+OptimizeCallable = Callable[..., Tuple[np.ndarray, float, int]]
+
+def minimize(fun: Objective,
              bounds: Bounds,
              weight_bounds: Bounds,
              ncon: Optional[int] = 0,
@@ -32,7 +36,7 @@ def minimize(fun: Callable[[ArrayLike], float],
              optimizer: Optional[Optimizer] = None,
              statistic_num: Optional[int] = 0,
              plot_name: Optional[str] = None
-              ) -> Tuple[np.ndarray, np.ndarray]:   
+              ) -> Tuple[np.ndarray, np.ndarray]:
     """Minimization of a multi objective function of one or more variables using parallel 
      optimization retry.
      
@@ -90,15 +94,15 @@ def minimize(fun: Callable[[ArrayLike], float],
     ys = np.array([fun(x) for x in xs])
     return xs, ys
     
-def mo_retry(fun: Callable[[ArrayLike], float], 
+def mo_retry(fun: Objective,
              weight_bounds: Bounds, 
              ncon: int, 
              y_exp: float, 
-             store, 
-             optimize: Callable, 
+             store: Any,
+             optimize: OptimizeCallable,
              num_retries: int, 
-             value_limits: ArrayLike, 
-             workers: Optional[int] = mp.cpu_count()):
+             value_limits: Optional[ArrayLike],
+             workers: Optional[int] = mp.cpu_count()) -> np.ndarray:
     
     sg = SeedSequence()
     rgs = [Generator(PCG64DXSM(s)) for s in sg.spawn(workers)]
@@ -111,8 +115,8 @@ def mo_retry(fun: Callable[[ArrayLike], float],
     store.dump()
     return store.xs_view
 
-def _retry_loop(pid, rgs, fun, weight_bounds, ncon, y_exp, 
-                store, optimize, num_retries, value_limits):
+def _retry_loop(pid: int, rgs: list[Generator], fun: Objective, weight_bounds: Bounds, ncon: int, y_exp: float,
+                store: Any, optimize: OptimizeCallable, num_retries: int, value_limits: Optional[ArrayLike]) -> None:
     
     store.create_xs_view()
     lower = store.lower
@@ -140,7 +144,7 @@ def _retry_loop(pid, rgs, fun, weight_bounds, ncon, y_exp,
             except Exception as ex:
                 print(str(ex))
             
-def pareto(xs: np.ndarray, ys: np.ndarray):
+def pareto(xs: np.ndarray, ys: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """pareto front for argument vectors and corresponding function value vectors."""
     par = _pareto(ys)
     xp = xs[par]
@@ -151,7 +155,7 @@ def pareto(xs: np.ndarray, ys: np.ndarray):
 class mo_wrapper(object):
     """wrapper for multi objective functions applying the weighted sum approach."""
    
-    def __init__(self, fun, weights, ncon, y_exp=2):
+    def __init__(self, fun: Objective, weights: np.ndarray, ncon: int, y_exp: float = 2) -> None:
         self.fun = fun  
         self.weights = weights 
         self.ny = len(weights)
@@ -159,7 +163,7 @@ class mo_wrapper(object):
         self.ncon = ncon
         self.y_exp = y_exp
 
-    def eval(self, x):
+    def eval(self, x: ArrayLike) -> float:
         y = self.fun(np.array(x))
         weighted = _avg_exp(self.weights*y, self.y_exp)
         if self.ncon > 0: # check constraint violations
@@ -168,20 +172,20 @@ class mo_wrapper(object):
                 weighted += sum(self.weights[violations])     
         return weighted
             
-    def mo_eval(self, x):
+    def mo_eval(self, x: ArrayLike) -> np.ndarray:
         return self.fun(np.array(x))
         
 def minimize_plot(name: str, 
                   optimizer: Optimizer, 
                   fun: Callable[[ArrayLike], float], 
                   bounds: Bounds, 
-                  weight_bounds, 
+                  weight_bounds: Bounds,
                   ncon: Optional[int] = 0, 
                   value_limits: Optional[ArrayLike] = None, 
                   num_retries: Optional[int] = 1024, 
                   exp: Optional[float] = 2.0, 
                   workers: Optional[int] = mp.cpu_count(),
-                  statistic_num = 0, plot_name = None):
+                  statistic_num: int = 0, plot_name: Optional[str] = None) -> None:
     
     time0 = time.perf_counter() # optimization start time
     name += '_' + optimizer.name
@@ -197,7 +201,14 @@ def minimize_plot(name: str,
     np.savez_compressed(name, xs=xs, ys=ys) 
     plot(name, ncon, xs, ys)
     
-def plot(name, ncon, xs, ys, eps = 1E-2, all=True, interp=False, plot3d=False):   
+def plot(name: str,
+         ncon: int,
+         xs: np.ndarray,
+         ys: np.ndarray,
+         eps: float = 1E-2,
+         all: bool = True,
+         interp: bool = False,
+         plot3d: bool = False) -> None:
     try:  
         if ncon > 0: # select feasible
             ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])  
@@ -220,11 +231,11 @@ def plot(name, ncon, xs, ys, eps = 1E-2, all=True, interp=False, plot3d=False):
 
 def adv_minimize_plot(name: str, 
                       optimizer: Optimizer, 
-                      fun: Callable[[ArrayLike], float], 
+                      fun: Objective,
                       bounds: Optional[Bounds],
                       value_limit: Optional[float] = np.inf, 
                       num_retries: Optional[int] = 1024, 
-                      statistic_num: Optional[int] = 0):
+                      statistic_num: Optional[int] = 0) -> None:
     
     time0 = time.perf_counter() # optimization start time
     name += '_smart_' + optimizer.name
@@ -240,13 +251,13 @@ def adv_minimize_plot(name: str,
     logger.info(name+ ' time ' + str(dtime(time0))) 
     retry.plot(front, '_front_' + name + '.png')
 
-def _avg_exp(y, y_exp):
+def _avg_exp(y: ArrayLike, y_exp: float) -> float:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         weighted = sum([y[i]**y_exp for i in range(len(y))])**(1.0/y_exp)
     return weighted
 
-def _pareto_values(ys):
+def _pareto_values(ys: np.ndarray) -> np.ndarray:
     ys = ys[ys.sum(1).argsort()[::-1]]
     undominated = np.ones(ys.shape[0], dtype=bool)
     for i in range(ys.shape[0]):
@@ -257,7 +268,7 @@ def _pareto_values(ys):
         ys = ys[undominated[:n]]
     return ys
 
-def _pareto(ys):
+def _pareto(ys: np.ndarray) -> np.ndarray:
     pareto = np.arange(ys.shape[0])
     index = 0  # Next index to search for
     while index < len(ys):

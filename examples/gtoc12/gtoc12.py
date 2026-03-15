@@ -124,7 +124,7 @@ from scipy.optimize import Bounds
 import ctypes as ct
 import multiprocessing as mp 
 import numpy as np 
-
+np.set_printoptions(legacy='1.25') 
 
 logger.remove()
 logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="DEBUG")

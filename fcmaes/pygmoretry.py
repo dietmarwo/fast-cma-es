@@ -7,22 +7,23 @@ import math
 import os
 import sys
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 from numpy.random import Generator, PCG64DXSM, SeedSequence
 from scipy.optimize import OptimizeResult, Bounds
 import multiprocessing as mp
 from multiprocessing import Process
 from fcmaes.retry import Store
+from typing import Any
 
-os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
 os.environ['MKL_NUM_THREADS'] = '1'
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
-def minimize(prob, 
-             algo,
-             value_limit = np.inf,
-             num_retries = 100*mp.cpu_count(),
-             workers = mp.cpu_count(),
-             popsize = 1, 
+def minimize(prob: Any,
+             algo: Any,
+             value_limit: float = np.inf,
+             num_retries: int = 100*mp.cpu_count(),
+             workers: int = mp.cpu_count(),
+             popsize: int = 1,
              ) -> OptimizeResult:   
     """Minimization of a scalar function of one or more variables using parallel retry.
        Similar to fcmaes.retry but works with pygmo / pagmo problems + algorithms.
@@ -61,11 +62,17 @@ def minimize(prob,
     store = Store(bounds)
     return retry(store, prob, algo, num_retries, value_limit, popsize, workers)
                  
-def retry(store, prob, algo, num_retries, value_limit = np.inf, popsize=1, workers=mp.cpu_count()):
+def retry(store: Store,
+          prob: Any,
+          algo: Any,
+          num_retries: int,
+          value_limit: float = np.inf,
+          popsize: int = 1,
+          workers: int = mp.cpu_count()) -> OptimizeResult:
     try:
         import pygmo as pg
-    except ImportError as e:
-        raise ImportError("Please install PYGMO (pip install pygmo) to use PAGMO optimizers") from e
+    except ImportError as exc:
+        raise ImportError("Please install PYGMO (pip install pygmo) to use PAGMO optimizers") from exc
     sg = SeedSequence()
     rgs = [Generator(PCG64DXSM(s)) for s in sg.spawn(workers)]
     proc=[Process(target=_retry_loop,
@@ -77,7 +84,15 @@ def retry(store, prob, algo, num_retries, value_limit = np.inf, popsize=1, worke
     return OptimizeResult(x=store.get_x_best(), fun=store.get_y_best(), 
                           nfev=store.get_count_evals(), success=True)
         
-def _retry_loop(pid, rgs, store, prob, algo, num_retries, value_limit, popsize, pg):
+def _retry_loop(pid: int,
+                rgs: list[Generator],
+                store: Store,
+                prob: Any,
+                algo: Any,
+                num_retries: int,
+                value_limit: float,
+                popsize: int,
+                pg: Any) -> None:
     
     while store.get_runs_compare_incr(num_retries):      
         try:            

@@ -8,6 +8,7 @@
 # Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from scipy.optimize import Bounds
 from fcmaes import mapelites, diversifier
 from fcmaes.astro import Cassini2

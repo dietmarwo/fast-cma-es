@@ -20,6 +20,7 @@
 #include <vector>
 #include <chrono>
 #include <condition_variable>
+#include <cfloat>
 
 #define EIGEN_VECTORIZE_SSE2
 #include "pcg_random.hpp"
@@ -310,7 +311,7 @@ public:
         return lo[i] + (up[i] - lo[i]) * distr_01(rs);
     }
 
-    int evaluations() {
+    int evaluations() const {
         return _evaluationCounter;
     }
 

@@ -27,6 +27,7 @@ See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc fo
 # Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import networkx as nx
 
 from qiskit import Aer

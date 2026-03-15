@@ -7,6 +7,7 @@
 # Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import os, sys, time
 import ctypes as ct
 from numpy.random import Generator, MT19937
@@ -15,7 +16,7 @@ from fcmaes import moretry
 import multiprocessing as mp
 from fcmaes.optimizer import dtime
 from scipy.optimize import Bounds
-from fcmaes.optimizer import de_cma, Bite_cpp, Cma_cpp, LDe_cpp, dtime,  De_cpp, random_search, wrapper, logger
+from fcmaes.optimizer import de_cma, Bite_cpp, Cma_cpp, dtime,  De_cpp, random_search, wrapper, logger
 from fcmaes import moretry, retry, mode, modecpp, decpp, de, moretry#, modec 
 from fcmaes import diversifier, mapelites
 from scipy.optimize import Bounds
@@ -28,7 +29,7 @@ logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {messa
 logger.add("log_{time}.txt", format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
 
 basepath = os.path.dirname(os.path.abspath(__file__))
-libhbv = ct.cdll.LoadLibrary(basepath + '/../../fcmaes/lib/libhbv.so')  
+libhbv = ct.cdll.LoadLibrary(basepath + '/../../examples/lib/libhbv.so')  
 
     
 hbv_C = libhbv.hbv_C

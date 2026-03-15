@@ -5,6 +5,7 @@
 # See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc
 
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 import os, sys, time
 import ctypes as ct
 from numpy.random import Generator, MT19937
@@ -13,7 +14,7 @@ from fcmaes import moretry
 import multiprocessing as mp
 from fcmaes.optimizer import dtime
 from scipy.optimize import Bounds
-from fcmaes.optimizer import de_cma, Bite_cpp, Cma_cpp, LDe_cpp, dtime,  De_cpp, random_search, wrapper, logger
+from fcmaes.optimizer import de_cma, Bite_cpp, Cma_cpp, dtime,  De_cpp, random_search, wrapper, logger
 from fcmaes import moretry, retry, mode, modecpp, decpp, de, moretry
 from fcmaes import diversifier, mapelites
 from scipy.optimize import Bounds
@@ -26,7 +27,7 @@ logger.add(sys.stdout, format="{time:HH:mm:ss.SS} | {process} | {level} | {messa
 logger.add("log_{time}.txt", format="{time:HH:mm:ss.SS} | {process} | {level} | {message}", level="INFO")
 
 basepath = os.path.dirname(os.path.abspath(__file__))
-liblrgv = ct.cdll.LoadLibrary(basepath + '/../../fcmaes/lib/liblrgv.so')  
+liblrgv = ct.cdll.LoadLibrary(basepath + '/../../examples/lib/liblrgv.so')  
     
 lrgv_C = liblrgv.lrgv_C
 lrgv_C.argtypes = [ct.c_int, ct.POINTER(ct.c_char_p)]

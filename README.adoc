@@ -52,9 +52,15 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/examples/prophet_opt.py[pro
 - How to identify the parameters to optimize using the AI.  
 - How the parameter optimization process can be automated efficiently utilizing trading simulations executed in parallel.
 
+=== Changes from version 2.0.0:
+
+- Switch from ctypes C++ binding to nanobind.
+- MacOS fully supported - including ARM.
+- Improved documentation and tutorials
+- Improved type annotations
+
 === Changes from version 1.6.3:
 
-- Improved documentation and atutorials
 - Logging now based on loguru. All examples are adapted.
 - New dependencies: loguru + numba.
 - New tutorial related to the https://www.esa.int/gsp/ACT/projects/spoc-2023/[GECCO 2023] Space Optimization Competition:
@@ -123,9 +129,12 @@ Not only the single objective algorithms above, but also scipy and NLopt optimiz
 
 ==== Linux
  
-* `pip install fcmaes`.
+* `pip install fcmaes`
 
 * Recommended Python environment: https://github.com/conda-forge/miniforge[miniforge Python 12].
+
+Wheels are built by the release CI. If no matching wheel is available for your
+platform or Python version, `pip` falls back to a source build.
 
 ==== Windows
 
@@ -137,7 +146,7 @@ Not only the single objective algorithms above, but also scipy and NLopt optimiz
 
 For parallel fitness function evaluation use the native Python optimizers
 or the ask/tell interface of the {cpp} ones. Python multiprocessing works better on Linux. 
-To get optimal scaling from parallel retry and parallel function evaluation use:
+To get optimal scaling from parallel retry and parallel function evaluation you may still use:
 
 * Linux subsystem for Windows https://docs.microsoft.com/en-us/windows/wsl/[WSL].
 
@@ -149,7 +158,9 @@ think about using the fcmaes java port: https://github.com/dietmarwo/fcmaes-java
 
 * `pip install fcmaes`
 
-The {cpp} shared library is outdated, use the native Python optimizers. 
+The nanobind-based native backend now supports macOS as part of the wheel build pipeline.
+If no matching wheel is available for your Python version or architecture, `pip`
+falls back to a source build.
 
 === Usage
 
@@ -176,7 +187,7 @@ ret = retry.minimize(fun, bounds, optimizer=Sequence([De_cpp(50000), Cma_cpp(500
 ----
 
 Here https://github.com/dietmarwo/fast-cma-es/blob/master/examples you find more examples.
-Check the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials] for more details. 
+Check the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc[tutorials] for more details.
 
 === Dependencies
 
@@ -186,11 +197,13 @@ Runtime:
 - scipy: https://github.com/scipy/scipy, version >= 1.8
 - scikit-learn: https://github.com/scikit-learn/scikit-learn (for CVT-Map-Elites), version >= 1.1
 
-Compile time (binaries for Linux and Windows are included):
+Compile-time dependencies for source builds:
 
 - Eigen https://gitlab.com/libeigen/eigen (version >= 3.4.0 is required for CMA).
 - PCG Random Number Generation https://github.com/imneme/pcg-cpp - used in all {cpp} optimization algorithms.
 - LBFGSpp: https://github.com/yixuan/LBFGSpp/tree/master/include - used for dual annealing local optimization.
+
+Prebuilt wheels are built by CI for Linux, Windows, and macOS.
 
 Optional dependencies:
 
@@ -201,6 +214,13 @@ Optional dependencies:
 Example dependencies:
 
 - pykep: https://esa.github.io/pykep/[pykep]. Install with 'pip install pykep'. 
+
+=== Packaging and release
+
+- Pull requests and branch pushes build wheels on Linux, Windows, and macOS.
+- A manual GitHub Actions run with `publish_target=testpypi` publishes to TestPyPI.
+- Tags matching `v*` publish to PyPI.
+- CI releases use Trusted Publishing, so no long-lived PyPI API token is required in GitHub Actions.
 
 === Citing
 

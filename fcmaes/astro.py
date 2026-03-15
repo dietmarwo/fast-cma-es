@@ -3,269 +3,322 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-import sys
+"""ESA GTOP test functions exposed through the nanobind extension."""
+
+from __future__ import annotations
+
 import math
-import os
+from typing import Callable, Sequence
+
 import numpy as np
-import ctypes as ct
+np.set_printoptions(legacy='1.25')
+from numpy.typing import ArrayLike, NDArray
 from scipy.optimize import Bounds
-from fcmaes.decpp import libcmalib
 
-if not libcmalib is None: 
-    
-    astro_map = {  
-        "messengerfullC": libcmalib.messengerfullC,
-        "messengerC": libcmalib.messengerC,
-        "gtoc1C": libcmalib.gtoc1C,
-        "cassini1C": libcmalib.cassini1C,
-        "cassini1minlpC": libcmalib.cassini1minlpC,
-        "cassini2C": libcmalib.cassini2C,
-        "rosettaC": libcmalib.rosettaC,
-        "sagasC": libcmalib.sagasC,
-        "tandemC": libcmalib.tandemC,
-        "tandemCu": libcmalib.tandemCu,
-        "cassini2minlpC": libcmalib.cassini2minlpC,
-    }
+from fcmaes._fcmaes_ext import gtop_cassini1
+from fcmaes._fcmaes_ext import gtop_cassini1_minlp
+from fcmaes._fcmaes_ext import gtop_cassini2
+from fcmaes._fcmaes_ext import gtop_cassini2_minlp
+from fcmaes._fcmaes_ext import gtop_gtoc1
+from fcmaes._fcmaes_ext import gtop_messenger
+from fcmaes._fcmaes_ext import gtop_messengerfull
+from fcmaes._fcmaes_ext import gtop_rosetta
+from fcmaes._fcmaes_ext import gtop_sagas
+from fcmaes._fcmaes_ext import gtop_tandem
+from fcmaes._fcmaes_ext import gtop_tandem_unconstrained
 
-    freemem = libcmalib.free_mem
-    freemem.argtypes = [ct.POINTER(ct.c_double)]    
-    
-class Astrofun(object):
-    """Provides access to ESAs GTOP optimization test functions."""
-    def __init__(self, name, fun_c, lower, upper):    
-        self.name = name 
-        self.fun_c = fun_c 
+PenaltyValue = 1e10
+ScalarAstroCallable = Callable[[NDArray[np.float64]], float]
+TandemCallable = Callable[[NDArray[np.float64], Sequence[int]], float]
+
+astro_map: dict[str, ScalarAstroCallable] = {
+    "messengerfullC": gtop_messengerfull,
+    "messengerC": gtop_messenger,
+    "gtoc1C": gtop_gtoc1,
+    "cassini1C": gtop_cassini1,
+    "cassini1minlpC": lambda x: float(gtop_cassini1_minlp(x)[0]),
+    "cassini2C": gtop_cassini2,
+    "cassini2minlpC": gtop_cassini2_minlp,
+    "rosettaC": gtop_rosetta,
+    "sagasC": gtop_sagas,
+}
+
+_tandem_map: dict[str, TandemCallable] = {
+    "tandemC": gtop_tandem,
+    "tandemCu": gtop_tandem_unconstrained,
+}
+
+
+def _as_float_array(values: ArrayLike) -> NDArray[np.float64]:
+    return np.ascontiguousarray(values, dtype=np.float64)
+
+
+def _safe_scalar_eval(fun: ScalarAstroCallable, x: ArrayLike) -> float:
+    try:
+        value = float(fun(_as_float_array(x)))
+        if not math.isfinite(value):
+            return PenaltyValue
+        return value
+    except Exception:
+        return PenaltyValue
+
+
+def _safe_tandem_eval(fun: TandemCallable, x: ArrayLike, seq: Sequence[int]) -> float:
+    try:
+        value = float(fun(_as_float_array(x), list(seq)))
+        if not math.isfinite(value):
+            return PenaltyValue
+        return value
+    except Exception:
+        return PenaltyValue
+
+
+def _safe_cassini1_minlp_eval(x: Sequence[float]) -> tuple[float, float]:
+    try:
+        dv, launch_dv = gtop_cassini1_minlp(_as_float_array(x))
+        dv = float(dv)
+        launch_dv = float(launch_dv)
+        if not math.isfinite(dv):
+            dv = PenaltyValue
+        if not math.isfinite(launch_dv):
+            launch_dv = PenaltyValue
+        return dv, launch_dv
+    except Exception:
+        return PenaltyValue, PenaltyValue
+
+
+def _concat_planets(x: ArrayLike, planets: Sequence[int]) -> list[float]:
+    return [float(xi) for xi in x] + [float(pi) for pi in planets]
+
+
+class Astrofun:
+    """Provides access to ESA GTOP optimization test functions."""
+
+    def __init__(self, name: str, fun_c: str,
+                 lower: Sequence[float], upper: Sequence[float]) -> None:
+        self.name = name
+        self.fun_c = fun_c
         self.bounds = Bounds(lower, upper)
         self.fun = python_fun(fun_c, self.bounds)
 
-for func in astro_map:
-    astro_map[func].argtypes = [ct.c_int, ct.POINTER(ct.c_double)]           
-    astro_map[func].restype = ct.c_double           
 
-class MessFull(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/ """
-    def __init__(self):    
-        Astrofun.__init__(self, 'messenger full', "messengerfullC", 
-                           [1900.0, 3.0,    0.0, 0.0,  100.0, 100.0, 100.0, 100.0, 100.0, 100.0,  0.01, 0.01, 0.01, 0.01, 0.01, 0.01,  1.1, 1.1, 1.05, 1.05, 1.05,  -math.pi, -math.pi, -math.pi, -math.pi, -math.pi],
-                           [2200.0, 4.05, 1.0, 1.0,  500.0, 500.0, 500.0, 500.0, 500.0, 550.0,  0.99, 0.99, 0.99, 0.99, 0.99, 0.99,  6.0,   6.0,    6.0,    6.0,    6.0,  math.pi,  math.pi,  math.pi,  math.pi,  math.pi]
-        )
-     
-class Messenger(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/ """
+class MessFull:
+    """see https://www.esa.int/gsp/ACT/projects/gtop/messenger_full/"""
 
-    def __init__(self):    
-        Astrofun.__init__(self, 'messenger reduced', "messengerC", 
-                           [1000.,1.,0.,0.,200.,30.,30.,30.,0.01,0.01,0.01,0.01,1.1,1.1,1.1,-math.pi,-math.pi,-math.pi],
-                           [4000.,5.,1.,1.,400.,400.,400.,400.,0.99,0.99,0.99,0.99,6,6,6,math.pi,math.pi,math.pi]      
+    def __init__(self) -> None:
+        Astrofun.__init__(
+            self, "messenger full", "messengerfullC",
+            [1900.0, 3.0, 0.0, 0.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0,
+             0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 1.1, 1.1, 1.05, 1.05, 1.05,
+             -math.pi, -math.pi, -math.pi, -math.pi, -math.pi],
+            [2200.0, 4.05, 1.0, 1.0, 500.0, 500.0, 500.0, 500.0, 500.0, 550.0,
+             0.99, 0.99, 0.99, 0.99, 0.99, 0.99, 6.0, 6.0, 6.0, 6.0, 6.0,
+             math.pi, math.pi, math.pi, math.pi, math.pi],
         )
-    
-class Gtoc1(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/ """
-    
-    def __init__(self):    
-        Astrofun.__init__(self, 'GTOC1', "gtoc1C", 
-                           [3000.,14.,14.,14.,14.,100.,366.,300.],
-                           [10000.,2000.,2000.,2000.,2000.,9000.,9000.,9000.]       
-                           )
+
+
+class Messenger:
+    """see https://www.esa.int/gsp/ACT/projects/gtop/messenger_reduced/"""
+
+    def __init__(self) -> None:
+        Astrofun.__init__(
+            self, "messenger reduced", "messengerC",
+            [1000.0, 1.0, 0.0, 0.0, 200.0, 30.0, 30.0, 30.0, 0.01, 0.01, 0.01,
+             0.01, 1.1, 1.1, 1.1, -math.pi, -math.pi, -math.pi],
+            [4000.0, 5.0, 1.0, 1.0, 400.0, 400.0, 400.0, 400.0, 0.99, 0.99,
+             0.99, 0.99, 6.0, 6.0, 6.0, math.pi, math.pi, math.pi],
+        )
+
+
+class Gtoc1:
+    """see https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/"""
+
+    def __init__(self) -> None:
+        Astrofun.__init__(
+            self, "GTOC1", "gtoc1C",
+            [3000.0, 14.0, 14.0, 14.0, 14.0, 100.0, 366.0, 300.0],
+            [10000.0, 2000.0, 2000.0, 2000.0, 2000.0, 9000.0, 9000.0, 9000.0],
+        )
         self.gfun = self.fun
-        self.fun = self.gtoc1       
-    
-    def gtoc1(self, x):
-        return self.gfun(x) - 2000000
+        self.fun = self.gtoc1
 
-class Cassini1(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/ """
-    
-    def __init__(self):    
-        Astrofun.__init__(self, 'Cassini1', "cassini1C", 
-                           [-1000.,30.,100.,30.,400.,1000.],
-                           [0.,400.,470.,400.,2000.,6000.]       
+    def gtoc1(self, x: ArrayLike) -> float:
+        return self.gfun(x) - 2000000.0
+
+
+class Cassini1:
+    """see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/"""
+
+    def __init__(self) -> None:
+        Astrofun.__init__(
+            self, "Cassini1", "cassini1C",
+            [-1000.0, 30.0, 100.0, 30.0, 400.0, 1000.0],
+            [0.0, 400.0, 470.0, 400.0, 2000.0, 6000.0],
         )
 
-class Cassini2(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini2/ """
-    
-    def __init__(self):    
-        Astrofun.__init__(self, 'Cassini2', "cassini2C", 
-            [-1000,3,0,0,100,100,30,400,800,0.01,0.01,0.01,0.01,0.01,1.05,1.05,1.15,1.7, -math.pi, -math.pi, -math.pi, -math.pi],
-            [0,5,1,1,400,500,300,1600,2200,0.9,0.9,0.9,0.9,0.9,6,6,6.5,291,math.pi,  math.pi,  math.pi,  math.pi]
+
+class Cassini2:
+    """see https://www.esa.int/gsp/ACT/projects/gtop/cassini2/"""
+
+    def __init__(self) -> None:
+        Astrofun.__init__(
+            self, "Cassini2", "cassini2C",
+            [-1000.0, 3.0, 0.0, 0.0, 100.0, 100.0, 30.0, 400.0, 800.0,
+             0.01, 0.01, 0.01, 0.01, 0.01, 1.05, 1.05, 1.15, 1.7,
+             -math.pi, -math.pi, -math.pi, -math.pi],
+            [0.0, 5.0, 1.0, 1.0, 400.0, 500.0, 300.0, 1600.0, 2200.0,
+             0.9, 0.9, 0.9, 0.9, 0.9, 6.0, 6.0, 6.5, 291.0,
+             math.pi, math.pi, math.pi, math.pi],
         )
 
-class Rosetta(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/rosetta/ """
-    
-    def __init__(self):    
-        Astrofun.__init__(self, 'Rosetta', "rosettaC", 
-            [1460,3,0,0,300,150,150,300,700,0.01,0.01,0.01,0.01,0.01,1.05,1.05,1.05,1.05, -math.pi, -math.pi, -math.pi, -math.pi],
-            [1825,5,1,1,500,800,800,800,1850,0.9,0.9,0.9,0.9,0.9,9,9,9,9,math.pi,  math.pi,  math.pi,  math.pi]
+
+class Rosetta:
+    """see https://www.esa.int/gsp/ACT/projects/gtop/rosetta/"""
+
+    def __init__(self) -> None:
+        Astrofun.__init__(
+            self, "Rosetta", "rosettaC",
+            [1460.0, 3.0, 0.0, 0.0, 300.0, 150.0, 150.0, 300.0, 700.0,
+             0.01, 0.01, 0.01, 0.01, 0.01, 1.05, 1.05, 1.05, 1.05,
+             -math.pi, -math.pi, -math.pi, -math.pi],
+            [1825.0, 5.0, 1.0, 1.0, 500.0, 800.0, 800.0, 800.0, 1850.0,
+             0.9, 0.9, 0.9, 0.9, 0.9, 9.0, 9.0, 9.0, 9.0,
+             math.pi, math.pi, math.pi, math.pi],
         )
 
-class Sagas(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/sagas/ """
-    
-    def __init__(self):    
-        Astrofun.__init__(self, 'Sagas', "sagasC", 
-            [7000,0,0,0,50,300,0.01,0.01,1.05,8, -math.pi, -math.pi],
-            [9100,7,1,1,2000,2000,0.9,0.9,7,500, math.pi,  math.pi]
+
+class Sagas:
+    """see https://www.esa.int/gsp/ACT/projects/gtop/sagas/"""
+
+    def __init__(self) -> None:
+        Astrofun.__init__(
+            self, "Sagas", "sagasC",
+            [7000.0, 0.0, 0.0, 0.0, 50.0, 300.0, 0.01, 0.01, 1.05, 8.0,
+             -math.pi, -math.pi],
+            [9100.0, 7.0, 1.0, 1.0, 2000.0, 2000.0, 0.9, 0.9, 7.0, 500.0,
+             math.pi, math.pi],
         )
 
-class Tandem(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/tandem/ """
-    def __init__(self, i, constrained=True):   
-        self.name = ('Tandem ' if constrained else 'Tandem unconstrained ') + str(i+1)
+
+class Tandem:
+    """see https://www.esa.int/gsp/ACT/projects/gtop/tandem/"""
+
+    def __init__(self, i: int, constrained: bool = True) -> None:
+        self.name = ("Tandem " if constrained else "Tandem unconstrained ") + str(i + 1)
         self.fun_c = "tandemC" if constrained else "tandemCu"
         self.fun = self.tandem
-        self.bounds = Bounds([5475, 2.5, 0, 0, 20, 20, 20, 20, 0.01, 0.01, 0.01, 0.01, 1.05, 1.05, 1.05, -math.pi, -math.pi, -math.pi], 
-                             [9132, 4.9, 1, 1, 2500, 2500, 2500, 2500, 0.99, 0.99, 0.99, 0.99, 10, 10, 10, math.pi,  math.pi,  math.pi])
-        self.seqs = [[3,2,2,2,6],[3,2,2,3,6],[3,2,2,4,6],[3,2,2,5,6],[3,2,3,2,6],
-                [3,2,3,3,6],[3,2,3,4,6],[3,2,3,5,6],[3,2,4,2,6],[3,2,4,3,6],
-                [3,2,4,4,6],[3,2,4,5,6],[3,3,2,2,6],[3,3,2,3,6],[3,3,2,4,6],
-                [3,3,2,5,6],[3,3,3,2,6],[3,3,3,3,6],[3,3,3,4,6],[3,3,3,5,6],
-                [3,3,4,2,6],[3,3,4,3,6],[3,3,4,4,6],[3,3,4,5,6]]
+        self.bounds = Bounds(
+            [5475.0, 2.5, 0.0, 0.0, 20.0, 20.0, 20.0, 20.0, 0.01, 0.01, 0.01,
+             0.01, 1.05, 1.05, 1.05, -math.pi, -math.pi, -math.pi],
+            [9132.0, 4.9, 1.0, 1.0, 2500.0, 2500.0, 2500.0, 2500.0, 0.99, 0.99,
+             0.99, 0.99, 10.0, 10.0, 10.0, math.pi, math.pi, math.pi],
+        )
+        self.seqs = [
+            [3, 2, 2, 2, 6], [3, 2, 2, 3, 6], [3, 2, 2, 4, 6], [3, 2, 2, 5, 6],
+            [3, 2, 3, 2, 6], [3, 2, 3, 3, 6], [3, 2, 3, 4, 6], [3, 2, 3, 5, 6],
+            [3, 2, 4, 2, 6], [3, 2, 4, 3, 6], [3, 2, 4, 4, 6], [3, 2, 4, 5, 6],
+            [3, 3, 2, 2, 6], [3, 3, 2, 3, 6], [3, 3, 2, 4, 6], [3, 3, 2, 5, 6],
+            [3, 3, 3, 2, 6], [3, 3, 3, 3, 6], [3, 3, 3, 4, 6], [3, 3, 3, 5, 6],
+            [3, 3, 4, 2, 6], [3, 3, 4, 3, 6], [3, 3, 4, 4, 6], [3, 3, 4, 5, 6],
+        ]
         self.seq = self.seqs[i]
-        
-    def tandem(self, x):
-        n = len(x)
-        array_type = ct.c_double * n   
-        ints_type = ct.c_int * 5   
-        fun_c = astro_map[self.fun_c]      
-        fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_int)]
-        try: # function is only defined inside bounds
-            #x = np.asarray(x).clip(self.bounds.lb, self.bounds.ub)
-            val = fun_c(n, array_type(*x), ints_type(*self.seq))
-            if not math.isfinite(val):
-                val = 1E10
-        except Exception as ex:
-            val = 1E10
-        return val
 
-class Tandem_minlp(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/tandem/ """
-    def __init__(self, constrained=True):   
-        self.name = ('Tandem minlp ' if constrained else 'Tandem unconstrained minlp ') 
+    def tandem(self, x: ArrayLike) -> float:
+        return _safe_tandem_eval(_tandem_map[self.fun_c], x, self.seq)
+
+
+class Tandem_minlp:
+    """see https://www.esa.int/gsp/ACT/projects/gtop/tandem/"""
+
+    def __init__(self, constrained: bool = True) -> None:
+        self.name = "Tandem minlp " if constrained else "Tandem unconstrained minlp "
         self.fun_c = "tandemC" if constrained else "tandemCu"
         self.fun = self.tandem_minlp
-        self.bounds = Bounds([5475, 2.5, 0, 0, 20, 20, 20, 20, 0.01, 0.01, 0.01, 0.01, 1.05, 1.05, 1.05, -math.pi, -math.pi, -math.pi,
-                              1.51,1.51,1.51], 
-                             [9132, 4.9, 1, 1, 2500, 2500, 2500, 2500, 0.99, 0.99, 0.99, 0.99, 10, 10, 10, math.pi,  math.pi,  math.pi,
-                              3.49,4.49,5.49])
-         
-    def tandem_minlp(self, xs):
-        n = len(xs) - 3
-        x = xs[:-3]
-        seq = [3] + [int(round(xi)) for xi in xs[-3:]] + [6]
-        array_type = ct.c_double * n   
-        ints_type = ct.c_int * 5   
-        fun_c = astro_map[self.fun_c]      
-        fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double), ct.POINTER(ct.c_int)]
-        try:
-            val = fun_c(n, array_type(*x), ints_type(*seq))
-            if not math.isfinite(val):
-                val = 1E10
-        except Exception as ex:
-            val = 1E10
-        return val
+        self.bounds = Bounds(
+            [5475.0, 2.5, 0.0, 0.0, 20.0, 20.0, 20.0, 20.0, 0.01, 0.01, 0.01,
+             0.01, 1.05, 1.05, 1.05, -math.pi, -math.pi, -math.pi,
+             1.51, 1.51, 1.51],
+            [9132.0, 4.9, 1.0, 1.0, 2500.0, 2500.0, 2500.0, 2500.0, 0.99, 0.99,
+             0.99, 0.99, 10.0, 10.0, 10.0, math.pi, math.pi, math.pi,
+             3.49, 4.49, 5.49],
+        )
 
-class Cassini1multi(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/ """
-    
-    def __init__(self, weights = [1,0,0,0], planets = [2,2,3,5]):    
-        Astrofun.__init__(self, 'Cassini1minlp', "Cassini1minlpC", 
-                           [-1000.,30.,100.,30.,400.,1000.],
-                           [0.,400.,470.,400.,2000.,6000.]       
+    def tandem_minlp(self, xs: ArrayLike) -> float:
+        x = list(xs[:-3])
+        seq = [3] + [int(round(xi)) for xi in xs[-3:]] + [6]
+        return _safe_tandem_eval(_tandem_map[self.fun_c], x, seq)
+
+
+class Cassini1multi:
+    """see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/"""
+
+    def __init__(self, weights: Sequence[float] = (1, 0, 0, 0),
+                 planets: Sequence[int] = (2, 2, 3, 5)) -> None:
+        Astrofun.__init__(
+            self, "Cassini1minlp", "cassini1minlpC",
+            [-1000.0, 30.0, 100.0, 30.0, 400.0, 1000.0],
+            [0.0, 400.0, 470.0, 400.0, 2000.0, 6000.0],
         )
         self.fun = self.cassini1
         self.weights = weights
         self.planets = planets
-        self.mfun = lambda x: cassini1multi(x + [2,2,3,5])
-         
-    def cassini1(self, x):
-        r = cassini1multi(x + self.planets)
-        return self.weights[0]*r[0] + self.weights[1]*r[1] + self.weights[2]*r[2] + self.weights[3]*r[3]
-    
-class Cassini1minlp(object):
-    """ see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/ """
-    
-    def __init__(self, planets = [2,2,3,5]):    
-        Astrofun.__init__(self, 'Cassini1', "cassini1C", 
-                           [-1000.,30.,100.,30.,400.,1000.],
-                           [0.,400.,470.,400.,2000.,6000.]       
+        self.mfun = lambda x: cassini1multi(_concat_planets(x, [2, 2, 3, 5]))
+
+    def cassini1(self, x: ArrayLike) -> float:
+        values = cassini1multi(_concat_planets(x, self.planets))
+        return (
+            self.weights[0] * values[0]
+            + self.weights[1] * values[1]
+            + self.weights[2] * values[2]
+            + self.weights[3] * values[3]
+        )
+
+
+class Cassini1minlp:
+    """see https://www.esa.int/gsp/ACT/projects/gtop/cassini1/"""
+
+    def __init__(self, planets: Sequence[int] = (2, 2, 3, 5)) -> None:
+        Astrofun.__init__(
+            self, "Cassini1", "cassini1C",
+            [-1000.0, 30.0, 100.0, 30.0, 400.0, 1000.0],
+            [0.0, 400.0, 470.0, 400.0, 2000.0, 6000.0],
         )
         self.fun = self.cassini1
         self.planets = planets
-   
-    def cassini1(self, x):
-        return cassini1minlp(list(x) + self.planets)
-      
-def cassini1minlp(x):
-    n = len(x)
-    array_type = ct.c_double * n   
-    fun_c = astro_map["cassini1minlpC"]      
-    fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double)]
-    fun_c.restype = ct.POINTER(ct.c_double)  
-    try: # function is only defined inside bounds
-        res = fun_c(n, array_type(*x))
-        dv = res[0]
-        freemem(res)
-        if not math.isfinite(dv):
-            dv = 1E10
-    except Exception as ex:
-        print(ex)
-        dv = 1E10
+
+    def cassini1(self, x: ArrayLike) -> float:
+        return cassini1minlp(_concat_planets(x, self.planets))
+
+
+def cassini1minlp(x: Sequence[float]) -> float:
+    dv, _ = _safe_cassini1_minlp_eval(x)
     return dv
 
-def cassini1multi(x):
-    n = len(x)
-    array_type = ct.c_double * n   
-    fun_c = astro_map["cassini1minlpC"]      
-    fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double)]
-    fun_c.restype = ct.POINTER(ct.c_double)  
-    try: # function is only defined inside bounds
-        res = fun_c(n, array_type(*x))
-        dv = res[0]
-        launch_dv = res[1]
-        freemem(res)
+
+def cassini1multi(x: Sequence[float]) -> list[float]:
+    dv, launch_dv = _safe_cassini1_minlp_eval(x)
+    tof = float(sum(x[1:6]))
+    launch_time = float(x[0])
+    return [dv, launch_dv, tof, launch_time]
+
+
+def cassini2multi(x: Sequence[float]) -> list[float]:
+    try:
+        dv = float(gtop_cassini2_minlp(_as_float_array(x)))
         if not math.isfinite(dv):
-            dv = 1E10
-    except Exception as ex:
-        print(ex)
-        dv = 1E10
-        launch_dv = 1E10 
-    tof = sum(x[1:6])
-    launch_time = x[0] 
+            dv = PenaltyValue
+    except Exception:
+        dv = PenaltyValue
+    tof = float(sum(x[4:9]))
+    launch_time = float(x[0])
     return [dv, tof, launch_time]
 
-def cassini2multi(x):
-    n = len(x)
-    array_type = ct.c_double * n   
-    fun_c = astro_map["cassini2minlpC"]      
-    fun_c.argtypes = [ct.c_int, ct.POINTER(ct.c_double)]
-    fun_c.restype = ct.c_double  
-    try: # function is only defined inside bounds
-        dv = fun_c(n, array_type(*x))
-    except Exception as ex:
-        print(ex)
-        dv = np.inf
-    tof = sum(x[4:9])
-    launch_time = x[0] 
-    return [dv, tof, launch_time]
- 
-class python_fun(object):
-    
-    def __init__(self, cfun, bounds):
+
+class python_fun:
+
+    def __init__(self, cfun: str, bounds: Bounds) -> None:
         self.cfun = cfun
         self.bounds = bounds
-    
-    def __call__(self, x):
-        fun_c = astro_map[self.cfun]      
-        n = len(x)
-        array_type = ct.c_double * n   
-        try: # function is only defined inside bounds
-            # x = np.array(x).clip(self.bounds.lb, self.bounds.ub)
-            val = float(fun_c(n, array_type(*x)))
-            if not math.isfinite(val):
-                val = 1E10
-        except Exception as ex:
-            val = 1E10
-        return val 
 
+    def __call__(self, x: ArrayLike) -> float:
+        return _safe_scalar_eval(astro_map[self.cfun], x)

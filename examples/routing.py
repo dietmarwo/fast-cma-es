@@ -4,6 +4,7 @@
 # Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from numba import njit
 from fcmaes.optimizer import Bite_cpp, De_cpp, Crfmnes_cpp, Crfmnes, Cma_cpp, de_cma, wrapper
 from fcmaes import mode, modecpp, moretry, retry

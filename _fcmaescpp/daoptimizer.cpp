@@ -15,13 +15,13 @@
 #include <math.h>
 #include <ctime>
 #include <random>
+#include "daoptimizer.hpp"
 #include <LBFGSB.h>
 #include "pcg_random.hpp"
 
 using namespace LBFGSpp;
 using namespace std;
 
-typedef Eigen::Matrix<double, Eigen::Dynamic, 1> vec;
 typedef Eigen::Matrix<int, Eigen::Dynamic, 1> ivec;
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> mat;
 
@@ -647,23 +647,19 @@ double minimize(Fitness *fun, vec &x0, long seed, bool use_local_search,
         X[i] = bx[i];
     return gr.bestY();
 }
-}
 
-using namespace dual_annealing;
-
-extern "C" {
-void optimizeDA_C(long runid, callback_type func, int dim, int seed,
-        double *init, double *lower, double *upper, int maxEvals,
-        bool use_local_search, double* res) {
+DaResult optimize_da(long runid, callback_type func, int dim, int seed,
+        const double *init, const double *lower, const double *upper,
+        int maxEvals, bool use_local_search) {
     int n = dim;
     vec guess(n), lower_limit(n), upper_limit(n);
     for (int i = 0; i < n; i++)
-    	guess[i] = init[i];
+        guess[i] = init[i];
     if (lower != NULL && upper != NULL) {
-		for (int i = 0; i < n; i++) {
-			lower_limit[i] = lower[i];
-			upper_limit[i] = upper[i];
-		}
+        for (int i = 0; i < n; i++) {
+            lower_limit[i] = lower[i];
+            upper_limit[i] = upper[i];
+        }
     } else {
         lower_limit.resize(0);
         upper_limit.resize(0);
@@ -672,20 +668,17 @@ void optimizeDA_C(long runid, callback_type func, int dim, int seed,
         maxEvals = 1E7;
     Fitness fitfun(func, &lower_limit, &upper_limit, maxEvals);
 
-    try {
-        vec X = zeros(dim);
-        vec enc = fitfun.encode(guess);
-        double bestY = minimize(&fitfun, enc, seed, use_local_search, X);
-        vec bestX = fitfun.decode(X);
-        for (int i = 0; i < n; i++)
-            res[i] = bestX[i];
-        res[n] = bestY;
-        res[n + 1] = fitfun.getEvaluations();
-        res[n + 2] = 0;
-        res[n + 3] = 0;
-    } catch (std::exception &e) {
-        cerr << e.what() << endl;
-    }
-}
+    vec X = zeros(dim);
+    vec enc = fitfun.encode(guess);
+    double bestY = minimize(&fitfun, enc, seed, use_local_search, X);
+
+    DaResult result;
+    result.x = fitfun.decode(X);
+    result.y = bestY;
+    result.evaluations = fitfun.getEvaluations();
+    result.iterations = 0;
+    result.stop = 0;
+    return result;
 }
 
+}

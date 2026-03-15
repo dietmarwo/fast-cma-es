@@ -5,12 +5,14 @@
 
 import multiprocessing as mp
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 from scipy.optimize import OptimizeResult
+from typing import Any
 from fcmaes.testfun import Wrapper, Rosen, Rastrigin, Eggholder
 from fcmaes import cmaes, de, decpp, cmaescpp, retry, advretry
 from fcmaes.optimizer import de_cma_py
 
-def almost_equal(X1, X2, eps = 1E-5):
+def almost_equal(X1: Any, X2: Any, eps: float = 1E-5) -> bool:
     if np.isscalar(X1):
         X1 = [X1]
         X2 = [X2]
@@ -27,7 +29,7 @@ def almost_equal(X1, X2, eps = 1E-5):
                 return False
     return True
 
-def test_rastrigin_python():
+def test_rastrigin_python() -> None:
     popsize = 100
     dim = 3
     testfun = Rastrigin(dim)
@@ -52,7 +54,7 @@ def test_rastrigin_python():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
-def test_rosen_python():
+def test_rosen_python() -> None:
     popsize = 31
     dim = 5
     testfun = Rosen(dim)
@@ -74,7 +76,7 @@ def test_rosen_python():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
-def test_rosen_ask_tell():    
+def test_rosen_ask_tell() -> None:
     popsize = 31
     dim = 5
     testfun = Rosen(dim)
@@ -103,7 +105,7 @@ def test_rosen_ask_tell():
 #     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
 #     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
-def test_rosen_cpp():
+def test_rosen_cpp() -> None:
     popsize = 31
     dim = 5
     testfun = Rosen(dim)
@@ -124,7 +126,7 @@ def test_rosen_cpp():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
-def test_rosen_parallel():
+def test_rosen_parallel() -> None:
     popsize = 8
     dim = 2
     testfun = Rosen(dim)
@@ -146,7 +148,7 @@ def test_rosen_parallel():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(almost_equal(ret.fun, wrapper.get_best_y(), eps=1E-1)) # wrong best y returned
 
-def test_rosen_cpp_parallel():
+def test_rosen_cpp_parallel() -> None:
     popsize = 8
     dim = 2
     testfun = Rosen(dim)
@@ -168,7 +170,7 @@ def test_rosen_cpp_parallel():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(almost_equal(ret.fun, wrapper.get_best_y(), eps = 1E-1)) # wrong best y returned
 
-def test_rosen_de():
+def test_rosen_de() -> None:
     popsize = 8
     dim = 2
     testfun = Rosen(dim)
@@ -189,7 +191,7 @@ def test_rosen_de():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
-def test_rosen_de_parallel():
+def test_rosen_de_parallel() -> None:
     popsize = 8
     dim = 2
     testfun = Rosen(dim)
@@ -210,7 +212,7 @@ def test_rosen_de_parallel():
 #     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(almost_equal(ret.fun, wrapper.get_best_y(), eps = 1E-1)) # wrong best y returned
 
-def test_rosen_ask_tell_de():    
+def test_rosen_ask_tell_de() -> None:
     popsize = 8
     dim = 2
     testfun = Rosen(dim)
@@ -237,7 +239,7 @@ def test_rosen_ask_tell_de():
 #     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(almost_equal(ret.fun, wrapper.get_best_y(), eps = 1E-1)) # wrong best y returned
 
-def test_rosen_decpp():
+def test_rosen_decpp() -> None:
     popsize = 8
     dim = 2
     testfun = Rosen(dim)
@@ -258,7 +260,7 @@ def test_rosen_decpp():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(almost_equal(ret.fun, wrapper.get_best_y())) # wrong best y returned
 
-def test_rosen_decpp_parallel():
+def test_rosen_decpp_parallel() -> None:
     popsize = 8
     dim = 2
     testfun = Rosen(dim)
@@ -279,7 +281,7 @@ def test_rosen_decpp_parallel():
     assert(almost_equal(ret.x, wrapper.get_best_x(), eps = 1E-2)) # wrong best X returned
     assert(almost_equal(ret.fun, wrapper.get_best_y(), eps = 1E-2)) # wrong best y returned
 
-def test_eggholder_python():
+def test_eggholder_python() -> None:
     popsize = 1000
     dim = 2
     testfun = Eggholder()
@@ -301,7 +303,7 @@ def test_eggholder_python():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
-def test_eggholder_retry():
+def test_eggholder_retry() -> None:
     dim = 2
     testfun = Eggholder()
 
@@ -320,7 +322,7 @@ def test_eggholder_retry():
 
 from fcmaes.optimizer import de_cma
 
-def test_eggholder_advanced_retry():
+def test_eggholder_advanced_retry() -> None:
     dim = 2
     testfun = Eggholder()
     
@@ -337,7 +339,7 @@ def test_eggholder_advanced_retry():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(almost_equal(ret.fun, wrapper.get_best_y())) # wrong best y returned
 
-def test_eggholder_retry_python():
+def test_eggholder_retry_python() -> None:
     dim = 2
     testfun = Eggholder()
     
@@ -356,7 +358,7 @@ def test_eggholder_retry_python():
     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(ret.fun == wrapper.get_best_y()) # wrong best y returned
 
-def test_eggholder_advanced_retry_python():
+def test_eggholder_advanced_retry_python() -> None:
     dim = 2
     testfun = Eggholder()
 

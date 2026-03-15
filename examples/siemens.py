@@ -10,6 +10,7 @@ from scipy.optimize import Bounds
 import ctypes as ct
 import multiprocessing as mp 
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from collections import deque
 
 import sys 

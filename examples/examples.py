@@ -10,6 +10,7 @@
 
 import math
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from fcmaes.astro import MessFull, Messenger, Gtoc1, Cassini1, Cassini2, Rosetta, Tandem, Sagas, Cassini1minlp
 from fcmaes.optimizer import De_python, De_ask_tell, de_cma, da_cma, Cma_cpp, Cma_python, De_cpp, Da_cpp, Bite_cpp, Crfmnes, Crfmnes_cpp, Pgpe_cpp, de_crfmnes, crfmnes_bite, Dual_annealing, Differential_evolution
 from fcmaes import retry

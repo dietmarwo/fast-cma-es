@@ -4,7 +4,7 @@
 # LICENSE file in the root directory.
 from __future__ import annotations
 
-""" Numpy based implementation of CVT MAP-Elites including CMA-ES emitter and CMA-ES drilldown. 
+""" Numpy based implementation of CVT MAP-Elites including CMA-ES emitter and CMA-ES drilldown.
 
 See https://arxiv.org/abs/1610.05729 and https://arxiv.org/pdf/1912.02400.pdf
 
@@ -13,19 +13,19 @@ MAP-Elites implementations differ in the following details:
 1) Initialisation of the behavior space:
 
 a) Generated from some solution distribution by applying the fitness function to determine their behavior.
-b) Generated from uniform samples of the behavior space. 
+b) Generated from uniform samples of the behavior space.
 
-We use b) because random solutions may cover only parts of the behavior space. Some parts may only be reachable 
+We use b) because random solutions may cover only parts of the behavior space. Some parts may only be reachable
 by optimization. Another reason: Fitness computations may be expensive. Therefore we don't compute fitness
-values for the initial solution population.     
+values for the initial solution population.
 
-2) Initialization of the niches: 
+2) Initialization of the niches:
 
 a) Generated from some solution distribution.
 b) Generated from uniform samples of the solution space. These solutions are never evaluated but serve as
 initial population for SBX or Iso+LineDD. Their associated fitness value is set to math.inf (infinity).
 
-We use b) because this way we: 
+We use b) because this way we:
 - Avoid computing fitness values for the initial population.
 - Enhance the diversity of initial solutions emitted by SBX or Iso+LineDD.
 
@@ -33,19 +33,20 @@ We use b) because this way we:
 landscapes. Therefore SBX+mutation is the default setting.
 
 4) SBX (Simulated binary crossover) is taken from mode.py and simplified. It is combined with mutation.
-Both spread factors - for crossover and mutation - are randomized for each application. 
+Both spread factors - for crossover and mutation - are randomized for each application.
 
 5) Candidates for CMA-ES are sampled with a bias to better niches. As for SBX only a subset of the archive is
-used, the worst niches are ignored. 
+used, the worst niches are ignored.
 
 6) There is a CMA-ES drill down for specific niches - in this mode all solutions outside the niche
 are rejected. Restricted solution box bounds are used derived from statistics maintained by the archive
-during the addition of new solution candidates. 
+during the addition of new solution candidates.
 
 7) The QD-archive uses shared memory to reduce inter-process communication overhead.
 """
 
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 from numpy.random import Generator, PCG64DXSM, SeedSequence
 from multiprocessing import Process
 import multiprocessing as mp
@@ -64,26 +65,29 @@ from numba import njit
 from fcmaes.evaluator import is_debug_active
 from loguru import logger
 
-from typing import Optional, Callable, Tuple, Dict
+from typing import Any, Optional, Callable, Tuple, Dict
 from numpy.typing import ArrayLike
+
+QDFitness = Callable[[ArrayLike], Tuple[float, np.ndarray]]
+OptParams = Dict[str, Any]
 
 rng = default_rng()
 
-def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarray]], 
-                        bounds: Bounds, 
-                        qd_bounds: Bounds, 
-                        niche_num: Optional[int] = 4000, 
-                        samples_per_niche: Optional[int] = 20, 
-                        workers: Optional[int] = mp.cpu_count(), 
-                        iterations: Optional[int] = 100, 
-                        archive: Optional[Archive] = None, 
-                        me_params: Optional[Dict] = {}, 
-                        cma_params: Optional[Dict] = {}, 
+def optimize_map_elites(qd_fitness: QDFitness,
+                        bounds: Bounds,
+                        qd_bounds: Bounds,
+                        niche_num: Optional[int] = 4000,
+                        samples_per_niche: Optional[int] = 20,
+                        workers: Optional[int] = mp.cpu_count(),
+                        iterations: Optional[int] = 100,
+                        archive: Optional[Archive] = None,
+                        me_params: Optional[OptParams] = {},
+                        cma_params: Optional[OptParams] = {},
                         use_stats: Optional[bool] = False,
                         ) -> Archive:
-    
+
     """Application of CVT-Map Elites with additional CMA-ES emmitter.
-     
+
     Parameters
     ----------
     qd_fitness : callable
@@ -93,11 +97,11 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
     bounds : `Bounds`
         Bounds on variables. Instance of the `scipy.Bounds` class.
     qd_bounds : `Bounds`
-        Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.        
+        Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.
     niche_num : int, optional
         Number of niches.
     samples_per_niche : int, optional
-        Number of samples used for niche computation.       
+        Number of samples used for niche computation.
     max_evaluations : int, optional
         Forced termination after ``max_evaluations`` function evaluations.
     workers : int, optional
@@ -106,56 +110,56 @@ def optimize_map_elites(qd_fitness: Callable[[ArrayLike], Tuple[float, np.ndarra
         Number of MAP-elites iterations.
     archive : Archive, optional
         If defined MAP-elites is continued for this archive.
-    me_params : dictionary, optional 
+    me_params : dictionary, optional
         Parameters for MAP-elites.
-    cma_params : dictionary, optional 
+    cma_params : dictionary, optional
         Parameters for the CMA-ES emitter.
-    use_stats : bool, optional 
+    use_stats : bool, optional
         If True, archive accumulates statistics of the solutions
-        
+
     Returns
     -------
     archive : Archive
         Resulting archive of niches. Can be stored for later continuation of MAP-elites."""
 
-    dim = len(bounds.lb) 
-    if archive is None: 
+    dim = len(bounds.lb)
+    if archive is None:
         archive = Archive(dim, qd_bounds, niche_num, use_stats)
         archive.init_niches(samples_per_niche)
         # initialize archive with random values
         self.xs.view()[:] = rng.uniform(bounds.lb, bounds.ub, (niche_num, dim))
-    t0 = perf_counter() 
-    qd_fitness.archive = archive # attach archive for logging  
+    t0 = perf_counter()
+    qd_fitness.archive = archive # attach archive for logging
     for iter in range(iterations):
         archive.argsort() # sort archive to select the best_n
         optimize_map_elites_(archive, qd_fitness, bounds, workers,
                     me_params, cma_params)
         if is_debug_active():
             ys = np.sort(archive.get_ys())[:100] # best 100 fitness values
-            logger.debug(f'best 100 iter {iter} best {min(ys):.3f} worst {max(ys):.3f} ' + 
+            logger.debug(f'best 100 iter {iter} best {min(ys):.3f} worst {max(ys):.3f} ' +
                      f'mean {np.mean(ys):.3f} stdev {np.std(ys):.3f} time {dtime(t0)} s')
     return archive
 
-def empty_archive(dim: int, 
-                  qd_bounds: Bounds, 
-                  niche_num: int, 
-                  samples_per_niche: int, 
+def empty_archive(dim: int,
+                  qd_bounds: Bounds,
+                  niche_num: int,
+                  samples_per_niche: int,
                   use_stats: Optional[bool] = False) -> Archive:
-    
+
     """Creates an empty archive.
-     
+
     Parameters
     ----------
     archive: Archive
     qd_bounds : `Bounds`
-        Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.        
+        Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.
     niche_num : int, optional
         Number of niches.
     samples_per_niche : int, optional
-        Number of samples used for niche computation.             
-    use_stats : bool, optional 
+        Number of samples used for niche computation.
+    use_stats : bool, optional
         If True, archive accumulates statistics of the solutions
-                 
+
     Returns
     -------
     archive : Archive
@@ -166,13 +170,13 @@ def empty_archive(dim: int,
     return archive
 
 def set_KDTree(archive: Archive,
-                        centers:Optional[np.ndarray] = None, 
-                        niche_num: Optional[int]  = None, 
-                        qd_bounds: Optional[Bounds] = None, 
-                        samples_per_niche: Optional[int] = 100):   
-    
+                        centers:Optional[np.ndarray] = None,
+                        niche_num: Optional[int]  = None,
+                        qd_bounds: Optional[Bounds] = None,
+                        samples_per_niche: Optional[int] = 100) -> None:
+
     """Returns a function deciding niche membership.
-     
+
     Parameters
     ----------
     archive: Archive
@@ -184,9 +188,9 @@ def set_KDTree(archive: Archive,
         Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.
         Required if centers is None.
     samples_per_niche : int, optional
-        Number of samples used for niche computation. 
-        If samples_per_niche > 0 cvt-clustering is used, else grid-clustering is used.        
-         
+        Number of samples used for niche computation.
+        If samples_per_niche > 0 cvt-clustering is used, else grid-clustering is used.
+
     Returns
     -------
     index_of_niches : callable
@@ -194,18 +198,18 @@ def set_KDTree(archive: Archive,
     centers : ndarray, shape (n,m)
         behavior vectors used as niche centers."""
 
-    if centers is None: # cache centers 
+    if centers is None: # cache centers
         centers = get_centers_(niche_num, len(qd_bounds.lb), samples_per_niche)
-    archive.kdt = KDTree(centers, leaf_size=30, metric='euclidean')  
-    archive.centers = centers         
+    archive.kdt = KDTree(centers, leaf_size=30, metric='euclidean')
+    archive.centers = centers
 
-def load_archive(name: str, 
-                 bounds: Bounds, 
-                 qd_bounds: Bounds, 
+def load_archive(name: str,
+                 bounds: Bounds,
+                 qd_bounds: Bounds,
                  niche_num: Optional[int] = 10000,
-                 use_stats: Optional[bool] = False, 
+                 use_stats: Optional[bool] = False,
                  ) -> Archive:
-    
+
     """Loads an archive from disk.
 
     Parameters
@@ -215,24 +219,28 @@ def load_archive(name: str,
     bounds : `Bounds`
         Bounds on variables. Instance of the `scipy.Bounds` class.
     qd_bounds : `Bounds`
-        Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.        
+        Bounds on behavior descriptors. Instance of the `scipy.Bounds` class.
     niche_num : int, optional
         Number of niches.
-    use_stats : bool, optional 
+    use_stats : bool, optional
         If True, archive accumulates statistics of the solutions
-        
+
     Returns
     -------
     archive : Archive
         Archive of niches. Can be used for continuation of MAP-elites."""
-     
+
     dim = len(bounds.lb)
     archive = Archive(dim, qd_bounds, niche_num, name, use_stats)
     archive.load(name)
     return archive
 
-def optimize_map_elites_(archive, fitness, bounds, workers,
-                         me_params, cma_params):
+def optimize_map_elites_(archive: Archive,
+                         fitness: QDFitness,
+                         bounds: Bounds,
+                         workers: int,
+                         me_params: OptParams,
+                         cma_params: OptParams) -> None:
     sg = SeedSequence()
     rgs = [Generator(PCG64DXSM(s)) for s in sg.spawn(workers)]
     proc=[Process(target=run_map_elites_,
@@ -240,44 +248,52 @@ def optimize_map_elites_(archive, fitness, bounds, workers,
                   me_params, cma_params)) for p in range(workers)]
     for p in proc: p.start()
     for p in proc: p.join()
-          
-def run_map_elites_(archive, fitness, bounds, rg, 
-                    me_params, cma_params): 
-    generations = me_params.get('generations', 10) 
-    chunk_size = me_params.get('chunk_size', 20)   
-    use_sbx = me_params.get('use_sbx', True)     
-    dis_c = me_params.get('dis_c', 20)   
-    dis_m = me_params.get('dis_m', 20)  
+
+def run_map_elites_(archive: Archive,
+                    fitness: QDFitness,
+                    bounds: Bounds,
+                    rg: Generator,
+                    me_params: OptParams,
+                    cma_params: OptParams) -> None:
+    generations = me_params.get('generations', 10)
+    chunk_size = me_params.get('chunk_size', 20)
+    use_sbx = me_params.get('use_sbx', True)
+    dis_c = me_params.get('dis_c', 20)
+    dis_m = me_params.get('dis_m', 20)
     iso_sigma = me_params.get('iso_sigma', 0.02)
     line_sigma = me_params.get('line_sigma', 0.2)
     cma_generations = cma_params.get('cma_generations', 20)
     select_n = archive.capacity
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
-        for _ in range(generations):                
+        for _ in range(generations):
             if use_sbx:
                 pop = archive.random_xs(select_n, chunk_size, rg)
                 xs = variation_(pop, bounds.lb, bounds.ub, rg, dis_c, dis_m)
             else:
                 x1 = archive.random_xs(select_n, chunk_size, rg)
                 x2 = archive.random_xs(select_n, chunk_size, rg)
-                xs = iso_dd_(x1, x2, bounds.lb, bounds.ub, rg, iso_sigma, line_sigma)    
+                xs = iso_dd_(x1, x2, bounds.lb, bounds.ub, rg, iso_sigma, line_sigma)
             yds = [fitness(x) for x in xs]
             descs = np.array([yd[1] for yd in yds])
             niches = archive.index_of_niches(descs)
             for i in range(len(yds)):
-                archive.set(niches[i], yds[i], xs[i]) 
-            archive.argsort()   
-            select_n = archive.get_occupied()            
-    
-        for _ in range(cma_generations):                
-            optimize_cma_(archive, fitness, bounds, rg, cma_params)    
+                archive.set(niches[i], yds[i], xs[i])
+            archive.argsort()
+            select_n = archive.get_occupied()
 
-def optimize_cma_(archive, fitness, bounds, rg, cma_params):
+        for _ in range(cma_generations):
+            optimize_cma_(archive, fitness, bounds, rg, cma_params)
+
+def optimize_cma_(archive: Archive,
+                  fitness: QDFitness,
+                  bounds: Bounds,
+                  rg: Generator,
+                  cma_params: OptParams) -> None:
     select_n = cma_params.get('best_n', 100)
     x0, y, iter = archive.random_xs_one(select_n, rg)
     sigma = cma_params.get('sigma',rg.uniform(0.03, 0.3)**2)
-    popsize = cma_params.get('popsize', 31) 
-    es = cmaescpp.ACMA_C(archive.dim, bounds, x0 = x0,  
+    popsize = cma_params.get('popsize', 31)
+    es = cmaescpp.ACMA_C(archive.dim, bounds, x0 = x0,
                          popsize = popsize, input_sigma = sigma, rg = rg)
     maxiters = cma_params.get('maxiters', 100)
     stall_criterion = cma_params.get('stall_criterion', 5)
@@ -288,21 +304,21 @@ def optimize_cma_(archive, fitness, bounds, rg, cma_params):
         improvement, ys = update_archive(archive, xs, fitness)
         if iter > 0:
             if (np.sort(ys) < old_ys).any():
-                last_improve = iter          
+                last_improve = iter
         if last_improve + stall_criterion < iter:
             # no improvement
             break
         if es.tell(improvement) != 0:
-            break 
+            break
         old_ys = np.sort(ys)
 
-@np.errstate(invalid='ignore')        
-def update_archive(archive: Archive, xs: np.ndarray, 
-                   fitness: Optional[Callable[[ArrayLike], Tuple[float, np.ndarray]]] = None,
-                   yds: Optional[ArrayLike] = None):
+@np.errstate(invalid='ignore')
+def update_archive(archive: Archive, xs: np.ndarray,
+                   fitness: Optional[QDFitness] = None,
+                   yds: Optional[ArrayLike] = None) -> Tuple[np.ndarray, np.ndarray]:
     # evaluate population, update archive and determine ranking
     popsize = len(xs)
-    if yds is None: 
+    if yds is None:
         yds = [fitness(x) for x in xs]
     descs = np.array([yd[1] for yd in yds])
     niches = archive.index_of_niches(descs)
@@ -326,31 +342,31 @@ def update_archive(archive: Archive, xs: np.ndarray,
     return improvement, ys
 
 @njit()
-def get_grid_indices(ds, capacity, lb, ub):
+def get_grid_indices(ds: np.ndarray, capacity: int, lb: np.ndarray, ub: np.ndarray) -> np.ndarray:
     rdim = int(capacity ** (1/ds.shape[1]) + 0.5)
     ds_norm = (ds - lb) / (ub - lb)
-    indices = np.empty(len(ds), dtype=np.int32)   
+    indices = np.empty(len(ds), dtype=np.int32)
     for i, d in enumerate(ds_norm):
         index = 0
         f = 1
         for di in d:
             index += f * int(rdim*di)
             f *= rdim
-        indices[i] = max(0, min(capacity-1, int(index)))    
+        indices[i] = max(0, min(capacity-1, int(index)))
     return indices
-        
+
 class Archive(object):
-    """Multi-processing map elites archive. 
-        Stores decision vectors, fitness values , 
+    """Multi-processing map elites archive.
+        Stores decision vectors, fitness values ,
         description vectors, niche centers and statistics for the x-values"""
-       
-    def __init__(self, 
+
+    def __init__(self,
                  dim: int,
                  qd_bounds: Bounds,
-                 capacity: int,    
+                 capacity: int,
                  name: Optional[str] = "",
-                 use_stats = False             
-                ):    
+                 use_stats: bool = False
+                ) -> None:
         """Creates an empty archive."""
         self.dim = dim
         self.qd_dim = len(qd_bounds.lb)
@@ -363,8 +379,8 @@ class Archive(object):
         self.lock = mp.Lock()
         self.use_stats = use_stats
         self.reset()
-    
-    def reset(self):
+
+    def reset(self) -> None:
         """Resets all submitted solutions but keeps the niche centers."""
         self.xs = Shared2d(np.empty((self.capacity, self.dim), dtype = np.float64))
         self.ds = Shared2d(np.empty((self.capacity, self.qd_dim), dtype = np.float64))
@@ -375,53 +391,53 @@ class Archive(object):
         self.stats = mp.RawArray(ct.c_double, self.capacity * self.dim * 4 if self.use_stats else 0)
         for i in range(self.capacity):
             self.counts[i] = 0
-            self.set_y(i, np.inf)  
+            self.set_y(i, np.inf)
             self.ds_view[i] = np.full(self.qd_dim, np.inf)
             if self.stats:
                 self.set_stat(i, 0, np.zeros(self.dim)) # mean
                 self.set_stat(i, 1, np.zeros(self.dim)) # qmean
                 self.set_stat(i, 2, np.full(self.dim, np.inf)) # min
                 self.set_stat(i, 3, np.full(self.dim, -np.inf)) # max
-         
-    def init_niches(self, samples_per_niche: int = 10): 
+
+    def init_niches(self, samples_per_niche: int = 10) -> None:
         """Computes the niche centers using KMeans and builds the KDTree for niche determination."""
-        # If samples_per_niche > 0 cvt-clustering is used, else grid-clustering is used.   
+        # If samples_per_niche > 0 cvt-clustering is used, else grid-clustering is used.
         self.cvt_clustering = samples_per_niche > 0
         if self.cvt_clustering:
             set_KDTree(self, None, self.capacity, self.qd_bounds, samples_per_niche)
             self.cs = mp.RawArray(ct.c_double, self.capacity * self.qd_dim)
             self.set_cs(self.centers)
-    
-    def get_occupied_data(self):
+
+    def get_occupied_data(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         ys = self.get_ys()
         occupied = (ys < np.inf)
-        return ys[occupied], self.ds_view[occupied], self.xs_view[occupied]        
-   
-    def join(self, archive: Archive):    
+        return ys[occupied], self.ds_view[occupied], self.xs_view[occupied]
+
+    def join(self, archive: Archive) -> None:
         ys, ds, xs = archive.get_occupied_data()
         niches = archive.index_of_niches(ds)
-        yds = np.array([(y, d) for y, d in zip(ys, ds)]) 
+        yds = np.array([(y, d) for y, d in zip(ys, ds)])
         for i in range(len(ys)):
-            archive.set(niches[i], yds[i], xs[i]) 
-        archive.argsort()   
+            archive.set(niches[i], yds[i], xs[i])
+        archive.argsort()
 
-    def fname(self, name): 
+    def fname(self, name: str) -> str:
         """Archive file name."""
         return f'arch.{name}.{self.capacity}.{self.dim}.{self.qd_dim}'
-           
-    def save(self, name: str):
-        """Saves the archive to disc.""" 
-        np.savez_compressed(self.fname(name), 
-                            xs=self.xs_view, 
-                            ds=self.ds_view, 
-                            ys=self.get_ys(), 
+
+    def save(self, name: str) -> None:
+        """Saves the archive to disc."""
+        np.savez_compressed(self.fname(name),
+                            xs=self.xs_view,
+                            ds=self.ds_view,
+                            ys=self.get_ys(),
                             cs=self.get_cs() if self.cvt_clustering else np.empty(0),
                             stats=self.get_stats(),
                             counts=self.get_counts()
                             )
 
-    def load(self, name: str):
-        """Loads the archive from disc."""   
+    def load(self, name: str) -> None:
+        """Loads the archive from disc."""
         self.cs = mp.RawArray(ct.c_double, self.capacity * self.qd_dim)
         with np.load(self.fname(name) + '.npz') as data:
             self.cvt_clustering = len(data['cs']) > 0
@@ -442,25 +458,25 @@ class Archive(object):
         self.capacity = xs.shape[0]
         if self.cvt_clustering:
             set_KDTree(self, self.get_cs(), None, None, None)
-      
-    def index_of_niches(self, ds):
+
+    def index_of_niches(self, ds: ArrayLike) -> np.ndarray:
         if hasattr(self, "kdt"): # use k-means clusters
-            return self.kdt.query(self.encode_d(ds), k=1, sort_results=False)[1].T[0] 
+            return self.kdt.query(self.encode_d(ds), k=1, sort_results=False)[1].T[0]
         else: # use grid based clustering
             return get_grid_indices(ds, self.capacity, self.qd_bounds.lb, self.qd_bounds.ub)
-        
-    def in_niche_filter(self, 
-                        fit: Callable[[ArrayLike], float], 
-                        index: int):
+
+    def in_niche_filter(self,
+                        fit: Callable[[ArrayLike], float],
+                        index: int) -> in_niche_filter:
         """Creates a fitness function wrapper rejecting out of niche arguments."""
         return in_niche_filter(fit, index, self.index_of_niches)
-                                                               
-    def set(self, 
-            i: int, 
-            yd: np.ndarray, 
-            x: np.ndarray):
+
+    def set(self,
+            i: int,
+            yd: np.ndarray,
+            x: np.ndarray) -> None:
         """Adds a solution to the archive if it improves the corresponding niche.
-        Updates solution.""" 
+        Updates solution."""
         self.update_stats(i, x)
         y, d = yd
         # register improvement
@@ -471,31 +487,31 @@ class Archive(object):
             self.set_y(i, y)
             self.xs_view[i] = x
             self.ds_view[i] = d
-    
-    def update_stats(self, 
-                     i: int, 
-                     x: np.ndarray):
+
+    def update_stats(self,
+                     i: int,
+                     x: np.ndarray) -> None:
         """Updates solution statistics."""
         with self.lock:
             self.counts[i] += 1
         count = self.counts[i]
-        if self.use_stats:  
+        if self.use_stats:
             mean = self.get_x_mean(i)
-            diff = x - mean      
+            diff = x - mean
             self.set_stat(i, 0, mean + diff * (1./count)) # mean
-            self.set_stat(i, 1, self.get_stat(i, 1) + np.multiply(diff,diff) * ((count-1)/count)) # qmean                  
+            self.set_stat(i, 1, self.get_stat(i, 1) + np.multiply(diff,diff) * ((count-1)/count)) # qmean
             self.set_stat(i, 2, np.minimum(x, self.get_stat(i, 2))) # min
             self.set_stat(i, 3, np.maximum(x, self.get_stat(i, 3))) # max
- 
+
     def get_occupied(self) -> int:
         return self.occupied.value
-    
+
     def get_count(self, i: int) -> int:
         return self.counts[i]
 
     def get_counts(self) -> np.ndarray:
         return np.array(self.counts[:])
- 
+
     def get_x_mean(self, i: int) -> np.ndarray:
         return self.get_stat(i, 0)
 
@@ -513,28 +529,28 @@ class Archive(object):
     def get_x_max(self, i: int) -> np.ndarray:
         return self.get_stat(i, 3)
 
-    def create_views(self): # needs to be called in the target process
+    def create_views(self) -> None: # needs to be called in the target process
         self.xs_view = self.xs.view()
         self.ds_view = self.ds.view()
-           
-    def encode_d(self, d):
+
+    def encode_d(self, d: ArrayLike) -> np.ndarray:
         return (d - self.desc_lb) / self.desc_scale
-    
-    def decode_d(self, d):
-        return (d * self.desc_scale) + self.desc_lb 
+
+    def decode_d(self, d: ArrayLike) -> np.ndarray:
+        return (d * self.desc_scale) + self.desc_lb
 
     def get_xs(self) -> np.ndarray:
         return self.xs.view()
 
     def get_ds(self) -> np.ndarray:
         return self.ds.view()
-    
+
     def get_y(self, i: int) -> float:
         return self.ys[i]
-        
+
     def get_ys(self) -> np.ndarray:
         return np.array(self.ys[:])
-    
+
     def get_qd_score(self) -> float:
         ys = self.get_ys()
         occupied = (ys != np.inf)
@@ -543,74 +559,74 @@ class Archive(object):
             return 0
         min_y = np.amin(ys)
         if min_y > 0: # if all y > 0 use sum of reciprocal
-            return np.sum(np.reciprocal(ys, where = ys!=0)) 
+            return np.sum(np.reciprocal(ys, where = ys!=0))
         else: # else use only the negative ones
             neg = (ys < 0)
             ys = ys[neg]
-            return np.sum(-ys) 
-         
-    def set_y(self, i: int, y: float):
-        self.ys[i] = y    
+            return np.sum(-ys)
 
-    def set_ys(self, ys: ArrayLike):
+    def set_y(self, i: int, y: float) -> None:
+        self.ys[i] = y
+
+    def set_ys(self, ys: ArrayLike) -> None:
         for i in range(len(ys)):
             self.set_y(i, ys[i])
-            
-    def get_c(self, i: int) -> float:
+
+    def get_c(self, i: int) -> np.ndarray:
         return self.cs[i*self.qd_dim:(i+1)*self.qd_dim]
-        
+
     def get_cs(self) -> np.ndarray:
         return np.array([self.get_c(i) for i in range(self.capacity)])
 
     def get_cs_decoded(self) -> np.ndarray:
         return self.decode_d(np.array([self.get_c(i) for i in range(self.capacity)]))
-           
-    def set_c(self, i: int, c: float):
+
+    def set_c(self, i: int, c: ArrayLike) -> None:
         self.cs[i*self.qd_dim:(i+1)*self.qd_dim] = c[:]
 
-    def set_cs(self, cs: ArrayLike):
+    def set_cs(self, cs: ArrayLike) -> None:
         for i in range(len(cs)):
             self.set_c(i, cs[i])
 
-    def get_stat(self, i: int, j: int) -> float:
+    def get_stat(self, i: int, j: int) -> np.ndarray:
         p = 4*i+j
         return self.stats[p*self.dim:(p+1)*self.dim]
 
     def get_stats(self) ->  np.ndarray:
         return np.array(self.stats[:])
-           
-    def set_stat(self, i: int, j: int, stat: ArrayLike):
+
+    def set_stat(self, i: int, j: int, stat: ArrayLike) -> None:
         p = 4*i+j
         self.stats[p*self.dim:(p+1)*self.dim] = stat[:]
 
-    def set_stats(self, stats: ArrayLike):
+    def set_stats(self, stats: ArrayLike) -> None:
         self.stats[:] = stats[:]
 
     def random_xs(self, best_n: int, chunk_size: int, rg: Generator) -> np.ndarray:
         selection = rg.integers(0, best_n, chunk_size)
-        if best_n < self.capacity: 
+        if best_n < self.capacity:
             selection = np.fromiter((self.si[i] for i in selection), dtype=int)
         return self.xs_view[selection]
-    
+
     def random_xs_one(self, best_n: int, rg: Generator) -> Tuple[np.ndarray, float, int]:
         i = int(rg.random()*best_n)
         return self.get_x(i), self.get_y(i),  i
-        
+
     def argsort(self) -> np.ndarray:
-        """Sorts the archive according to its niche values.""" 
+        """Sorts the archive according to its niche values."""
         self.si = np.argsort(self.get_ys())
         return self.si
-            
-    def dump(self, n: Optional[int] = None):
-        """Dumps the archive content.""" 
+
+    def dump(self, n: Optional[int] = None) -> None:
+        """Dumps the archive content."""
         if n is None:
             n = self.capacity
         ys = self.get_ys()
         si = np.argsort(ys)
         for i in range(n):
-            print(si[i], ys[si[i]], self.get_d(si[i]), self.get_x(si[i]))    
-    
-    def info(self) -> str:        
+            print(si[i], ys[si[i]], self.get_d(si[i]), self.get_x(si[i]))
+
+    def info(self) -> str:
         occ = self.get_occupied()
         score = self.get_qd_score()
         best_y = np.amin(self.get_ys())
@@ -620,22 +636,22 @@ class Archive(object):
 class wrapper(object):
     """Fitness function wrapper for multi processing logging."""
 
-    def __init__(self, 
-                 fit:Callable[[ArrayLike], Tuple[float, np.ndarray]], 
-                 qd_dim: int, 
+    def __init__(self,
+                 fit: QDFitness,
+                 qd_dim: int,
                  interval: Optional[int] = 1000000,
-                 save_interval: Optional[int] = 1E20):
-        
+                 save_interval: Optional[int] = 1E20) -> None:
+
         self.fit = fit
-        self.evals = mp.RawValue(ct.c_int, 0) 
-        self.best_y = mp.RawValue(ct.c_double, np.inf) 
+        self.evals = mp.RawValue(ct.c_int, 0)
+        self.best_y = mp.RawValue(ct.c_double, np.inf)
         self.t0 = perf_counter()
         self.qd_dim = qd_dim
         self.interval = interval
         self.save_interval = save_interval
         self.lock = mp.Lock()
-        
-    def __call__(self, x: ArrayLike):
+
+    def __call__(self, x: ArrayLike) -> Tuple[float, np.ndarray]:
         try:
             if np.isnan(x).any():
                 return np.inf, np.zeros(self.qd_dim)
@@ -649,26 +665,26 @@ class wrapper(object):
             y0 = y if np.isscalar(y) else sum(y)
             if y0 < self.best_y.value:
                 self.best_y.value = y0
-                log = True 
+                log = True
             if log:
                 archinfo = self.archive.info() if hasattr(self, 'archive') else ''
                 logger.info(
                     f'{dtime(self.t0)} {archinfo} {self.evals.value:.0f} {self.evals.value/(1E-9 + dtime(self.t0)):.1f} {self.best_y.value:.3f} {list(x)}'
-                )            
+                )
             if save and hasattr(self, 'archive'):
                 self.archive.save(f'{self.evals.value}')
             return y, desc
         except Exception as ex:
-            print(str(ex))  
+            print(str(ex))
             return np.inf, np.zeros(self.qd_dim)
-        
+
 class in_niche_filter(object):
     """Fitness function wrapper rejecting out of niche arguments."""
-    
-    def __init__(self, 
-                 fit:Callable[[ArrayLike], Tuple[float, np.ndarray]], 
-                 index: int, 
-                 index_of_niches: Callable[[ArrayLike], np.ndarray]):
+
+    def __init__(self,
+                 fit: QDFitness,
+                 index: int,
+                 index_of_niches: Callable[[ArrayLike], np.ndarray]) -> None:
         self.fit = fit
         self.index_of_niches = index_of_niches
         self.index = index
@@ -680,10 +696,15 @@ class in_niche_filter(object):
         else:
             return np.inf
 
-def variation_(pop, lower, upper, rg, dis_c = 20, dis_m = 20):
+def variation_(pop: np.ndarray,
+               lower: np.ndarray,
+               upper: np.ndarray,
+               rg: Generator,
+               dis_c: float = 20,
+               dis_m: float = 20) -> np.ndarray:
     """Generate offspring individuals using SBX (Simulated Binary Crossover) and mutation."""
-    dis_c *= 0.5 + 0.5*rg.random() # vary spread factors randomly 
-    dis_m *= 0.5 + 0.5*rg.random() 
+    dis_c *= 0.5 + 0.5*rg.random() # vary spread factors randomly
+    dis_m *= 0.5 + 0.5*rg.random()
     pop = pop[:(len(pop) // 2) * 2][:]
     (n, d) = np.shape(pop)
     parent_1 = pop[:n // 2, :]
@@ -713,14 +734,20 @@ def variation_(pop, lower, upper, rg, dis_c = 20, dis_m = 20):
                                1. / (dis_m + 1.)))
     return np.clip(offspring, lower, upper)
 
-def iso_dd_(x1, x2, lower, upper, rg, iso_sigma = 0.01, line_sigma = 0.2):
+def iso_dd_(x1: np.ndarray,
+            x2: np.ndarray,
+            lower: np.ndarray,
+            upper: np.ndarray,
+            rg: Generator,
+            iso_sigma: float = 0.01,
+            line_sigma: float = 0.2) -> np.ndarray:
     """Generate offspring individuals using Iso+Line."""
-    a = rg.normal(0, iso_sigma, x1.shape) 
-    b = rg.normal(0, line_sigma, x2.shape) 
+    a = rg.normal(0, iso_sigma, x1.shape)
+    b = rg.normal(0, line_sigma, x2.shape)
     z = x1 + a + np.multiply(b, (x1 - x2))
     return np.clip(z, lower, upper)
 
-def get_centers_(niche_num, dim, samples_per_niche):
+def get_centers_(niche_num: int, dim: int, samples_per_niche: int) -> np.ndarray:
         p = Path('voronoi_cache')
         p.mkdir(exist_ok=True)
         fname = f'centers_{niche_num}_{dim}_{samples_per_niche}.npz'

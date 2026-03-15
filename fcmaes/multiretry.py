@@ -6,6 +6,7 @@
 # parallel optimization retry of a list of problems. 
 
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 import _pickle as cPickle
 import bz2
 import multiprocessing as mp
@@ -15,7 +16,7 @@ from fcmaes import advretry
 
 from fcmaes.evaluator import is_debug_active
 from loguru import logger
-from typing import Optional, Callable, Tuple, List
+from typing import Any, List, Optional
 from numpy.typing import ArrayLike
 
 def minimize(problems: ArrayLike, 
@@ -24,7 +25,7 @@ def minimize(problems: ArrayLike,
              num_retries: Optional[int] = 10000,
              keep: Optional[float] = 0.7, 
              optimizer: Optional[Optimizer] = de_cma(1500), 
-             datafile = None) -> List:
+             datafile: Optional[str] = None) -> List[Any]:
       
     """Minimization of a list of optimization problems by first applying parallel retry
     to filter the best ones and then applying coordinated retry to evaluate these further. 
@@ -94,7 +95,7 @@ def minimize(problems: ArrayLike,
         
 class problem_stats:
 
-    def __init__(self, prob, id, index, retries_inc = 64, num_retries = 10000):
+    def __init__(self, prob: Any, id: str, index: int, retries_inc: int = 64, num_retries: int = 10000) -> None:
         self.store = advretry.Store(prob.fun, prob.bounds, num_retries=num_retries)
         self.prob = prob
         self.name = prob.name
@@ -106,46 +107,46 @@ class problem_stats:
         self.ret = None
         self.store.num_retries = self.retries_inc
 
-    def retry(self, optimizer):
+    def retry(self, optimizer: Optimizer) -> None:
         self.store.num_retries += self.retries_inc
         self.ret = advretry.retry(self.store, optimizer.minimize)
         self.value = self.store.get_y_best()
  
 class multiretry:
     
-    def __init__(self):
-        self.problem_stats = []
-        self.all_stats = []
+    def __init__(self) -> None:
+        self.problem_stats: List[problem_stats] = []
+        self.all_stats: List[problem_stats] = []
     
-    def add(self, stats):
+    def add(self, stats: problem_stats) -> None:
         self.problem_stats.append(stats)
         self.all_stats.append(stats)
     
-    def retry(self, optimizer):
+    def retry(self, optimizer: Optimizer) -> None:
         for ps in self.problem_stats:
             if is_debug_active():
                 logger.debug("problem " + ps.prob.name + ' ' + str(ps.id))
             ps.retry(optimizer)
     
-    def values(self):
+    def values(self) -> np.ndarray:
         return np.fromiter((ps.value for ps in self.problem_stats), dtype=float)
      
-    def remove_worst(self, n = 1):
+    def remove_worst(self, n: int = 1) -> None:
         idx = self.values().argsort()
         self.problem_stats = list(np.asarray(self.problem_stats)[idx])
         for _ in range(n):
             self.problem_stats.pop(-1)
 
-    def size(self):
+    def size(self) -> int:
         return len(self.problem_stats)
                     
-    def dump(self):
+    def dump(self) -> None:
         if is_debug_active():
             for i in range(self.size()):
                 ps = self.problem_stats[i]
                 logger.debug(str(ps.id) + ' ' + str(ps.value))
                 
-    def dump_all(self):
+    def dump_all(self) -> None:
         if is_debug_active():
             idx = self.values_all().argsort()
             self.all_stats = list(np.asarray(self.all_stats)[idx])
@@ -153,10 +154,10 @@ class multiretry:
                 ps = self.all_stats[i]
                 logger.debug(str(ps.id) + ' ' + str(ps.value))
 
-    def values_all(self):
+    def values_all(self) -> np.ndarray:
         return np.fromiter((ps.value for ps in self.all_stats), dtype=float)
  
-    def result(self):
+    def result(self) -> List[Any]:
         idx = self.values_all().argsort()
         self.all_stats = list(np.asarray(self.all_stats)[idx])
         ret = []
@@ -168,27 +169,27 @@ class multiretry:
                           nfev=store.get_count_evals(), success=True)])
             
     # persist all stats
-    def save(self, name):
+    def save(self, name: str) -> None:
         try:
             with bz2.BZ2File(name + '.pbz2', 'w') as f: 
                 cPickle.dump(self.get_data(), f)
         except Exception as ex:
             eprint('error writing data file ' + name + '.pbz2 ' + str(ex))
 
-    def load(self, name):
+    def load(self, name: str) -> None:
         try:
             data = cPickle.load(bz2.BZ2File(name + '.pbz2', 'rb'))
             self.set_data(data)
         except Exception as ex:
             eprint('error reading data file ' + name + '.pbz2 ' + str(ex))
   
-    def get_data(self):
+    def get_data(self) -> List[Any]:
         data = []
         for stats in self.all_stats:            
             data.append(stats.store.get_data())
         return data
         
-    def set_data(self, data):
+    def set_data(self, data: List[Any]) -> None:
         for i in range(len(data)):
             self.all_stats[i].store.set_data(data[i])
         

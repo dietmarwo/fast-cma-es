@@ -17,6 +17,7 @@
 
 import json, sys
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 from numba import njit
 from fcmaes.optimizer import Bite_cpp, Cma_cpp, wrapper, logger
 from fcmaes import retry

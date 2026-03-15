@@ -1,0 +1,90 @@
+[build-system]
+requires = [
+  "scikit-build-core>=0.12.2",
+  "nanobind>=2.12.0",
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "fcmaes"
+version = "2.0.0"
+description = "A Python 3 gradient-free optimization library."
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.8"
+authors = [
+  { name = "Dietmar Wolz", email = "drdietmarwolz@yahoo.de" },
+]
+license = { text = "MIT" }
+keywords = ["optimization", "multi-objective", "parallel"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "Intended Audience :: Education",
+  "Intended Audience :: Financial and Insurance Industry",
+  "Intended Audience :: Healthcare Industry",
+  "Intended Audience :: Information Technology",
+  "Intended Audience :: Manufacturing",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Topic :: Office/Business :: Financial",
+  "Topic :: Office/Business :: Scheduling",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+  "numpy",
+  "scipy",
+  "scikit-learn",
+  "threadpoolctl",
+  "numba",
+  "loguru",
+]
+
+[project.urls]
+Homepage = "https://github.com/dietmarwo/fast-cma-es"
+Repository = "https://github.com/dietmarwo/fast-cma-es"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+wheel.packages = ["fcmaes"]
+cmake.build-type = "Release"
+ninja.make-fallback = true
+
+[tool.scikit-build.sdist]
+include = [
+  "CMakeLists.txt",
+  "README.md",
+  "README.adoc",
+  "LICENSE",
+  "fcmaes",
+  "_fcmaescpp",
+]
+
+[tool.cibuildwheel]
+build = "cp3{8,9,10,11,12,13}-*"
+skip = [
+  "pp*",
+  "*-win32",
+  "*-manylinux_i686",
+  "*-musllinux_*",
+]
+build-verbosity = 1
+test-requires = ["pytest"]
+test-sources = ["tests"]
+test-command = "pytest ./tests/test_wheel_smoke.py -q"
+test-environment = { PYTHONSAFEPATH = "1" }
+
+[tool.cibuildwheel.config-settings]
+"cmake.define.FCMAES_FETCH_EIGEN" = "ON"
+
+[tool.cibuildwheel.linux]
+manylinux-x86_64-image = "manylinux2014"
+archs = ["x86_64"]
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64"]

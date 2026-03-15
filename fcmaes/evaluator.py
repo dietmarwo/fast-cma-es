@@ -16,30 +16,39 @@ from multiprocessing import Process, Pipe
 import multiprocessing as mp
 import ctypes as ct
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 import sys, math, os  
 from loguru import logger
-from typing import Optional, Callable, Tuple
+from typing import Any, Callable, Optional, Tuple
 from numpy.typing import ArrayLike
 
 pipe_limit = 64 # higher values can cause issues
 
-def is_log_level_active(level):
+Objective = Callable[[ArrayLike], float]
+MultiObjective = Callable[[ArrayLike], ArrayLike]
+BatchObjective = Callable[[ArrayLike], ArrayLike]
+BoundsTuple = Tuple[Optional[np.ndarray], Optional[np.ndarray], np.ndarray]
+
+
+def is_log_level_active(level: str) -> bool:
     try: # nasty but currently there is no other way
         for handler in logger._core.handlers.values():
             if handler._levelno <= logger.level(level).no:
                 return True
-    except Exception as ex:   
+    except Exception:
         pass
     return False
 
-def is_debug_active():
+
+def is_debug_active() -> bool:
     return is_log_level_active("DEBUG")
 
-def is_trace_active():
+
+def is_trace_active() -> bool:
     return is_log_level_active("TRACE")
 
 def eval_parallel(xs: ArrayLike, 
-                  evaluator: Evaluator):
+                  evaluator: Evaluator) -> np.ndarray:
     popsize = len(xs)
     ys = np.empty(popsize)
     i0 = 0
@@ -54,7 +63,7 @@ def eval_parallel(xs: ArrayLike,
         
 def eval_parallel_mo(xs: ArrayLike, 
                      evaluator: Evaluator, 
-                     nobj: int):
+                     nobj: int) -> np.ndarray:
     popsize = len(xs)
     ys = np.empty((popsize,nobj))
     i0 = 0
@@ -70,26 +79,30 @@ def eval_parallel_mo(xs: ArrayLike,
 class Evaluator(object):
        
     def __init__(self, 
-                 fun: Callable[[ArrayLike], float], # objective function
-                ):   
+                 fun: Callable[[ArrayLike], Any], # objective function
+                ) -> None:
         self.fun = fun 
         self.pipe = Pipe()
         self.read_mutex = mp.Lock() 
         self.write_mutex = mp.Lock() 
             
-    def start(self, workers: Optional[int] = mp.cpu_count()):
+    def start(self, workers: Optional[int] = mp.cpu_count()) -> None:
         self.workers = workers
         self.proc=[Process(target=_evaluate, args=(self.fun, 
                 self.pipe, self.read_mutex, self.write_mutex)) for _ in range(workers)]
         for p in self.proc: p.start()
         
-    def stop(self): # shutdown all workers 
+    def stop(self) -> None: # shutdown all workers
         for _ in range(self.workers):
             self.pipe[0].send(None)
         for p in self.proc: p.join()  
         for p in self.pipe: p.close()
 
-def _eval_parallel_segment(xs, ys, i0, i1, evaluator):
+def _eval_parallel_segment(xs: ArrayLike,
+                           ys: np.ndarray,
+                           i0: int,
+                           i1: int,
+                           evaluator: Evaluator) -> np.ndarray:
     for i in range(i0, i1):
         evaluator.pipe[0].send((i, xs[i]))
     for _ in range(i0, i1):        
@@ -97,7 +110,7 @@ def _eval_parallel_segment(xs, ys, i0, i1, evaluator):
         ys[i] = y
     return ys
 
-def _evaluate(fun, pipe, read_mutex, write_mutex): # worker
+def _evaluate(fun: Callable[[ArrayLike], Any], pipe: Tuple[Any, Any], read_mutex: Any, write_mutex: Any) -> None: # worker
     while True:
         with read_mutex:
             msg = pipe[1].recv() # Read from the input pipe
@@ -106,12 +119,12 @@ def _evaluate(fun, pipe, read_mutex, write_mutex): # worker
         try:
             i, x = msg
             y = fun(x)
-        except Exception as ex:
+        except Exception:
             y =  sys.float_info.max
         with write_mutex:            
             pipe[1].send((i, y)) # Send result
 
-def _check_bounds(bounds, guess, rg):
+def _check_bounds(bounds: Any, guess: Optional[ArrayLike], rg: Any) -> BoundsTuple:
     if bounds is None and guess is None:
         raise ValueError('either guess or bounds need to be defined')
     if bounds is None:
@@ -120,7 +133,7 @@ def _check_bounds(bounds, guess, rg):
         guess = rg.uniform(bounds.lb, bounds.ub)
     return np.asarray(bounds.lb), np.asarray(bounds.ub), np.asarray(guess)
 
-def _get_bounds(dim, bounds, guess, rg):
+def _get_bounds(dim: int, bounds: Any, guess: Optional[ArrayLike], rg: Any) -> BoundsTuple:
     if bounds is None:
         if guess is None:
             guess = np.asarray(np.zeros(dim))
@@ -132,7 +145,11 @@ def _get_bounds(dim, bounds, guess, rg):
 class _fitness(object):
     """wrapper around the objective function, scales relative to boundaries."""
      
-    def __init__(self, fun, lower, upper, normalize = None):
+    def __init__(self,
+                 fun: Callable[[ArrayLike], Any],
+                 lower: Optional[np.ndarray],
+                 upper: Optional[np.ndarray],
+                 normalize: Optional[bool] = None) -> None:
         self.fun = fun
         self.evaluation_counter = 0
         self.lower = lower
@@ -144,12 +161,12 @@ class _fitness(object):
             self.scale = 0.5 * (upper - lower)
             self.typx = 0.5 * (upper + lower)
 
-    def values(self, Xs): #enables parallel evaluation
+    def values(self, Xs: ArrayLike) -> np.ndarray: #enables parallel evaluation
         values = self.fun(Xs)
         self.evaluation_counter += len(Xs)
         return np.array(values)
     
-    def closestFeasible(self, X):
+    def closestFeasible(self, X: ArrayLike) -> np.ndarray:
         if self.lower is None:
             return X    
         else:
@@ -158,19 +175,19 @@ class _fitness(object):
             else:
                 return np.clip(X, self.lower, self.upper)
 
-    def encode(self, X):
+    def encode(self, X: ArrayLike) -> np.ndarray:
         if self.normalize:
             return (X - self.typx) / self.scale
         else:
             return X
    
-    def decode(self, X):
+    def decode(self, X: ArrayLike) -> np.ndarray:
         if self.normalize:
             return (X * self.scale) + self.typx
         else:
             return X
          
-def serial(fun):
+def serial(fun: Objective) -> BatchObjective:
     """Convert an objective function for serial execution for cmaes.minimize.
     
     Parameters
@@ -183,13 +200,13 @@ def serial(fun):
         A function mapping a list of lists of float arguments to a list of float values
         by applying the input function in a loop."""
   
-    return lambda xs : [_tryfun(fun, x) for x in xs]
+    return lambda xs: [_tryfun(fun, x) for x in xs]
         
-def _func_serial(fun, num, pid, xs, ys):
+def _func_serial(fun: Objective, num: int, pid: int, xs: ArrayLike, ys: np.ndarray) -> None:
     for i in range(pid, len(xs), num):
         ys[i] = _tryfun(fun, xs[i])
 
-def _tryfun(fun, x):
+def _tryfun(fun: Objective, x: ArrayLike) -> float:
     try:
         fit = fun(x)
         return fit if math.isfinite(fit) else sys.float_info.max
@@ -208,23 +225,23 @@ class parallel(object):
     a resource leak"""
         
     def __init__(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 workers: Optional[int] = mp.cpu_count()):
+                 fun: Objective,
+                 workers: Optional[int] = mp.cpu_count()) -> None:
         self.evaluator = Evaluator(fun)
         self.evaluator.start(workers)
     
     def __call__(self, xs: ArrayLike) -> np.ndarray:
         return eval_parallel(xs, self.evaluator)
 
-    def stop(self):
+    def stop(self) -> None:
         self.evaluator.stop()
 
 class parallel_mo(object):
         
     def __init__(self, 
-                 fun: Callable[[ArrayLike], ArrayLike], 
+                 fun: MultiObjective,
                  nobj: int, 
-                 workers: Optional[int] = mp.cpu_count()):
+                 workers: Optional[int] = mp.cpu_count()) -> None:
         self.nobj = nobj
         self.evaluator = Evaluator(fun)
         self.evaluator.start(workers)
@@ -232,33 +249,33 @@ class parallel_mo(object):
     def __call__(self, xs: ArrayLike) -> np.ndarray:
         return eval_parallel_mo(xs, self.evaluator, self.nobj)
 
-    def stop(self):
+    def stop(self) -> None:
         self.evaluator.stop()
 
 class callback(object):
-    
-    def __init__(self, fun: Callable[[ArrayLike], float]):
+
+    def __init__(self, fun: Callable[[ArrayLike], float]) -> None:
         self.fun = fun
     
     def __call__(self, n: int, x: ArrayLike) -> float:
         try:
             fit = self.fun(np.fromiter((x[i] for i in range(n)), dtype=float))
             return fit if math.isfinite(fit) else sys.float_info.max
-        except Exception as ex:
+        except Exception:
             return sys.float_info.max
         
 class callback_so(object):
     
     def __init__(self, 
-                 fun: Callable[[ArrayLike], float], 
+                 fun: Objective,
                  dim: int, 
-                 is_terminate: Optional[Callable[[ArrayLike, float], bool]] = None):
+                 is_terminate: Optional[Callable[[ArrayLike, ArrayLike], bool]] = None) -> None:
         self.fun = fun
         self.dim = dim
         self.nobj = 1
         self.is_terminate = is_terminate
     
-    def __call__(self, dim, x, y):
+    def __call__(self, dim: int, x: Any, y: Any) -> bool:
         try:
             arrTypeX = ct.c_double*(self.dim)
             xaddr = ct.addressof(x.contents)
@@ -276,16 +293,16 @@ class callback_so(object):
 class callback_mo(object):
     
     def __init__(self, 
-                 fun: Callable[[ArrayLike], ArrayLike], 
+                 fun: MultiObjective,
                  dim: int, 
                  nobj: int, 
-                 is_terminate: Optional[bool] = None):
+                 is_terminate: Optional[Callable[[ArrayLike, ArrayLike], bool]] = None) -> None:
         self.fun = fun
         self.dim = dim
         self.nobj = nobj
         self.is_terminate = is_terminate
     
-    def __call__(self, dim: int, x, y):
+    def __call__(self, dim: int, x: Any, y: Any) -> bool:
         try:
             arrTypeX = ct.c_double*(dim)
             xaddr = ct.addressof(x.contents)
@@ -302,12 +319,12 @@ class callback_mo(object):
 class callback_par(object):
     
     def __init__(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 parfun: Callable[[ArrayLike], ArrayLike]):
+                 fun: Objective,
+                 parfun: Optional[BatchObjective]) -> None:
         self.fun = fun
         self.parfun = parfun
     
-    def __call__(self, popsize, n, xs_, ys_):
+    def __call__(self, popsize: int, n: int, xs_: Any, ys_: Any) -> None:
         try:
             arrType = ct.c_double*(popsize*n)
             addr = ct.addressof(xs_.contents)
@@ -346,4 +363,3 @@ call_back_type = ct.CFUNCTYPE(ct.c_double, ct.c_int, ct.POINTER(ct.c_double))
 
 call_back_par = ct.CFUNCTYPE(None, ct.c_int, ct.c_int, \
                                   ct.POINTER(ct.c_double), ct.POINTER(ct.c_double))  
-

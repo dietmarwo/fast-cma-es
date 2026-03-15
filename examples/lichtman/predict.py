@@ -161,6 +161,7 @@ So for all 10 runs the weighted sum is way below the threshold limit - eps, so w
 '''
 
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 import sys
 from fcmaes import retry
 from fcmaes.optimizer import Bite_cpp

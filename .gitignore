@@ -104,6 +104,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv*/
 env/
 venv/
 ENV/
@@ -127,3 +128,34 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Ruff
+.ruff_cache/
+
+# IDE / editor metadata
+.idea/
+.vscode/
+.settings/
+.project
+.pydevproject
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# CMake / native build files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+install_manifest.txt
+Makefile
+CTestTestfile.cmake
+Testing/
+cmake-build-*/
+
+# Local logs and scratch files
+*.tmp
+*.bak
+*.orig
+*~

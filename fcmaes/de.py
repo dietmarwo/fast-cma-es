@@ -36,6 +36,7 @@
 """
 
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 import math, sys
 from time import time
 import ctypes as ct
@@ -45,10 +46,15 @@ from fcmaes.evaluator import Evaluator, is_debug_active
 import multiprocessing as mp
 from collections import deque
 from loguru import logger
-from typing import Optional, Callable, Tuple, Union
+from typing import Any, Callable, Optional, Tuple
 from numpy.typing import ArrayLike
 
-def minimize(fun: Callable[[ArrayLike], float], 
+Objective = Callable[[ArrayLike], float]
+Modifier = Callable[[np.ndarray], np.ndarray]
+Filter = Any
+NativeResult = Tuple[np.ndarray, float, int, int, int]
+
+def minimize(fun: Objective,
              dim: Optional[int] = None,
              bounds: Optional[Bounds] = None,
              popsize: Optional[int] = 31,
@@ -59,11 +65,11 @@ def minimize(fun: Callable[[ArrayLike], float],
              f: Optional[float] = 0.5,
              cr: Optional[float] = 0.9,
              rg: Optional[Generator] = Generator(PCG64DXSM()),
-             filter = None,
+             filter: Optional[Filter] = None,
              ints: Optional[ArrayLike] = None,
              min_mutate: Optional[float] = 0.1,
              max_mutate: Optional[float] = 0.5,
-             modifier: Optional[Callable] = None) -> OptimizeResult: 
+             modifier: Optional[Modifier] = None) -> OptimizeResult:
     """Minimization of a scalar function of one or more variables using
     Differential Evolution.
      
@@ -137,25 +143,25 @@ def minimize(fun: Callable[[ArrayLike], float],
             x, val, evals, iterations, stop = de.do_optimize(fun, max_evaluations)
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, 
                               success=True)
-    except Exception as ex:
-        return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)  
+    except Exception:
+        return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
 
 class DE(object):
     
     def __init__(self,
-                dim: int,
-                bounds: Bounds,  
-                popsize: Optional[int] = 31, 
-                stop_fitness: Optional[float] = -np.inf, 
-                keep: Optional[int] = 200, 
-                F: Optional[float] = 0.5, 
-                Cr: Optional[float] = 0.9, 
+                dim: Optional[int],
+                bounds: Optional[Bounds],
+                popsize: Optional[int] = 31,
+                stop_fitness: Optional[float] = -np.inf,
+                keep: Optional[int] = 200,
+                F: Optional[float] = 0.5,
+                Cr: Optional[float] = 0.9,
                 rg: Optional[Generator] = Generator(PCG64DXSM()),
-                filter: Optional = None,
+                filter: Optional[Filter] = None,
                 ints: Optional[ArrayLike] = None,
                 min_mutate: Optional[float] = 0.1,
-                max_mutate: Optional[float] = 0.5, 
-                modifier: Optional[Callable] = None):    
+                max_mutate: Optional[float] = 0.5,
+                modifier: Optional[Modifier] = None) -> None:
         
         self.dim, self.lower, self.upper = _check_bounds(bounds, dim)
         if popsize is None:
@@ -188,7 +194,7 @@ class DE(object):
             self.n_evals = mp.RawValue(ct.c_long, 0)
             self.time_0 = time()
      
-    def ask(self) -> np.ndarray:
+    def ask(self) -> list[np.ndarray]:
         """ask for popsize new argument vectors.
             
         Returns
@@ -306,7 +312,7 @@ class DE(object):
 
         return self.stop 
 
-    def _init(self):
+    def _init(self) -> None:
         self.x = np.zeros((self.popsize, self.dim))
         self.x0 = np.zeros((self.popsize, self.dim))
         self.y = np.empty(self.popsize)
@@ -318,7 +324,7 @@ class DE(object):
         self.best_i = 0
         self.pop_iter = np.zeros(self.popsize)
        
-    def apply_fun(self, x, x_old, y_old):
+    def apply_fun(self, x: ArrayLike, x_old: ArrayLike, y_old: float) -> float:
         if self.filter is None:
             self.evals += 1
             return self.fun(x)
@@ -331,7 +337,7 @@ class DE(object):
             else:    
                 return np.inf
        
-    def do_optimize(self, fun, max_evals):
+    def do_optimize(self, fun: Objective, max_evals: int) -> NativeResult:
         self.fun = fun
         self.max_evals = max_evals    
         self.iterations = 0
@@ -368,7 +374,10 @@ class DE(object):
 
         return self.best_x, self.best_value, self.evals, self.iterations, self.stop
 
-    def do_optimize_delayed_update(self, fun, max_evals, workers=mp.cpu_count()):
+    def do_optimize_delayed_update(self,
+                                   fun: Objective,
+                                   max_evals: int,
+                                   workers: int = mp.cpu_count()) -> NativeResult:
         self.fun = fun
         self.max_evals = max_evals    
         evaluator = Evaluator(self.fun)
@@ -404,7 +413,7 @@ class DE(object):
         evaluator.stop()
         return self.best_x, self.best_value, self.evals, self.iterations, self.stop
        
-    def _next_x(self, p):
+    def _next_x(self, p: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         if p == 0:
             self.iterations += 1
             self.Cr = 0.5*self.Cr0 if self.iterations % 2 == 0 else self.Cr0
@@ -427,13 +436,13 @@ class DE(object):
             x = self.modifier(x)
         return xb, xp, x
 
-    def _next_improve(self, xb, x, xi):
+    def _next_improve(self, xb: np.ndarray, x: np.ndarray, xi: np.ndarray) -> np.ndarray:
         x = self._feasible(xb + ((x - xi) * 0.5))
         if not self.modifier is None:
             x = self.modifier(x)
         return x
             
-    def _sample(self):
+    def _sample(self) -> ArrayLike:
         if self.upper is None:
             return self.rg.normal()
         else:
@@ -442,14 +451,14 @@ class DE(object):
                 x = self.modifier(x)
             return x
     
-    def _feasible(self, x):
+    def _feasible(self, x: np.ndarray) -> np.ndarray:
         if self.upper is None:
             return x
         else:
             return np.clip(x, self.lower, self.upper)
     
     # default modifier for integer variables
-    def _modifier(self, x):
+    def _modifier(self, x: np.ndarray) -> np.ndarray:
         x_ints = x[self.ints]
         n_ints = len(self.ints)
         lb = self.lower[self.ints]
@@ -461,7 +470,7 @@ class DE(object):
                            for i, x in enumerate(x_ints)])
         return x   
                         
-def _check_bounds(bounds, dim):
+def _check_bounds(bounds: Optional[Bounds], dim: Optional[int]) -> Tuple[int, Optional[np.ndarray], Optional[np.ndarray]]:
     if bounds is None and dim is None:
         raise ValueError('either dim or bounds need to be defined')
     if bounds is None:

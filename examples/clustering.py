@@ -11,6 +11,7 @@ See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.ad
 
 
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from numba import njit
 import numba
 from fcmaes.optimizer import Bite_cpp, wrapper

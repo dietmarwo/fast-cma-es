@@ -16,6 +16,7 @@ See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc fo
 from qiskit import QuantumCircuit, assemble, Aer, transpile, ClassicalRegister, QuantumRegister
 from qiskit.algorithms.optimizers import COBYLA
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from time import perf_counter
 from fcmaes.optimizer import Bite_cpp, dtime, wrapper
 from scipy.optimize import Bounds

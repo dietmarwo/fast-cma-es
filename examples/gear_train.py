@@ -24,6 +24,7 @@ from fcmaes import retry, advretry
 import math
 import time
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from scipy.optimize import Bounds
 from fcmaes.optimizer import dtime
 

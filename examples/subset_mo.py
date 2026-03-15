@@ -16,6 +16,7 @@ See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc f
 # Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.
 
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from scipy.optimize import Bounds 
 from fcmaes import mode, modecpp
 

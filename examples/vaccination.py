@@ -16,6 +16,7 @@
 
 import matplotlib.pyplot as plt
 import numpy as np    
+np.set_printoptions(legacy='1.25')
 from numpy import linspace, exp
 import pandas as pd    
 from numba import njit, numba

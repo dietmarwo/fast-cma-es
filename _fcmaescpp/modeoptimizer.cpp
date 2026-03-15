@@ -48,6 +48,7 @@
 #include <queue>
 #include <tuple>
 #include "evaluator.h"
+#include "modeoptimizer.hpp"
 
 namespace mode_optimizer {
 
@@ -576,118 +577,147 @@ private:
 };
 }
 
-using namespace mode_optimizer;
+namespace mode_optimizer {
 
-extern "C" {
+class ModeState::Impl {
+public:
+    Impl(long runid, int dim, int nobj, int ncon, int seed,
+         const double *lower, const double *upper, bool *ints, int popsize,
+         double F, double CR, double pro_c, double dis_c, double pro_m,
+         double dis_m, bool nsga_update, double pareto_update,
+         double min_mutate, double max_mutate)
+            : dim_(dim), nobj_(nobj), ncon_(ncon) {
+        vec lower_limit(dim), upper_limit(dim);
+        bool use_ints = false;
+        if (ints != nullptr)
+            ints_.reset(new bool[dim]);
 
-uintptr_t initMODE_C(int64_t  runid, int dim,
-       int nobj, int ncon, int seed, double *lower, double *upper, bool *ints,
-       int popsize, double F, double CR,
-       double pro_c, double dis_c, double pro_m, double dis_m,
-       bool nsga_update, double pareto_update,
-       double min_mutate, double max_mutate) {
+        for (int i = 0; i < dim; i++) {
+            lower_limit[i] = lower == nullptr ? 0.0 : lower[i];
+            upper_limit[i] = upper == nullptr ? 0.0 : upper[i];
+            if (ints != nullptr) {
+                ints_[i] = ints[i];
+                use_ints |= ints[i];
+            }
+        }
 
-    vec lower_limit(dim), upper_limit(dim);
-    bool isInt[dim];
-    bool useIsInt = false;
-    for (int i = 0; i < dim; i++) {
-        lower_limit[i] = lower[i];
-        upper_limit[i] = upper[i];
-        isInt[i] = ints[i];
-        useIsInt |= ints[i];
+        fitfun_ = std::make_unique<Fitness>(
+            noop_callback, noop_callback_par, dim, nobj + ncon,
+            lower_limit, upper_limit
+        );
+        opt_ = std::make_unique<MoDeOptimizer>(
+            runid, fitfun_.get(), dim, nobj, ncon, seed, popsize, F, CR,
+            pro_c, dis_c, pro_m, dis_m, nsga_update, pareto_update,
+            min_mutate, max_mutate, use_ints ? ints_.get() : NULL
+        );
     }
-    Fitness* fitfun = new Fitness(noop_callback, noop_callback_par, dim, nobj + ncon, lower_limit, upper_limit);
-    MoDeOptimizer* opt = new MoDeOptimizer(runid, fitfun, dim, nobj, ncon, seed, popsize,
-            F, CR, pro_c, dis_c, pro_m, dis_m, nsga_update,
-            pareto_update, min_mutate, max_mutate, useIsInt ? isInt : NULL);
-    return (uintptr_t) opt;
+
+    mat ask() {
+        return opt_->ask();
+    }
+
+    int tell(const mat &ys) {
+        return opt_->tell(ys);
+    }
+
+    int tell_switch(const mat &ys, bool nsga_update, double pareto_update) {
+        return opt_->tell(ys, nsga_update, pareto_update);
+    }
+
+    int set_population(const mat &xs, const mat &ys) {
+        int size = xs.cols();
+        if (size != opt_->getPopsize())
+            opt_->setPopsize(size);
+        opt_->setX(xs);
+        return opt_->tell(ys);
+    }
+
+    mat population() {
+        return opt_->getPopulation();
+    }
+
+    int dim() const {
+        return dim_;
+    }
+
+    int nobj() const {
+        return nobj_;
+    }
+
+    int ncon() const {
+        return ncon_;
+    }
+
+    int popsize() const {
+        return opt_->getPopsize();
+    }
+
+    int stop() const {
+        return opt_->getStop();
+    }
+
+private:
+    int dim_;
+    int nobj_;
+    int ncon_;
+    std::unique_ptr<bool[]> ints_;
+    std::unique_ptr<Fitness> fitfun_;
+    std::unique_ptr<MoDeOptimizer> opt_;
+};
+
+ModeState::ModeState(long runid, int dim, int nobj, int ncon, int seed,
+                     const double *lower, const double *upper, bool *ints,
+                     int popsize, double F, double CR, double pro_c,
+                     double dis_c, double pro_m, double dis_m,
+                     bool nsga_update, double pareto_update,
+                     double min_mutate, double max_mutate)
+        : impl_(std::make_unique<Impl>(
+              runid, dim, nobj, ncon, seed, lower, upper, ints, popsize, F,
+              CR, pro_c, dis_c, pro_m, dis_m, nsga_update, pareto_update,
+              min_mutate, max_mutate)) {
 }
 
-void destroyMODE_C(uintptr_t ptr) {
-    MoDeOptimizer* opt = (MoDeOptimizer*)ptr;
-    Fitness* fitfun = opt->getFitfun();
-    delete fitfun;
-    delete opt;
+ModeState::~ModeState() = default;
+
+mat ModeState::ask() {
+    return impl_->ask();
 }
 
-void askMODE_C(uintptr_t ptr, double* xs) {
-    MoDeOptimizer *opt = (MoDeOptimizer*) ptr;
-    int dim = opt->getDim();
-    int popsize = opt->getPopsize();
-    mat pop = opt->ask();
-    for (int p = 0; p < popsize; p++) {
-        vec x = pop.col(p);
-        for (int i = 0; i < dim; i++)
-            xs[p * dim + i] = x[i];
-    }
+int ModeState::tell(const mat &ys) {
+    return impl_->tell(ys);
 }
 
-int tellMODE_C(uintptr_t ptr, double* ys) {
-    MoDeOptimizer *opt = (MoDeOptimizer*) ptr;
-    int popsize = opt->getPopsize();
-    int nobj = opt->getNobj() + opt->getNcon();
-    mat vals(nobj, popsize);
-    for (int p = 0; p < popsize; p++) {
-        vec y(nobj);
-        for (int i = 0; i < nobj; i++)
-            y[i] = ys[p * nobj + i];
-        vals.col(p) = y;
-    }
-    return opt->tell(vals);
+int ModeState::tell_switch(const mat &ys, bool nsga_update,
+                           double pareto_update) {
+    return impl_->tell_switch(ys, nsga_update, pareto_update);
 }
 
-int setPopulationMODE_C(uintptr_t ptr, int size, double* xs, double* ys) {
-    MoDeOptimizer *opt = (MoDeOptimizer*) ptr;
-    int popsize = opt->getPopsize();
-    if (size != popsize) {
-    	opt->setPopsize(size);
-    	popsize = size;
-    }
-    int nobj = opt->getNobj() + opt->getNcon();
-    int dim = opt->getDim();
-    mat pop(dim, popsize);
-    for (int p = 0; p < popsize; p++) {
-        vec x(dim);
-        for (int i = 0; i < dim; i++)
-            x[i] = xs[p * dim + i];
-        pop.col(p) = x;
-    }
-    //std::cout << pop << std::endl;
-    opt->setX(pop);
-    mat vals(nobj, popsize);
-    for (int p = 0; p < popsize; p++) {
-        vec y(nobj);
-        for (int i = 0; i < nobj; i++)
-            y[i] = ys[p * nobj + i];
-        vals.col(p) = y;
-    }
-    return opt->tell(vals);
+int ModeState::set_population(const mat &xs, const mat &ys) {
+    return impl_->set_population(xs, ys);
 }
 
-int tellMODE_switchC(uintptr_t ptr, double* ys, bool nsga_update, double pareto_update) {
-    MoDeOptimizer *opt = (MoDeOptimizer*) ptr;
-    int popsize = opt->getPopsize();
-    int nobj = opt->getNobj() + opt->getNcon();
-    mat vals(nobj, popsize);
-    for (int p = 0; p < popsize; p++) {
-        vec y(nobj);
-        for (int i = 0; i < nobj; i++)
-            y[i] = ys[p * nobj + i];
-        vals.col(p) = y;
-    }
-    return opt->tell(vals, nsga_update, pareto_update);
+mat ModeState::population() {
+    return impl_->population();
 }
 
-int populationMODE_C(uintptr_t ptr, double* xs) {
-    MoDeOptimizer *opt = (MoDeOptimizer*) ptr;
-    int n = opt->getDim();
-    int popsize = opt->getPopsize();
-    mat pop = opt->getPopulation();
-    for (int p = 0; p < popsize; p++) {
-        vec x = pop.col(p);
-        for (int i = 0; i < n; i++)
-            xs[p * n + i] = x[i];
-    }
-    return opt->getStop();
+int ModeState::dim() const {
+    return impl_->dim();
 }
+
+int ModeState::nobj() const {
+    return impl_->nobj();
 }
+
+int ModeState::ncon() const {
+    return impl_->ncon();
+}
+
+int ModeState::popsize() const {
+    return impl_->popsize();
+}
+
+int ModeState::stop() const {
+    return impl_->stop();
+}
+
+}  // namespace mode_optimizer

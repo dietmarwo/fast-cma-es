@@ -12,6 +12,7 @@ from fcmaes.optimizer import de_cma, Bite_cpp, De_cpp, Cma_cpp, Minimize, dtime
 from fcmaes.de import DE
 from fcmaes.cmaes import Cmaes
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from scipy.integrate import ode
 from scipy.optimize import Bounds
 

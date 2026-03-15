@@ -15,6 +15,7 @@ import yfinance as yf
 import finplot as fplt
 import pandas as pd
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import math, time
 from pathlib import Path
 

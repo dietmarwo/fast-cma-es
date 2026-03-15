@@ -30,6 +30,7 @@
 import math
 import pandas as pd
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import sys, math, time
 from pathlib import Path
 from fcmaes import retry, advretry, mode, modecpp, moretry

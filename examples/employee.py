@@ -9,6 +9,7 @@
 
 import json
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from dateutil.parser import parse
 from numba import njit
 import numba

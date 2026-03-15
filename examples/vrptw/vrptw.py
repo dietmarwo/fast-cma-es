@@ -11,6 +11,7 @@
 # Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 import os
 from numba import njit
 from datetime import datetime

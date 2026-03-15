@@ -24,6 +24,7 @@ from tespy.connections import Connection, Bus
 from tespy.tools import logger
 import logging
 import numpy as np
+np.set_printoptions(legacy='1.25')
 
 logger.define_logging(screen_level=logging.ERROR)
 

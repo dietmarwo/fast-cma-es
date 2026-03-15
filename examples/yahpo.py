@@ -29,6 +29,7 @@ from yahpo_gym import benchmark_set
 from yahpo_gym.local_config import LocalConfiguration
 import yahpo_gym.benchmarks.iaml
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import pandas as pd
 from fcmaes import diversifier, mapelites
 from scipy.optimize import Bounds

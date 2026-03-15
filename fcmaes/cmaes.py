@@ -12,6 +12,7 @@ import sys
 import os
 import math
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 from time import time
 import ctypes as ct
 import multiprocessing as mp
@@ -21,27 +22,32 @@ from numpy.random import PCG64DXSM, Generator
 from fcmaes.evaluator import Evaluator, serial, _check_bounds, _fitness, is_debug_active
 
 from loguru import logger
-from typing import Optional, Callable, Union
+from typing import Any, Callable, Optional, Tuple, Union
 from numpy.typing import ArrayLike
 
-os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
+Objective = Callable[[ArrayLike], float]
+BatchObjective = Callable[[ArrayLike], ArrayLike]
+TerminateFn = Callable[[int, int, float], bool]
+NativeResult = Tuple[Any, float, int, int, int]
+SigmaArg = Optional[Union[float, ArrayLike, Callable]]
+RandnFn = Callable[..., np.ndarray]
 
-def minimize(fun: Callable[[ArrayLike], float], 
+def minimize(fun: Objective,
              bounds: Optional[Bounds] = None, 
              x0: Optional[ArrayLike] = None,
-             input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.3,
+             input_sigma: SigmaArg = 0.3,
              popsize: Optional[int] = 31,
              max_evaluations: Optional[int]  = 100000,
              max_iterations: Optional[int]  = 100000,
              workers: Optional[int]  = 1,
              accuracy: Optional[float] = 1.0,
              stop_fitness: Optional[float] = -np.inf,
-             is_terminate: Optional[Callable[[ArrayLike, float], bool]]  = None,
+             is_terminate: Optional[TerminateFn]  = None,
              rg: Optional[Generator] = Generator(PCG64DXSM()),
              runid: Optional[int] = 0,
              normalize: Optional[bool] = True,
              update_gap: Optional[int] = None,
-             serial_fun = True) -> OptimizeResult:
+             serial_fun: bool = True) -> OptimizeResult:
     """Minimization of a scalar function of one or more variables using CMA-ES.
      
     Parameters
@@ -115,20 +121,20 @@ class Cmaes(object):
     
     def __init__(self, bounds: Optional[Bounds] = None,
                         x0: Optional[ArrayLike] = None,
-                        input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.3,
+                        input_sigma: SigmaArg = 0.3,
                         popsize: Optional[int] = 31,
                         max_evaluations: Optional[int] = 100000,
                         max_iterations: Optional[int] = 100000,
                         accuracy: Optional[int] = 1.0,
                         stop_fitness: Optional[float] = -np.inf,
-                        is_terminate: Optional[bool] = None,
+                        is_terminate: Optional[TerminateFn] = None,
                         rg: Optional[Generator] = Generator(PCG64DXSM()), # used if x0 is undefined
-                        randn: Optional[Callable] = np.random.randn, # used for random offspring 
+                        randn: Optional[RandnFn] = np.random.randn, # used for random offspring
                         runid: Optional[int] = 0,
                         normalize: Optional[bool] = True,
                         update_gap: Optional[int] = None,
-                        fun: Optional[Callable[[ArrayLike], float]] = None
-                        ):
+                        fun: Optional[BatchObjective] = None
+                        ) -> None:
                         
     # runid used in is_terminate callback to identify a specific run at different iteration
         self.runid = runid
@@ -254,7 +260,7 @@ class Cmaes(object):
         self.arz = None
         self.fitness = None
 
-    def ask(self) -> np.array:
+    def ask(self) -> np.ndarray:
         """ask for popsize new argument vectors.
             
         Returns
@@ -297,7 +303,7 @@ class Cmaes(object):
         self.arz = None
         return self.stop
     
-    def population(self) -> np.array:
+    def population(self) -> np.ndarray:
         return self.fitfun.decode(self.arx)
 
     def result(self) -> OptimizeResult:
@@ -305,7 +311,7 @@ class Cmaes(object):
                               nfev=self.fitfun.evaluation_counter, 
                               nit=self.iterations, status=self.stop, success=True)
         
-    def ask_one(self) -> np.array:
+    def ask_one(self) -> np.ndarray:
         """ask for one new argument vector.
         
         Returns
@@ -318,7 +324,7 @@ class Cmaes(object):
 
     def tell_one(self,
                  y: float, 
-                 x: np.array) -> int:      
+                 x: np.ndarray) -> int:
         """tell function value for a argument list retrieved by ask_one().
     
         Parameters
@@ -361,13 +367,16 @@ class Cmaes(object):
                 logger.debug(message)
         return self.stop                
            
-    def newArgs(self):
+    def newArgs(self) -> None:
         # generate random offspring
         self.arz = self.randn(self.popsize, self.dim)    
         delta = (self.BD @ self.arz.transpose()) * self.sigma
         self.arx = self.fitfun.closestFeasible(self.xmean + delta.transpose())  
     
-    def do_optimize_delayed_update(self, fun, max_evals=None, workers=mp.cpu_count()):
+    def do_optimize_delayed_update(self,
+                                   fun: Objective,
+                                   max_evals: Optional[int] = None,
+                                   workers: int = mp.cpu_count()) -> NativeResult:
         if not max_evals is None: 
             self.max_evaluations =  max_evals
         evaluator = Evaluator(fun)
@@ -396,7 +405,7 @@ class Cmaes(object):
         evaluator.stop()
         return self.best_x, self.best_value, evals, self.iterations, self.stop 
          
-    def doOptimize(self):
+    def doOptimize(self) -> NativeResult:
         # -------------------- Generation Loop --------------------------------
         while True:
             if self.iterations > self.max_iterations:
@@ -411,7 +420,7 @@ class Cmaes(object):
                 break
         return self.best_x, self.best_value, self.fitfun.evaluation_counter, self.iterations, self.stop 
         
-    def updateCMA(self):
+    def updateCMA(self) -> Optional[int]:
         # Stop for Nan / infinite fitness values 
         if np.isfinite(self.fitness).sum() < self.popsize:
             return -1
@@ -485,7 +494,7 @@ class Cmaes(object):
         self.fitness_history[0] = best_fitness
         return       
     
-    def updateEvolutionPaths(self, zmean, xold):
+    def updateEvolutionPaths(self, zmean: np.ndarray, xold: np.ndarray) -> bool:
         """update evolution paths.
     
         Parameters
@@ -507,7 +516,12 @@ class Cmaes(object):
             self.pc += (self.xmean - xold) * (math.sqrt(self.cc * (2. - self.cc) * self.mueff) / self.sigma)
         return hsig
     
-    def updateCovariance(self, hsig, bestArx, arz, arindex, xold):
+    def updateCovariance(self,
+                         hsig: bool,
+                         bestArx: np.ndarray,
+                         arz: np.ndarray,
+                         arindex: np.ndarray,
+                         xold: np.ndarray) -> float:
         """update covariance matrix.
     
         Parameters
@@ -562,7 +576,7 @@ class Cmaes(object):
             self.C = C - Cneg*negccov
         return negccov
     
-    def updateBD(self, negccov):
+    def updateBD(self, negccov: float) -> None:
         """update B and diagD from covariance matrix C.
     
         Parameters

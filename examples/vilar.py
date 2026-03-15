@@ -15,6 +15,7 @@ See also https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversit
 
 import gillespy2
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from scipy.signal import argrelextrema
 from fcmaes import mode,  moretry
 from scipy.optimize import Bounds

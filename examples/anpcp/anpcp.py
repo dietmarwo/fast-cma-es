@@ -12,6 +12,7 @@
 
 import json, sys
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 from numba import njit
 import numba
 from fcmaes.optimizer import Bite_cpp, wrapper, logger

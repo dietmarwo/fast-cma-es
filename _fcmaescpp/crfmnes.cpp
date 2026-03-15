@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <ctime>
 #include <inttypes.h>
+#include "crfmnesoptimizer.hpp"
 #include "evaluator.h"
 
 using namespace std;
@@ -106,35 +107,35 @@ public:
         }
     }
 
-    mat getPopulation() {
+    mat getPopulation() const {
          return xs_no_sort;
     }
 
-    vec getBestX() {
+    vec getBestX() const {
         return x_best;
     }
 
-    double getBestValue() {
+    double getBestValue() const {
         return f_best;
     }
 
-    double getIterations() {
+    double getIterations() const {
         return iterations;
     }
 
-    int getStop() {
+    int getStop() const {
         return stop;
     }
 
-    Fitness* getFitfun() {
+    Fitness* getFitfun() const {
         return fitfun;
     }
 
-    int getDim() {
+    int getDim() const {
         return dim;
     }
 
-    int getPopsize() {
+    int getPopsize() const {
         return lamb;
     }
 
@@ -357,143 +358,165 @@ private:
     mat x;
 
 };
-}
 
-using namespace crmfnes;
+namespace {
 
-extern "C" {
-void optimizeCRFMNES_C(int64_t  runid, callback_parallel func_par, int dim,
-        double *init, double *lower, double *upper, double sigma,
-        int maxEvals, double stopfitness, int popsize,
-        int64_t  seed, double penalty_coef, bool use_constraint_violation, bool normalize, double* res) {
-
-	vec guess(dim), lower_limit(dim), upper_limit(dim);
-    for (int i = 0; i < dim; i++) // guess is mandatory
-   	 guess[i] = init[i];
+void initialize_problem(
+        int dim, const double *init, const double *lower, const double *upper,
+        bool &normalize, vec &guess, vec &lower_limit, vec &upper_limit) {
+    guess.resize(dim);
+    for (int i = 0; i < dim; i++)
+        guess[i] = init[i];
     if (lower != NULL && upper != NULL) {
-		for (int i = 0; i < dim; i++) {
-	        guess[i] = init[i];
-			lower_limit[i] = lower[i];
-			upper_limit[i] = upper[i];
-		}
+        lower_limit.resize(dim);
+        upper_limit.resize(dim);
+        for (int i = 0; i < dim; i++) {
+            lower_limit[i] = lower[i];
+            upper_limit[i] = upper[i];
+        }
     } else {
         lower_limit.resize(0);
         upper_limit.resize(0);
         normalize = false;
     }
+}
+
+mat decode_population(const Fitness &fitfun, const mat &population) {
+    mat decoded(population.rows(), population.cols());
+    for (int p = 0; p < population.cols(); p++) {
+        decoded.col(p) = fitfun.getClosestFeasible(
+            fitfun.decode(population.col(p))
+        );
+    }
+    return decoded;
+}
+
+CrfmnesResult make_result(const CrfmnesOptimizer &opt, const Fitness &fitfun) {
+    CrfmnesResult result;
+    result.x = opt.getBestX();
+    result.y = opt.getBestValue();
+    result.evaluations = fitfun.evaluations();
+    result.iterations = static_cast<int>(opt.getIterations());
+    result.stop = opt.getStop();
+    return result;
+}
+
+}  // namespace
+
+class CrfmnesState::Impl {
+public:
+    Impl(int64_t runid, int dim, const double *init, const double *lower,
+            const double *upper, double sigma, int popsize, int64_t seed,
+            double penalty_coef, bool use_constraint_violation, bool normalize) {
+        initialize_problem(dim, init, lower, upper, normalize, guess,
+                           lower_limit, upper_limit);
+        fitfun = std::make_unique<Fitness>(
+            noop_callback, noop_callback_par, dim, 1, lower_limit, upper_limit
+        );
+        fitfun->setNormalize(normalize);
+        opt = std::make_unique<CrfmnesOptimizer>(
+            runid, fitfun.get(), dim, guess, sigma, popsize, 0, -DBL_MAX,
+            penalty_coef, use_constraint_violation, seed
+        );
+    }
+
+    mat ask() {
+        return decode_population(*fitfun, opt->ask());
+    }
+
+    int tell(const vec &ys) {
+        vec values = ys;
+        opt->tell(values);
+        evaluations += static_cast<int>(values.size());
+        iterations += 1;
+        return opt->getStop();
+    }
+
+    mat population() const {
+        return decode_population(*fitfun, opt->getPopulation());
+    }
+
+    CrfmnesResult result() const {
+        CrfmnesResult current = make_result(*opt, *fitfun);
+        current.evaluations = evaluations;
+        current.iterations = iterations;
+        return current;
+    }
+
+    int dim() const {
+        return opt->getDim();
+    }
+
+    int popsize() const {
+        return opt->getPopsize();
+    }
+
+private:
+    vec guess;
+    vec lower_limit;
+    vec upper_limit;
+    std::unique_ptr<Fitness> fitfun;
+    std::unique_ptr<CrfmnesOptimizer> opt;
+    int evaluations = 0;
+    int iterations = 0;
+};
+
+CrfmnesResult optimize_crfmnes(
+        int64_t runid, callback_parallel func_par, int dim, const double *init,
+        const double *lower, const double *upper, double sigma, int maxEvals,
+        double stopfitness, int popsize, int64_t seed, double penalty_coef,
+        bool use_constraint_violation, bool normalize) {
+
+    vec guess, lower_limit, upper_limit;
+    initialize_problem(dim, init, lower, upper, normalize, guess, lower_limit,
+                       upper_limit);
 
     Fitness fitfun(noop_callback, func_par, dim, 1, lower_limit, upper_limit);
     fitfun.setNormalize(normalize);
 
-    CrfmnesOptimizer opt(runid, &fitfun, dim, guess, sigma, popsize,
-            maxEvals, stopfitness, penalty_coef, use_constraint_violation, seed);
+    CrfmnesOptimizer opt(runid, &fitfun, dim, guess, sigma, popsize, maxEvals,
+            stopfitness, penalty_coef, use_constraint_violation, seed);
     try {
         opt.doOptimize();
     } catch (std::exception &e) {
-         cout << e.what() << endl;
+        cout << e.what() << endl;
     }
-    vec bestX = opt.getBestX();
-    double bestY = opt.getBestValue();
-    for (int i = 0; i < dim; i++)
-        res[i] = bestX[i];
-    res[dim] = bestY;
-    res[dim + 1] = fitfun.evaluations();
-    res[dim + 2] = opt.getIterations();
-    res[dim + 3] = opt.getStop();
+    return make_result(opt, fitfun);
 }
 
-uintptr_t initCRFMNES_C(int64_t  runid, int dim,
-        double *init, double *lower, double *upper, double sigma,
-        int popsize, int64_t  seed, double penalty_coef, bool use_constraint_violation, bool normalize) {
-
-     vec guess(dim), lower_limit(dim), upper_limit(dim);
-     for (int i = 0; i < dim; i++) // guess is mandatory
-    	 guess[i] = init[i];
-     if (lower != NULL && upper != NULL) {
- 		for (int i = 0; i < dim; i++) {
- 	        guess[i] = init[i];
- 			lower_limit[i] = lower[i];
- 			upper_limit[i] = upper[i];
- 		}
-     } else {
-         lower_limit.resize(0);
-         upper_limit.resize(0);
-         normalize = false;
-     }
-     Fitness* fitfun = new Fitness(noop_callback, noop_callback_par, dim, 1, lower_limit, upper_limit);
-     fitfun->setNormalize(normalize);
-
-     CrfmnesOptimizer* opt = new CrfmnesOptimizer(runid, fitfun, dim, guess, sigma, popsize,
-             0, -DBL_MAX, penalty_coef, use_constraint_violation, seed);
-
-     return (uintptr_t) opt;
+CrfmnesState::CrfmnesState(
+        int64_t runid, int dim, const double *init, const double *lower,
+        const double *upper, double sigma, int popsize, int64_t seed,
+        double penalty_coef, bool use_constraint_violation, bool normalize)
+        : impl_(std::make_unique<Impl>(runid, dim, init, lower, upper, sigma,
+                  popsize, seed, penalty_coef, use_constraint_violation,
+                  normalize)) {
 }
 
-void destroyCRFMNES_C(uintptr_t ptr) {
-    CrfmnesOptimizer* opt = (CrfmnesOptimizer*)ptr;
-    Fitness* fitfun = opt->getFitfun();
-    delete fitfun;
-    delete opt;
+CrfmnesState::~CrfmnesState() = default;
+
+mat CrfmnesState::ask() {
+    return impl_->ask();
 }
 
-void askCRFMNES_C(uintptr_t ptr, double* xs) {
-    CrfmnesOptimizer *opt = (CrfmnesOptimizer*) ptr;
-    int n = opt->getDim();
-    int lamb = opt->getPopsize();
-    mat popX = opt->ask();
-    Fitness* fitfun = opt->getFitfun();
-    for (int p = 0; p < lamb; p++) {
-        vec x = fitfun->getClosestFeasible(fitfun->decode(popX.col(p)));
-        for (int i = 0; i < n; i++)
-            xs[p * n + i] = x[i];
-    }
+int CrfmnesState::tell(const vec &ys) {
+    return impl_->tell(ys);
 }
 
-int tellCRFMNES_C(uintptr_t ptr, double* ys) {//, double* xs) {
-    CrfmnesOptimizer *opt = (CrfmnesOptimizer*) ptr;
-    int lamb = opt->getPopsize();
-//    int dim = opt->getDim();
-//    Fitness* fitfun = opt->getFitfun();
-//    mat popX(dim, lamb);
-//    for (int p = 0; p < lamb; p++) {
-//        vec x(dim);
-//        for (int i = 0; i < dim; i++)
-//            x[i] = xs[p * dim + i];
-//        popX.col(p) = fitfun->decode(x);
-//    }
-    vec vals(lamb);
-    for (int i = 0; i < lamb; i++)
-        vals[i] = ys[i];
-    opt->tell(vals);
-    return opt->getStop();
+mat CrfmnesState::population() const {
+    return impl_->population();
 }
 
-int populationCRFMNES_C(uintptr_t ptr, double* xs) {
-    CrfmnesOptimizer *opt = (CrfmnesOptimizer*) ptr;
-    int dim = opt->getDim();
-    int lamb = opt->getPopsize();
-    mat popX = opt->getPopulation();
-    for (int p = 0; p < lamb; p++) {
-        vec x = popX.col(p);
-        for (int i = 0; i < dim; i++)
-            x[i] = xs[p * dim + i];
-    }
-    return opt->getStop();
+CrfmnesResult CrfmnesState::result() const {
+    return impl_->result();
 }
 
-int resultCRFMNES_C(uintptr_t ptr, double* res) {
-    CrfmnesOptimizer *opt = (CrfmnesOptimizer*) ptr;
-    vec bestX = opt->getBestX();
-    double bestY = opt->getBestValue();
-    int n = bestX.size();
-    for (int i = 0; i < bestX.size(); i++)
-        res[i] = bestX[i];
-    res[n] = bestY;
-    Fitness* fitfun = opt->getFitfun();
-    res[n + 1] = fitfun->evaluations();
-    res[n + 2] = opt->getIterations();
-    res[n + 3] = opt->getStop();
-    return opt->getStop();
+int CrfmnesState::dim() const {
+    return impl_->dim();
 }
 
+int CrfmnesState::popsize() const {
+    return impl_->popsize();
 }
+
+}  // namespace crmfnes

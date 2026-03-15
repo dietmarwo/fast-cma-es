@@ -1,4 +1,5 @@
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import os
 import json
 import matplotlib.pyplot as plt

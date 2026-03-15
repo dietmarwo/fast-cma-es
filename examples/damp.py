@@ -13,6 +13,7 @@ from fcmaes import retry
 from fcmaes.optimizer import De_cpp, wrapper
 from fcmaes import diversifier, mapelites
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from scipy.integrate import ode
 from scipy.optimize import Bounds
 

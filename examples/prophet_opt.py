@@ -113,6 +113,7 @@
 
 import pandas as pd
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import yfinance as yf
 import sys
 import matplotlib.pyplot as plt

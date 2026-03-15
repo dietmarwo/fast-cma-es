@@ -1,12 +1,13 @@
 
 import math
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 import os
 from scipy.optimize import OptimizeResult, Bounds
 from numpy.random import PCG64DXSM, Generator
 from fcmaes.evaluator import _get_bounds, _fitness, serial, parallel
 
-from typing import Optional, Callable, Union, Dict
+from typing import Any, Callable, Dict, Optional, Union
 from numpy.typing import ArrayLike
 
 """ Numpy based implementation of Fast Moving Natural Evolution Strategy 
@@ -17,9 +18,10 @@ from numpy.typing import ArrayLike
 # evaluation value of the infeasible solution
 INFEASIBLE = np.inf
 
-os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
+Objective = Callable[[ArrayLike], float]
+TerminateFn = Callable[[ArrayLike, float], bool]
 
-def minimize(fun: Callable[[ArrayLike], float],
+def minimize(fun: Objective,
              bounds: Optional[Bounds] = None,
              x0: Optional[ArrayLike] = None,
              input_sigma: Optional[float] = 0.3,
@@ -27,11 +29,11 @@ def minimize(fun: Callable[[ArrayLike], float],
              max_evaluations: Optional[int] = 100000,
              workers: Optional[int] = None,
              stop_fitness: Optional[float] = -np.inf,
-             is_terminate: Optional[Callable[[ArrayLike, float], bool]] = None,
+             is_terminate: Optional[TerminateFn] = None,
              rg: Optional[Generator] = Generator(PCG64DXSM()),
              runid: Optional[int] = 0,
              normalize: Optional[bool] = False,
-             options: Optional[Dict] = {}
+             options: Optional[Dict[str, Any]] = None
              ) -> OptimizeResult:       
     """Minimization of a scalar function of one or more variables using CMA-ES.
      
@@ -88,20 +90,20 @@ def minimize(fun: Callable[[ArrayLike], float],
 class CRFMNES:
     
     def __init__(self, 
-                dim = None, 
+                dim: Optional[int] = None,
                 bounds: Optional[Bounds] = None, 
                 x0: Optional[ArrayLike] = None,
                 input_sigma: Optional[Union[float, ArrayLike, Callable]] = 0.3, 
                 popsize: Optional[int] = 32,  
                 max_evaluations: Optional[int] = 100000, 
                 stop_fitness: Optional[float] = -np.inf, 
-                is_terminate: Optional[bool] = None, 
+                is_terminate: Optional[TerminateFn] = None,
                 runid: Optional[int] = 0, 
                 normalize: Optional[bool] = False,
-                options: Optional[Dict] = {}, 
+                options: Optional[Dict[str, Any]] = None,
                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
                 workers: Optional[int] = None, 
-                fun: Optional[Callable[[ArrayLike], float]] = lambda x: 0): 
+                fun: Optional[Objective] = lambda x: 0) -> None:
         
         if popsize is None:
             popsize = 32         
@@ -178,11 +180,11 @@ class CRFMNES:
         self.f_best = float('inf')
         self.x_best = np.empty(self.dim)
 
-    def __del__(self):
+    def __del__(self) -> None:
         if isinstance(self.fun, parallel):
             self.fun.stop()
         
-    def calc_violations(self, x):
+    def calc_violations(self, x: np.ndarray) -> np.ndarray:
         violations = np.zeros(self.popsize)
         for i in range(self.popsize):
             for j in range(self.dim):
@@ -202,9 +204,10 @@ class CRFMNES:
                 self.tell(y)
                 if self.stop != 0:
                     break 
-            except Exception as ex:
+            except Exception:
                 self.stop = -1
                 break
+        return self.stop
 
     def ask(self) -> np.ndarray:
         d = self.dim
@@ -313,10 +316,10 @@ class CRFMNES:
         return OptimizeResult(x=self.x_best, fun=self.f_best, nfev=self.no_of_evals, 
                               nit=self.g, status=self.stop, success=True)
         
-def exp(a):
+def exp(a: float) -> float:
     return math.exp(min(100, a)) # avoid overflow
 
-def get_h_inv(dim):
+def get_h_inv(dim: int) -> float:
     f = lambda a, b: ((1. + a * a) * exp(a * a / 2.) / 0.24) - 10. - dim
     f_prime = lambda a: (1. / 0.24) * a * exp(a * a / 2.) * (3. + a * a)
     h_inv = 1.0
@@ -324,7 +327,7 @@ def get_h_inv(dim):
         h_inv = h_inv - 0.5 * (f(h_inv, dim) / f_prime(h_inv))
     return h_inv
 
-def sort_indices_by(evals, z):
+def sort_indices_by(evals: ArrayLike, z: np.ndarray) -> np.ndarray:
     lam = len(evals)
     evals = np.array(evals)
     sorted_indices = np.argsort(evals)

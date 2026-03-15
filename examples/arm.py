@@ -33,6 +33,7 @@ and check the resulting plot.
 
 from fcmaes import diversifier, mapelites
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from scipy.optimize import Bounds
 
 import ctypes as ct

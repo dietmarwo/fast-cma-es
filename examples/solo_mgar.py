@@ -31,6 +31,7 @@ from math import cos, pi, sin, sqrt
 from fcmaes import retry, advretry, modecpp, mode
 from fcmaes.optimizer import de_cma, single_objective, de, Bite_cpp
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import matplotlib.pyplot as plt
 from pykep import RAD2DEG, AU
 

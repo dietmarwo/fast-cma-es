@@ -27,6 +27,7 @@ from numpy.random import MT19937, Generator
 from scipy.optimize import OptimizeResult
 import multiprocessing as mp
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import pygmo as pg
 import time
 

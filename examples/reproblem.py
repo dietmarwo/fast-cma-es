@@ -15,6 +15,7 @@ import sys
 import math
 import os
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import ctypes as ct
 from scipy.optimize import Bounds
 

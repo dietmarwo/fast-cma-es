@@ -10,6 +10,7 @@
 import math
 import time
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import multiprocessing as mp
 from scipy.optimize import minimize, differential_evolution, dual_annealing
 from fcmaes import astro, advretry, retry, cmaes, cmaescpp

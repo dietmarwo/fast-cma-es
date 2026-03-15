@@ -42,9 +42,10 @@ In your browser open:
 """
 
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Any
+from typing import Any, Callable, Dict, List, TextIO, Union
 from scipy.optimize import Bounds
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 import multiprocessing as mp
 from multiprocessing import Manager
 import ctypes as ct
@@ -86,7 +87,10 @@ class Trial_value(Base_message):
     values: List[float]
     datetime_complete: str 
 
-def message_to_json(message):
+ObjectiveValue = Union[float, np.ndarray]
+
+
+def message_to_json(message: Base_message) -> str:
     if isinstance(message, Trial_param):
         data = asdict(message)
         data['distribution'] = json.dumps(data['distribution'])
@@ -95,18 +99,23 @@ def message_to_json(message):
         data = asdict(message)
         return json.dumps(data, separators=(',', ':'))
     
-def distribution(low, high):
+def distribution(low: float, high: float) -> Dict[str, Any]:
     distribution_str =  f'{{"name": "FloatDistribution", "attributes": {{"step": null, "low": {low}, "high": {high}, "log": false}}}}'
     return json.loads(distribution_str)
 
-def study_start(worker_id, study_name, dir):
+def study_start(worker_id: str, study_name: str, dir: Union[int, List[int]]) -> str:
     msg = Study_start(
         op_code=0, worker_id=worker_id, study_name=study_name, 
         directions=[dir] if np.isscalar(dir) else dir,
     )
     return message_to_json(msg)
 
-def trial_param(worker_id, trial_id, param_name, param_value_internal, low, high):
+def trial_param(worker_id: str,
+                trial_id: int,
+                param_name: Union[str, int],
+                param_value_internal: float,
+                low: float,
+                high: float) -> str:
     msg = Trial_param(
         op_code=5, worker_id=worker_id, trial_id=trial_id,
         param_name=str(param_name), param_value_internal=param_value_internal,
@@ -114,14 +123,17 @@ def trial_param(worker_id, trial_id, param_name, param_value_internal, low, high
     )
     return message_to_json(msg)
 
-def trial_start(worker_id, study_id):
+def trial_start(worker_id: str, study_id: int) -> str:
     msg = Trial_start(
         op_code=4, worker_id=worker_id, study_id=study_id, 
         datetime_start=datetime.now().isoformat()
     )
     return message_to_json(msg)
 
-def trial_value(worker_id, trial_id, y, state=STATE_COMPLETE):
+def trial_value(worker_id: str,
+                trial_id: int,
+                y: ObjectiveValue,
+                state: int = STATE_COMPLETE) -> str:
     """
     Creates the JSON message for a trial result.
     Args:
@@ -136,24 +148,30 @@ def trial_value(worker_id, trial_id, y, state=STATE_COMPLETE):
     return message_to_json(msg)
 
 class Journal:
-    def __init__(self, filename, study_name, dir):
+    def __init__(self, filename: str, study_name: str, dir: Union[int, List[int]]) -> None:
         self.filename = filename
-        self.file = open(self.filename, 'w')
+        self.file: TextIO = open(self.filename, 'w')
         self.study("main", study_name, dir)
     
-    def study(self, worker_id, study_name, dir):
+    def study(self, worker_id: str, study_name: str, dir: Union[int, List[int]]) -> None:
         self.file.write(study_start(worker_id, study_name, dir) + '\n')
         self.file.flush()
 
-    def trial(self, worker_id, study_id):
+    def trial(self, worker_id: str, study_id: int) -> None:
         self.file.write(trial_start(worker_id, study_id) + '\n')
         self.file.flush()
     
-    def param(self, worker_id, trial_id, param_name, param_value_internal, low, high):
+    def param(self,
+              worker_id: str,
+              trial_id: int,
+              param_name: Union[str, int],
+              param_value_internal: float,
+              low: float,
+              high: float) -> None:
         self.file.write(trial_param(worker_id, trial_id, param_name, param_value_internal, low, high) + '\n')
         self.file.flush() 
 
-    def value(self, worker_id, trial_id, y, state=STATE_COMPLETE):
+    def value(self, worker_id: str, trial_id: int, y: ObjectiveValue, state: int = STATE_COMPLETE) -> None:
         self.file.write(trial_value(worker_id, trial_id, y, state) + '\n')
         self.file.flush() 
 
@@ -163,7 +181,13 @@ class journal_wrapper(object):
     Automatically marks Inf/NaN results as PRUNED.
     """
 
-    def __init__(self, fit, bounds, jfname, study_name, study_id, batch_size):
+    def __init__(self,
+                 fit: Callable[[np.ndarray], ObjectiveValue],
+                 bounds: Bounds,
+                 jfname: str,
+                 study_name: str,
+                 study_id: int,
+                 batch_size: int) -> None:
         self.fit = fit
         self.bounds = bounds
         self.journal = Journal(jfname, study_name, 1) # Direction 1 = minimize
@@ -174,24 +198,24 @@ class journal_wrapper(object):
         self.mgr = Manager()
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         self.starts = self.mgr.list()  
         self.xs = self.mgr.list()  
         self.ys = self.mgr.list()  
 
-    def store_start(self, worker_id, study_id):
+    def store_start(self, worker_id: str, study_id: int) -> None:
         self.starts.append(trial_start(worker_id, study_id) + '\n')
          
-    def store_x(self, worker_id, trial_id, x):
+    def store_x(self, worker_id: str, trial_id: int, x: np.ndarray) -> None:
         x_str = ''
         for i, xi in enumerate(x):
             x_str += trial_param(worker_id, trial_id, i, xi, self.bounds.lb[i], self.bounds.ub[i]) + '\n'
         self.xs.append(x_str)
 
-    def store_y(self, worker_id, trial_id, y, state):
+    def store_y(self, worker_id: str, trial_id: int, y: ObjectiveValue, state: int) -> None:
         self.ys.append(trial_value(worker_id, trial_id, y, state) + '\n')
     
-    def __call__(self, x):
+    def __call__(self, x: np.ndarray) -> ObjectiveValue:
         try:
             # 1. Acquire lock to manage the FIFO buffer logic
             with self.lock:
@@ -226,4 +250,4 @@ class journal_wrapper(object):
             
         except Exception as ex:
             print(f"Journal Wrapper Error: {str(ex)}")  
-            return sys.float_info.max        
+            return sys.float_info.max

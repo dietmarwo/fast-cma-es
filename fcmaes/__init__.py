@@ -3,7 +3,12 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-__version__ = '1.6.13'
+__version__ = '2.0.0'
+
+try:
+    from . import _native as _fcmaes_native
+except ModuleNotFoundError:
+    _fcmaes_native = None
 
 __all__ = [
     'cmaes',
@@ -30,3 +35,5 @@ __all__ = [
     'testfun',
     'journal',
 ]
+
+del _fcmaes_native

@@ -10,6 +10,7 @@
 # Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 
 import numpy as np # linear algebra
+np.set_printoptions(legacy='1.25')
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import xgboost
 

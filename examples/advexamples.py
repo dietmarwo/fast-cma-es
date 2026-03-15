@@ -14,6 +14,7 @@ from fcmaes import advretry
 
 import sys 
 import numpy as np
+np.set_printoptions(legacy='1.25')
 from loguru import logger
 
 logger.remove()

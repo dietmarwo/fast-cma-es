@@ -21,6 +21,7 @@
 from scipy.integrate import ode
 from scipy.optimize import Bounds
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import multiprocessing as mp
 import ctypes as ct
 import warnings

@@ -8,6 +8,7 @@
 #include <float.h>
 #include <ctime>
 #include <random>
+#include "biteoptimizer.hpp"
 #include "biteopt.h"
 #include "evaluator.h"
 
@@ -19,7 +20,7 @@ class BiteOptimizer: public CBiteOptDeep {
 
 public:
 
-    BiteOptimizer(long runid_, Fitness *fitfun_, int dim_, double *init_,
+    BiteOptimizer(long runid_, Fitness *fitfun_, int dim_, const double *init_,
             int seed_, int M_, int popsize, int stallCriterion_, int maxEvaluations_, double stopfitness_) {
         // runid used to identify a specific run
         runid = runid_;
@@ -118,43 +119,33 @@ private:
     CBiteRnd rnd;
 };
 
-}
+BiteResult optimize_bite(long runid, callback_type func, int dim, int seed,
+        const double *init, const double *lower, const double *upper,
+        int maxEvals, double stopfitness, int M, int popsize,
+        int stall_iterations) {
 
-using namespace biteopt;
-
-extern "C" {
-void optimizeBite_C(long runid, callback_type func, int dim, int seed,
-        double *init, double *lower, double *upper, int maxEvals,
-        double stopfitness, int M, int popsize, int stall_iterations, double* res) {
-
-	vec lower_limit(dim), upper_limit(dim);
+    vec lower_limit(dim), upper_limit(dim);
     if (lower != NULL && upper != NULL) {
-		for (int i = 0; i < dim; i++) {
-			lower_limit[i] = lower[i];
-			upper_limit[i] = upper[i];
-		}
+        for (int i = 0; i < dim; i++) {
+            lower_limit[i] = lower[i];
+            upper_limit[i] = upper[i];
+        }
     } else {
         lower_limit.resize(0);
         upper_limit.resize(0);
     }
 
-    Fitness fitfun(func, noop_callback_par,  dim, 1, lower_limit, upper_limit);
-    BiteOptimizer opt(runid, &fitfun, dim, init, seed, M, popsize, stall_iterations, maxEvals,
-            stopfitness);
+    Fitness fitfun(func, noop_callback_par, dim, 1, lower_limit, upper_limit);
+    BiteOptimizer opt(runid, &fitfun, dim, init, seed, M, popsize,
+            stall_iterations, maxEvals, stopfitness);
+    opt.doOptimize();
 
-    try {
-        opt.doOptimize();
-        vec bestX = opt.getBestX();
-        double bestY = opt.getBestValue();
-        for (int i = 0; i < dim; i++)
-            res[i] = bestX[i];
-        res[dim] = bestY;
-        res[dim + 1] = fitfun.evaluations();
-        res[dim + 2] = opt.getIterations();
-        res[dim + 3] = opt.getStop();
-    } catch (std::exception &e) {
-        cout << e.what() << endl;
-    }
+    BiteResult result;
+    result.x = opt.getBestX();
+    result.y = opt.getBestValue();
+    result.evaluations = fitfun.evaluations();
+    result.iterations = static_cast<int>(opt.getIterations());
+    result.stop = static_cast<int>(opt.getStop());
+    return result;
 }
 }
-

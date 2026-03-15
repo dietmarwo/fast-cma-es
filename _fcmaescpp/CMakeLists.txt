@@ -1,28 +1,8 @@
-#
-# This is a CMake makefile.  You can find the cmake utility and
-# information about it at http://www.cmake.org
-#
-cmake_minimum_required(VERSION 3.10)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11")
-set(CMAKE_CXX_FLAGS_DEBUG          "-g")
-set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE        "-O3 -DNDEBUG -march=native")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
+cmake_minimum_required(VERSION 3.18)
 
-INCLUDE_DIRECTORIES(/home/xxx/ctoc/fcmaes/_fcmaescpp/include)
+project(fcmaes_legacy_entrypoint LANGUAGES NONE)
 
-#set default build type to Release
-if(NOT CMAKE_BUILD_TYPE)
-   set(CMAKE_BUILD_TYPE "Release" CACHE STRING
-      "Choose the type of build, options are: Debug Release
-      RelWithDebInfo MinSizeRel." FORCE)
-endif()
-
-PROJECT(acmalib)
-
-add_library(acmalib SHARED acmaesoptimizer.cpp pgpe.cpp deoptimizer.cpp daoptimizer.cpp modeoptimizer.cpp gcldeoptimizer.cpp lcldeoptimizer.cpp ldeoptimizer.cpp biteoptimizer.cpp csmaoptimizer.cpp crfmnes.cpp)
-
-set(CMAKE_INSTALL_LIBDIR ${CMAKE_BINARY_DIR}/../fcmaes/lib)
-
-install(TARGETS acmalib LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+message(FATAL_ERROR
+  "The legacy _fcmaescpp CMake entrypoint has been replaced. "
+  "Configure the project from the repository root instead.")
  

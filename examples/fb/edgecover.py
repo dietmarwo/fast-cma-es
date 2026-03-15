@@ -9,6 +9,7 @@
 
 import networkx as nx
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 from numba import njit
 import numba
 from fcmaes.optimizer import De_cpp, wrapper

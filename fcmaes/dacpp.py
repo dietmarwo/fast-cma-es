@@ -10,18 +10,20 @@
 
 import sys
 import os
-import ctypes as ct
 import numpy as np
+np.set_printoptions(legacy='1.25') 
 from numpy.random import PCG64DXSM, Generator
 from scipy.optimize import OptimizeResult, Bounds
-from fcmaes.evaluator import _check_bounds, call_back_type, callback, libcmalib
+from fcmaes.evaluator import _check_bounds
+from fcmaes._fcmaes_ext import optimize_da
 
-from typing import Optional, Callable, Union
+from typing import Callable, Optional
 from numpy.typing import ArrayLike
 
-os.environ['MKL_DEBUG_CPU_TYPE'] = '5'
+Objective = Callable[[ArrayLike], float]
 
-def minimize(fun: Callable[[ArrayLike], float], 
+
+def minimize(fun: Objective,
              bounds: Optional[Bounds] = None, 
              x0: Optional[ArrayLike] = None,
              max_evaluations: Optional[int] = 100000, 
@@ -29,8 +31,8 @@ def minimize(fun: Callable[[ArrayLike], float],
              rg: Optional[Generator] = Generator(PCG64DXSM()),
              runid: Optional[int] = 0) -> OptimizeResult:   
 
-    """Minimization of a scalar function of one or more variables using a 
-    C++ Dual Annealing implementation called via ctypes.
+    """Minimization of a scalar function of one or more variables using a
+    C++ Dual Annealing implementation exposed through nanobind.
      
     Parameters
     ----------
@@ -65,32 +67,25 @@ def minimize(fun: Callable[[ArrayLike], float],
         ``nit`` the number of iterations,
         ``success`` a Boolean flag indicating if the optimizer exited successfully. """
                 
-    lower, upper, guess = _check_bounds(bounds, x0, rg)   
-    dim = guess.size
-    array_type = ct.c_double * dim   
-    c_callback = call_back_type(callback(fun))
-    seed = int(rg.uniform(0, 2**32 - 1))
-    res = np.empty(dim+4)
-    res_p = res.ctypes.data_as(ct.POINTER(ct.c_double))
+    lower, upper, guess = _check_bounds(bounds, x0, rg)
     try:
-        optimizeDA_C(runid, c_callback, dim, seed,
-                    array_type(*guess), 
-                    None if lower is None else array_type(*lower), 
-                    None if upper is None else array_type(*upper), 
-                    max_evaluations, use_local_search, res_p)
-        x = res[:dim]
-        val = res[dim]
-        evals = int(res[dim+1])
-        iterations = int(res[dim+2])
-        stop = int(res[dim+3])
+        guess = np.ascontiguousarray(guess, dtype=np.float64)
+        if lower is None:
+            lower = np.empty(0, dtype=np.float64)
+            upper = np.empty(0, dtype=np.float64)
+        else:
+            lower = np.ascontiguousarray(lower, dtype=np.float64)
+            upper = np.ascontiguousarray(upper, dtype=np.float64)
+        x, val, evals, iterations, stop = optimize_da(
+            fun,
+            guess,
+            lower,
+            upper,
+            seed=int(rg.uniform(0, 2**32 - 1)),
+            runid=runid,
+            max_evaluations=max_evaluations,
+            use_local_search=use_local_search,
+        )
         return OptimizeResult(x=x, fun=val, nfev=evals, nit=iterations, status=stop, success=True)
-    except Exception as ex:
+    except Exception:
         return OptimizeResult(x=None, fun=sys.float_info.max, nfev=0, nit=0, status=-1, success=False)
-
-if not libcmalib is None: 
-          
-    optimizeDA_C = libcmalib.optimizeDA_C
-    optimizeDA_C.argtypes = [ct.c_long, call_back_type, ct.c_int, ct.c_int, \
-                ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), ct.POINTER(ct.c_double), \
-                ct.c_int, ct.c_bool, ct.POINTER(ct.c_double)]
-

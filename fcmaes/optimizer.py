@@ -4,6 +4,7 @@
 # LICENSE file in the root directory.
 
 import numpy as np
+np.set_printoptions(legacy='1.25')
 import traceback
 from numpy.random import PCG64DXSM, Generator
 from scipy.optimize import Bounds, minimize, shgo, differential_evolution, dual_annealing, basinhopping
@@ -11,45 +12,47 @@ import sys
 import time
 from loguru import logger
 import ctypes as ct
-import multiprocessing as mp 
+import multiprocessing as mp
 from fcmaes.evaluator import serial, parallel
 from fcmaes import crfmnes, crfmnescpp, pgpecpp, cmaes, de, cmaescpp, decpp, dacpp, bitecpp
 
-from typing import Optional, Callable, Tuple, Union
+from typing import Any, Optional, Callable, Tuple, Union
 from numpy.typing import ArrayLike
 
-def eprint(*args, **kwargs):
+StoreLike = Any
+
+def eprint(*args: Any, **kwargs: Any) -> None:
     """print message to stderr."""
     print(*args, file=sys.stderr, **kwargs)
 
-def scale(lower: ArrayLike, 
+def scale(lower: ArrayLike,
           upper: ArrayLike) -> np.ndarray:
     """scaling = 0.5 * difference of the bounds."""
     return 0.5 * (np.asarray(upper) - np.asarray(lower))
 
-def typical(lower: ArrayLike, 
+def typical(lower: ArrayLike,
             upper: ArrayLike) -> np.ndarray:
     """typical value = mean of the bounds."""
     return 0.5 * (np.asarray(upper) + np.asarray(lower))
 
-def fitting(guess: ArrayLike, 
-            lower: ArrayLike, 
+def fitting(guess: ArrayLike,
+            lower: ArrayLike,
             upper: ArrayLike) -> np.ndarray:
     """fit a guess into the bounds."""
     return np.clip(np.asarray(guess), np.asarray(upper), np.asarray(lower))
 
-def is_terminate(runid: int, 
-                 iterations: int, 
+def is_terminate(runid: int,
+                 iterations: int,
                  val: float) -> bool:
     """dummy is_terminate call back."""
-    return False    
+    return False
 
 def random_x(lower: ArrayLike, upper: ArrayLike) -> np.ndarray:
     """feasible random value uniformly distributed inside the bounds."""
     lower = np.asarray(lower)
     upper = np.asarray(upper)
     return lower + np.multiply(upper - lower, np.random.rand(lower.size))
-    
+
 def dtime(t0: float) -> float:
     """time since t0."""
     return round(time.perf_counter() - t0, 2)
@@ -57,11 +60,11 @@ def dtime(t0: float) -> float:
 class wrapper(object):
     """Fitness function wrapper for use with parallel retry."""
 
-    def __init__(self, 
-                 fit: Callable[[ArrayLike], float]):
+    def __init__(self,
+                 fit: Callable[[ArrayLike], float]) -> None:
         self.fit = fit
-        self.evals = mp.RawValue(ct.c_int, 0) 
-        self.best_y = mp.RawValue(ct.c_double, np.inf) 
+        self.evals = mp.RawValue(ct.c_int, 0)
+        self.best_y = mp.RawValue(ct.c_double, np.inf)
         self.t0 = time.perf_counter()
 
     def __call__(self, x: ArrayLike) -> float:
@@ -71,51 +74,51 @@ class wrapper(object):
             y0 = y if np.isscalar(y) else sum(y)
             if y0 < self.best_y.value:
                 self.best_y.value = y0
-                logger.info( 
-                    f'{dtime(self.t0)} {self.evals.value} {self.evals.value/(1E-9 + dtime(self.t0)):.1f} {self.best_y.value} {list(x)}'      
+                logger.info(
+                    f'{dtime(self.t0)} {self.evals.value} {self.evals.value/(1E-9 + dtime(self.t0)):.1f} {self.best_y.value} {list(x)}'
                 )
             return y
         except Exception as ex:
             print(f"{type(ex).__name__}: {ex}")
             traceback.print_exc()
-            return sys.float_info.max  
-    
+            return sys.float_info.max
+
 class Optimizer(object):
     """Provides different optimization methods for use with parallel retry."""
-    
-    def __init__(self, 
-                 max_evaluations: Optional[int] = 50000, 
-                 name: Optional[str] = ''):
-        self.max_evaluations = max_evaluations  
-        self.name = name  
 
-    def max_eval_num(self, store=None):
+    def __init__(self,
+                 max_evaluations: Optional[int] = 50000,
+                 name: Optional[str] = '') -> None:
+        self.max_evaluations = max_evaluations
+        self.name = name
+
+    def max_eval_num(self, store: StoreLike = None) -> int:
         return self.max_evaluations if store is None else \
                 store.eval_num(self.max_evaluations)
-                
-    def get_count_runs(self, store=None):
+
+    def get_count_runs(self, store: StoreLike = None) -> int:
         return 0 if store is None else \
                 store.get_count_runs()
-                        
+
 class Sequence(Optimizer):
     """Sequence of optimizers."""
-    
-    def __init__(self, optimizers: ArrayLike):
+
+    def __init__(self, optimizers: ArrayLike) -> None:
         Optimizer.__init__(self)
-        self.optimizers = optimizers 
-        self.max_evaluations = 0 
+        self.optimizers = optimizers
+        self.max_evaluations = 0
         for optimizer in self.optimizers:
             self.name += optimizer.name + ' -> '
             self.max_evaluations += optimizer.max_evaluations
         self.name = self.name[:-4]
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Bounds, 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[Union[float, ArrayLike, Callable]] = None, 
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store=None) -> Tuple[np.ndarray, float, int]:
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Bounds,
+                 guess: Optional[ArrayLike] = None,
+                 sdevs: Optional[Union[float, ArrayLike, Callable]] = None,
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
         evals = 0
         y = np.inf
         for optimizer in self.optimizers:
@@ -126,36 +129,36 @@ class Sequence(Optimizer):
             guess = x
             evals += ret[2]
         return x, y, evals
-                  
+
 class Choice(Optimizer):
     """Random choice of optimizers."""
-    
-    def __init__(self, optimizers: ArrayLike):
+
+    def __init__(self, optimizers: ArrayLike) -> None:
         Optimizer.__init__(self)
-        self.optimizers = optimizers 
-        self.max_evaluations = optimizers[0].max_evaluations 
+        self.optimizers = optimizers
+        self.max_evaluations = optimizers[0].max_evaluations
         for optimizer in self.optimizers:
             self.name += optimizer.name + ' | '
         self.name = self.name[:-3]
-                  
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Bounds, 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[Union[float, ArrayLike, Callable]] = None, 
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store=None) -> Tuple[np.ndarray, float, int]:
-        
+
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Bounds,
+                 guess: Optional[ArrayLike] = None,
+                 sdevs: Optional[Union[float, ArrayLike, Callable]] = None,
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
+
         choice = rg.integers(0, len(self.optimizers))
         opt = self.optimizers[choice]
         return opt.minimize(fun, bounds, guess, sdevs, rg, store)
 
-def de_cma(max_evaluations: Optional[int] = 50000, 
-           popsize: Optional[int] = 31, 
-           stop_fitness: Optional[float] = -np.inf, 
-           de_max_evals: Optional[int] = None, 
-           cma_max_evals: Optional[int] = None, 
-           ints: Optional[ArrayLike] = None, 
+def de_cma(max_evaluations: Optional[int] = 50000,
+           popsize: Optional[int] = 31,
+           stop_fitness: Optional[float] = -np.inf,
+           de_max_evals: Optional[int] = None,
+           cma_max_evals: Optional[int] = None,
+           ints: Optional[ArrayLike] = None,
            workers: Optional[int]  = None) -> Sequence:
     """Sequence differential evolution -> CMA-ES."""
 
@@ -164,18 +167,18 @@ def de_cma(max_evaluations: Optional[int] = 50000,
         de_max_evals = int(de_evals*max_evaluations)
     if cma_max_evals is None:
         cma_max_evals = int((1.0-de_evals)*max_evaluations)
-    opt1 = De_cpp(popsize=popsize, max_evaluations = de_max_evals, 
+    opt1 = De_cpp(popsize=popsize, max_evaluations = de_max_evals,
                   stop_fitness = stop_fitness, ints=ints, workers = workers)
-    opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
+    opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals,
                    stop_fitness = stop_fitness, workers = workers)
     return Sequence([opt1, opt2])
 
-def de_cma_py(max_evaluations: Optional[int] = 50000, 
-           popsize: Optional[int] = 31, 
-           stop_fitness: Optional[float] = -np.inf, 
-           de_max_evals: Optional[int] = None, 
-           cma_max_evals: Optional[int] = None, 
-           ints: Optional[ArrayLike] = None, 
+def de_cma_py(max_evaluations: Optional[int] = 50000,
+           popsize: Optional[int] = 31,
+           stop_fitness: Optional[float] = -np.inf,
+           de_max_evals: Optional[int] = None,
+           cma_max_evals: Optional[int] = None,
+           ints: Optional[ArrayLike] = None,
            workers: Optional[int]  = None) -> Sequence:
     """Sequence differential evolution -> CMA-ES in python."""
 
@@ -184,16 +187,16 @@ def de_cma_py(max_evaluations: Optional[int] = 50000,
         de_max_evals = int(de_evals*max_evaluations)
     if cma_max_evals is None:
         cma_max_evals = int((1.0-de_evals)*max_evaluations)
-    opt1 = De_python(popsize=popsize, max_evaluations = de_max_evals, 
+    opt1 = De_python(popsize=popsize, max_evaluations = de_max_evals,
                      stop_fitness = stop_fitness, ints=ints, workers = workers)
-    opt2 = Cma_python(popsize=popsize, max_evaluations = cma_max_evals, 
+    opt2 = Cma_python(popsize=popsize, max_evaluations = cma_max_evals,
                    stop_fitness = stop_fitness, workers = workers)
     return Sequence([opt1, opt2])
 
-def da_cma(max_evaluations: Optional[int] = 50000, 
-           popsize: Optional[int] = 31, 
-           da_max_evals: Optional[int] = None, 
-           cma_max_evals: Optional[int] = None, 
+def da_cma(max_evaluations: Optional[int] = 50000,
+           popsize: Optional[int] = 31,
+           da_max_evals: Optional[int] = None,
+           cma_max_evals: Optional[int] = None,
            stop_fitness: Optional[float] = -np.inf) -> Sequence:
     """Sequence dual annealing -> CMA-ES."""
 
@@ -203,16 +206,16 @@ def da_cma(max_evaluations: Optional[int] = 50000,
     if cma_max_evals is None:
         cma_max_evals = int((1.0-da_evals)*max_evaluations)
     opt1 = Da_cpp(max_evaluations = da_max_evals, stop_fitness = stop_fitness)
-    opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
+    opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals,
                    stop_fitness = stop_fitness)
     return Sequence([opt1, opt2])
 
-def de_crfmnes(max_evaluations: Optional[int] = 50000, 
-               popsize: Optional[int] = 32, 
-               stop_fitness: Optional[float] = -np.inf, 
-               de_max_evals: Optional[int] = None, 
-               crfm_max_evals: Optional[int] = None, 
-               ints: Optional[ArrayLike] = None, 
+def de_crfmnes(max_evaluations: Optional[int] = 50000,
+               popsize: Optional[int] = 32,
+               stop_fitness: Optional[float] = -np.inf,
+               de_max_evals: Optional[int] = None,
+               crfm_max_evals: Optional[int] = None,
+               ints: Optional[ArrayLike] = None,
                workers: Optional[int]  = None) -> Sequence:
     """Sequence differential evolution -> CRFMNES."""
 
@@ -221,17 +224,17 @@ def de_crfmnes(max_evaluations: Optional[int] = 50000,
         de_max_evals = int(de_evals*max_evaluations)
     if crfm_max_evals is None:
         crfm_max_evals = int((1.0-de_evals)*max_evaluations)
-    opt1 = De_cpp(popsize=popsize, max_evaluations = de_max_evals, 
+    opt1 = De_cpp(popsize=popsize, max_evaluations = de_max_evals,
                   stop_fitness = stop_fitness, ints=ints, workers = workers)
-    opt2 = Crfmnes_cpp(popsize=popsize, max_evaluations = crfm_max_evals, 
+    opt2 = Crfmnes_cpp(popsize=popsize, max_evaluations = crfm_max_evals,
                    stop_fitness = stop_fitness, workers = workers)
     return Sequence([opt1, opt2])
 
-def crfmnes_bite(max_evaluations: Optional[int] = 50000, 
-                popsize: Optional[int] = 31, 
-                stop_fitness: Optional[float] = -np.inf, 
-                crfm_max_evals: Optional[int] = None, 
-                bite_max_evals: Optional[int] = None, 
+def crfmnes_bite(max_evaluations: Optional[int] = 50000,
+                popsize: Optional[int] = 31,
+                stop_fitness: Optional[float] = -np.inf,
+                crfm_max_evals: Optional[int] = None,
+                bite_max_evals: Optional[int] = None,
                 M: Optional[int] = 1) -> Sequence:
     """Sequence CRFMNES -> Bite."""
 
@@ -240,17 +243,17 @@ def crfmnes_bite(max_evaluations: Optional[int] = 50000,
         crfm_max_evals = int(crfmnes_evals*max_evaluations)
     if bite_max_evals is None:
         bite_max_evals = int((1.0-crfmnes_evals)*max_evaluations)
-    opt1 = Crfmnes_cpp(popsize=popsize, max_evaluations = crfm_max_evals, 
+    opt1 = Crfmnes_cpp(popsize=popsize, max_evaluations = crfm_max_evals,
                   stop_fitness = stop_fitness)
-    opt2 = Bite_cpp(popsize=popsize, max_evaluations = bite_max_evals, 
+    opt2 = Bite_cpp(popsize=popsize, max_evaluations = bite_max_evals,
                    stop_fitness = stop_fitness, M=M)
     return Sequence([opt1, opt2])
 
-def bite_cma(max_evaluations: Optional[int] = 50000, 
-            popsize: Optional[int] = 31, 
+def bite_cma(max_evaluations: Optional[int] = 50000,
+            popsize: Optional[int] = 31,
             stop_fitness: Optional[float] = -np.inf,
-            bite_max_evals: Optional[int] = None,  
-            cma_max_evals: Optional[int] = None, 
+            bite_max_evals: Optional[int] = None,
+            cma_max_evals: Optional[int] = None,
             M: Optional[int] = 1) -> Sequence:
     """Sequence Bite -> CMA-ES."""
 
@@ -259,17 +262,17 @@ def bite_cma(max_evaluations: Optional[int] = 50000,
         bite_max_evals = int(bite_evals*max_evaluations)
     if cma_max_evals is None:
         cma_max_evals = int((1.0-bite_evals)*max_evaluations)
-    opt1 = Bite_cpp(popsize=popsize, max_evaluations = bite_max_evals, 
+    opt1 = Bite_cpp(popsize=popsize, max_evaluations = bite_max_evals,
                    stop_fitness = stop_fitness, M=M)
-    opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
+    opt2 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals,
                   stop_fitness = stop_fitness)
     return Sequence([opt1, opt2])
 
-def cma_bite(max_evaluations: Optional[int] = 50000, 
-            popsize: Optional[int] = 32, 
-            stop_fitness: Optional[float] = -np.inf, 
-            cma_max_evals: Optional[int] = None, 
-            bite_max_evals: Optional[int] = None, 
+def cma_bite(max_evaluations: Optional[int] = 50000,
+            popsize: Optional[int] = 32,
+            stop_fitness: Optional[float] = -np.inf,
+            cma_max_evals: Optional[int] = None,
+            bite_max_evals: Optional[int] = None,
             M: Optional[int] = 1) -> Sequence:
     """Sequence CMA-ES -> Bite."""
 
@@ -278,22 +281,22 @@ def cma_bite(max_evaluations: Optional[int] = 50000,
         cma_max_evals = int(cma_evals*max_evaluations)
     if bite_max_evals is None:
         bite_max_evals = int((1.0-cma_evals)*max_evaluations)
-    opt1 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals, 
+    opt1 = Cma_cpp(popsize=popsize, max_evaluations = cma_max_evals,
                   stop_fitness = stop_fitness, stop_hist = 0)
-    opt2 = Bite_cpp(popsize=popsize, max_evaluations = bite_max_evals, 
+    opt2 = Bite_cpp(popsize=popsize, max_evaluations = bite_max_evals,
                    stop_fitness = stop_fitness, M=M)
     return Sequence([opt1, opt2])
 
 class Crfmnes(Optimizer):
     """CRFMNES Python implementation."""
-    
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = 32, 
-                 guess: Optional[ArrayLike] = None, 
+                 popsize: Optional[int] = 32,
+                 guess: Optional[ArrayLike] = None,
                  stop_fitness: Optional[float] = -np.inf,
-                 sdevs: Optional[float] = None, 
-                 workers: Optional[int] = None):        
+                 sdevs: Optional[float] = None,
+                 workers: Optional[int] = None) -> None:
 
         Optimizer.__init__(self, max_evaluations, 'crfmnes')
         self.popsize = popsize
@@ -302,35 +305,35 @@ class Crfmnes(Optimizer):
         self.sdevs = sdevs
         self.workers = workers
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[float] = 0.3, 
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
+                 sdevs: Optional[float] = 0.3,
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
 
-        ret = crfmnes.minimize(fun, bounds, 
+        ret = crfmnes.minimize(fun, bounds,
                 self.guess if not self.guess is None else guess,
                 input_sigma = self.sdevs if not self.sdevs is None else sdevs,
-                max_evaluations = self.max_eval_num(store), 
-                popsize=self.popsize, 
+                max_evaluations = self.max_eval_num(store),
+                popsize=self.popsize,
                 stop_fitness = self.stop_fitness,
                 rg=rg, runid=self.get_count_runs(store),
-                workers = self.workers)     
+                workers = self.workers)
         return ret.x, ret.fun, ret.nfev
 
 class Crfmnes_cpp(Optimizer):
     """CRFMNES C++ implementation."""
-    
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = 32, 
-                 guess: Optional[ArrayLike] = None, 
+                 popsize: Optional[int] = 32,
+                 guess: Optional[ArrayLike] = None,
                  stop_fitness: Optional[float] = -np.inf,
-                 sdevs: Optional[float] = None, 
-                 workers: Optional[int] = None):        
-       
+                 sdevs: Optional[float] = None,
+                 workers: Optional[int] = None) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'crfmnes cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -338,35 +341,35 @@ class Crfmnes_cpp(Optimizer):
         self.sdevs = sdevs
         self.workers = workers
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[float] = 0.3, 
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
+                 sdevs: Optional[float] = 0.3,
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
 
-        ret = crfmnescpp.minimize(fun, bounds, 
+        ret = crfmnescpp.minimize(fun, bounds,
                 self.guess if not self.guess is None else guess,
                 input_sigma = self.sdevs if not self.sdevs is None else sdevs,
-                max_evaluations = self.max_eval_num(store), 
-                popsize=self.popsize, 
+                max_evaluations = self.max_eval_num(store),
+                popsize=self.popsize,
                 stop_fitness = self.stop_fitness,
-                rg=rg, runid=self.get_count_runs(store), 
-                workers = self.workers)     
+                rg=rg, runid=self.get_count_runs(store),
+                workers = self.workers)
         return ret.x, ret.fun, ret.nfev
 
 class Pgpe_cpp(Optimizer):
     """PGPE C++ implementation."""
-    
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 500000,
-                 popsize: Optional[int] = 640, 
-                 guess: Optional[ArrayLike] = None, 
+                 popsize: Optional[int] = 640,
+                 guess: Optional[ArrayLike] = None,
                  stop_fitness: Optional[float] = -np.inf,
-                 sdevs: Optional[float] = None, 
-                 workers: Optional[int] = None):
-               
+                 sdevs: Optional[float] = None,
+                 workers: Optional[int] = None) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'pgpe cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -374,38 +377,38 @@ class Pgpe_cpp(Optimizer):
         self.sdevs = sdevs
         self.workers = workers
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[float] = 0.1, 
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
+                 sdevs: Optional[float] = 0.1,
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
 
-        ret = pgpecpp.minimize(fun, bounds, 
+        ret = pgpecpp.minimize(fun, bounds,
                 self.guess if not self.guess is None else guess,
                 input_sigma = self.sdevs if not self.sdevs is None else sdevs,
-                max_evaluations = self.max_eval_num(store), 
-                popsize=self.popsize, 
+                max_evaluations = self.max_eval_num(store),
+                popsize=self.popsize,
                 stop_fitness = self.stop_fitness,
-                rg=rg, runid=self.get_count_runs(store), 
-                workers = self.workers)     
+                rg=rg, runid=self.get_count_runs(store),
+                workers = self.workers)
         return ret.x, ret.fun, ret.nfev
 
 class Cma_python(Optimizer):
     """CMA_ES Python implementation."""
-    
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = 31, 
-                 guess: Optional[ArrayLike] = None, 
+                 popsize: Optional[int] = 31,
+                 guess: Optional[ArrayLike] = None,
                  stop_fitness: Optional[float] = -np.inf,
-                 sdevs: Optional[float] = None, 
-                 workers: Optional[int] = None,        
-                 update_gap: Optional[int] = None, 
+                 sdevs: Optional[float] = None,
+                 workers: Optional[int] = None,
+                 update_gap: Optional[int] = None,
                  normalize: Optional[bool] = True,
-                 serial_fun: Optional[bool] = True):  
-           
+                 serial_fun: Optional[bool] = True) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'cma py')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -416,42 +419,42 @@ class Cma_python(Optimizer):
         self.workers = workers
         self.serial_fun = serial_fun
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[Union[float, ArrayLike, Callable]] = 0.1, 
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
+                 sdevs: Optional[Union[float, ArrayLike, Callable]] = 0.1,
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
 
-        ret = cmaes.minimize(fun, bounds, 
+        ret = cmaes.minimize(fun, bounds,
                 self.guess if not self.guess is None else guess,
                 input_sigma= self.sdevs if not self.sdevs is None else sdevs,
-                max_evaluations = self.max_eval_num(store), 
-                popsize=self.popsize, 
+                max_evaluations = self.max_eval_num(store),
+                popsize=self.popsize,
                 stop_fitness = self.stop_fitness,
                 rg=rg, runid=self.get_count_runs(store),
                 normalize = self.normalize,
                 update_gap = self.update_gap,
                 workers = self.workers,
-                serial_fun = self.serial_fun)     
+                serial_fun = self.serial_fun)
         return ret.x, ret.fun, ret.nfev
 
 class Cma_cpp(Optimizer):
     """CMA_ES C++ implementation."""
-   
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = 31, 
-                 guess: Optional[ArrayLike] = None, 
+                 popsize: Optional[int] = 31,
+                 guess: Optional[ArrayLike] = None,
                  stop_fitness: Optional[float] = -np.inf,
-                 sdevs: Optional[float] = None, 
-                 workers: Optional[int] = None,        
-                 update_gap: Optional[int] = None, 
-                 normalize: Optional[bool] = True,                 
-                 delayed_update: Optional[bool] = True,   
-                 stop_hist: Optional[int] = -1): 
-          
+                 sdevs: Optional[float] = None,
+                 workers: Optional[int] = None,
+                 update_gap: Optional[int] = None,
+                 normalize: Optional[bool] = True,
+                 delayed_update: Optional[bool] = True,
+                 stop_hist: Optional[int] = -1) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'cma cpp')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -463,14 +466,14 @@ class Cma_cpp(Optimizer):
         self.normalize = normalize
         self.workers = workers
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[Union[float, ArrayLike, Callable]] = 0.1, 
-                 rg=Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
-        
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
+                 sdevs: Optional[Union[float, ArrayLike, Callable]] = 0.1,
+                 rg: Generator = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
+
         ret = cmaescpp.minimize(fun, bounds,
                 self.guess if not self.guess is None else guess,
                 input_sigma = self.sdevs if not self.sdevs is None else sdevs,
@@ -482,46 +485,46 @@ class Cma_cpp(Optimizer):
 		        update_gap = self.update_gap,
                 normalize = self.normalize,
                 delayed_update = self.delayed_update,
-                workers = self.workers)   
+                workers = self.workers)
         return ret.x, ret.fun, ret.nfev
 
 class Cma_orig(Optimizer):
     """CMA_ES original implementation."""
-   
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = 31, 
-                 guess: Optional[ArrayLike] = None, 
+                 popsize: Optional[int] = 31,
+                 guess: Optional[ArrayLike] = None,
                  stop_fitness: Optional[float] = -np.inf,
-                 sdevs: Optional[float] = None): 
-     
+                 sdevs: Optional[float] = None) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'cma orig')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.guess = guess
         self.sdevs = sdevs
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[Union[float, ArrayLike]] = 0.3, 
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
+                 sdevs: Optional[Union[float, ArrayLike]] = 0.3,
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
 
         lower = bounds.lb
         upper = bounds.ub
         guess = self.guess if not self.guess is None else guess
         if guess is None:
             guess = rg.uniform(lower, upper)
-        max_evaluations = self.max_eval_num(store)   
+        max_evaluations = self.max_eval_num(store)
         input_sigma= self.sdevs if not self.sdevs is None else sdevs
         try:
             import cma
         except ImportError as e:
-            raise ImportError("Please install CMA (pip install cma)") 
-        try: 
-            es = cma.CMAEvolutionStrategy(guess, 0.1,  {'bounds': [lower, upper], 
+            raise ImportError("Please install CMA (pip install cma)")
+        try:
+            es = cma.CMAEvolutionStrategy(guess, 0.1,  {'bounds': [lower, upper],
                                                              'typical_x': guess,
                                                              'scaling_of_variables': scale(lower, upper),
                                                              'popsize': self.popsize,
@@ -534,24 +537,24 @@ class Cma_orig(Optimizer):
                 es.tell(X, Y)
                 evals += self.popsize
                 if es.stop():
-                    break 
+                    break
                 if evals > max_evaluations:
-                    break    
+                    break
             return es.result.xbest, es.result.fbest, evals
         except Exception as ex:
             print(ex)
 
 class Cma_lw(Optimizer):
     """CMA lightweight Python implementation. See https://github.com/CyberAgentAILab/cmaes """
-    
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = 31, 
-                 guess: Optional[ArrayLike] = None, 
+                 popsize: Optional[int] = 31,
+                 guess: Optional[ArrayLike] = None,
                  stop_fitness: Optional[float] = -np.inf,
-                 sdevs: Optional[Union[float, ArrayLike]] = None, 
-                 workers: Optional[int] = None):
-      
+                 sdevs: Optional[Union[float, ArrayLike]] = None,
+                 workers: Optional[int] = None) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'cma_lw')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -559,29 +562,29 @@ class Cma_lw(Optimizer):
         self.sdevs = sdevs
         self.workers = workers
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[Union[float, ArrayLike]] = 0.3, 
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
-        
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
+                 sdevs: Optional[Union[float, ArrayLike]] = 0.3,
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
+
         try:
             import cmaes
         except ImportError as e:
-            raise ImportError("Please install cmaes (pip install cmaes)") 
+            raise ImportError("Please install cmaes (pip install cmaes)")
 
         if guess is None:
             guess = self.guess
-        if guess is None:    
+        if guess is None:
             guess = rg.uniform(bounds.lb, bounds.ub)
         bds = np.array([t for t in zip(bounds.lb, bounds.ub)])
         seed = int(rg.uniform(0, 2**32 - 1))
         optimizer = cmaes.CMA(mean=guess, sigma=np.mean(sdevs), bounds=bds, seed=seed, population_size=self.popsize)
         best_y = np.inf
         evals = 0
-        fun = serial(fun) if (self.workers is None or self.workers <= 1) else parallel(fun, self.workers)  
+        fun = serial(fun) if (self.workers is None or self.workers <= 1) else parallel(fun, self.workers)
         while evals < self.max_evaluations and not optimizer.should_stop():
             xs = [optimizer.ask() for _ in range(optimizer.population_size)]
             ys = fun(xs)
@@ -594,24 +597,24 @@ class Cma_lw(Optimizer):
                     best_y = y
                     best_x = x
             optimizer.tell(solutions)
-            evals += optimizer.population_size           
+            evals += optimizer.population_size
         if isinstance(fun, parallel):
             fun.stop()
         return best_x, best_y, evals
 
 class Cma_awm(Optimizer):
     """CMA awm Python implementation. See https://github.com/CyberAgentAILab/cmaes """
-    
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = 31, 
-                 guess: Optional[ArrayLike] = None, 
+                 popsize: Optional[int] = 31,
+                 guess: Optional[ArrayLike] = None,
                  stop_fitness: Optional[float] = -np.inf,
-                 sdevs: Optional[Union[float, ArrayLike]] = None, 
-                 continuous_space = None, 
-                 discrete_space = None, 
-                 workers: Optional[int] = None):
-               
+                 sdevs: Optional[Union[float, ArrayLike]] = None,
+                 continuous_space: Any = None,
+                 discrete_space: Any = None,
+                 workers: Optional[int] = None) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'cma_awm')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -621,30 +624,30 @@ class Cma_awm(Optimizer):
         self.continuous_space = continuous_space
         self.discrete_space = discrete_space
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[Union[float, ArrayLike]] = 0.3, 
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
+                 sdevs: Optional[Union[float, ArrayLike]] = 0.3,
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
         try:
             import cmaes
         except ImportError as e:
-            raise ImportError("Please install cmaes (pip install cmaes)") 
-              
+            raise ImportError("Please install cmaes (pip install cmaes)")
+
         if guess is None:
             guess = self.guess
-        if guess is None:    
+        if guess is None:
             guess = rg.uniform(bounds.lb, bounds.ub)
         seed = int(rg.uniform(0, 2**32 - 1))
-        optimizer = cmaes.CMAwM(mean=guess, sigma=np.mean(sdevs),       
-                         continuous_space=self.continuous_space,  
-                         discrete_space=self.discrete_space, 
+        optimizer = cmaes.CMAwM(mean=guess, sigma=np.mean(sdevs),
+                         continuous_space=self.continuous_space,
+                         discrete_space=self.discrete_space,
                          seed=seed, population_size=self.popsize)
         best_y = np.inf
         evals = 0
-        fun = serial(fun) if (self.workers is None or self.workers <= 1) else parallel(fun, self.workers)  
+        fun = serial(fun) if (self.workers is None or self.workers <= 1) else parallel(fun, self.workers)
         while evals < self.max_evaluations and not optimizer.should_stop():
             asks = [optimizer.ask() for _ in range(optimizer.population_size)]
             ys = fun([x[0] for x in asks])
@@ -657,22 +660,22 @@ class Cma_awm(Optimizer):
                     best_y = y
                     best_x = x
             optimizer.tell(solutions)
-            evals += optimizer.population_size           
+            evals += optimizer.population_size
         if isinstance(fun, parallel):
             fun.stop()
         return best_x, best_y, evals
 
 class Cma_sep(Optimizer):
     """CMA sep Python implementation. See https://github.com/CyberAgentAILab/cmaes """
-    
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = 31, 
-                 guess: Optional[ArrayLike] = None, 
+                 popsize: Optional[int] = 31,
+                 guess: Optional[ArrayLike] = None,
                  stop_fitness: Optional[float] = -np.inf,
-                 sdevs: Optional[Union[float, ArrayLike]] = None, 
-                 workers: Optional[int] = None):
-      
+                 sdevs: Optional[Union[float, ArrayLike]] = None,
+                 workers: Optional[int] = None) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'cma_sep')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -680,28 +683,28 @@ class Cma_sep(Optimizer):
         self.sdevs = sdevs
         self.workers = workers
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
-                 sdevs: Optional[Union[float, ArrayLike]] = 0.3, 
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
+                 sdevs: Optional[Union[float, ArrayLike]] = 0.3,
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
         try:
             import cmaes
         except ImportError as e:
-            raise ImportError("Please install cmaes (pip install cmaes)") 
+            raise ImportError("Please install cmaes (pip install cmaes)")
 
         if guess is None:
             guess = self.guess
-        if guess is None:    
+        if guess is None:
             guess = rg.uniform(bounds.lb, bounds.ub)
         bds = np.array([t for t in zip(bounds.lb, bounds.ub)])
         seed = int(rg.uniform(0, 2**32 - 1))
         optimizer = cmaes.SepCMA(mean=guess, sigma=np.mean(sdevs), bounds=bds, seed=seed, population_size=self.popsize)
         best_y = np.inf
         evals = 0
-        fun = serial(fun) if (self.workers is None or self.workers <= 1) else parallel(fun, self.workers)  
+        fun = serial(fun) if (self.workers is None or self.workers <= 1) else parallel(fun, self.workers)
         while evals < self.max_evaluations and not optimizer.should_stop():
             xs = [optimizer.ask() for _ in range(optimizer.population_size)]
             ys = fun(xs)
@@ -714,25 +717,25 @@ class Cma_sep(Optimizer):
                     best_y = y
                     best_x = x
             optimizer.tell(solutions)
-            evals += optimizer.population_size          
+            evals += optimizer.population_size
         if isinstance(fun, parallel):
             fun.stop()
         return best_x, best_y, evals
-      
+
 class De_cpp(Optimizer):
     """Differential Evolution C++ implementation."""
-    
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = None, 
-                 guess: Optional[ArrayLike] = None, 
+                 popsize: Optional[int] = None,
+                 guess: Optional[ArrayLike] = None,
                  stop_fitness: Optional[float] = -np.inf,
-                 keep: Optional[int] = 200, 
-                 f: Optional[float] = 0.5, 
-                 cr: Optional[float] = 0.9, 
-                 ints: Optional[ArrayLike] = None, 
-                 workers: Optional[int] = None):
-      
+                 keep: Optional[int] = 200,
+                 f: Optional[float] = 0.5,
+                 cr: Optional[float] = 0.9,
+                 ints: Optional[ArrayLike] = None,
+                 workers: Optional[int] = None) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'de cpp')
         self.popsize = popsize
         self.guess = guess
@@ -743,39 +746,39 @@ class De_cpp(Optimizer):
         self.ints = ints
         self.workers = workers
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
                  sdevs: Optional[float] = None,  # ignored
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
 
         if guess is None:
             guess = self.guess
-            
-        ret = decpp.minimize(fun, None, bounds, 
-                popsize=self.popsize, 
-                max_evaluations = self.max_eval_num(store), 
+
+        ret = decpp.minimize(fun, None, bounds,
+                popsize=self.popsize,
+                max_evaluations = self.max_eval_num(store),
                 stop_fitness = self.stop_fitness,
                 keep = self.keep, f = self.f, cr = self.cr, ints=self.ints,
-                rg=rg, runid = self.get_count_runs(store), 
+                rg=rg, runid = self.get_count_runs(store),
                 workers = self.workers, x0 = guess)
         return ret.x, ret.fun, ret.nfev
 
 class De_python(Optimizer):
     """Differential Evolution Python implementation."""
-    
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
                  popsize: Optional[int] = None,
                  stop_fitness: Optional[float] = -np.inf,
-                 keep: Optional[int] = 200, 
-                 f: Optional[float] = 0.5, 
-                 cr: Optional[float] = 0.9, 
-                 ints: Optional[ArrayLike] = None, 
-                 workers: Optional[int] = None):
-             
+                 keep: Optional[int] = 200,
+                 f: Optional[float] = 0.5,
+                 cr: Optional[float] = 0.9,
+                 ints: Optional[ArrayLike] = None,
+                 workers: Optional[int] = None) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'de py')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -785,15 +788,15 @@ class De_python(Optimizer):
         self.ints = ints
         self.workers = workers
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
                  sdevs: Optional[float] = None, # ignored
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
-        
-        ret = de.minimize(fun, None, 
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
+
+        ret = de.minimize(fun, None,
                 bounds, self.popsize, self.max_eval_num(store),
                 stop_fitness = self.stop_fitness,
                 keep = self.keep, f = self.f, cr = self.cr, ints=self.ints,
@@ -802,27 +805,28 @@ class De_python(Optimizer):
 
 class Cma_ask_tell(Optimizer):
     """CMA ask tell implementation."""
-    
-    def __init__(self, max_evaluations=50000,
-                 popsize = 31, guess=None, stop_fitness = -np.inf, sdevs = None):        
+
+    def __init__(self, max_evaluations: int = 50000,
+                 popsize: int = 31, guess: Optional[ArrayLike] = None, stop_fitness: float = -np.inf,
+                 sdevs: Optional[float] = None) -> None:
         Optimizer.__init__(self, max_evaluations, 'cma at')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
         self.guess = guess
         self.sdevs = sdevs
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
                  sdevs: Optional[float] = None, # ignored
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
-        
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
+
         es = cmaes.Cmaes(bounds,
-                popsize = self.popsize, 
-                input_sigma = self.sdevs if not self.sdevs is None else sdevs, 
-                rg = rg)       
+                popsize = self.popsize,
+                input_sigma = self.sdevs if not self.sdevs is None else sdevs,
+                rg = rg)
         iters = self.max_eval_num(store) // self.popsize
         evals = 0
         for j in range(iters):
@@ -831,19 +835,19 @@ class Cma_ask_tell(Optimizer):
             evals += len(xs)
             stop = es.tell(ys)
             if stop != 0:
-                break 
+                break
         return es.best_x, es.best_value, evals
 
 class De_ask_tell(Optimizer):
     """Differential Evolution ask tell implementation."""
-    
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
                  popsize: Optional[int] = None,
                  stop_fitness: Optional[float] = -np.inf,
-                 keep: Optional[int] = 200, 
-                 f: Optional[float] = 0.5, 
-                 cr: Optional[float] = 0.9):        
+                 keep: Optional[int] = 200,
+                 f: Optional[float] = 0.5,
+                 cr: Optional[float] = 0.9) -> None:
         Optimizer.__init__(self, max_evaluations, 'de at')
         self.popsize = popsize
         self.stop_fitness = stop_fitness
@@ -851,17 +855,17 @@ class De_ask_tell(Optimizer):
         self.f = f
         self.cr = cr
 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
                  sdevs: Optional[float] = None, # ignored
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
-        
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
+
         dim = len(bounds.lb)
         popsize = 31 if self.popsize is None else self.popsize
-        es = de.DE(dim, bounds, popsize = popsize, rg = rg, keep = self.keep, F = self.f, Cr = self.cr)  
+        es = de.DE(dim, bounds, popsize = popsize, rg = rg, keep = self.keep, F = self.f, Cr = self.cr)
         es.fun = fun  #remove
         max_evals = self.max_eval_num(store)
         while es.evals < max_evals:
@@ -869,23 +873,23 @@ class De_ask_tell(Optimizer):
             ys = [fun(x) for x in xs]
             stop = es.tell(ys, xs)
             if stop != 0:
-                break 
+                break
         return es.best_x, es.best_value, es.evals
 
 class random_search(Optimizer):
     """Random search."""
-   
-    def __init__(self, max_evaluations=50000):        
+
+    def __init__(self, max_evaluations: int = 50000) -> None:
         Optimizer.__init__(self, max_evaluations, 'random')
- 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
+
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
                  sdevs: Optional[float] = None, # ignored
-                 rg: Optional[Generator] = Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
-        
+                 rg: Optional[Generator] = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
+
         dim, x_min, y_min = len(bounds.lb), None, None
         max_chunk_size = 1 + 4e4 / dim
         evals = self.max_eval_num(store)
@@ -900,89 +904,89 @@ class random_search(Optimizer):
             budget -= chunk
         return x_min, y_min, evals
 
-    
+
 class Da_cpp(Optimizer):
     """Dual Annealing C++ implementation."""
-    
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
                  stop_fitness: Optional[float] = -np.inf,
                  use_local_search: Optional[bool] = True,
-                 guess: Optional[ArrayLike] = None):                 
-                
+                 guess: Optional[ArrayLike] = None) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'da cpp',)
         self.stop_fitness = stop_fitness
         self.use_local_search = use_local_search
         self.guess = guess
- 
-    def minimize(self, 
-                fun: Callable[[ArrayLike], float], 
-                bounds: Optional[Bounds], 
-                guess: Optional[ArrayLike] = None, 
-                sdevs: Optional[float] = None, # ignored
-                rg=Generator(PCG64DXSM()), 
-                store = None) -> Tuple[np.ndarray, float, int]:
 
-        ret = dacpp.minimize(fun, bounds, 
+    def minimize(self,
+                fun: Callable[[ArrayLike], float],
+                bounds: Optional[Bounds],
+                guess: Optional[ArrayLike] = None,
+                sdevs: Optional[float] = None, # ignored
+                rg: Generator = Generator(PCG64DXSM()),
+                store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
+
+        ret = dacpp.minimize(fun, bounds,
                              self.guess if guess is None else guess,
-                            max_evaluations = self.max_eval_num(store), 
+                            max_evaluations = self.max_eval_num(store),
                             use_local_search = self.use_local_search,
                             rg=rg, runid = self.get_count_runs(store))
         return ret.x, ret.fun, ret.nfev
 
 class Bite_cpp(Optimizer):
     """Bite C++ implementation."""
-   
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
-                 guess: Optional[ArrayLike] = None, 
-                 stop_fitness: Optional[float] = -np.inf,                
+                 guess: Optional[ArrayLike] = None,
+                 stop_fitness: Optional[float] = -np.inf,
                  M: Optional[int] = None,
                  popsize: Optional[int] = None,
-                 stall_criterion: Optional[int] = None):
-                
+                 stall_criterion: Optional[int] = None) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'bite cpp')
         self.guess = guess
         self.stop_fitness = stop_fitness
-        self.M = 1 if M is None else M 
-        self.popsize = 0 if popsize is None else popsize 
-        self.stall_criterion = 0 if stall_criterion is None else stall_criterion 
+        self.M = 1 if M is None else M
+        self.popsize = 0 if popsize is None else popsize
+        self.stall_criterion = 0 if stall_criterion is None else stall_criterion
 
     def minimize(self,
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
+                 rg: Generator = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
 
-        ret = bitecpp.minimize(fun, bounds, 
+        ret = bitecpp.minimize(fun, bounds,
                 self.guess if guess is None else guess,
-                max_evaluations = self.max_eval_num(store), 
-                stop_fitness = self.stop_fitness, M = self.M, popsize = self.popsize, 
+                max_evaluations = self.max_eval_num(store),
+                stop_fitness = self.stop_fitness, M = self.M, popsize = self.popsize,
                 stall_criterion = self.stall_criterion,
-                rg=rg, runid = self.get_count_runs(store))     
+                rg=rg, runid = self.get_count_runs(store))
         return ret.x, ret.fun, ret.nfev
-        
+
 class Dual_annealing(Optimizer):
     """scipy dual_annealing."""
- 
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
-                 use_local_search: Optional[bool] = True):
-                
+                 use_local_search: Optional[bool] = True) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'scipy da')
         self.no_local_search = not use_local_search
- 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
+
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:                 
+                 rg: Generator = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
         ret = dual_annealing(fun, bounds=list(zip(bounds.lb, bounds.ub)),
-            maxfun = self.max_eval_num(store), 
+            maxfun = self.max_eval_num(store),
             no_local_search = self.no_local_search,
             x0=guess,
             seed = int(rg.uniform(0, 2**32 - 1)))
@@ -990,34 +994,34 @@ class Dual_annealing(Optimizer):
 
 class Differential_evolution(Optimizer):
     """scipy differential_evolution."""
- 
-    def __init__(self, 
+
+    def __init__(self,
                  max_evaluations: Optional[int] = 50000,
-                 popsize: Optional[int] = 31):
-                
+                 popsize: Optional[int] = 31) -> None:
+
         Optimizer.__init__(self, max_evaluations, 'scipy de')
         self.popsize = popsize
- 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
+
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
-        
-        popsize = self.popsize 
+                 rg: Generator = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
+
+        popsize = self.popsize
         maxiter = int(self.max_eval_num(store) / (popsize * len(bounds.lb)) - 1)
         ret = differential_evolution(fun, bounds=bounds, maxiter=maxiter,
                                       seed = int(rg.uniform(0, 2**32 - 1)))
         return ret.x, ret.fun, ret.nfev
 
 class CheckBounds(object):
-    
-    def __init__(self, bounds: Bounds):
+
+    def __init__(self, bounds: Bounds) -> None:
         self.bounds = bounds
-        
-    def __call__(self, **kwargs):
+
+    def __call__(self, **kwargs: Any) -> bool:
         x = kwargs["x_new"]
         inb =  np.less_equal(x, self.bounds.ub).all() and \
             np.greater_equal(x, self.bounds.lb).all()
@@ -1025,24 +1029,24 @@ class CheckBounds(object):
 
 class Basin_hopping(Optimizer):
     """scipy basin hopping."""
- 
-    def __init__(self, max_evaluations=50000, store=None):        
+
+    def __init__(self, max_evaluations: int = 50000, store: StoreLike = None) -> None:
         Optimizer.__init__(self, max_evaluations, 'scipy basin hopping')
-         
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
+
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
+                 rg: Generator = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
         localevals = 200
-        maxiter = int(self.max_eval_num(store) / localevals)         
+        maxiter = int(self.max_eval_num(store) / localevals)
         if guess is None:
             guess = rg.uniform(bounds.lb, bounds.ub)
-        
-        ret = basinhopping(fun, guess, niter=maxiter, 
-                           minimizer_kwargs={"method": 'SLSQP', 
+
+        ret = basinhopping(fun, guess, niter=maxiter,
+                           minimizer_kwargs={"method": 'SLSQP',
                                              "bounds":bounds},
                            accept_test=CheckBounds(bounds),
                            seed = int(rg.uniform(0, 2**32 - 1)))
@@ -1050,52 +1054,52 @@ class Basin_hopping(Optimizer):
 
 class Minimize(Optimizer):
     """scipy minimize."""
- 
-    def __init__(self, max_evaluations=50000, store=None):        
+
+    def __init__(self, max_evaluations: int = 50000, store: StoreLike = None) -> None:
         Optimizer.__init__(self, max_evaluations, 'scipy minimize')
- 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
+
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
-        
+                 rg: Generator = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
+
         if guess is None:
             guess = rg.uniform(bounds.lb, bounds.ub)
         ret = minimize(fun, x0=guess, bounds=bounds)
         return ret.x, ret.fun, ret.nfev
- 
+
 class Shgo(Optimizer):
     """scipy shgo."""
 
-    def __init__(self, max_evaluations=50000, store=None):        
+    def __init__(self, max_evaluations: int = 50000, store: StoreLike = None) -> None:
         Optimizer.__init__(self, max_evaluations, 'scipy shgo')
- 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
+
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
-        
-        ret = shgo(fun, bounds=list(zip(bounds.lb, bounds.ub)), 
+                 rg: Generator = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
+
+        ret = shgo(fun, bounds=list(zip(bounds.lb, bounds.ub)),
                    options={'maxfev': self.max_eval_num(store)})
         return ret.x, ret.fun, ret.nfev
 
 class single_objective:
     """Utility class to create a fcmaes problem from a pagmo problem."""
-      
-    def __init__(self, pagmo_prob):
+
+    def __init__(self, pagmo_prob: Any) -> None:
         self.pagmo_prob = pagmo_prob
-        self.name = pagmo_prob.get_name() 
+        self.name = pagmo_prob.get_name()
         self.fun = self.fitness
         lb, ub = pagmo_prob.get_bounds()
         self.bounds = Bounds(lb, ub)
-         
-    def fitness(self,X):
+
+    def fitness(self, X: ArrayLike) -> float:
         try:
             return self.pagmo_prob.fitness(X)[0]
         except Exception as ex:
@@ -1104,17 +1108,17 @@ class single_objective:
 class NLopt(Optimizer):
     """NLopt_algo wrapper."""
 
-    def __init__(self, algo, max_evaluations=50000, store=None):        
+    def __init__(self, algo: Any, max_evaluations: int = 50000, store: StoreLike = None) -> None:
         Optimizer.__init__(self, max_evaluations, 'NLopt ' + algo.get_algorithm_name())
         self.algo = algo
- 
-    def minimize(self, 
-                 fun: Callable[[ArrayLike], float], 
-                 bounds: Optional[Bounds], 
-                 guess: Optional[ArrayLike] = None, 
+
+    def minimize(self,
+                 fun: Callable[[ArrayLike], float],
+                 bounds: Optional[Bounds],
+                 guess: Optional[ArrayLike] = None,
                  sdevs: Optional[float] = None, # ignored
-                 rg=Generator(PCG64DXSM()), 
-                 store = None) -> Tuple[np.ndarray, float, int]:
+                 rg: Generator = Generator(PCG64DXSM()),
+                 store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
 
         self.fun = fun
         opt = self.algo
@@ -1128,10 +1132,10 @@ class NLopt(Optimizer):
         x = opt.optimize(guess)
         y = opt.last_optimum_value()
         return x, y, opt.get_numevals()
-    
-    def nlfunc(self, x, _):
+
+    def nlfunc(self, x: ArrayLike, _: Any) -> float:
         try:
             return self.fun(x)
         except Exception as ex:
             return sys.float_info.max
-    
+
