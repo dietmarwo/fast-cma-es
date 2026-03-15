@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Native C++ Backend Documentation for fast-cma-es</title>
+  <style>
+    :root {
+      --bg: #f4f1eb;
+      --panel: #fffdf8;
+      --ink: #222725;
+      --muted: #5a625e;
+      --line: #d8d1c4;
+      --accent: #7a4b2b;
+      --accent-soft: #f4e9df;
+      --code: #f1ece3;
+      --shadow: 0 10px 28px rgba(38, 40, 37, 0.08);
+      --max: 1220px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background: linear-gradient(180deg, #f0ebe3 0%, #f7f3ed 180px, var(--bg) 100%);
+      color: var(--ink);
+      line-height: 1.62;
+    }
+    a { color: var(--accent); }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      background: var(--code);
+      padding: 0.1rem 0.35rem;
+      border-radius: 0.3rem;
+      font-size: 0.92em;
+    }
+    .page {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 2rem 1rem 4rem;
+    }
+    header {
+      padding: 1rem 0 1.5rem;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 1.5rem;
+    }
+    h1, h2, h3 {
+      line-height: 1.2;
+      margin: 0 0 0.75rem;
+      font-weight: 700;
+    }
+    h1 { font-size: clamp(2rem, 4vw, 3rem); }
+    h2 { font-size: clamp(1.35rem, 2.2vw, 1.8rem); margin-top: 2rem; }
+    h3 { font-size: 1.16rem; margin-top: 0; }
+    p { margin: 0 0 0.9rem; }
+    .lede {
+      max-width: 74ch;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    main section,
+    aside,
+    .note,
+    .map {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      box-shadow: var(--shadow);
+    }
+    main section {
+      padding: 1.15rem 1.2rem;
+      margin-bottom: 1rem;
+      scroll-margin-top: 1rem;
+    }
+    aside {
+      position: sticky;
+      top: 1rem;
+      padding: 1rem;
+      max-height: calc(100vh - 2rem);
+      overflow: auto;
+    }
+    .toc-title,
+    .group-title {
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 0 0 0.75rem;
+    }
+    .group-title { margin-top: 1rem; }
+    .toc {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .toc li { margin: 0 0 0.42rem; }
+    .toc a {
+      text-decoration: none;
+      color: var(--ink);
+    }
+    .toc a:hover { color: var(--accent); }
+    .summary {
+      font-size: 1rem;
+      margin-bottom: 0.8rem;
+      color: var(--accent);
+    }
+    ul {
+      margin: 0.6rem 0 0.9rem 1.2rem;
+      padding: 0;
+    }
+    .map,
+    .note {
+      padding: 1rem 1.1rem;
+      margin-bottom: 1rem;
+    }
+    .map-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.8rem;
+      margin-top: 0.8rem;
+    }
+    .map-card {
+      padding: 0.8rem 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: 0.8rem;
+      background: #fcfaf5;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .directory-tag {
+      display: inline-block;
+      margin-bottom: 0.7rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.88rem;
+    }
+    .refs {
+      padding: 0.75rem 0.9rem;
+      border-radius: 0.8rem;
+      background: var(--accent-soft);
+      border: 1px solid #e2cdbd;
+      margin-top: 0.8rem;
+    }
+    .refs strong {
+      display: block;
+      margin-bottom: 0.45rem;
+    }
+    footer {
+      margin-top: 2rem;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 1rem;
+    }
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; max-height: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>Documentation for the Native C++ Backend</h1>
+      <p class="lede">This page covers the top-level native sources in <code>_fcmaescpp/</code> and the top-level headers in <code>_fcmaescpp/include/</code>. The focus is practical. It explains which files hold the compiled optimizers, which ones provide shared plumbing, which ones are bundled upstream code, and how the Python wrappers in <code>fcmaes/*cpp.py</code> reach into the native layer.</p>
+    </header>
+
+    <div class="note">
+      <h2>What Lives In The Native Backend</h2>
+      <p>The backend has two clear layers. The <code>.cpp</code> files are the algorithm-facing entry points. They own the main optimizer classes and export plain C functions such as <code>optimizeDE_C</code> or <code>askACMA_C</code>. The headers in <code>include/</code> hold the shared evaluation layer and a bundle of numerical or optimizer support code.</p>
+      <p>Most users meet this code through <code>ctypes</code>. The Python modules <code>fcmaes/cmaescpp.py</code>, <code>fcmaes/decpp.py</code>, <code>fcmaes/modecpp.py</code>, <code>fcmaes/crfmnescpp.py</code>, <code>fcmaes/pgpecpp.py</code>, <code>fcmaes/bitecpp.py</code>, and <code>fcmaes/dacpp.py</code> load the compiled library and call the exported C functions here.</p>
+    </div>
+
+    <div class="map">
+      <h2>Quick Architecture Notes</h2>
+      <div class="map-grid">
+        <div class="map-card"><strong>Stateful ask/tell solvers</strong><br><span class="meta"><code>acmaesoptimizer.cpp</code>, <code>deoptimizer.cpp</code>, <code>crfmnes.cpp</code>, <code>modeoptimizer.cpp</code>, and <code>pgpe.cpp</code> all expose stateful entry points for Python-side loops.</span></div>
+        <div class="map-card"><strong>One-shot native runners</strong><br><span class="meta"><code>biteoptimizer.cpp</code> and <code>daoptimizer.cpp</code> expose direct optimize calls and keep the C surface small.</span></div>
+        <div class="map-card"><strong>Shared project glue</strong><br><span class="meta"><code>evaluator.h</code> is the common bridge for bounds, normalization, callbacks, evaluation counting, and worker threads.</span></div>
+        <div class="map-card"><strong>Bundled local search</strong><br><span class="meta"><code>LBFGS.h</code> and <code>LBFGSB.h</code> are upstream solver headers. <code>daoptimizer.cpp</code> uses the bound-constrained variant.</span></div>
+        <div class="map-card"><strong>BiteOpt bundle</strong><br><span class="meta">The <code>bite*.h</code>, <code>deopt.h</code>, <code>nmsopt.h</code>, <code>smaesopt.h</code>, and <code>spheropt.h</code> files are a reused optimizer family, not code reimplemented from scratch for this repo.</span></div>
+        <div class="map-card"><strong>Good first reading order</strong><br><span class="meta">Start with <code>evaluator.h</code>, then one algorithm file such as <code>deoptimizer.cpp</code> or <code>acmaesoptimizer.cpp</code>, then the matching Python wrapper.</span></div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <main>
+        <section id="cpp-group">
+          <h2>C++ Sources In <code>_fcmaescpp/</code></h2>
+          <p>The files in this group are the native optimizer implementations and their exported entry points. Most of them define an internal optimizer class plus a small set of <code>extern "C"</code> functions that make the code callable from Python.</p>
+        </section>
+
+        <section id="acmaesoptimizer-cpp">
+          <div class="directory-tag">_fcmaescpp/</div>
+          <h3><code>acmaesoptimizer.cpp</code></h3>
+          <p class="summary">This file is the native active CMA-ES engine, with both one-shot execution and a full ask/tell interface.</p>
+          <p>The heart of the file is <code>AcmaesOptimizer</code>. It owns the population state, covariance adaptation, evolution paths, stopping checks, and the logic for sampling new candidates in Eigen arrays. The code also leans on <code>Fitness</code> from <code>evaluator.h</code> to encode and decode bounded variables, so the optimizer can work in normalized coordinates when the wrapper asks for it.</p>
+          <p>One detail that matters in this repository is the split between direct runs and stateful runs. <code>optimizeACMA_C</code> handles the simple "run until done" path. The <code>initACMA_C</code>, <code>askACMA_C</code>, <code>tellACMA_C</code>, <code>tellXACMA_C</code>, <code>populationACMA_C</code>, and <code>resultACMA_C</code> exports keep an optimizer object alive across calls. That is the surface used by <code>fcmaes/cmaescpp.py</code> for Python-side control loops.</p>
+          <ul>
+            <li>Main pieces: <code>AcmaesOptimizer</code>, population sampling, covariance updates, stop tests, and delayed-update evaluation.</li>
+            <li>How it fits: one of the main single-objective native solvers in the project.</li>
+            <li>Python side: wrapped by <code>fcmaes/cmaescpp.py</code>.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="http://cma.gforge.inria.fr/cmaes.m">http://cma.gforge.inria.fr/cmaes.m</a></li>
+              <li><a href="https://www.researchgate.net/publication/227050324_The_CMA_Evolution_Strategy_A_Comparing_Review">https://www.researchgate.net/publication/227050324_The_CMA_Evolution_Strategy_A_Comparing_Review</a></li>
+              <li><a href="https://github.com/bab2min/EigenRand">https://github.com/bab2min/EigenRand</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="biteoptimizer-cpp">
+          <div class="directory-tag">_fcmaescpp/</div>
+          <h3><code>biteoptimizer.cpp</code></h3>
+          <p class="summary">This is a thin native bridge from the repository callback API to the bundled BiteOpt deep optimizer.</p>
+          <p>The file does not reimplement the BiteOpt method from first principles. Instead, it defines <code>BiteOptimizer</code> as a small subclass of <code>CBiteOptDeep</code>, wires its virtual methods to the local <code>Fitness</code> wrapper, and adds the stop logic that the Python layer expects. That keeps the C++ surface compact while still exposing the deeper BiteOpt stack.</p>
+          <p>Compared with the other optimizer sources, the C interface here is simple. The file exports only <code>optimizeBite_C</code>. There is no separate ask/tell lifecycle. That matches how <code>fcmaes/bitecpp.py</code> uses it today: as a direct single-call optimizer rather than a stateful native object.</p>
+          <ul>
+            <li>Main pieces: <code>BiteOptimizer</code>, <code>CBiteOptDeep</code> inheritance, bound-aware objective callbacks, and stall-based stopping.</li>
+            <li>How it fits: a wrapper around bundled BiteOpt code, not a new optimizer family unique to this repository.</li>
+            <li>Python side: called by <code>fcmaes/bitecpp.py</code>.</li>
+          </ul>
+        </section>
+
+        <section id="crfmnes-cpp">
+          <div class="directory-tag">_fcmaescpp/</div>
+          <h3><code>crfmnes.cpp</code></h3>
+          <p class="summary">This file implements the native CR-FM-NES solver and exposes it in both one-shot and ask/tell form.</p>
+          <p><code>CrfmnesOptimizer</code> holds the mean vector, rank weights, evolution state, and the moving coordinate system used by the algorithm. The implementation works in encoded coordinates and can combine bound handling with either a penalty term or explicit constraint-violation treatment. That makes the file more than a direct paper transcription. It is adapted to the repository's bounded-objective setup.</p>
+          <p>The exported API mirrors the pattern used in other stateful solvers: <code>optimizeCRFMNES_C</code> for direct runs, then <code>init</code>, <code>ask</code>, <code>tell</code>, <code>population</code>, and <code>result</code> functions for repeated control from Python. The matching wrapper is <code>fcmaes/crfmnescpp.py</code>, which uses the parallel callback path because this optimizer naturally evaluates whole populations.</p>
+          <ul>
+            <li>Main pieces: <code>CrfmnesOptimizer</code>, encoded-space sampling, feasibility handling, and ask/tell exports.</li>
+            <li>How it fits: one of the newer native solvers, aimed at high-dimensional search.</li>
+            <li>Python side: wrapped by <code>fcmaes/crfmnescpp.py</code>.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="https://arxiv.org/abs/2201.11422">https://arxiv.org/abs/2201.11422</a></li>
+              <li><a href="https://github.com/nomuramasahir0/crfmnes">https://github.com/nomuramasahir0/crfmnes</a></li>
+              <li><a href="https://github.com/bab2min/EigenRand">https://github.com/bab2min/EigenRand</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="daoptimizer-cpp">
+          <div class="directory-tag">_fcmaescpp/</div>
+          <h3><code>daoptimizer.cpp</code></h3>
+          <p class="summary">This file is a self-contained dual annealing runner with optional LBFGS-B local search.</p>
+          <p>Unlike most of the other optimizer sources, this one does not lean on <code>evaluator.h</code>. It defines its own bounded <code>Fitness</code> wrapper, the local-search adapter <code>LBFGSFunc</code>, the visiting distribution, the energy state, the annealing strategy chain, and the top-level <code>DARunner</code>. The file is close to a compact subsystem.</p>
+          <p>The implementation is adapted to normalized bounded coordinates and always uses the bundled <code>LBFGSBSolver</code> when local search is enabled. The C surface is deliberately small. <code>optimizeDA_C</code> is the only exported entry point, which is enough for <code>fcmaes/dacpp.py</code> because the Python layer treats this method as a one-shot optimizer.</p>
+          <ul>
+            <li>Main pieces: local <code>Fitness</code>, <code>LBFGSFunc</code>, <code>EnergyState</code>, <code>StrategyChain</code>, <code>DARunner</code>, and the top-level <code>minimize</code> helper.</li>
+            <li>How it fits: the native annealing method, separate from the population-based solvers.</li>
+            <li>Python side: wrapped by <code>fcmaes/dacpp.py</code>.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="https://github.com/scipy/scipy/blob/master/scipy/optimize/_dual_annealing.py">https://github.com/scipy/scipy/blob/master/scipy/optimize/_dual_annealing.py</a></li>
+              <li><a href="https://github.com/yixuan/LBFGSpp/tree/master/include">https://github.com/yixuan/LBFGSpp/tree/master/include</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="deoptimizer-cpp">
+          <div class="directory-tag">_fcmaescpp/</div>
+          <h3><code>deoptimizer.cpp</code></h3>
+          <p class="summary">This file is the native differential evolution engine, with delayed-update parallel evaluation and explicit support for discrete variables.</p>
+          <p><code>DeOptimizer</code> owns the population, trial-vector generation, aging logic, and replacement rules. The implementation is not a plain textbook DE loop. It folds in temporal locality, age-based reinitialization, oscillating <code>F</code> and <code>CR</code> behavior, and extra mutation handling for integer-marked coordinates. That combination is what the rest of the repository means when it talks about the C++ DE backend.</p>
+          <p>The file also shows the usual split between direct use and stateful use. <code>optimizeDE_C</code> handles the simple path. The <code>initDE_C</code>, <code>askDE_C</code>, <code>tellDE_C</code>, <code>populationDE_C</code>, and <code>resultDE_C</code> functions keep the optimizer alive for Python-controlled loops. The delayed-update path uses the worker machinery from <code>evaluator.h</code> to keep evaluations moving while the population update waits for results.</p>
+          <ul>
+            <li>Main pieces: <code>DeOptimizer</code>, integer-aware mutation, delayed-update worker path, and ask/tell exports.</li>
+            <li>How it fits: one of the central single-objective native solvers and a baseline for several higher-level workflows.</li>
+            <li>Python side: wrapped by <code>fcmaes/decpp.py</code>; the pure Python <code>fcmaes/de.py</code> points back to this implementation as the native reference.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model">https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model</a></li>
+              <li><a href="https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py">https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="modeoptimizer-cpp">
+          <div class="directory-tag">_fcmaescpp/</div>
+          <h3><code>modeoptimizer.cpp</code></h3>
+          <p class="summary">This file is the native multi-objective DE core, with a switch that can swap between DE-style and NSGA-like survivor updates.</p>
+          <p><code>MoDeOptimizer</code> extends the DE-style population machinery into the multi-objective case. It stores objective and constraint values together, computes Pareto levels, ranks feasible and infeasible solutions, and uses crowding-style information when it needs a total order. The file also keeps the discrete-variable treatment from the single-objective DE backend, which matters for mixed or combinatorial design problems.</p>
+          <p>The C interface is stateful by design. There is no one-call <code>optimizeMODE_C</code>. Instead the wrapper creates an optimizer with <code>initMODE_C</code>, asks for populations, feeds back evaluated objective vectors, and can even switch the update rule with <code>tellMODE_switchC</code> or replace the live population with <code>setPopulationMODE_C</code>. That matches how <code>fcmaes/modecpp.py</code> drives the algorithm from Python.</p>
+          <ul>
+            <li>Main pieces: <code>MoDeOptimizer</code>, Pareto ranking, constraint ranking, configurable DE or NSGA-style survival, and a population replacement hook.</li>
+            <li>How it fits: the main native multi-objective engine in the repository.</li>
+            <li>Python side: wrapped by <code>fcmaes/modecpp.py</code>.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/">https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/</a></li>
+              <li><a href="https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py">https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/problems/DockerCFDBenchmark.py</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="pgpe-cpp">
+          <div class="directory-tag">_fcmaescpp/</div>
+          <h3><code>pgpe.cpp</code></h3>
+          <p class="summary">This file implements the native PGPE optimizer, including mirrored sampling and ADAM-based center updates.</p>
+          <p>The file is split between a small optimizer helper, <code>ADAM</code>, and the main <code>PGPEOptimizer</code>. The optimizer samples perturbation pairs around a center, turns the paired scores into center and standard-deviation gradients, clips how fast the standard deviations can move, and then updates the center with ADAM. That keeps the code close to the policy-search formulation rather than making it look like another generic ES loop.</p>
+          <p>Like the native CMA and CR-FM-NES paths, this file offers both direct execution and a stateful ask/tell API. The exported functions are what <code>fcmaes/pgpecpp.py</code> loads. In practice the wrapper uses the direct path for standard runs and the stateful path when it wants tighter control from Python.</p>
+          <ul>
+            <li>Main pieces: <code>ADAM</code>, <code>PGPEOptimizer</code>, mirrored perturbation sampling, ranking-aware score processing, and ask/tell exports.</li>
+            <li>How it fits: the repository's native policy-gradient style optimizer.</li>
+            <li>Python side: wrapped by <code>fcmaes/pgpecpp.py</code>.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="http://mediatum.ub.tum.de/doc/1099128/631352.pdf">http://mediatum.ub.tum.de/doc/1099128/631352.pdf</a></li>
+              <li><a href="https://github.com/google/evojax/blob/main/evojax/algo/pgpe.py">https://github.com/google/evojax/blob/main/evojax/algo/pgpe.py</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="headers-group">
+          <h2>Headers In <code>_fcmaescpp/include/</code></h2>
+          <p>The headers fall into three camps. <code>evaluator.h</code> is repository-specific glue. <code>LBFGS.h</code> and <code>LBFGSB.h</code> are bundled numerical solver headers. The rest are the BiteOpt family and its supporting classes.</p>
+        </section>
+
+        <section id="evaluator-h">
+          <div class="directory-tag">_fcmaescpp/include/</div>
+          <h3><code>evaluator.h</code></h3>
+          <p class="summary">This header is the shared callback, bounds, and worker-thread layer for most of the native backend.</p>
+          <p>If there is one header worth reading first, it is this one. The file defines the vector aliases used across the C++ sources, the callback signatures for single-objective and parallel evaluation, the <code>Fitness</code> wrapper that handles encoding and decoding for bounded domains, evaluation counting, feasibility helpers, and batch population evaluation. It is the piece that makes the optimizers look like they share one common problem interface.</p>
+          <p>The second half of the file adds the concurrency support. <code>blocking_queue</code> provides a small producer-consumer queue, <code>vec_id</code> packages a vector with an identifier, and <code>evaluator</code> spins up worker threads that pull evaluation jobs and push completed results back. The delayed-update CMA and DE code paths rely on that machinery directly.</p>
+          <ul>
+            <li>Main pieces: callback typedefs, <code>Fitness</code>, bound normalization, evaluation accounting, <code>blocking_queue</code>, and <code>evaluator</code>.</li>
+            <li>How it fits: project-specific glue shared by most native optimizers.</li>
+            <li>Python side: it matches the callback contracts used by the <code>ctypes</code> wrappers.</li>
+          </ul>
+        </section>
+
+        <section id="lbfgs-h">
+          <div class="directory-tag">_fcmaescpp/include/</div>
+          <h3><code>LBFGS.h</code></h3>
+          <p class="summary">This is the bundled upstream L-BFGS solver header for unconstrained local optimization.</p>
+          <p>The file is a header-only template implementation from <code>LBFGSpp</code>. Its main class, <code>LBFGSSolver</code>, keeps the quasi-Newton history, drives the line search, and checks gradient-based convergence. Nothing in the header is tailored to <code>fast-cma-es</code> specifically. It is present so the native code can ship with a known local-search implementation instead of adding another external dependency step.</p>
+          <p>Within this repository the bound-constrained variant matters more, because dual annealing uses <code>LBFGSB.h</code>. Still, this header belongs in the documentation because it shows where the local-search capability comes from and makes the upstream boundary clear.</p>
+          <ul>
+            <li>Main pieces: <code>LBFGSSolver</code>, BFGS memory, line-search adapters, and gradient stopping checks.</li>
+            <li>How it fits: bundled numerical support, not repo-specific optimizer architecture.</li>
+          </ul>
+        </section>
+
+        <section id="lbfgsb-h">
+          <div class="directory-tag">_fcmaescpp/include/</div>
+          <h3><code>LBFGSB.h</code></h3>
+          <p class="summary">This is the bundled upstream L-BFGS-B solver used for box-constrained local search.</p>
+          <p>The header extends the same <code>LBFGSpp</code> family with projection to bounds, projected-gradient checks, Cauchy point logic, and subspace minimization. In this codebase its practical role is very clear: <code>daoptimizer.cpp</code> includes it and uses <code>LBFGSBSolver</code> as the fixed local-search phase inside dual annealing.</p>
+          <p>That makes the file important even though it is upstream code. It is one of the few bundled headers that a top-level optimizer source depends on directly.</p>
+          <ul>
+            <li>Main pieces: <code>LBFGSBSolver</code>, bound projection, projected gradient norm, and line-search updates under box constraints.</li>
+            <li>How it fits: bundled support code, used directly by <code>daoptimizer.cpp</code>.</li>
+          </ul>
+        </section>
+
+        <section id="biteaux-h">
+          <div class="directory-tag">_fcmaescpp/include/</div>
+          <h3><code>biteaux.h</code></h3>
+          <p class="summary">This large header is the foundation of the bundled BiteOpt code: random numbers, selectors, populations, and base optimizer interfaces all live here.</p>
+          <p>The file starts low in the stack with <code>CBiteRnd</code>, then builds up the selection helpers, population containers, parallel-population support, and the abstract optimizer interfaces. By the time you reach <code>CBiteOptBase</code>, you have the common mechanics the rest of the BiteOpt family leans on: bounds, evaluation hooks, selector bookkeeping, and population updates.</p>
+          <p>Because so much is packed into one header, this file is best read as infrastructure rather than algorithm narrative. It is also a good reminder that the repository reuses a mature external optimizer family here. The native project code sits on top of that bundle rather than replacing it.</p>
+          <ul>
+            <li>Main pieces: <code>CBiteRnd</code>, <code>CBiteSelBase</code>, <code>CBiteSel</code>, <code>CBitePop</code>, <code>CBiteParPops</code>, <code>CBiteOptInterface</code>, and <code>CBiteOptBase</code>.</li>
+            <li>How it fits: shared upstream support for the BiteOpt family and nearby methods.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="https://github.com/avaneev/prvhash">https://github.com/avaneev/prvhash</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="biteopt-h">
+          <div class="directory-tag">_fcmaescpp/include/</div>
+          <h3><code>biteopt.h</code></h3>
+          <p class="summary">This header contains the main BiteOpt algorithm classes, including the deep multi-optimizer wrapper used by the native BiteOpt bridge.</p>
+          <p><code>CBiteOpt</code> is the core class here. It combines a large collection of generator choices, selector updates, and auxiliary optimizers to drive a derivative-free bounded search. The file also defines <code>CBiteOptDeep</code>, which stacks several <code>CBiteOpt</code> objects and works around a current best solution. That deep variant is what <code>biteoptimizer.cpp</code> subclasses and exposes.</p>
+          <p>The header is substantial because it carries the real BiteOpt search logic, not just support scaffolding. Even so, its role in this repository is still that of bundled upstream code. The project's own contribution is mostly the callback glue and the way the native bridge is shaped around it.</p>
+          <ul>
+            <li>Main pieces: <code>CBiteOpt</code>, <code>CBiteOptDeep</code>, selector-heavy generation logic, and <code>CBiteOptMinimize</code>.</li>
+            <li>How it fits: the main bundled BiteOpt implementation behind <code>biteoptimizer.cpp</code>.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="https://github.com/avaneev/biteopt">https://github.com/avaneev/biteopt</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="biteort-h">
+          <div class="directory-tag">_fcmaescpp/include/</div>
+          <h3><code>biteort.h</code></h3>
+          <p class="summary">This header provides the covariance-based rotation machinery used by the BiteOpt family when it wants an orthogonalized population view.</p>
+          <p><code>CBiteOrt</code> sits on top of the population support from <code>biteaux.h</code>. It computes weighted centroids, covariance information, eigen-style rotation data, and new samples in the rotated space. That makes it a helper for the more geometry-aware strategies in the bundle rather than a standalone optimizer interface.</p>
+          <p>The file matters because it helps explain how the bundled <code>CSMAESOpt</code> family can behave differently from the plain population-based methods nearby. It adds a structured view of the current search cloud instead of relying only on direct coordinate-wise moves.</p>
+          <ul>
+            <li>Main pieces: <code>CBiteOrt</code>, covariance updates, weighted centroids, and rotated-space sampling.</li>
+            <li>How it fits: support code for the BiteOpt ecosystem, especially <code>smaesopt.h</code>.</li>
+          </ul>
+        </section>
+
+        <section id="deopt-h">
+          <div class="directory-tag">_fcmaescpp/include/</div>
+          <h3><code>deopt.h</code></h3>
+          <p class="summary">This header holds the BiteOpt project's own DE-like derivative-free solver.</p>
+          <p><code>CDEOpt</code> is easy to misread if you already know the repository's main DE backend. It is not the same implementation as <code>deoptimizer.cpp</code>. This one belongs to the BiteOpt bundle and is built on <code>CBiteOptBase</code>. Its update logic, population handling, and internal conventions come from that family of code.</p>
+          <p>That distinction is worth making because both files talk about differential-style search, but only <code>deoptimizer.cpp</code> is wired to <code>fcmaes/decpp.py</code>. <code>deopt.h</code> is present because the bundled BiteOpt code ships its own neighboring optimizer variants.</p>
+          <ul>
+            <li>Main pieces: <code>CDEOpt</code>, bound-aware initialization, and one-evaluation-at-a-time optimization steps.</li>
+            <li>How it fits: bundled BiteOpt-side DE variant, separate from the repository's Eigen-based DE engine.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="https://github.com/avaneev/biteopt">https://github.com/avaneev/biteopt</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="nmsopt-h">
+          <div class="directory-tag">_fcmaescpp/include/</div>
+          <h3><code>nmsopt.h</code></h3>
+          <p class="summary">This header provides a sequential Nelder-Mead implementation used inside the BiteOpt bundle.</p>
+          <p><code>CNMSeqOpt</code> wraps the usual simplex method in the same bound-aware interface used by the other bundled optimizers. The implementation has its own tuned coefficients and a fairly careful internal state machine, but in this repository its main value is as a helper component. <code>biteopt.h</code> can pair it with the main BiteOpt search instead of treating it as a top-level exported method.</p>
+          <p>That makes this file useful background when you want to understand why the BiteOpt code looks more eclectic than the Eigen-based optimizer files. The bundle mixes several search styles and switches between them when it sees an opening.</p>
+          <ul>
+            <li>Main pieces: <code>CNMSeqOpt</code>, simplex state management, and bound-aware objective evaluation.</li>
+            <li>How it fits: an auxiliary optimizer inside the bundled BiteOpt stack.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="https://github.com/avaneev/biteopt">https://github.com/avaneev/biteopt</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="smaesopt-h">
+          <div class="directory-tag">_fcmaescpp/include/</div>
+          <h3><code>smaesopt.h</code></h3>
+          <p class="summary">This header contains the BiteOpt bundle's sigma-adaptation evolution strategy.</p>
+          <p><code>CSMAESOpt</code> is related in spirit to CMA-style search, but it is not the same implementation as the repository's active CMA file. It builds on <code>biteort.h</code>, updates a distribution with a strong focus on sigma adaptation, and follows the interfaces and data structures used by the BiteOpt family.</p>
+          <p>It is worth documenting because the header shows how broad the bundled optimizer set is. The project did not just import one method under the BiteOpt name. It brought in a small neighborhood of compatible optimizers and helper classes.</p>
+          <ul>
+            <li>Main pieces: <code>CSMAESOpt</code>, population sampling through <code>CBiteOrt</code>, and sigma-focused distribution updates.</li>
+            <li>How it fits: bundled upstream strategy, not the same native CMA path exposed by <code>cmaescpp.py</code>.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="https://github.com/avaneev/biteopt">https://github.com/avaneev/biteopt</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="spheropt-h">
+          <div class="directory-tag">_fcmaescpp/include/</div>
+          <h3><code>spheropt.h</code></h3>
+          <p class="summary">This header defines a simple hyperspheroid search method used as part of the bundled BiteOpt ecosystem.</p>
+          <p><code>CSpherOpt</code> keeps a centroid and radius-style view of the search distribution. The algorithm is lighter than the main BiteOpt path and is described right in the header as a fast, simple optimizer. In the bundle it is useful as one of the alternate engines that the higher-level BiteOpt logic can call into.</p>
+          <p>That gives the file a support role in this repository. It is not directly wrapped by a Python module, but it helps explain the moving parts that sit behind <code>CBiteOpt</code> and <code>CBiteOptDeep</code>.</p>
+          <ul>
+            <li>Main pieces: <code>CSpherOpt</code>, centroid and radius buffers, and bounded one-evaluation-at-a-time updates.</li>
+            <li>How it fits: auxiliary bundled optimizer used by the BiteOpt family.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="https://github.com/avaneev/biteopt">https://github.com/avaneev/biteopt</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <footer>
+          <h2>How To Navigate The Native Code</h2>
+          <p>If you want to understand the project-specific part of the backend, start with <code>evaluator.h</code> and then read one algorithm file plus its Python wrapper. A good pair is <code>deoptimizer.cpp</code> with <code>fcmaes/decpp.py</code>, or <code>acmaesoptimizer.cpp</code> with <code>fcmaes/cmaescpp.py</code>. If your goal is to understand why the BiteOpt side looks different, read <code>biteaux.h</code> first and then <code>biteopt.h</code>.</p>
+          <p>The main architectural split is simple once you see it. The Eigen-based optimizer sources are the repository's own native engines and bridge points. The BiteOpt and LBFGS headers are bundled building blocks that the bridge code reuses.</p>
+        </footer>
+      </main>
+
+      <aside>
+        <div class="toc-title">Table Of Contents</div>
+        <ul class="toc">
+          <li><a href="#cpp-group">C++ Sources</a></li>
+          <li><a href="#acmaesoptimizer-cpp"><code>acmaesoptimizer.cpp</code></a></li>
+          <li><a href="#biteoptimizer-cpp"><code>biteoptimizer.cpp</code></a></li>
+          <li><a href="#crfmnes-cpp"><code>crfmnes.cpp</code></a></li>
+          <li><a href="#daoptimizer-cpp"><code>daoptimizer.cpp</code></a></li>
+          <li><a href="#deoptimizer-cpp"><code>deoptimizer.cpp</code></a></li>
+          <li><a href="#modeoptimizer-cpp"><code>modeoptimizer.cpp</code></a></li>
+          <li><a href="#pgpe-cpp"><code>pgpe.cpp</code></a></li>
+        </ul>
+        <div class="group-title">Headers</div>
+        <ul class="toc">
+          <li><a href="#headers-group">Include Files</a></li>
+          <li><a href="#evaluator-h"><code>evaluator.h</code></a></li>
+          <li><a href="#lbfgs-h"><code>LBFGS.h</code></a></li>
+          <li><a href="#lbfgsb-h"><code>LBFGSB.h</code></a></li>
+          <li><a href="#biteaux-h"><code>biteaux.h</code></a></li>
+          <li><a href="#biteopt-h"><code>biteopt.h</code></a></li>
+          <li><a href="#biteort-h"><code>biteort.h</code></a></li>
+          <li><a href="#deopt-h"><code>deopt.h</code></a></li>
+          <li><a href="#nmsopt-h"><code>nmsopt.h</code></a></li>
+          <li><a href="#smaesopt-h"><code>smaesopt.h</code></a></li>
+          <li><a href="#spheropt-h"><code>spheropt.h</code></a></li>
+        </ul>
+      </aside>
+    </div>
+  </div>
+</body>
+</html>
