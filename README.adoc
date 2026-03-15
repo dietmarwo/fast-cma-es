@@ -9,19 +9,27 @@ https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Ch
 
 image::logo.gif[]
 
-fcmaes complements https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy optimize] by providing 
-additional optimization methods, faster {cpp}/Eigen based implementations and a coordinated parallel retry mechanism. 
-It supports the multi threaded application of different gradient free optimization algorithms. 
-There are 35 real world https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials]
-showing in detail how to use fcmaes. 
-See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Performance.adoc[performance]
-for detailed fcmaes performance figures. 
+fcmaes extends https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy optimize] with additional optimization methods, fast {cpp}/Eigen-based implementations, and a coordinated parallel retry mechanism.
 
-fcmaes started as a fast CMA-ES implementation combined with a new smart parallel retry mechanism aimed to solve
-hard optimization problems from the space flight planning domain. It evolved to a general library of
-state-of-the-art gradient free optimization algorithms applicable to all kind of real world problems covering
-multi-objective and constrained problems. Its main algorithms are implemented both in Python and C++ and
-support both parallel fitness function evaluation and a parallel retry mechanism. 
+It supports multi-threaded use of several gradient-free
+https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes_documentation.html[algorithms].
+
+fcmaes is a general-purpose library for modern gradient-free optimization. It is designed for real-world problems, including multi-objective and constrained optimization. The main algorithms are available in both Python and C++. They support parallel fitness evaluation as well as parallel retry strategies.
+
+There are many practical https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials] and https://github.com/dietmarwo/fast-cma-es/blob/master/examples_documentation.html[examples] that show how to use fcmaes in detail.
+
+Detailed benchmark results are available in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Performance.adoc[performance].
+
+=== Features
+
+- Built for optimization problems that are difficult to solve and benefit from modern many-core CPUs.
+- Supports parallel fitness evaluation and several parallel retry strategies.
+- Scales well with the number of available CPU cores.
+- Keeps algorithm overhead low, even in high-dimensional problems.
+- Includes the multi-objective and constrained optimizer MODE. It combines ideas from Differential Evolution and NSGA-II and supports parallel function evaluation. It also uses https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/[enhanced multiple constraint ranking], which improves constraint handling in engineering design problems.
+- Supports quality-diversity methods, including CVT-map-elites, a CMA-ES emitter, and the new "diversifier" meta-algorithm based on CVT-map-elites archives.
+- Offers a selection of efficient single-objective optimizers.
+- Provides an ask-tell interface for CMA-ES, CR-FM-NES, DE, MODE, and PGPE.
 
 === Update: Open Source AI Optimization Assistant
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Assistant.adoc[Optimization Assistant] How to set up, configure and use an open source AI optimization assistant specialized for fcmaes.
@@ -46,28 +54,9 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/examples/prophet_opt.py[pro
 - How to identify the parameters to optimize using the AI.  
 - How the parameter optimization process can be automated efficiently utilizing trading simulations executed in parallel.
 
-This idea can be applied everywhere when parameters of time consuming simulations have to be optimized.  
-If you aim to optimize multiple objectives, you may find many other examples in: 
-
-=== https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc[Tutorials]
-
-=== https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Performance.adoc[Performance]
-
-=== Features
-
-- Focused on optimization problems hard to solve utilizing modern many-core CPUs.
-- Parallel fitness function evaluation and different parallel retry mechanisms.
-- Excellent scaling with the number of available CPU-cores. 
-- Minimized algorithm overhead - relative to the objective function evaluation time - even for high dimensions. 
-- Multi-objective/constrained optimization algorithm MODE combining features from Differential evolution and NSGA-II, supporting parallel function evaluation. Features https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/[enhanced multiple constraint ranking] improving its performance in handling constraints for engineering design optimization.
-- QD support: CVT-map-elites including a CMA-ES emitter and a new "diversifier" meta algorithm utilizing CVT-map-elites archives. 
-- Selection of highly efficient single-objective algorithms to choose from.
-- Ask-tell interface for CMA-ES, CR-FM-NES, DE, MODE and PGPE.
-- Large collection of 35 tutorials related to real world problems: 
-  https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Tutorials.adoc[tutorials].
-
 === Changes from version 1.6.3:
 
+- Improved documentation and atutorials
 - Logging now based on loguru. All examples are adapted.
 - New dependencies: loguru + numba.
 - New tutorial related to the https://www.esa.int/gsp/ACT/projects/spoc-2023/[GECCO 2023] Space Optimization Competition:

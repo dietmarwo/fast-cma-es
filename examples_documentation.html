@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Examples Documentation for fast-cma-es</title>
+  <style>
+    :root {
+      --bg: #f5f1eb;
+      --panel: #fffdf9;
+      --ink: #1f2422;
+      --muted: #5b635d;
+      --line: #d9d2c6;
+      --accent: #2f5e7a;
+      --accent-soft: #e8f1f6;
+      --code: #f0ebe2;
+      --shadow: 0 10px 28px rgba(35, 41, 37, 0.08);
+      --max: 1240px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background: linear-gradient(180deg, #f1ece4 0%, #f7f4ef 180px, var(--bg) 100%);
+      color: var(--ink);
+      line-height: 1.6;
+    }
+    a { color: var(--accent); }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      background: var(--code);
+      padding: 0.1rem 0.35rem;
+      border-radius: 0.3rem;
+      font-size: 0.92em;
+    }
+    .page {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 2rem 1rem 4rem;
+    }
+    header {
+      padding: 1rem 0 1.5rem;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 1.5rem;
+    }
+    h1, h2, h3 {
+      line-height: 1.2;
+      margin: 0 0 0.75rem;
+      font-weight: 700;
+    }
+    h1 { font-size: clamp(2rem, 4vw, 3rem); }
+    h2 { font-size: clamp(1.35rem, 2.1vw, 1.8rem); margin-top: 2rem; }
+    h3 { font-size: 1.12rem; margin-top: 0; }
+    p { margin: 0 0 0.9rem; }
+    .lede {
+      max-width: 72ch;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 310px;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    main section,
+    aside,
+    .note,
+    .map {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      box-shadow: var(--shadow);
+    }
+    main section {
+      padding: 1.1rem 1.2rem;
+      margin-bottom: 1rem;
+      scroll-margin-top: 1rem;
+    }
+    aside {
+      position: sticky;
+      top: 1rem;
+      padding: 1rem;
+      max-height: calc(100vh - 2rem);
+      overflow: auto;
+    }
+    .toc-title {
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+    .toc {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .toc li { margin: 0 0 0.42rem; }
+    .toc a {
+      text-decoration: none;
+      color: var(--ink);
+    }
+    .toc a:hover { color: var(--accent); }
+    .summary {
+      font-size: 1rem;
+      margin-bottom: 0.8rem;
+      color: var(--accent);
+    }
+    ul {
+      margin: 0.6rem 0 0.9rem 1.2rem;
+      padding: 0;
+    }
+    .map, .note {
+      padding: 1rem 1.1rem;
+      margin-bottom: 1rem;
+    }
+    .map-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.8rem;
+      margin-top: 0.8rem;
+    }
+    .map-card {
+      padding: 0.8rem 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: 0.8rem;
+      background: #fcfaf6;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .tutorials {
+      padding: 0.75rem 0.9rem;
+      border-radius: 0.8rem;
+      background: var(--accent-soft);
+      border: 1px solid #cbdde8;
+      margin-top: 0.8rem;
+    }
+    footer {
+      margin-top: 2rem;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 1rem;
+    }
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; max-height: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>Documentation for <code>examples/</code></h1>
+      <p class="lede">This page walks through the top-level example scripts in <code>examples/</code>. The directory is broad on purpose. Some files are small benchmark runners. Others are full problem models with plotting, logging, and domain-specific data handling. Together they show how <code>fcmaes</code> is used in space mission design, scheduling, routing, trading, control, simulation, machine learning, quality diversity, and a few classic engineering design problems.</p>
+    </header>
+
+    <div class="note">
+      <h2>What Lives In <code>examples/</code></h2>
+      <p>The example directory is not a uniform set of demos. Some files are compact entry points that reproduce tutorial figures. Some define reusable problem classes such as <code>Interferometry</code> or <code>solo_mgar_udp</code>. Others are one-off experiments that compare optimizers, stress-test retry strategies, or show how to wrap an external library into the <code>fcmaes</code> workflow.</p>
+      <p>If you are new to the repo, the easiest starting points are <code>tutorial.py</code>, <code>examples.py</code>, <code>benchmark_gtop.py</code>, <code>routing.py</code>, <code>jobshop.py</code>, <code>employee.py</code>, <code>crypto.py</code>, and <code>quant.py</code>. They give a good spread of styles without forcing you into the deepest domain code right away.</p>
+    </div>
+
+    <div class="map">
+      <h2>Suggested Ways To Explore The Examples</h2>
+      <div class="map-grid">
+        <div class="map-card"><strong>Start with the library workflow</strong><br><span class="meta"><code>tutorial.py</code>, <code>examples.py</code>, <code>advexamples.py</code>, <code>benchmark_gtop.py</code>.</span></div>
+        <div class="map-card"><strong>Look at difficult real problems</strong><br><span class="meta"><code>jobshop.py</code>, <code>scheduling.py</code>, <code>employee.py</code>, <code>routing.py</code>, <code>crypto.py</code>.</span></div>
+        <div class="map-card"><strong>Study quality-diversity</strong><br><span class="meta"><code>arm.py</code>, <code>damp.py</code>, <code>elitescass2.py</code>, <code>powerplant.py</code>, <code>yahpo.py</code>.</span></div>
+        <div class="map-card"><strong>Compare against other ecosystems</strong><br><span class="meta"><code>benchmark_gtop_pygmo.py</code>, <code>maxcut.py</code>, <code>repython.py</code>, <code>reproblem.py</code>.</span></div>
+        <div class="map-card"><strong>Read domain wrappers with the driver beside them</strong><br><span class="meta"><code>interferometry.py</code> with <code>interferometry_udp.py</code>, and <code>solo_mgar.py</code> with <code>solo_mgar_udp.py</code>.</span></div>
+        <div class="map-card"><strong>Skim the design examples</strong><br><span class="meta"><code>gear_train.py</code>, <code>spring.py</code>, <code>vessel.py</code>, <code>subset.py</code>, <code>subset_mo.py</code>.</span></div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <main>
+        <section id="init-py">
+          <h3><code>__init__.py</code></h3>
+          <p class="summary">This file acts as the lightweight index for the examples package.</p>
+          <p>There is no runnable logic here. It carries the version string and an <code>__all__</code> list that points at the examples the package intends to expose. That makes it useful as a rough inventory of the scripts the repository treats as part of the public example set, even though the file itself is only bookkeeping.</p>
+          <ul>
+            <li>Main role: package metadata and a simple export list.</li>
+            <li>How it fits: a directory-level signpost, not an example in its own right.</li>
+          </ul>
+        </section>
+
+        <section id="advexamples-py">
+          <h3><code>advexamples.py</code></h3>
+          <p class="summary">This runner applies coordinated retry to the classic GTOP space-mission benchmarks.</p>
+          <p>The script loops over the benchmark problems exposed by <code>fcmaes.astro</code> and drives them with a small optimizer set through <code>advretry</code>. It is narrower than the broader benchmark scripts in the same directory. The focus here is not problem modeling. It is the advanced retry store and how it behaves on the space-flight cases that shaped much of the library.</p>
+          <ul>
+            <li>Main pieces: GTOP problem list, optimizer loop, repeated coordinated retry runs.</li>
+            <li>How it fits: a compact reproduction script for the space benchmark results.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial link from the source</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Results.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Results.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="arm-py">
+          <h3><code>arm.py</code></h3>
+          <p class="summary">This is a quality-diversity example built around a high-dimensional planar robot arm.</p>
+          <p>The script defines a forward-kinematics model for a many-joint arm and then asks MAP-Elites or the diversifier layer to fill an archive of reachable positions. The behavior space is the arm’s endpoint location, while the fitness can be based on the spread or magnitude of the joint angles. It is a clean file for understanding what a <code>fcmaes</code> quality-diversity setup looks like when the domain is simple enough to visualize.</p>
+          <ul>
+            <li>Main pieces: forward kinematics, archive plotting, a QD fitness class, and archive-based optimization.</li>
+            <li>How it fits: a minimal but concrete QD example without heavy domain baggage.</li>
+          </ul>
+        </section>
+
+        <section id="benchmark-gtop-py">
+          <h3><code>benchmark_gtop.py</code></h3>
+          <p class="summary">This is a stripped-down GTOP benchmark runner for the standard coordinated-retry workflow.</p>
+          <p>The file keeps the benchmark surface intentionally small. It picks the GTOP problems from <code>fcmaes.astro</code>, uses the usual DE-to-CMA sequence, and calls <code>advretry.minimize</code>. If you want a short script that shows how the library is actually used on the space-flight problems, this one is easier to read than the larger comparison drivers.</p>
+          <ul>
+            <li>Main pieces: GTOP problem list, one optimizer choice, one retry path.</li>
+            <li>How it fits: a compact baseline for the space benchmark family.</li>
+          </ul>
+        </section>
+
+        <section id="benchmark-gtop-pygmo-py">
+          <h3><code>benchmark_gtop_pygmo.py</code></h3>
+          <p class="summary">This script compares the <code>fcmaes</code> retry idea with Pygmo and Pagmo algorithms on the GTOP problems.</p>
+          <p>Instead of only using the native <code>fcmaes</code> optimizer wrappers, the file defines small adapters around Pygmo’s DE and CMA variants, packages GTOP problems as Pygmo UDPs, and then compares archipelago-style execution with the coordinated retry approach. It is a bridge script. The interesting part is not one more benchmark score, but the way it puts two optimization ecosystems on roughly the same playing field.</p>
+          <ul>
+            <li>Main pieces: <code>pygmo_udp</code>, optimizer wrappers, archipelago tests, coordinated retry tests.</li>
+            <li>How it fits: a comparison harness for the space benchmarks and external solver integration.</li>
+          </ul>
+        </section>
+
+        <section id="cassini2-minlp-py">
+          <h3><code>cassini2_minlp.py</code></h3>
+          <p class="summary">This file explores a mixed-integer Cassini 2 mission setup by searching over discrete structural choices.</p>
+          <p>The script does not try to hide the discrete structure inside one large optimizer call. Instead, it packages the sequence choices as related problem variants and lets <code>multiretry</code> decide which variants deserve more budget. That makes the file a good example of the “enumerate structure, optimize the rest” style that appears in the mixed-integer space-flight work.</p>
+          <ul>
+            <li>Main pieces: a Cassini 2 wrapper class, candidate sequences, and staged multiretry evaluation.</li>
+            <li>How it fits: one of the mixed-integer mission design examples.</li>
+          </ul>
+        </section>
+
+        <section id="cassini-minlp-py">
+          <h3><code>cassini_minlp.py</code></h3>
+          <p class="summary">This script does the same style of mixed-integer search for the Cassini 1 benchmark.</p>
+          <p>The structure mirrors the Cassini 2 variant, but with the Cassini 1 mixed-integer setup from <code>fcmaes.astro</code>. It compares plain coordinated retry with the tournament-style multiretry scheme over discrete sequence candidates. The script is short, but it captures an important design choice in the repo: when a discrete mission structure can be enumerated, the library often treats that enumeration explicitly instead of burying it inside a harder black-box problem.</p>
+          <ul>
+            <li>Main pieces: sequence list, coordinated retry, multiretry over problem variants.</li>
+            <li>How it fits: a direct companion to the mixed-integer space tutorials.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MINLP.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MINLP.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="clustering-py">
+          <h3><code>clustering.py</code></h3>
+          <p class="summary">This example treats balanced clustering as a derivative-free optimization problem.</p>
+          <p>The task is simple to state: split 200 cities into four equal groups while keeping the within-cluster travel pattern short. The script uses a compact integer-style encoding, a Numba-accelerated objective, and a retry-based optimizer rather than a standard clustering library. That makes it a nice example of using <code>fcmaes</code> for a problem that is not usually introduced through a black-box optimization lens.</p>
+          <ul>
+            <li>Main pieces: distance objective, equal-group constraint handling, visualization, retry with BiteOpt.</li>
+            <li>How it fits: a small applied example that shows how flexible the integer-style encoding can be.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="crypto-py">
+          <h3><code>crypto.py</code></h3>
+          <p class="summary">This is a full trading-strategy example with backtesting, single-objective tuning, multi-objective tuning, and archive search.</p>
+          <p>The script pulls price history, computes moving averages, simulates a trading rule, and then optimizes the rule parameters in several ways. It does not stop at one “best return” score. It also includes multi-objective and quality-diversity runs, which makes it one of the richer example files in the tree. The code is useful both as a domain demo and as a pattern for wrapping a moderately expensive simulation in several different <code>fcmaes</code> workflows.</p>
+          <ul>
+            <li>Main pieces: data loading, technical indicators, backtest simulation, retry, MODE, and archive search.</li>
+            <li>How it fits: one of the clearest end-to-end application examples in the repository.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="damp-py">
+          <h3><code>damp.py</code></h3>
+          <p class="summary">This file turns a damped ODE control problem into both a retry benchmark and a quality-diversity exercise.</p>
+          <p>The script integrates a spring-like dynamical system, evaluates control policies, and then looks at the problem through two different lenses. One is straightforward retry for best performance. The other is archive-based search over behavior descriptors, which makes the file useful if you want to see how the same model can support both ordinary optimization and QD workflows.</p>
+          <ul>
+            <li>Main pieces: ODE integration, compiled and pure integration paths, retry, archive plotting, and QD optimization.</li>
+            <li>How it fits: a bridge example between control, ODE simulation, and MAP-Elites-style search.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Damp.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Damp.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="elitescass2-py">
+          <h3><code>elitescass2.py</code></h3>
+          <p class="summary">This script applies quality-diversity methods to the Cassini 2 mission benchmark.</p>
+          <p>Instead of asking for one best trajectory, the file defines a behavior space over mission properties and uses MAP-Elites or the diversifier layer to populate an archive of alternatives. It is an important example because it shows the QD machinery on a serious optimization problem, not a toy robot arm. The archive plots also make it easier to see what the behavior descriptors are buying you.</p>
+          <ul>
+            <li>Main pieces: behavior descriptors for Cassini 2, archive plotting, diversifier run, MAP-Elites run.</li>
+            <li>How it fits: the space-flight QD counterpart to the lighter archive demos.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="employee-py">
+          <h3><code>employee.py</code></h3>
+          <p class="summary">This is a large employee-scheduling model with both single-objective and multi-objective optimization paths.</p>
+          <p>The script loads roster data, builds indexing helpers for shifts and employees, and encodes hard and soft constraints inside a Numba-accelerated fitness function. It then tries several solver styles, including retry, weighted-sum multi-objective search, and MODE. This is one of the stronger examples in the repo because it shows how far the library can be pushed on a practical combinatorial scheduling problem without leaving the derivative-free framework.</p>
+          <ul>
+            <li>Main pieces: data parsing, schedule encoding, hard and soft constraints, retry, MODE, and Pareto exploration.</li>
+            <li>How it fits: a flagship scheduling example with realistic structure.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Employee.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Employee.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="examples-py">
+          <h3><code>examples.py</code></h3>
+          <p class="summary">This is the plain retry counterpart to <code>advexamples.py</code>.</p>
+          <p>The file sweeps across GTOP problems and a wider set of optimizer wrappers, but uses the simpler <code>retry</code> meta-algorithm rather than the store-driven coordinated version. That makes it a good reference if you want to compare the two retry styles or reproduce the broader space benchmark tables without reading a lot of domain code.</p>
+          <ul>
+            <li>Main pieces: GTOP problem list, optimizer list, repeated retry calls, logging setup.</li>
+            <li>How it fits: a baseline comparison runner for space-flight examples.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial link from the source</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Results.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Results.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="f8-py">
+          <h3><code>f8.py</code></h3>
+          <p class="summary">This file studies the F-8 aircraft bang-bang control problem with several retry and parallel-evaluation strategies.</p>
+          <p>The objective is built around a simple aircraft model and a sequence of switch times. The script keeps both a pure Python ODE path and a compiled integration path, then compares coordinated retry, parallel retry, and delayed-update population evaluation. It is a nice example of how the same control problem can be used to measure algorithm overhead, parallelism, and the benefit of compiled dynamics code.</p>
+          <ul>
+            <li>Main pieces: control-time encoding, ODE and compiled simulation paths, several retry modes, logging of best trajectories.</li>
+            <li>How it fits: a control benchmark that stresses expensive function evaluation and optimizer coordination.</li>
+          </ul>
+        </section>
+
+        <section id="filter-py">
+          <h3><code>filter.py</code></h3>
+          <p class="summary">This example trains a lightweight ranking model to filter out weak DE candidates on the noisy TSP.</p>
+          <p>The idea is simple but useful. The script stores recent candidate points and scores, fits an <code>xgboost</code> ranker, and lets the DE implementation skip some evaluations that are unlikely to improve on the current candidate. It only makes sense when the objective is expensive, which the file states plainly. That makes it more of a search-acceleration experiment than a general-purpose optimization recipe.</p>
+          <ul>
+            <li>Main pieces: a learned filter, pairwise ranking with <code>xgboost</code>, and integration with the Python DE code path.</li>
+            <li>How it fits: an experimental example of mixing a surrogate idea into the optimization loop.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial link from the source</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Filter.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Filter.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="gear-train-py">
+          <h3><code>gear_train.py</code></h3>
+          <p class="summary">This script solves a classic mixed-integer gear-train design problem with ordinary retry methods.</p>
+          <p>The interesting trick is that the solver does not need a dedicated mixed-integer backend here. The objective simply maps the continuous search vector to feasible tooth counts before scoring it. The file then sweeps the bound on the largest gear size to list a whole set of tradeoff points. It is one of the clearer examples of how far simple discretization can go on a small engineering design task.</p>
+          <ul>
+            <li>Main pieces: discrete tooth mapping, ratio error objective, repeated bound sweep, retry and coordinated retry comparisons.</li>
+            <li>How it fits: a small design example that shows when a full mixed-integer solver may be unnecessary.</li>
+          </ul>
+        </section>
+
+        <section id="harvesting-py">
+          <h3><code>harvesting.py</code></h3>
+          <p class="summary">This file extends the job-shop machinery to an asteroid-harvesting scheduling problem.</p>
+          <p>The model is derived from the flexible job-shop example, but it adds a different story and extra structural constraints. Factories move between asteroids, jobs depend on those deployments, and the script supports both single-objective and multi-objective runs. If you want to see how the repository adapts one scheduling core to a new domain rather than starting from scratch, this file is a strong example.</p>
+          <ul>
+            <li>Main pieces: a modified scheduling fitness, Gantt-style helpers, retry, MODE, and weighted-sum Pareto exploration.</li>
+            <li>How it fits: a domain-specific offshoot of the job-shop work.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="house-py">
+          <h3><code>house.py</code></h3>
+          <p class="summary">This is a hyperparameter-optimization example built around the Kaggle house-prices regression task.</p>
+          <p>The script wraps an <code>XGBRegressor</code>, cross-validation scoring, and a fairly detailed preprocessing path inside a derivative-free objective. It is not a small demo. It is a realistic machine-learning tuning example that uses <code>fcmaes</code> to search a mixed space of model choices and numeric parameters. The code is useful if you want to see how the library is used when the “simulation” is really a repeated training-and-validation loop.</p>
+          <ul>
+            <li>Main pieces: feature cleanup, cross-validation scoring, parameter conversion, and an optimization wrapper class.</li>
+            <li>How it fits: a practical hyperparameter-search example rather than a benchmark toy.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/HyperparameterOptimization.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/HyperparameterOptimization.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="interferometry-py">
+          <h3><code>interferometry.py</code></h3>
+          <p class="summary">This script compares a parallel <code>fcmaes</code> workflow with Pygmo’s island model on an interferometry image-reconstruction problem.</p>
+          <p>The heavy problem logic lives in <code>interferometry_udp.py</code>. This file is the driver around it. It runs archipelago experiments, checks known good solutions, and launches a retry-based DE or CMA workflow for comparison. It is a benchmarking script, but it is grounded in a genuine inverse problem rather than a synthetic test function.</p>
+          <ul>
+            <li>Main pieces: archipelago runner, <code>fcmaes</code> optimizer runs, and result checks against the shared problem class.</li>
+            <li>How it fits: a side-by-side comparison between retry and island-style population search.</li>
+          </ul>
+        </section>
+
+        <section id="interferometry-udp-py">
+          <h3><code>interferometry_udp.py</code></h3>
+          <p class="summary">This file defines the interferometry problem class used by the comparison driver.</p>
+          <p>The module handles the domain mechanics: reading the target image, building the optical objective, and computing reconstruction error. It is not a generic library component. It is a problem definition with just enough extra machinery to support both Pygmo and <code>fcmaes</code>-based optimization in the driver script.</p>
+          <ul>
+            <li>Main pieces: the <code>Interferometry</code> class, image handling, FFT-based calculations, and error evaluation.</li>
+            <li>How it fits: the problem backend for <code>interferometry.py</code>.</li>
+          </ul>
+        </section>
+
+        <section id="jobshop-py">
+          <h3><code>jobshop.py</code></h3>
+          <p class="summary">This is the main flexible job-shop scheduling example in the repository.</p>
+          <p>The script reads job-shop instances, builds a Numba-accelerated scheduler, plots Gantt charts, and exposes both single-objective and multi-objective optimization flows. It is one of the more substantial example files because it combines data parsing, schedule construction, visualization, retry, MODE, and weighted-sum front generation in one place. If you want one large example that shows how the library handles hard combinatorial structure, this is a good candidate.</p>
+          <ul>
+            <li>Main pieces: FJSP parsing, scheduling logic, charting, retry, MODE, and Pareto runs.</li>
+            <li>How it fits: a central scheduling example that other files, such as <code>harvesting.py</code>, build on.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="lotka-py">
+          <h3><code>lotka.py</code></h3>
+          <p class="summary">This script optimizes a policy over a predator-prey model rather than just fitting parameters.</p>
+          <p>The objective encodes a sequence of fox-killing decisions over time, simulates the Lotka-Volterra dynamics, and scores the resulting rabbit population. That makes the example closer to control or intervention planning than to classical curve fitting. The file then compares coordinated retry, plain retry, and delayed-update parallel evaluation on the same ODE-driven objective.</p>
+          <ul>
+            <li>Main pieces: predator-prey simulation, decision-time encoding, retry variants, and logging of intervention schedules.</li>
+            <li>How it fits: an ODE-based control example that is easy to understand but still expensive enough to stress the optimizer stack.</li>
+          </ul>
+        </section>
+
+        <section id="maxcut-py">
+          <h3><code>maxcut.py</code></h3>
+          <p class="summary">This is a quantum-optimization comparison built around VQE-based MaxCut.</p>
+          <p>The script adapts both sides of the interface. It wraps Qiskit’s SPSA so it can be called like an <code>fcmaes</code> optimizer, and it wraps <code>fcmaes</code> retry-based optimizers so they can sit inside Qiskit’s VQE workflow. That two-way bridge is the interesting part. The file is less about one quantum problem and more about how to compare different optimizer families fairly inside the same quantum loop.</p>
+          <ul>
+            <li>Main pieces: MaxCut setup, VQE configuration, SPSA wrapper, <code>fcmaes</code> wrapper, and noisy-simulation support.</li>
+            <li>How it fits: the most explicit optimizer-comparison script in the quantum examples.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="moexamples-py">
+          <h3><code>moexamples.py</code></h3>
+          <p class="summary">This file is the broad multi-objective comparison script for the repository.</p>
+          <p>It bundles several synthetic and space-flight test problems, then compares weighted-sum retry, Python MODE, compiled MODE, and a deap-based NSGA-II baseline. The script also handles plotting and Pareto extraction, so it is both a benchmark harness and a practical cookbook for running the different multi-objective paths side by side.</p>
+          <ul>
+            <li>Main pieces: benchmark problem classes, plotting helpers, MODE wrappers, and NSGA-II comparisons.</li>
+            <li>How it fits: the broadest multi-objective example in the top-level examples directory.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="noisy-tsp-py">
+          <h3><code>noisy_tsp.py</code></h3>
+          <p class="summary">This module defines the noisy traveling-salesman problem used by several example scripts.</p>
+          <p>It contains the problem class, TSPLIB loading logic, and the noisy evaluation path. The file matters beyond its own standalone use because other examples build on it, especially the learned filter experiment. If you want to understand how a permutation-like routing problem is encoded as a derivative-free optimization target in this repo, this file is the place to start.</p>
+          <ul>
+            <li>Main pieces: <code>TSP</code> class, TSPLIB loader, noisy evaluation logic, bounds definition.</li>
+            <li>How it fits: a reusable problem definition, not just a driver script.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="powerplant-py">
+          <h3><code>powerplant.py</code></h3>
+          <p class="summary">This example optimizes a TESPy-based thermal power-plant model and then explores its behavior space with quality-diversity tools.</p>
+          <p>The file starts with a process-modeling problem, not an abstract function. It builds the plant in TESPy, defines decision variables and objectives, and runs both a direct optimization path and a QD archive search. That makes it one of the stronger demonstrations of the library on a structured engineering simulation where each function call has clear physical meaning.</p>
+          <ul>
+            <li>Main pieces: TESPy network model, efficiency objective, archive-based exploration, and 3D plotting of archive results.</li>
+            <li>How it fits: a detailed engineering example that also connects to the quality-diversity machinery.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorials</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PowerPlant.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/PowerPlant.adoc</a></li>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="prophet-opt-py">
+          <h3><code>prophet_opt.py</code></h3>
+          <p class="summary">This script treats an AI-generated trading strategy as an expensive parameter-search problem.</p>
+          <p>The code loads market data, builds a <code>Prophet</code>-based strategy, converts an optimizer vector into strategy parameters, and then uses <code>fcmaes</code> to search that space. It also shows how the journal wrapper can be used to stream progress into an Optuna-style dashboard. The result is not a tiny demo. It is an example of using the library around a practical model whose logic was assembled from outside the usual scientific-computing stack.</p>
+          <ul>
+            <li>Main pieces: strategy parameter conversion, expensive evaluation loop, DE-based optimization, and journal logging.</li>
+            <li>How it fits: a modern workflow example that mixes forecasting, search, and monitoring.</li>
+          </ul>
+        </section>
+
+        <section id="quant-py">
+          <h3><code>quant.py</code></h3>
+          <p class="summary">This is the simpler quantum example: optimize variational quantum-circuit parameters without the extra MaxCut wrapper layer.</p>
+          <p>The script works with single-qubit and VQE-style parameter optimization, compares several solver choices, and shows the weaknesses of COBYLA against the derivative-free optimizers provided by <code>fcmaes</code>. It is a cleaner read than <code>maxcut.py</code> if you want the core idea without as much scaffolding.</p>
+          <ul>
+            <li>Main pieces: variational-form setup, target distribution evaluation, several optimizer loops, and solver comparison.</li>
+            <li>How it fits: the direct quantum optimization example in the repo.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="reproblem-py">
+          <h3><code>reproblem.py</code></h3>
+          <p class="summary">This file wraps the compiled RE multi-objective benchmark suite so it can be used from the <code>fcmaes</code> side.</p>
+          <p>The script is about integration rather than problem invention. It bridges to the external C version of the RE suite, exposes bounds and objective calls, and then runs weighted-sum or advanced-retry style multi-objective experiments. It is helpful if you want to compare <code>fcmaes</code> on an established benchmark family without rewriting those problems in Python first.</p>
+          <ul>
+            <li>Main pieces: the <code>re_problem</code> wrapper, benchmark objective access, and retry-based Pareto experiments.</li>
+            <li>How it fits: one half of the RE benchmark support, with <code>repython.py</code> as the other half.</li>
+          </ul>
+        </section>
+
+        <section id="repython-py">
+          <h3><code>repython.py</code></h3>
+          <p class="summary">This file reimplements several RE benchmark problems directly in Python and compares them with other multi-objective stacks.</p>
+          <p>The module defines the RE problems in Python, adds optional <code>pymoo</code> problem wrappers, and then exercises MODE, compiled MODE, DE-based search, and weighted-sum retry on top of them. It is broader than <code>reproblem.py</code> because it is not just a bridge. It is also a test bed for multi-objective tooling around the same benchmark family.</p>
+          <ul>
+            <li>Main pieces: RE problem classes, helper functions, <code>pymoo</code> adapters, and multi-objective driver code.</li>
+            <li>How it fits: a portable benchmark script and a useful comparison harness.</li>
+          </ul>
+        </section>
+
+        <section id="robot-py">
+          <h3><code>robot.py</code></h3>
+          <p class="summary">This example optimizes a Box2D push-robot task with retry-based derivative-free search.</p>
+          <p>The script defines the simulation world, reward function, obstacles, and rendering helpers for a robot-pushing problem drawn from black-box optimization benchmarks. It is less about algorithm comparison and more about showing that a physics simulation with awkward control parameters can still be wrapped into a normal <code>fcmaes</code> workflow.</p>
+          <ul>
+            <li>Main pieces: Box2D world construction, reward class, simulation loop, and retry-based optimization.</li>
+            <li>How it fits: one of the simulation-heavy robotics examples.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="routing-py">
+          <h3><code>routing.py</code></h3>
+          <p class="summary">This script models capacitated vehicle routing and solves it with both single-objective and multi-objective flows.</p>
+          <p>The file parses route data, defines a Numba-based routing fitness, and then explores several optimization styles: plain retry for route cost, a capacity-aware path, and multi-objective search over route quality and fleet-capacity tradeoffs. It is a good example of how the repo handles integer-style routing problems without giving up the general derivative-free API.</p>
+          <ul>
+            <li>Main pieces: routing parser, single-objective fitness, capacity-aware variant, retry, MODE, and weighted-sum front generation.</li>
+            <li>How it fits: one of the main logistics examples.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Routing.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Routing.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="rover-py">
+          <h3><code>rover.py</code></h3>
+          <p class="summary">This file defines and optimizes a rover-trajectory problem with spline-based paths and obstacle costs.</p>
+          <p>The script contains more geometry code than most of the example directory. It builds trajectory representations, cost functions, and domain helpers for rover navigation, then hands the resulting black-box objective to retry-based optimizers. Together with <code>robot.py</code>, it shows how the library is used on robotics-style motion problems that come from benchmark suites rather than from the core optimization literature.</p>
+          <ul>
+            <li>Main pieces: spline trajectory model, terrain and obstacle cost functions, plotting, and retry-based optimization.</li>
+            <li>How it fits: the rover-navigation companion to the push-robot example.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/RobotRover.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="scheduling-py">
+          <h3><code>scheduling.py</code></h3>
+          <p class="summary">This is the large GTOC-style scheduling example for a mission-planning problem.</p>
+          <p>The script combines trajectory-selection logic, timing constraints, Numba-accelerated scoring, and both single-objective and multi-objective search. It also includes archive plotting and some quality-diversity hooks. Compared with the other scheduling files, this one is the most domain-heavy. It is written around a specific space-competition scheduling problem rather than a generic benchmark format.</p>
+          <ul>
+            <li>Main pieces: timing logic, constraint checks, scoring functions, retry, MODE, and archive visualization.</li>
+            <li>How it fits: the most specialized scheduling example in the top-level directory.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="siemens-py">
+          <h3><code>siemens.py</code></h3>
+          <p class="summary">This file turns a simple plant material-flow problem into an optimization benchmark.</p>
+          <p>The problem comes from a Siemens challenge rather than from a standard numerical benchmark suite. The script models machines, buffers, and a plant-level simulation, then compares DE-style search and BiteOpt on top of that simulation. It is a compact example, but it says something useful about the library: even a custom queueing or flow model can be wrapped with very little ceremony.</p>
+          <ul>
+            <li>Main pieces: plant model classes, simulation function, and two optimizer drivers.</li>
+            <li>How it fits: a small industrial-simulation example with a clear objective loop.</li>
+          </ul>
+        </section>
+
+        <section id="solo-mgar-py">
+          <h3><code>solo_mgar.py</code></h3>
+          <p class="summary">This is the driver script for a difficult Solar Orbiter mission-design problem built on Pykep.</p>
+          <p>The file reads and verifies candidate solutions, runs retry and multi-objective flows, and can also compare those results with Pagmo-based execution. The actual problem definition lives in <code>solo_mgar_udp.py</code>, so this file reads like a mission-study harness: it is where solution quality is checked, optimizers are chosen, and search runs are launched.</p>
+          <ul>
+            <li>Main pieces: solution checking, retry-based optimization, Pagmo comparison, and result logging.</li>
+            <li>How it fits: the driver around one of the most specialized space examples in the repo.</li>
+          </ul>
+        </section>
+
+        <section id="solo-mgar-udp-py">
+          <h3><code>solo_mgar_udp.py</code></h3>
+          <p class="summary">This file contains the Solar Orbiter problem model used by <code>solo_mgar.py</code>.</p>
+          <p>The class is a real domain model, not a helper. It handles the resonant gravity-assist mechanics, transfer modeling, and mission-constraint calculations needed for the optimizer to score a candidate trajectory. It is long because the mission logic is long. If you read the driver first, this file is the place to come next when you want the orbital details.</p>
+          <ul>
+            <li>Main pieces: the <code>solo_mgar_udp</code> problem class, orbital mechanics helpers, resonance logic, and trajectory scoring.</li>
+            <li>How it fits: the domain backend for the Solar Orbiter mission example.</li>
+          </ul>
+        </section>
+
+        <section id="spring-py">
+          <h3><code>spring.py</code></h3>
+          <p class="summary">This is a small constrained spring-design example that compares retry against a standard local solver.</p>
+          <p>The file encodes the classic tension-compression spring problem with penalty terms for constraint violations. It is short, but it makes a useful point: for some constrained design problems, a derivative-free retry loop with a sensible penalty can be competitive with a standard SLSQP run. That makes the script more than just a textbook exercise.</p>
+          <ul>
+            <li>Main pieces: constraint functions, penalized objective, SLSQP reference path, retry and coordinated retry calls.</li>
+            <li>How it fits: a compact constrained-design example.</li>
+          </ul>
+        </section>
+
+        <section id="subset-py">
+          <h3><code>subset.py</code></h3>
+          <p class="summary">This file shows how a subset-selection problem can be posed as a single-objective derivative-free search.</p>
+          <p>The script defines a small synthetic value model and then searches for the best subset under the chosen scoring rule. The implementation is intentionally lightweight. It is best read as a pattern: encode membership choices inside a continuous vector, project or interpret them inside the objective, and use a standard retry path. The paired multi-objective version lives in <code>subset_mo.py</code>.</p>
+          <ul>
+            <li>Main pieces: transaction-value model, subset fitness, and a simple retry driver.</li>
+            <li>How it fits: the single-objective subset example.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="subset-mo-py">
+          <h3><code>subset_mo.py</code></h3>
+          <p class="summary">This is the multi-objective counterpart to <code>subset.py</code>.</p>
+          <p>Instead of reducing the subset task to one scalar score, this file exposes it to MODE and compiled MODE so a Pareto front can be built. The setup is deliberately small, which makes it a good teaching example for the jump from ordinary retry to explicit multi-objective search.</p>
+          <ul>
+            <li>Main pieces: the same subset-value model with a multi-objective wrapper and MODE-based optimization.</li>
+            <li>How it fits: the paired Pareto version of the subset-selection example.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="tandem-minlp-py">
+          <h3><code>tandem_minlp.py</code></h3>
+          <p class="summary">This is the Tandem mission variant of the mixed-integer multiretry pattern.</p>
+          <p>The script is short because it relies on the mission wrappers in <code>fcmaes.astro</code> and the retry machinery in <code>fcmaes.multiretry</code>. Its job is to define the candidate problem structure, run the staged retry search, and log results. It is best read alongside the Cassini mixed-integer scripts rather than on its own.</p>
+          <ul>
+            <li>Main pieces: mission wrapper selection, coordinated retry, multiretry over Tandem variants.</li>
+            <li>How it fits: another small driver for the mixed-integer mission-design family.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MINLP.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MINLP.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="tdesign-py">
+          <h3><code>tdesign.py</code></h3>
+          <p class="summary">This file searches for weighted spherical t-designs and includes the geometry and harmonic calculations needed to score them.</p>
+          <p>The script is more mathematical than most of the example directory. It converts between coordinate systems, computes spherical harmonics and symmetry measures, visualizes point sets, and then optimizes both point placement and weights. It is a good example of the library being used on a hard scientific design problem where the objective is entirely custom.</p>
+          <ul>
+            <li>Main pieces: coordinate transforms, harmonic error calculations, symmetry checks, visualization, and retry-based optimization.</li>
+            <li>How it fits: one of the most self-contained scientific examples in the repo.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SphericalTDesign.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SphericalTDesign.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="top-trumps-py">
+          <h3><code>top_trumps.py</code></h3>
+          <p class="summary">This script wraps the Top Trumps game benchmark as both a single-objective and multi-objective optimization problem.</p>
+          <p>The benchmark is unusual, but the surrounding code is familiar for this repository. The file defines objective wrappers, bounds, plotting helpers, and several ways to solve the problem: weighted-sum retry, MODE, compiled MODE, and other single-objective paths. It is a good example of the library being pointed at a benchmark outside engineering or physics without changing the surrounding optimization ideas very much.</p>
+          <ul>
+            <li>Main pieces: benchmark objective wrappers, plotting, retry, MODE, and front-building drivers.</li>
+            <li>How it fits: a game-benchmark example that doubles as a multi-objective comparison script.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="trappist-delivery-py">
+          <h3><code>trappist_delivery.py</code></h3>
+          <p class="summary">This is a large competition-style scheduling script for the ESA delivery-scheduling challenge.</p>
+          <p>The file loads problem data, encodes a schedule representation, builds a Numba-accelerated fitness, and runs several optimizers over a large search space. Unlike the more compact tutorials, this is a full competition solver script. It is useful if you want to see what a serious one-off application looks like once all the parsing, logging, and problem-specific bookkeeping are kept in the same file.</p>
+          <ul>
+            <li>Main pieces: schedule class, fitness class, optimization driver, and validation helpers.</li>
+            <li>How it fits: a large problem-specific script that still follows the same retry-first style as the rest of the repo.</li>
+          </ul>
+        </section>
+
+        <section id="tutorial-py">
+          <h3><code>tutorial.py</code></h3>
+          <p class="summary">This is the hands-on companion to the tutorial overview for learning the basic <code>fcmaes</code> workflow.</p>
+          <p>The file walks through the GTOP examples and compares several styles of calling the library: coordinated retry, plain retry, Python and C++ CMA-ES, ask/tell loops, and a few SciPy baselines. It is one of the best files to open if you want to understand usage before diving into any specific application domain.</p>
+          <ul>
+            <li>Main pieces: small benchmark functions, side-by-side optimizer calls, and timing-oriented printouts.</li>
+            <li>How it fits: the most direct tutorial-style code example in the repository.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="vaccination-py">
+          <h3><code>vaccination.py</code></h3>
+          <p class="summary">This file simulates vaccination dynamics and optimizes intervention choices over that model.</p>
+          <p>The code combines Numba-accelerated update rules, plotting helpers, and an execution path that turns a vaccination policy into a score. It is more of a model-and-experiment script than a solver comparison script. If you want to see how a public-health style simulation is wrapped into the same black-box optimization interface used elsewhere in the repo, this example does that clearly.</p>
+          <ul>
+            <li>Main pieces: epidemic update functions, fast simulation loops, plotting, and execution helpers.</li>
+            <li>How it fits: a simulation example with a strong domain story and a light optimization wrapper.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Vaccination.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Vaccination.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="vessel-py">
+          <h3><code>vessel.py</code></h3>
+          <p class="summary">This script solves the classic pressure-vessel design problem with mixed discrete and continuous variables.</p>
+          <p>The shell and head thicknesses are available only in fixed plate increments, while the remaining dimensions stay continuous. The example uses the same basic pattern as the spring and gear-train files: map the variables to feasible values, add penalties for constraint violations, and let retry-based derivative-free search do the rest. It is a straightforward engineering example, but still a useful one.</p>
+          <ul>
+            <li>Main pieces: discretization of thickness variables, constrained cost objective, SLSQP comparison, retry and coordinated retry runs.</li>
+            <li>How it fits: a compact mixed-variable design example.</li>
+          </ul>
+        </section>
+
+        <section id="vilar-py">
+          <h3><code>vilar.py</code></h3>
+          <p class="summary">This example explores the Vilar oscillator model with both multi-objective search and archive-based diversity methods.</p>
+          <p>The file builds on GillesPy2, sweeps parameters, evaluates oscillatory behavior, and then runs either Pareto-style optimization or quality-diversity search to explore the model space. It is one of the clearest examples of a stochastic biochemical model being used as an optimization target rather than as a fixed simulation.</p>
+          <ul>
+            <li>Main pieces: oscillator model wrapper, behavior extraction, MODE and weighted-sum search, diversifier and MAP-Elites runs.</li>
+            <li>How it fits: a bridge between the stochastic-model sweep tutorial and the diversity tutorial.</li>
+          </ul>
+          <div class="tutorials">
+            <strong>Related tutorials</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc</a></li>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc</a></li>
+            </ul>
+          </div>
+        </section>
+
+        <section id="yahpo-py">
+          <h3><code>yahpo.py</code></h3>
+          <p class="summary">This file uses YAHPO Gym as a fast surrogate benchmark for quality-diversity search over machine-learning configurations.</p>
+          <p>The script defines several QD objectives over the YAHPO surrogate benchmarks, such as hardware-performance and interpretability tradeoffs, and then runs the archive machinery over them. It is a good example of the repo moving beyond “find the single best hyperparameter setting” toward “map out the useful tradeoff space.”</p>
+          <ul>
+            <li>Main pieces: benchmark-set setup, objective reshaping, archive plotting, and diversifier-based search.</li>
+            <li>How it fits: a quality-diversity example for ML configuration spaces rather than physical systems.</li>
+          </ul>
+        </section>
+      </main>
+
+      <aside>
+        <div class="toc-title">Table Of Contents</div>
+        <ul class="toc">
+          <li><a href="#init-py"><code>__init__.py</code></a></li>
+          <li><a href="#advexamples-py"><code>advexamples.py</code></a></li>
+          <li><a href="#arm-py"><code>arm.py</code></a></li>
+          <li><a href="#benchmark-gtop-py"><code>benchmark_gtop.py</code></a></li>
+          <li><a href="#benchmark-gtop-pygmo-py"><code>benchmark_gtop_pygmo.py</code></a></li>
+          <li><a href="#cassini2-minlp-py"><code>cassini2_minlp.py</code></a></li>
+          <li><a href="#cassini-minlp-py"><code>cassini_minlp.py</code></a></li>
+          <li><a href="#clustering-py"><code>clustering.py</code></a></li>
+          <li><a href="#crypto-py"><code>crypto.py</code></a></li>
+          <li><a href="#damp-py"><code>damp.py</code></a></li>
+          <li><a href="#elitescass2-py"><code>elitescass2.py</code></a></li>
+          <li><a href="#employee-py"><code>employee.py</code></a></li>
+          <li><a href="#examples-py"><code>examples.py</code></a></li>
+          <li><a href="#f8-py"><code>f8.py</code></a></li>
+          <li><a href="#filter-py"><code>filter.py</code></a></li>
+          <li><a href="#gear-train-py"><code>gear_train.py</code></a></li>
+          <li><a href="#harvesting-py"><code>harvesting.py</code></a></li>
+          <li><a href="#house-py"><code>house.py</code></a></li>
+          <li><a href="#interferometry-py"><code>interferometry.py</code></a></li>
+          <li><a href="#interferometry-udp-py"><code>interferometry_udp.py</code></a></li>
+          <li><a href="#jobshop-py"><code>jobshop.py</code></a></li>
+          <li><a href="#lotka-py"><code>lotka.py</code></a></li>
+          <li><a href="#maxcut-py"><code>maxcut.py</code></a></li>
+          <li><a href="#moexamples-py"><code>moexamples.py</code></a></li>
+          <li><a href="#noisy-tsp-py"><code>noisy_tsp.py</code></a></li>
+          <li><a href="#powerplant-py"><code>powerplant.py</code></a></li>
+          <li><a href="#prophet-opt-py"><code>prophet_opt.py</code></a></li>
+          <li><a href="#quant-py"><code>quant.py</code></a></li>
+          <li><a href="#reproblem-py"><code>reproblem.py</code></a></li>
+          <li><a href="#repython-py"><code>repython.py</code></a></li>
+          <li><a href="#robot-py"><code>robot.py</code></a></li>
+          <li><a href="#routing-py"><code>routing.py</code></a></li>
+          <li><a href="#rover-py"><code>rover.py</code></a></li>
+          <li><a href="#scheduling-py"><code>scheduling.py</code></a></li>
+          <li><a href="#siemens-py"><code>siemens.py</code></a></li>
+          <li><a href="#solo-mgar-py"><code>solo_mgar.py</code></a></li>
+          <li><a href="#solo-mgar-udp-py"><code>solo_mgar_udp.py</code></a></li>
+          <li><a href="#spring-py"><code>spring.py</code></a></li>
+          <li><a href="#subset-py"><code>subset.py</code></a></li>
+          <li><a href="#subset-mo-py"><code>subset_mo.py</code></a></li>
+          <li><a href="#tandem-minlp-py"><code>tandem_minlp.py</code></a></li>
+          <li><a href="#tdesign-py"><code>tdesign.py</code></a></li>
+          <li><a href="#top-trumps-py"><code>top_trumps.py</code></a></li>
+          <li><a href="#trappist-delivery-py"><code>trappist_delivery.py</code></a></li>
+          <li><a href="#tutorial-py"><code>tutorial.py</code></a></li>
+          <li><a href="#vaccination-py"><code>vaccination.py</code></a></li>
+          <li><a href="#vessel-py"><code>vessel.py</code></a></li>
+          <li><a href="#vilar-py"><code>vilar.py</code></a></li>
+          <li><a href="#yahpo-py"><code>yahpo.py</code></a></li>
+        </ul>
+      </aside>
+    </div>
+
+    <footer>
+      <h2>Which Examples To Read First</h2>
+      <p>If you want a gentle entry, start with <code>tutorial.py</code>, then look at <code>examples.py</code> and <code>benchmark_gtop.py</code>. For a practical combinatorial problem, jump to <code>routing.py</code>, <code>jobshop.py</code>, or <code>employee.py</code>. For quality-diversity, read <code>arm.py</code> or <code>damp.py</code> first, then move to <code>elitescass2.py</code> or <code>powerplant.py</code>. For a broader application case, <code>crypto.py</code>, <code>powerplant.py</code>, and <code>prophet_opt.py</code> show how the same optimizer stack can wrap very different simulation or modeling loops.</p>
+    </footer>
+  </div>
+</body>
+</html>

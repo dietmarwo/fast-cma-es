@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fcmaes Package Documentation</title>
+  <style>
+    :root {
+      --bg: #f6f3ec;
+      --panel: #fffdf8;
+      --ink: #1f2421;
+      --muted: #58615c;
+      --line: #d9d1c5;
+      --accent: #255f4a;
+      --accent-soft: #e6f1ec;
+      --code: #f1ece3;
+      --shadow: 0 10px 30px rgba(41, 44, 40, 0.08);
+      --max: 1200px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background: linear-gradient(180deg, #f2eee6 0%, #f7f4ee 180px, var(--bg) 100%);
+      color: var(--ink);
+      line-height: 1.6;
+    }
+    a { color: var(--accent); }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      background: var(--code);
+      padding: 0.1rem 0.35rem;
+      border-radius: 0.3rem;
+      font-size: 0.92em;
+    }
+    .page {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 2rem 1rem 4rem;
+    }
+    header {
+      padding: 1rem 0 1.5rem;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 1.5rem;
+    }
+    h1, h2, h3 {
+      line-height: 1.2;
+      margin: 0 0 0.75rem;
+      font-weight: 700;
+    }
+    h1 { font-size: clamp(2rem, 4vw, 3rem); }
+    h2 { font-size: clamp(1.35rem, 2.2vw, 1.8rem); margin-top: 2rem; }
+    h3 { font-size: 1.15rem; margin-top: 0; }
+    p { margin: 0 0 0.9rem; }
+    .lede {
+      max-width: 70ch;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    main section,
+    aside,
+    .note,
+    .map {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      box-shadow: var(--shadow);
+    }
+    main section {
+      padding: 1.15rem 1.2rem;
+      margin-bottom: 1rem;
+      scroll-margin-top: 1rem;
+    }
+    aside {
+      position: sticky;
+      top: 1rem;
+      padding: 1rem;
+    }
+    .toc-title {
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+    .toc {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .toc li { margin: 0 0 0.45rem; }
+    .toc a {
+      text-decoration: none;
+      color: var(--ink);
+    }
+    .toc a:hover { color: var(--accent); }
+    .summary {
+      font-size: 1rem;
+      margin-bottom: 0.8rem;
+      color: var(--accent);
+    }
+    ul {
+      margin: 0.6rem 0 0.9rem 1.2rem;
+      padding: 0;
+    }
+    .map, .note {
+      padding: 1rem 1.1rem;
+      margin-bottom: 1rem;
+    }
+    .map-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.8rem;
+      margin-top: 0.8rem;
+    }
+    .map-card {
+      padding: 0.8rem 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: 0.8rem;
+      background: #fcfaf5;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .tutorials {
+      padding: 0.75rem 0.9rem;
+      border-radius: 0.8rem;
+      background: var(--accent-soft);
+      border: 1px solid #cbe0d5;
+      margin-top: 0.8rem;
+    }
+    footer {
+      margin-top: 2rem;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 1rem;
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { position: static; order: -1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>Documentation for <code>fcmaes/</code></h1>
+      <p class="lede">This page explains the top-level Python modules in the <code>fcmaes</code> package. It is written as a navigation guide for engineers who want to understand how the library is split between core optimizers, retry layers, evaluation helpers, quality-diversity tools, wrappers around C++ code, and test support.</p>
+    </header>
+
+    <div class="note">
+      <h2>What Lives In <code>fcmaes/</code></h2>
+      <p>The package mixes two kinds of code. One group implements optimizers directly in Python or exposes C++ implementations through <code>ctypes</code>. The other group builds higher-level workflows around those optimizers: restart strategies, multi-objective handling, archive-based diversification, parallel evaluators, benchmark helpers, and test utilities.</p>
+      <p>If you are new to the repository, the most useful starting points are usually <code>optimizer.py</code>, <code>retry.py</code>, <code>de.py</code>, <code>cmaes.py</code>, <code>decpp.py</code>, <code>cmaescpp.py</code>, and for multi-objective work <code>mode.py</code>, <code>modecpp.py</code>, and <code>moretry.py</code>.</p>
+    </div>
+
+    <div class="map">
+      <h2>Quick Map Of The Package</h2>
+      <div class="map-grid">
+        <div class="map-card"><strong>Single-objective optimizers</strong><br><span class="meta"><code>cmaes.py</code>, <code>de.py</code>, <code>crfmnes.py</code> and the <code>*cpp.py</code> wrappers.</span></div>
+        <div class="map-card"><strong>Meta-algorithms</strong><br><span class="meta"><code>retry.py</code>, <code>advretry.py</code>, <code>multiretry.py</code>, <code>moretry.py</code>.</span></div>
+        <div class="map-card"><strong>Multi-objective search</strong><br><span class="meta"><code>mode.py</code> and <code>modecpp.py</code>, plus weighted-sum retry in <code>moretry.py</code>.</span></div>
+        <div class="map-card"><strong>Quality-diversity</strong><br><span class="meta"><code>mapelites.py</code> and <code>diversifier.py</code>.</span></div>
+        <div class="map-card"><strong>Execution helpers</strong><br><span class="meta"><code>evaluator.py</code>, <code>optimizer.py</code>, <code>journal.py</code>.</span></div>
+        <div class="map-card"><strong>Benchmarks and tests</strong><br><span class="meta"><code>astro.py</code>, <code>testfun.py</code>, <code>test_cma.py</code>.</span></div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <main>
+        <section id="init-py">
+          <h3><code>__init__.py</code></h3>
+          <p class="summary">The package entry file declares the public module surface and the library version.</p>
+          <p>This file is small, but it is still useful because it shows what the project considers part of the top-level API. The <code>__all__</code> list points to the modules the author expects users to import directly, and the version constant is the simplest place to confirm the packaged release number.</p>
+          <ul>
+            <li>Main contents: <code>__version__</code> and <code>__all__</code>.</li>
+            <li>Role in the package: a lightweight export map, not an implementation module.</li>
+            <li>Worth opening next: <code>optimizer.py</code> to see how those modules are composed.</li>
+          </ul>
+          <p>The file also hints at the package history. Some names in <code>__all__</code> refer to wrappers and older components, so it works as a rough inventory of supported optimization styles.</p>
+        </section>
+
+        <section id="advretry-py">
+          <h3><code>advretry.py</code></h3>
+          <p class="summary">This module runs a smarter form of parallel restart optimization that reuses information from earlier runs.</p>
+          <p>Plain retry starts many independent optimization runs and keeps the best results. <code>advretry.py</code> goes further. Its shared <code>Store</code> keeps promising solutions, adapts evaluation budgets over time, and feeds crossover-style guesses plus step-size hints back into later runs. That makes it a coordination layer on top of single-objective optimizers rather than a standalone optimizer.</p>
+          <ul>
+            <li>Main concepts: <code>minimize</code>, <code>retry</code>, <code>Store</code>, adaptive evaluation limits, persisted retry state, crossover between stored solutions.</li>
+            <li>Best fit: hard problems where naive random restarts waste too much budget.</li>
+            <li>Relation to the rest of the repo: built on <code>retry.py</code> ideas and on optimizer objects from <code>optimizer.py</code>.</li>
+          </ul>
+          <p>The default workflow combines differential evolution and CMA-ES, but the real point is the storage layer. If you want to understand how the library turns a sequence of local or semi-global runs into a coordinated search, this is one of the key modules.</p>
+        </section>
+
+        <section id="astro-py">
+          <h3><code>astro.py</code></h3>
+          <p class="summary">This file exposes ESA GTOP space-mission benchmark problems as Python-friendly objects.</p>
+          <p>The module is a bridge between the optimization library and a set of compiled benchmark functions such as <code>Messenger</code>, <code>Cassini1</code>, <code>Cassini2</code>, <code>Rosetta</code>, <code>Sagas</code>, and <code>Tandem</code>. Each problem class packages bounds, a callable objective, and in a few cases special handling for mixed-integer or multi-objective variants.</p>
+          <ul>
+            <li>Main contents: benchmark classes, <code>python_fun</code>, mixed-integer helpers like <code>Tandem_minlp</code>, and special wrappers such as <code>cassini1multi</code>.</li>
+            <li>Role in the package: test and example support rather than optimizer infrastructure.</li>
+            <li>Worth opening next: example scripts and tutorials that use GTOP problems to compare retry, MODE, and mixed-integer workflows.</li>
+          </ul>
+          <p>This module matters because many design choices in <code>fcmaes</code> were shaped by trajectory optimization. It is one of the clearest links between the library and its original application domain.</p>
+        </section>
+
+        <section id="bitecpp-py">
+          <h3><code>bitecpp.py</code></h3>
+          <p class="summary">This wrapper exposes the C++ BiteOpt solver through the same <code>minimize</code>-style interface used across the package.</p>
+          <p>The implementation is intentionally thin. It converts bounds and guesses into C types, wraps the Python objective as a callback, calls the compiled optimizer, and returns a <code>scipy.optimize.OptimizeResult</code>. That makes BiteOpt available anywhere an <code>fcmaes</code> optimizer can be slotted in.</p>
+          <ul>
+            <li>Main concepts: callback bridging, bound handling, <code>OptimizeResult</code> conversion.</li>
+            <li>Role in the architecture: one of several compiled solver adapters alongside <code>cmaescpp.py</code>, <code>decpp.py</code>, <code>dacpp.py</code>, <code>crfmnescpp.py</code>, and <code>pgpecpp.py</code>.</li>
+            <li>Worth opening next: <code>optimizer.py</code>, where BiteOpt can be composed into retry pipelines.</li>
+          </ul>
+          <p>If you are browsing for algorithm details, this is not the place. If you are browsing for API integration patterns, it is a representative example.</p>
+        </section>
+
+        <section id="cmaes-py">
+          <h3><code>cmaes.py</code></h3>
+          <p class="summary">This is the library’s pure Python implementation of active CMA-ES, including an ask/tell interface.</p>
+          <p>The module provides two levels of access. <code>minimize</code> gives a direct one-shot optimizer call, while the <code>Cmaes</code> class exposes the internal ask/tell loop for code that wants to drive evaluation itself. It also supports delayed population updates for parallel objective evaluation, which is important for slow simulations.</p>
+          <ul>
+            <li>Main concepts: active covariance adaptation, ask/tell workflow, optional normalization, parallel population evaluation.</li>
+            <li>Role in the package: a reference Python implementation and a fallback when compiled code is unavailable.</li>
+            <li>Relation to other files: mirrored by <code>cmaescpp.py</code>; used directly in tests and through <code>optimizer.py</code> sequences.</li>
+          </ul>
+          <p>This is one of the core files to read if you want to understand the package’s optimizer internals rather than just call wrappers.</p>
+        </section>
+
+        <section id="cmaescpp-py">
+          <h3><code>cmaescpp.py</code></h3>
+          <p class="summary">This module wraps the compiled CMA-ES implementation and matches the Python API closely.</p>
+          <p>The file is the fast path for users who want CMA-ES without reading or maintaining the Python implementation details. Besides the top-level <code>minimize</code> function, it exposes <code>ACMA_C</code>, a lower-level ask/tell style wrapper around the native stateful optimizer.</p>
+          <ul>
+            <li>Main concepts: <code>ctypes</code> callbacks, parallel objective evaluation, delayed update support, compiled ask/tell access.</li>
+            <li>Role in the package: production-oriented CMA-ES backend.</li>
+            <li>Relation to the rest of the repo: selected by many composite optimizers in <code>optimizer.py</code> and exercised in <code>test_cma.py</code>.</li>
+          </ul>
+          <p>If the Python and C++ CMA-ES modules are read together, the architecture becomes clear: the library aims to keep the user-facing API steady while swapping execution backends underneath.</p>
+        </section>
+
+        <section id="crfmnes-py">
+          <h3><code>crfmnes.py</code></h3>
+          <p class="summary">This file implements the CR-FM-NES optimizer in pure Python.</p>
+          <p>CR-FM-NES is another evolutionary strategy in the package, separate from CMA-ES and DE. The module contains both the simple <code>minimize</code> entry point and the fuller <code>CRFMNES</code> class, plus helper routines for matrix-related calculations used by the algorithm.</p>
+          <ul>
+            <li>Main concepts: Gaussian search distribution updates, ranking-based evolution strategy logic, optional parallel evaluation.</li>
+            <li>Role in the package: an alternative optimizer for problems where CMA-ES or DE are not the preferred choice.</li>
+            <li>Relation to other files: wrapped by <code>optimizer.py</code> and mirrored by <code>crfmnescpp.py</code>.</li>
+          </ul>
+          <p>The file is narrower than <code>cmaes.py</code> or <code>de.py</code>, but it matters because it broadens the set of optimizers available to the retry and diversification layers.</p>
+        </section>
+
+        <section id="crfmnescpp-py">
+          <h3><code>crfmnescpp.py</code></h3>
+          <p class="summary">This is the compiled CR-FM-NES binding, shaped to look like the Python version.</p>
+          <p>The module handles parameter marshalling, callback registration, and result unpacking for the native solver. It also exposes <code>CRFMNES_C</code> for lower-level interaction, similar to the compiled CMA-ES and DE wrappers.</p>
+          <ul>
+            <li>Main concepts: native callback bridge, optional parallel evaluation, compiled stateful wrapper.</li>
+            <li>Role in the package: faster backend for CR-FM-NES.</li>
+            <li>Worth opening next: <code>optimizer.py</code> to see where it is chosen over the Python implementation.</li>
+          </ul>
+          <p>Like the other <code>*cpp.py</code> files, most of the engineering value here is in interface consistency, not algorithm exposition.</p>
+        </section>
+
+        <section id="dacpp-py">
+          <h3><code>dacpp.py</code></h3>
+          <p class="summary">This wrapper exposes a compiled dual annealing solver with an optional local search phase.</p>
+          <p>The implementation follows the same package pattern: convert inputs, call native code, return an <code>OptimizeResult</code>. Its algorithm niche is different from the evolutionary solvers around it, so it is mainly useful as one building block in composite workflows rather than as the package’s default recommendation.</p>
+          <ul>
+            <li>Main concepts: dual annealing, optional LBFGS-B local search, C++ binding.</li>
+            <li>Role in the package: a supplementary global-search backend.</li>
+            <li>Relation to other files: used through optimizer wrappers such as <code>da_cma</code> in <code>optimizer.py</code>.</li>
+          </ul>
+          <p>If you are looking for the main ideas of the library, this is not central. If you are looking for breadth of available solvers, it is part of that picture.</p>
+        </section>
+
+        <section id="de-py">
+          <h3><code>de.py</code></h3>
+          <p class="summary">This module contains the package’s pure Python differential evolution implementation and its ask/tell machinery.</p>
+          <p>The implementation is more opinionated than a textbook DE port. It uses DE/best/1, oscillating control parameters, temporal locality, age-based reinitialization, and custom handling for integer decision variables. It can also evaluate populations in parallel, which makes it one of the main choices for expensive objectives.</p>
+          <ul>
+            <li>Main concepts: <code>minimize</code>, <code>DE</code> ask/tell interface, integer-variable mutation, optional candidate filtering, delayed population update.</li>
+            <li>Role in the package: one of the core single-objective optimizers.</li>
+            <li>Relation to the rest of the repo: forms the basis for retry combinations and inspired the multi-objective MODE variants.</li>
+          </ul>
+          <p>This is a key file if you want to understand how the project’s evolutionary code differs from stock library implementations.</p>
+        </section>
+
+        <section id="decpp-py">
+          <h3><code>decpp.py</code></h3>
+          <p class="summary">This wrapper provides the compiled differential evolution backend and a native ask/tell object.</p>
+          <p>Functionally, it mirrors <code>de.py</code> but routes the actual search through the shared library. The file supports integer variables, optional initial guesses and sigmas, callback-based stopping, and a stateful <code>DE_C</code> class for direct ask/tell use.</p>
+          <ul>
+            <li>Main concepts: compiled DE, callback bridge, stateful <code>DE_C</code>, integer support.</li>
+            <li>Role in the package: the main fast backend for DE-heavy workflows.</li>
+            <li>Relation to other files: heavily reused by <code>optimizer.py</code>, <code>retry.py</code>, and many examples.</li>
+          </ul>
+          <p>For most users, this is the DE implementation they will actually run, while <code>de.py</code> remains easier to inspect and modify.</p>
+        </section>
+
+        <section id="diversifier-py">
+          <h3><code>diversifier.py</code></h3>
+          <p class="summary">This module turns ordinary optimizers into archive-filling quality-diversity searches.</p>
+          <p>The central idea is to wrap a solver so that the score it receives is measured relative to the current elite in a behavior niche. That lets CMA-ES, DE, CR-FM-NES, PGPE, and even MAP-Elites-style variation act as emitters inside one shared archive. The module also includes a bridge back to single-objective optimization through <code>apply_advretry</code>.</p>
+          <ul>
+            <li>Main concepts: niche-relative fitness, shared <code>Archive</code>, solver sequencing, MAP-Elites emitters, <code>apply_advretry</code>.</li>
+            <li>Role in the package: a high-level quality-diversity orchestration layer.</li>
+            <li>Relation to other files: built directly on <code>mapelites.py</code>, <code>advretry.py</code>, and optimizer wrappers from <code>optimizer.py</code>.</li>
+          </ul>
+          <p>This file is useful when the goal is not a single best point, but a diverse set of strong solutions spread over a descriptor space.</p>
+        </section>
+
+        <section id="evaluator-py">
+          <h3><code>evaluator.py</code></h3>
+          <p class="summary">This is the package’s execution plumbing for serial calls, parallel workers, and native callbacks.</p>
+          <p>Many modules depend on this file without users ever importing it directly. It provides process-based evaluators, helpers for slicing batch evaluations across workers, bound handling utilities, and several callback wrappers that let compiled optimizers call back into Python objective functions safely enough for the library’s multiprocessing model.</p>
+          <ul>
+            <li>Main concepts: <code>Evaluator</code>, <code>parallel</code>, <code>parallel_mo</code>, callback adapters, bound checking, logging-level checks.</li>
+            <li>Role in the package: shared infrastructure.</li>
+            <li>Relation to the rest of the repo: used by nearly every optimizer, especially the compiled wrappers.</li>
+          </ul>
+          <p>If you want to understand how objective evaluation is parallelized or how Python functions are passed into C++, this is the file to read.</p>
+        </section>
+
+        <section id="journal-py">
+          <h3><code>journal.py</code></h3>
+          <p class="summary">This module writes optimization progress into Optuna’s journal format so external dashboards can watch long runs.</p>
+          <p>The code is deliberately practical. It defines the JSON message types Optuna expects, writes study and trial records, and provides <code>journal_wrapper</code>, a fitness wrapper that batches trial metadata and marks invalid results as pruned. It is aimed at monitoring rather than optimization itself.</p>
+          <ul>
+            <li>Main concepts: Optuna journal messages, study and trial serialization, batched file writes, wrapper around arbitrary fitness functions.</li>
+            <li>Role in the package: observability helper.</li>
+            <li>Relation to the rest of the repo: optional add-on for slow runs, especially hyperparameter optimization examples.</li>
+          </ul>
+          <p>The module is narrow, but useful when a long optimization needs a live dashboard without rewriting the search code around Optuna.</p>
+        </section>
+
+        <section id="mapelites-py">
+          <h3><code>mapelites.py</code></h3>
+          <p class="summary">This file implements CVT MAP-Elites with a shared-memory archive and extra emitters based on CMA-ES.</p>
+          <p>The code covers the full archive workflow: niche construction, KD-tree lookup, persistence, archive updates, variation operators, and emitter logic. It supports CVT-style behavior-space partitioning and keeps the archive in shared memory so multiple worker processes can update it with lower communication overhead.</p>
+          <ul>
+            <li>Main concepts: <code>Archive</code>, CVT niche generation, KD-tree indexing, SBX and Iso+LineDD variation, CMA-ES emitter, archive persistence.</li>
+            <li>Role in the package: the main quality-diversity engine.</li>
+            <li>Relation to other files: extended by <code>diversifier.py</code>; reuses pieces from <code>retry.py</code> and <code>cmaescpp.py</code>.</li>
+          </ul>
+          <p>This is one of the larger architecture files. If your interest is in behavior-space search rather than pure objective minimization, start here.</p>
+        </section>
+
+        <section id="mode-py">
+          <h3><code>mode.py</code></h3>
+          <p class="summary">This module implements the Python version of the library’s multi-objective differential evolution workflow.</p>
+          <p><code>mode.py</code> adapts the project’s DE machinery to multi-objective problems and lets the user switch between two survival/update styles: a DE-oriented update and an NSGA-II-like update built around Pareto sorting and crowding. It also supports constrained problems and parallel objective evaluation for expensive functions.</p>
+          <ul>
+            <li>Main concepts: <code>MODE</code>, Pareto ranking, crowding distance, constraint ranking, integer handling, multi-objective result <code>store</code>.</li>
+            <li>Role in the package: the inspectable Python implementation of MODE.</li>
+            <li>Relation to the rest of the repo: paired with <code>modecpp.py</code>; compared against weighted-sum retry in <code>moretry.py</code>.</li>
+          </ul>
+          <p>The file is worth reading when you want to understand the package’s multi-objective design choices, especially how it blends DE mechanics with NSGA-style ranking.</p>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc</a></li>
+            </ul>
+            <p>The tutorial explains when MODE is a good fit, when weighted-sum retry is a better tradeoff, and why the package offers both DE-style and NSGA-II-style population updates.</p>
+          </div>
+        </section>
+
+        <section id="modecpp-py">
+          <h3><code>modecpp.py</code></h3>
+          <p class="summary">This is the compiled MODE backend, plus a parallel retry mode for cheap multi-objective functions.</p>
+          <p>The top-level <code>minimize</code> call matches the Python MODE interface, but the module adds another important path: <code>retry</code>. Instead of one big run with parallel fitness evaluation, that path launches many independent MODE runs and merges their non-dominated results into one shared front. The tutorial makes a point of when that tradeoff is better.</p>
+          <ul>
+            <li>Main concepts: compiled MODE, DE versus NSGA-II update toggle, multi-objective retry, shared Pareto store.</li>
+            <li>Role in the package: primary fast backend for MODE and the only retry-style MODE implementation.</li>
+            <li>Relation to other files: built on ranking helpers from <code>mode.py</code> and compared directly to <code>moretry.py</code>.</li>
+          </ul>
+          <p>This file is central if you care about scalable multi-objective optimization in the package. The retry path is especially important for fast objectives.</p>
+          <div class="tutorials">
+            <strong>Related tutorial</strong>
+            <ul>
+              <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc</a></li>
+            </ul>
+            <p>The tutorial gives the clearest rationale for choosing <code>modecpp.minimize</code> versus <code>modecpp.retry</code>, and for deciding between the DE and NSGA-II update variants.</p>
+          </div>
+        </section>
+
+        <section id="moretry-py">
+          <h3><code>moretry.py</code></h3>
+          <p class="summary">This module handles multi-objective optimization by running many single-objective retries with random weights.</p>
+          <p>Instead of evolving a Pareto front directly, <code>moretry.py</code> samples weight vectors, turns a multi-objective problem into repeated weighted-sum scalar problems, and solves those with the ordinary retry stack. It also includes Pareto filtering and plotting helpers. In this codebase, that approach is not a side note. It is presented as a serious alternative to MODE, especially when front coverage matters.</p>
+          <ul>
+            <li>Main concepts: weighted-sum wrapper, retry over random weights, Pareto extraction, front plotting, compatibility with constrained problems.</li>
+            <li>Role in the package: the main multi-objective meta-algorithm outside MODE.</li>
+            <li>Relation to other files: depends on <code>retry.py</code> or <code>advretry.py</code> and is discussed throughout the MODE tutorial.</li>
+          </ul>
+          <p>If a multi-objective problem has only a few objectives and very strong single-objective solvers matter more than one-shot Pareto evolution, this is the file to read first.</p>
+        </section>
+
+        <section id="multiretry-py">
+          <h3><code>multiretry.py</code></h3>
+          <p class="summary">This file manages a tournament over many related problem variants by spending more retry budget on the promising ones.</p>
+          <p>The intended use case is a family of optimization problems that differ in a discrete structural choice, such as enumerated mixed-integer variants. The module gives each problem a shared <code>advretry.Store</code>, advances them in rounds, removes weak variants, and keeps increasing budget on the survivors.</p>
+          <ul>
+            <li>Main concepts: <code>problem_stats</code>, staged elimination, persisted retry state, coordinated comparison of problem instances.</li>
+            <li>Role in the package: a meta-meta-algorithm for model or structure selection.</li>
+            <li>Relation to the rest of the repo: layered directly on <code>advretry.py</code> and optimizer objects from <code>optimizer.py</code>.</li>
+          </ul>
+          <p>This is a specialized file, but a useful one when discrete choices can be enumerated instead of encoded inside one mixed-variable optimizer.</p>
+        </section>
+
+        <section id="optimizer-py">
+          <h3><code>optimizer.py</code></h3>
+          <p class="summary">This module is the package’s optimizer catalog and composition layer.</p>
+          <p>Most higher-level code does not call solver modules directly. It works through the <code>Optimizer</code> abstraction defined here. The file wraps Python implementations, C++ implementations, several SciPy solvers, and optional third-party backends into a shared interface. It also defines sequences and random choices of optimizers, such as the common DE-then-CMA pipeline.</p>
+          <ul>
+            <li>Main concepts: <code>Optimizer</code>, <code>Sequence</code>, <code>Choice</code>, utility functions like <code>de_cma</code>, and concrete wrappers such as <code>Cma_cpp</code>, <code>De_cpp</code>, <code>Bite_cpp</code>, <code>Dual_annealing</code>, <code>NLopt</code>.</li>
+            <li>Role in the package: the policy layer that lets retry code stay agnostic about the underlying solver.</li>
+            <li>Worth opening next: <code>retry.py</code> and <code>advretry.py</code>, which consume these wrappers.</li>
+          </ul>
+          <p>If you want one file that explains how the package is assembled out of interchangeable solver parts, this is the one.</p>
+        </section>
+
+        <section id="pgpecpp-py">
+          <h3><code>pgpecpp.py</code></h3>
+          <p class="summary">This wrapper exposes a compiled PGPE optimizer with optional parallel population evaluation.</p>
+          <p>The module packages a policy-gradient style evolutionary method behind the same API used by the rest of the library. It includes the native binding plus <code>PGPE_C</code> for lower-level access, and exposes many algorithm knobs such as ranking, learning-rate decay, and ADAM-style parameters.</p>
+          <ul>
+            <li>Main concepts: PGPE, native callbacks, parallel evaluation, stateful compiled wrapper.</li>
+            <li>Role in the package: an additional optimizer choice for retry and diversification workflows.</li>
+            <li>Relation to other files: selected through <code>optimizer.py</code> and used by <code>diversifier.py</code> as one possible emitter.</li>
+          </ul>
+          <p>This is another case where the interface consistency matters more than the wrapper code itself.</p>
+        </section>
+
+        <section id="pygmoretry-py">
+          <h3><code>pygmoretry.py</code></h3>
+          <p class="summary">This module applies the package’s parallel retry idea to Pygmo or Pagmo problems and algorithms.</p>
+          <p>The ordinary <code>retry.py</code> path assumes a scalar objective. <code>pygmoretry.py</code> exists because Pygmo problems can carry constraints and multiple objectives natively. The module launches many population-based runs in parallel processes, collects feasible champions, and stores them through the same basic shared-store pattern used elsewhere in the package.</p>
+          <ul>
+            <li>Main concepts: Pygmo population retries, feasible-solution filtering, process-based scaling.</li>
+            <li>Role in the package: integration layer for users who want Pagmo algorithms but prefer the <code>fcmaes</code> retry model.</li>
+            <li>Relation to other files: reuses <code>retry.Store</code> rather than reimplementing storage and sorting logic.</li>
+          </ul>
+          <p>This file is specialized, but it is one of the clearer examples of the project adapting its meta-algorithms to an external optimization ecosystem.</p>
+        </section>
+
+        <section id="retry-py">
+          <h3><code>retry.py</code></h3>
+          <p class="summary">This is the basic parallel restart engine for scalar optimization in the package.</p>
+          <p>The module launches many optimizer runs across processes, stores good results in shared memory, and returns the best one found. Its <code>Store</code> tracks incumbent solutions, evaluation counts, and optional progress statistics. Compared with <code>advretry.py</code>, this version is simpler and more neutral: it coordinates restarts, but does not try to shape later runs as aggressively.</p>
+          <ul>
+            <li>Main concepts: <code>minimize</code>, shared <code>Store</code>, multiprocessing retry loop, progress plotting, <code>Shared2d</code>.</li>
+            <li>Role in the package: core meta-algorithm for repeated single-objective runs.</li>
+            <li>Relation to other files: foundation for <code>advretry.py</code>, <code>moretry.py</code>, and several examples.</li>
+          </ul>
+          <p>If you want the shortest path to understanding how the repository thinks about “retry,” start here before reading the advanced version.</p>
+        </section>
+
+        <section id="test-cma-py">
+          <h3><code>test_cma.py</code></h3>
+          <p class="summary">This file is the regression test suite for the main optimization APIs, not part of the runtime library.</p>
+          <p>The tests cover Python and C++ CMA-ES, Python and C++ DE, ask/tell loops, parallel execution, and the retry layers. The benchmark functions are simple enough to assert convergence and evaluation counts, which makes the file a good reference for expected API behavior as well as correctness checks.</p>
+          <ul>
+            <li>Main concepts: stochastic test retries, convergence assertions, ask/tell usage examples.</li>
+            <li>Role in the package: automated verification.</li>
+            <li>Worth opening next: <code>testfun.py</code> for the benchmark definitions used here.</li>
+          </ul>
+          <p>Even if you are not changing tests, this file is useful because it shows the library’s preferred calling patterns in compact form.</p>
+        </section>
+
+        <section id="testfun-py">
+          <h3><code>testfun.py</code></h3>
+          <p class="summary">This module defines small benchmark problems and a wrapper that counts evaluations and tracks the best result.</p>
+          <p>The classes here package standard functions such as Rosenbrock, Rastrigin, Sphere, Cigar, Ellipsoid, and Eggholder with bounds and a monitoring wrapper. They are lightweight, but they support the tests and simple experiments throughout the repository.</p>
+          <ul>
+            <li>Main concepts: named benchmark classes, shared <code>Wrapper</code> for count and incumbent tracking, noisy Rastrigin mean variant.</li>
+            <li>Role in the package: testing and quick experimentation support.</li>
+            <li>Relation to other files: imported by <code>test_cma.py</code> and handy when validating optimizer changes.</li>
+          </ul>
+          <p>This is a utility module, not a production component, but it is a good place to look for tiny objective functions with bounds already attached.</p>
+        </section>
+      </main>
+
+      <aside>
+        <div class="toc-title">Table Of Contents</div>
+        <ul class="toc">
+          <li><a href="#init-py"><code>__init__.py</code></a></li>
+          <li><a href="#advretry-py"><code>advretry.py</code></a></li>
+          <li><a href="#astro-py"><code>astro.py</code></a></li>
+          <li><a href="#bitecpp-py"><code>bitecpp.py</code></a></li>
+          <li><a href="#cmaes-py"><code>cmaes.py</code></a></li>
+          <li><a href="#cmaescpp-py"><code>cmaescpp.py</code></a></li>
+          <li><a href="#crfmnes-py"><code>crfmnes.py</code></a></li>
+          <li><a href="#crfmnescpp-py"><code>crfmnescpp.py</code></a></li>
+          <li><a href="#dacpp-py"><code>dacpp.py</code></a></li>
+          <li><a href="#de-py"><code>de.py</code></a></li>
+          <li><a href="#decpp-py"><code>decpp.py</code></a></li>
+          <li><a href="#diversifier-py"><code>diversifier.py</code></a></li>
+          <li><a href="#evaluator-py"><code>evaluator.py</code></a></li>
+          <li><a href="#journal-py"><code>journal.py</code></a></li>
+          <li><a href="#mapelites-py"><code>mapelites.py</code></a></li>
+          <li><a href="#mode-py"><code>mode.py</code></a></li>
+          <li><a href="#modecpp-py"><code>modecpp.py</code></a></li>
+          <li><a href="#moretry-py"><code>moretry.py</code></a></li>
+          <li><a href="#multiretry-py"><code>multiretry.py</code></a></li>
+          <li><a href="#optimizer-py"><code>optimizer.py</code></a></li>
+          <li><a href="#pgpecpp-py"><code>pgpecpp.py</code></a></li>
+          <li><a href="#pygmoretry-py"><code>pygmoretry.py</code></a></li>
+          <li><a href="#retry-py"><code>retry.py</code></a></li>
+          <li><a href="#test-cma-py"><code>test_cma.py</code></a></li>
+          <li><a href="#testfun-py"><code>testfun.py</code></a></li>
+        </ul>
+      </aside>
+    </div>
+
+    <footer>
+      <h2>How To Navigate The Package</h2>
+      <p>For core optimization flows, start with <code>optimizer.py</code>, then read <code>retry.py</code> and one optimizer pair such as <code>de.py</code> and <code>decpp.py</code> or <code>cmaes.py</code> and <code>cmaescpp.py</code>. For multi-objective work, read <code>moretry.py</code> and then <code>mode.py</code> or <code>modecpp.py</code> with the MODE tutorial beside them. For quality-diversity workflows, move from <code>mapelites.py</code> to <code>diversifier.py</code>. If you want usage examples that are short and concrete, <code>test_cma.py</code> is a good final stop.</p>
+    </footer>
+  </div>
+</body>
+</html>
