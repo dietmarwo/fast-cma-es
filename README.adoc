@@ -11,7 +11,7 @@ image::logo.gif[]
 
 fcmaes extends https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy optimize] with additional optimization methods, fast {cpp}/Eigen-based implementations, and a coordinated parallel retry mechanism.
 It supports multi-threaded use of several gradient-free
-https://dietmarwo.github.io/fast-cma-es/fcmaes_documentation.html[algorithms] partly implemented in https://dietmarwo.github.io/fast-cma-es/cpp_documentation.html[C++].
+https://dietmarwo.github.io/fast-cma-es/fcmaes_documentation.html[algorithms] partly implemented in https://dietmarwo.github.io/fast-cma-es/cpp_documentation.html[{cpp}].
 It is designed for real-world problems, including multi-objective and constrained optimization. The main algorithms are available in both Python and C++. They support parallel fitness evaluation as well as parallel retry strategies.
 
 There are many practical https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc[tutorials] and https://dietmarwo.github.io/fast-cma-es/examples_documentation.html[examples] that show how to use fcmaes in detail.
@@ -87,26 +87,26 @@ for GPU/TPU execution.
 To utilize modern many-core processors all single-objective algorithms should be used with the parallel retry for cheap fitness functions, otherwise use parallel function evaluation.  
 
 - MO-DE: A new multi-objective optimization algorithm merging concepts from differential evolution and NSGA. 
-Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[C++]. Provides an ask/tell interface and supports constraints and parallel function evaluation. 
+Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[{cpp}]. Provides an ask/tell interface and supports constraints and parallel function evaluation.
 Can also be applied to single-objective problems with constraints. Supports mixed integer problems (see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] for details)
 
 - CVT-map-elites/CMA: A new Python implementation of CVT-map-elites including a CMA-ES emitter providing low algorithm overhead and excellent multi-core scaling even for fast fitness functions. Enables "drill down" for specific selected niches. See https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mapelites.py[mapelites.py] and https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[Map-Elites].
 
 - Diversifier: A new Python meta-algorithm based on CVT-map-elites archives generalizing ideas from https://arxiv.org/pdf/1912.02400.pdf[CMA-ME] to other wrapped algorithms. See https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/diversifier.py[diversifier.py] and https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc[Quality Diversity].
 
-- BiteOpt algorithm from Aleksey Vaneev https://github.com/avaneev/biteopt[BiteOpt]. Only a C++ version is provided. If your problem is single objective and if you have no clue what algorithm to apply, try this first. Works well with almost all problems. For constraints you have to use weighted penalties.
+- BiteOpt algorithm from Aleksey Vaneev https://github.com/avaneev/biteopt[BiteOpt]. Only a {cpp} version is provided. If your problem is single objective and if you have no clue what algorithm to apply, try this first. Works well with almost all problems. For constraints you have to use weighted penalties.
 
-- Differential Evolution: Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/de.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/deoptimizer.cpp[C++]. Additional concepts implemented are 
+- Differential Evolution: Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/de.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/deoptimizer.cpp[{cpp}]. Additional concepts implemented are
 https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model[temporal locality], stochastic reinitialization of individuals based on their age and oscillating CR/F parameters. Provides an ask/tell interface and supports parallel function evaluation. Supports mixed integer problems (see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] for details)
 
-- CMA-ES: Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[C++]. Provides an ask/tell interface and supports parallel function evaluation. Good option for low number of decision variables (< 500). 
+- CMA-ES: Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[{cpp}]. Provides an ask/tell interface and supports parallel function evaluation. Good option for low number of decision variables (< 500).
 
 - CR-FM-NES: Fast Moving Natural Evolution Strategy for High-Dimensional Problems, see 
     https://arxiv.org/abs/2201.11422. Derived from https://github.com/nomuramasahir0/crfmnes .
-Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/crfmnes.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/crfmnes.cpp[C++]. Both implementations provide parallel function evaluation and an ask/tell interface. Good option for high number of decision variables (> 100). 
+Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/crfmnes.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/crfmnes.cpp[{cpp}]. Both implementations provide parallel function evaluation and an ask/tell interface. Good option for high number of decision variables (> 100).
 
 - PGPE Parameter Exploring Policy Gradients, see http://mediatum.ub.tum.de/doc/1099128/631352.pdf . 
-Implemented in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/pgpe.cpp[C++]. Provides parallel function evaluation and an ask/tell interface.
+Implemented in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/pgpe.cpp[{cpp}]. Provides parallel function evaluation and an ask/tell interface.
 Good option for very high number of decision variables (> 1000) and for machine learning tasks. An equivalent Python implementation can be found at 
 https://github.com/google/evojax/blob/main/evojax/algo/pgpe.py[pgpe.py], use this on GPUs/TPUs.   
 
@@ -114,7 +114,7 @@ https://github.com/google/evojax/blob/main/evojax/algo/pgpe.py[pgpe.py], use thi
 separable CMA-ES and CMA-ES with Margin (see https://arxiv.org/abs/2205.13482) which improves support for mixed integer problems. The wrapper additionally supports
 parallel function evaluation.
  
-- Dual Annealing: Eigen based implementation in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/daoptimizer.cpp[C++]. Use the https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html[scipy implementation] if you prefer a pure Python variant or need more configuration options. 
+- Dual Annealing: Eigen based implementation in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/daoptimizer.cpp[{cpp}]. Use the https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html[scipy implementation] if you prefer a pure Python variant or need more configuration options.
 
 - Expressions: There are two operators for constructing expressions over optimization algorithms: Sequence and random choice.
 Not only the single objective algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions.
