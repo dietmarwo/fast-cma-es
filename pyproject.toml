@@ -72,7 +72,7 @@ skip = [
   "*-manylinux_i686",
   "*-musllinux_*",
 ]
-build-verbosity = 1
+build-verbosity = 3
 test-requires = ["pytest"]
 test-sources = ["tests"]
 test-command = "pytest ./tests/test_wheel_smoke.py -q"
