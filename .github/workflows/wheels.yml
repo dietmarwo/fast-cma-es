@@ -35,12 +35,16 @@ jobs:
         include:
           - os: ubuntu-latest
             deployment_target: ""
+            manylinux_image: "manylinux_2_28"
           - os: windows-latest
             deployment_target: ""
+            manylinux_image: ""
           - os: macos-15-intel
             deployment_target: "10.13"
+            manylinux_image: ""
           - os: macos-15
             deployment_target: "11.0"
+            manylinux_image: ""
 
     steps:
       - uses: actions/checkout@v5
@@ -49,6 +53,7 @@ jobs:
         uses: pypa/cibuildwheel@v3.3.0
         env:
           CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=${{ matrix.deployment_target }}
+          CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_image }}
 
       - uses: actions/upload-artifact@v6
         with:
