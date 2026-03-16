@@ -46,7 +46,6 @@ during the addition of new solution candidates.
 """
 
 import numpy as np
-np.set_printoptions(legacy='1.25') 
 from numpy.random import Generator, PCG64DXSM, SeedSequence
 from multiprocessing import Process
 import multiprocessing as mp
@@ -61,12 +60,24 @@ from numpy.random import default_rng
 import ctypes as ct
 from time import perf_counter
 import threadpoolctl
-from numba import njit
 from fcmaes.evaluator import is_debug_active
 from loguru import logger
 
 from typing import Any, Optional, Callable, Tuple, Dict
 from numpy.typing import ArrayLike
+
+try:
+    from numba import njit
+except ModuleNotFoundError:
+    # MAP-Elites still works without numba; only the JIT speedup is missing.
+    def njit(*args, **kwargs):
+        if args and callable(args[0]) and len(args) == 1 and not kwargs:
+            return args[0]
+
+        def decorator(func):
+            return func
+
+        return decorator
 
 QDFitness = Callable[[ArrayLike], Tuple[float, np.ndarray]]
 OptParams = Dict[str, Any]

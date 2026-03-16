@@ -58,11 +58,12 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/examples/prophet_opt.py[pro
 - MacOS fully supported - including ARM.
 - Improved documentation and tutorials
 - Improved type annotations
+- Improved test coverage
 
 === Changes from version 1.6.3:
 
 - Logging now based on loguru. All examples are adapted.
-- New dependencies: loguru + numba.
+- New dependency: loguru. `numba` is optional and mainly used as a speedup for MAP-Elites and some examples.
 - New tutorial related to the https://www.esa.int/gsp/ACT/projects/spoc-2023/[GECCO 2023] Space Optimization Competition:
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ESAChallenge.adoc[ESAChallenge].
 - You can define an initial population as guess for multi objective optimization.

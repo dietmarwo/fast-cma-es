@@ -40,8 +40,12 @@ dependencies = [
   "scipy",
   "scikit-learn",
   "threadpoolctl",
-  "numba",
   "loguru",
+]
+
+[project.optional-dependencies]
+jit = [
+  "numba",
 ]
 
 [project.urls]
