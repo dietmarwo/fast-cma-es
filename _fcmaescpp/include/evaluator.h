@@ -163,15 +163,16 @@ static bool compareIndexVal(IndexVal i1, IndexVal i2) {
 
 static ivec sort_index(const vec &x) {
     int size = x.size();
-    IndexVal ivals[size];
+    std::vector<IndexVal> ivals(size);
     for (int i = 0; i < size; i++) {
         ivals[i].index = i;
         ivals[i].val = x[i];
     }
-    std::sort(ivals, ivals + size, compareIndexVal);
-    return Eigen::MatrixXi::NullaryExpr(size, 1, [&ivals](int i) {
-        return ivals[i].index;
-    });
+    std::sort(ivals.begin(), ivals.end(), compareIndexVal);
+    ivec indices(size);
+    for (int i = 0; i < size; i++)
+        indices(i) = ivals[i].index;
+    return indices;
 }
 
 static int index_min(vec &v) {
@@ -214,26 +215,26 @@ public:
     }
 
     vec eval(const vec &X) {
-        double res[_nobj];
-        _terminate = _terminate || _func(_dim, X.data(), res);
+        std::vector<double> res(_nobj);
+        _terminate = _terminate || _func(_dim, X.data(), res.data());
         for (int i = 0; i < _nobj; i++) {
             if (std::isnan(res[i]) || !std::isfinite(res[i]))
                 res[i] = 1E99;
         }
         _evaluationCounter++;
-        vec rvec = Eigen::Map<vec, Eigen::Unaligned>(res, _nobj);
+        vec rvec = Eigen::Map<vec, Eigen::Unaligned>(res.data(), _nobj);
         return rvec;
     }
 
     vec eval(const double *const p) {
-        double res[_nobj];
-        _terminate = _terminate || _func(_dim, p, res);
+        std::vector<double> res(_nobj);
+        _terminate = _terminate || _func(_dim, p, res.data());
         for (int i = 0; i < _nobj; i++) {
             if (std::isnan(res[i]) || !std::isfinite(res[i]))
                 res[i] = 1E99;
         }
         _evaluationCounter++;
-        vec rvec = Eigen::Map<vec, Eigen::Unaligned>(res, _nobj);
+        vec rvec = Eigen::Map<vec, Eigen::Unaligned>(res.data(), _nobj);
         return rvec;
     }
 
@@ -355,14 +356,14 @@ public:
     void values(const mat &popX, vec &ys) {
         int popsize = popX.cols();
         int n = popX.rows();
-        double pargs[popsize * n];
-        double res[popsize];
+        std::vector<double> pargs(popsize * n);
+        std::vector<double> res(popsize);
         for (int p = 0; p < popsize; p++) {
             vec x = getClosestFeasible(decode(popX.col(p)));
             for (int i = 0; i < n; i++)
                 pargs[p * n + i] = x(i);
         }
-        _func_par(popsize, n, pargs, res);
+        _func_par(popsize, n, pargs.data(), res.data());
         for (int p = 0; p < popX.cols(); p++)
             ys[p] = res[p];
         _evaluationCounter += popsize;

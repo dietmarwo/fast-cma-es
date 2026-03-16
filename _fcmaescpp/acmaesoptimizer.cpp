@@ -445,7 +445,7 @@ public:
          iterations = 0;
          fitfun->resetEvaluations();
          evaluator eval(fitfun, 1, workers);
-         vec evals_x[workers];
+         std::vector<vec> evals_x(workers);
          // fill eval queue with initial population
          for (int i = 0; i < workers; i++) {
              vec x = ask();

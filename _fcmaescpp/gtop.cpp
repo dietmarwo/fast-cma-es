@@ -43,9 +43,9 @@ double norm2(const double*);
 
 void vett(const double*, const double*, double*);
 
-double asinh(double);
+double gtop_asinh(double);
 
-double acosh(double);
+double gtop_acosh(double);
 
 double tofabn(const double&, const double&, const double&);
 
@@ -661,11 +661,11 @@ void vett(const double *vet1, const double *vet2, double *prod) {
     prod[2] = (vet1[0] * vet2[1] - vet1[1] * vet2[0]);
 }
 
-double asinh(double x) {
+double gtop_asinh(double x) {
     return log(x + sqrt(x * x + 1));
 }
 
-double acosh(double x) {
+double gtop_acosh(double x) {
     return log(x + sqrt(x * x - 1));
 }
 
@@ -681,8 +681,8 @@ double x2tof(const double &x, const double &s, const double &c, const int lw) {
             beta = -beta;
         alfa = 2 * acos(x);
     } else {
-        alfa = 2 * acosh(x);
-        beta = 2 * asinh(sqrt((s - c) / (-2 * a)));
+        alfa = 2 * gtop_acosh(x);
+        beta = 2 * gtop_asinh(sqrt((s - c) / (-2 * a)));
         if (lw)
             beta = -beta;
     }
@@ -896,10 +896,10 @@ void LambertI(const double *r1_in, const double *r2_in, double t,
         eta = sqrt(eta2);
     } else       // hyperbola
     {
-        beta = 2 * asinh(sqrt((c - s) / (2 * a)));
+        beta = 2 * gtop_asinh(sqrt((c - s) / (2 * a)));
         if (lw)
             beta = -beta;
-        alfa = 2 * acosh(x);
+        alfa = 2 * gtop_acosh(x);
         psi = (alfa - beta) / 2;
         eta2 = -2 * a * pow(sinh(psi), 2) / s;
         eta = sqrt(eta2);
@@ -3630,5 +3630,4 @@ double ZeroFinder::FZero::FindZero7(Function1D_7param &f) {
     //err = -2;
     return b;
 }
-
 

@@ -268,9 +268,7 @@ public:
         for (int i = 0; i < n; i++)
             pareto(i) = i;
         vec domination = zeros(n);
-        bool mask[n];
-        for (int i = 0; i < n; i++)
-            mask[i] = true;
+        std::vector<char> mask(n, true);
         for (int index = 0; index < n;) {
             for (int i = 0; i < n; i++) {
                 if (i != index && mask[i] && is_dominated(y, i, index))
@@ -281,7 +279,7 @@ public:
                     domination[i] += 1;
             }
             index++;
-            while (!mask[index] && index < n)
+            while (index < n && !mask[index])
                 index++;
         }
         //std::cout << "ypar " << domination.transpose() << std::endl;

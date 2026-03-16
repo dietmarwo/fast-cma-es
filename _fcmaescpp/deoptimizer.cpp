@@ -316,8 +316,8 @@ public:
          workers = std::min(workers, popsize); // workers <= popsize
          evaluator eval(fitfun, 1, workers);
          int evals_size = popsize*10;
-         vec evals_x[evals_size];
-            int evals_p[evals_size];
+         std::vector<vec> evals_x(evals_size);
+         std::vector<int> evals_p(evals_size);
          int cp = 0;
 
          // fill eval queue with initial population
