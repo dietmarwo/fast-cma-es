@@ -35,10 +35,7 @@ logger.add("log_{time}.txt", format="{time:HH:mm:ss.SS} | {process} | {level} | 
 
 basepath = os.path.dirname(os.path.abspath(__file__))
 if sys.platform.startswith('linux'):
-    librw = ct.cdll.LoadLibrary(basepath + '/../fcmaes/lib/librw_top_trumps.so')  
-else:
-    os.environ['PATH'] = (basepath + '/lib') + os.pathsep + os.environ['PATH']
-    librw = ct.cdll.LoadLibrary(basepath + '/../fcmaes/lib/librw_top_trumps.dll')  
+    librw = ct.cdll.LoadLibrary(basepath + '/../examples/lib/librw_top_trumps.so')  
 
 # configurable number of simulations
 evaluate_rw_top_trumps = librw.evaluate_rw_top_trumps
