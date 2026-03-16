@@ -22,7 +22,6 @@
 #include <condition_variable>
 #include <cfloat>
 
-#define EIGEN_VECTORIZE_SSE2
 #include "pcg_random.hpp"
 
 using Clock = std::chrono::steady_clock;
