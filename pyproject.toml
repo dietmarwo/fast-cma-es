@@ -72,7 +72,7 @@ skip = [
   "*-manylinux_i686",
   "*-musllinux_*",
 ]
-build-verbosity = 3
+build-verbosity = 1
 test-requires = ["pytest"]
 test-sources = ["tests"]
 test-command = "pytest ./tests/test_wheel_smoke.py -q"
@@ -82,7 +82,7 @@ test-environment = { PYTHONSAFEPATH = "1" }
 "cmake.define.FCMAES_FETCH_EIGEN" = "ON"
 
 [tool.cibuildwheel.linux]
-manylinux-x86_64-image = "manylinux2014"
+manylinux-x86_64-image = "manylinux_2_28"
 archs = ["x86_64"]
 
 [tool.cibuildwheel.windows]

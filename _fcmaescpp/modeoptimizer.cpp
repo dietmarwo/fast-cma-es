@@ -341,7 +341,7 @@ public:
         lastCon = ycon;
         lastEps = eps;
 
-        bool feasible[ys.cols()];
+        std::vector<char> feasible(popn, false);
         bool hasFeasable = false;
         bool hasInfeasable = false;
         for (int i = 0; i < popn; i++) {

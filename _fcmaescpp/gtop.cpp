@@ -408,7 +408,8 @@ public:
 /***********************************************************************/
 /***********************************************************************/
 void gtopx(int GTOP_PROBLEM, double *f, double *g, double *x) {
-    double DVtot, DVonboard, launchDV, flightDV, arrivalDV, dummy;
+    double DVtot = 0.0, DVonboard = 0.0, launchDV = 0.0;
+    double flightDV = 0.0, arrivalDV = 0.0, dummy = 0.0;
     std::vector<double> solution, rp;
 
     int n;
@@ -3630,4 +3631,3 @@ double ZeroFinder::FZero::FindZero7(Function1D_7param &f) {
     //err = -2;
     return b;
 }
-
