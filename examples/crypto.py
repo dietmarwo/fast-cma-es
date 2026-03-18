@@ -41,14 +41,29 @@ def get_history(ticker, start, end):
     p = Path('ticker_cache')
     p.mkdir(exist_ok=True)
     fname = f'history_{ticker}_{start}_{end}.xz'
-    files = p.glob(fname)
-    for file in files: # if cached just load the csv
-        df = pd.read_csv(file, compression='xz')
-        df['Date'] = pd.to_datetime(df['Date'])
-        df = df.set_index('Date') # restore date index
+    file_path = p / fname
+
+    # 1. Load from cache if available
+    if file_path.exists():
+        # index_col=0 forces pandas to use the first column (Date) as the index
+        df = pd.read_csv(file_path, compression='xz', index_col=0)
+        df.index = pd.to_datetime(df.index)
         return df
-    df = yf.download(ticker, start=start, end=end, auto_adjust = True)
-    df.to_csv('ticker_cache/' + fname, compression='xz')  # save history
+
+    # 2. Download fresh data
+    df = yf.download(ticker, start=start, end=end, auto_adjust=True)
+
+    # 3. Handle new yfinance MultiIndex columns (flatten them)
+    if isinstance(df.columns, pd.MultiIndex):
+        # Keep only the top 'Price' level (Close, Open, High, Low, Volume)
+        df.columns = df.columns.get_level_values(0)
+
+    # 4. Ensure the index is datetime and save cleanly
+    if not df.empty:
+        df.index = pd.to_datetime(df.index)
+        df.index.name = 'Date' # Explicitly name it for the CSV
+        df.to_csv(file_path, compression='xz') 
+
     return df
 
 # compute the exponential mean average of a time series of prices
