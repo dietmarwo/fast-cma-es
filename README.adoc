@@ -29,6 +29,10 @@ Detailed benchmark results are available in https://github.com/dietmarwo/fast-cm
 - Offers a selection of efficient single-objective optimizers.
 - Provides an ask-tell interface for CMA-ES, CR-FM-NES, DE, MODE, and PGPE.
 
+=== Update: The Split-Brain Pattern For Agentic Search
+https://github.com/dietmarwo/autoresearch-trading[autoresearch-trading] applies Karpathys https://github.com/karpathy/autoresearch[autoresearch]-idea to trading algorithm optimization. I think this pattern goes beyond trading.
+Anywhere you have a simulator and a mix of logic + tunable numbers, this approach may be useful.
+
 === Update: Open Source AI Optimization Assistant
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Assistant.adoc[Optimization Assistant] How to set up, configure and use an open source AI optimization assistant specialized for fcmaes.
 
