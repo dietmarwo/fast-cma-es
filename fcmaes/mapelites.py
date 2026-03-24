@@ -570,7 +570,7 @@ class Archive(object):
             return 0
         min_y = np.amin(ys)
         if min_y > 0: # if all y > 0 use sum of reciprocal
-            return np.sum(np.reciprocal(ys, where = ys!=0))
+            return np.sum(np.reciprocal(ys, where = ys!=0, out=np.zeros_like(ys, dtype=float)))
         else: # else use only the negative ones
             neg = (ys < 0)
             ys = ys[neg]

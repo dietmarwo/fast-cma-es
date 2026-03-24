@@ -28,7 +28,6 @@ import warnings
 import time 
 from fcmaes.optimizer import Sequence, Cma_cpp, de_cma, dtime
 from fcmaes import advretry, retry
-from fcmaes.cmaescpp import libcmalib
 
 import sys 
 from loguru import logger
@@ -128,11 +127,6 @@ def test_default_cordinated_retry(problem):
     # coordinated retry with default optimizer
     return advretry.minimize(problem.fun, problem.bounds) 
 
-def test_gclde_cordinated_retry(problem):
-    # coordinated retry with GCLDE->CMA sequence optimizer
-    return advretry.minimize(problem.fun, problem.bounds, 
-                             optimizer=Sequence([GCLDE_cpp(750), Cma_cpp(750, popsize=13)])) 
-
 def test_cma_cordinated_retry(dim = 6):
     # coordinated retry with CMA-ES optimizer with reduced popsize
     # faster for small dimension, use default for dim > 12
@@ -151,34 +145,15 @@ def test_de_cma_parallel_retry(problem):
               .format(i+1, dtime(t0), ret.fun, evals)) 
     return ret
 
-def test_cma_parallel_eval(problem):
-    # parallel function evaluation using CMA-ES
-    t0 = time.perf_counter();
-    evals = 0
-    for i in range(1000):
-        ret = csmacpp.minimize(problem.fun, problem.bounds, popsize=32, max_evaluations = 50000, workers = mp.cpu_count())
-        evals += ret.nfev
-        print("{0}: time = {1:.1f} fun = {2:.3f} nfev = {3}"
-              .format(i+1, dtime(t0), ret.fun, evals)) 
-    return ret
-
-def test_gclde_parallel_eval(problem):
-    # parallel function evaluation using GCL_DE
-    t0 = time.perf_counter();
-    evals = 0
-    for i in range(100000):
-        ret = gcldecpp.minimize(problem.fun, problem.bounds, popsize=256, max_evaluations = 200000, 
-                                workers = mp.cpu_count())
-        evals += ret.nfev
-        print("{0}: time = {1:.1f} fun = {2:.3f} nfev = {3}"
-              .format(i+1, dtime(t0), ret.fun, evals)) 
-    return ret
     
+import os
+basepath = os.path.dirname(os.path.abspath(__file__))
+libexamples = ct.cdll.LoadLibrary(basepath + '/lib/libexamples.so') 
 
-integrateF8_C = libcmalib.integrateF8_C
+integrateF8_C = libexamples.integrateF8_C
 integrateF8_C.argtypes = [ct.POINTER(ct.c_double), ct.c_double, ct.c_double, ct.c_double]
 integrateF8_C.restype = ct.POINTER(ct.c_double)   
-freemem = libcmalib.free_mem
+freemem = libexamples.free_mem
 freemem.argtypes = [ct.POINTER(ct.c_double)]
 
 if __name__ == '__main__':
@@ -188,9 +163,7 @@ if __name__ == '__main__':
     #problem = f8_problem(dim, obj_f)
 
     #ret = test_default_cordinated_retry(problem)
-    #ret = test_gclde_cordinated_retry(problem)
     #ret = test_cma_cordinated_retry(problem)
     ret = test_de_cma_parallel_retry(problem)
-    #ret = test_cma_parallel_eval(problem)
-    #ret = test_gclde_parallel_eval(problem)
+
 

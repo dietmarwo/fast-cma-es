@@ -141,12 +141,17 @@ def optimize_qd(dim):
     archive.save(name)
     plot_archive(problem, archive)
 
-from fcmaes.cmaescpp import libcmalib
-integrateDamp_C = libcmalib.integrateDamp_C
+
+import os
+basepath = os.path.dirname(os.path.abspath(__file__))
+libexamples = ct.cdll.LoadLibrary(basepath + '/lib/libexamples.so') 
+
+integrateDamp_C = libexamples.integrateDamp_C
 integrateDamp_C.argtypes = [ct.POINTER(ct.c_double), ct.c_double, ct.c_double, ct.c_double]
 integrateDamp_C.restype = ct.POINTER(ct.c_double)   
-freemem = libcmalib.free_mem
+freemem = libexamples.free_mem
 freemem.argtypes = [ct.POINTER(ct.c_double)]
+
     
 if __name__ == '__main__':    
     dim = 12
