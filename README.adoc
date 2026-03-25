@@ -29,6 +29,10 @@ Detailed benchmark results are available in https://github.com/dietmarwo/fast-cm
 - Offers a selection of efficient single-objective optimizers.
 - Provides an ask-tell interface for CMA-ES, CR-FM-NES, DE, MODE, and PGPE.
 
+=== Update: Split-Brain Automated Design of Stochastic Biochemical Circuits
+
+https://github.com/dietmarwo/autoresearch-circuit[autoresearch-circuit] applies the same split-brain pattern to biochemical circuit design, inspired by the https://www.biorxiv.org/content/10.1101/2025.01.27.635147v1[CircuiTree] paper. An LLM proposes circuit topology — which genes regulate which. fcmaes tunes the kinetic rates against a noisy stochastic simulator. A validation stage stress-tests the result with knockouts, knockdowns, and parameter jitter. Structure and numbers stay separated, each handled by the right tool.
+
 === Update: The Split-Brain Pattern For Agentic Search
 https://github.com/dietmarwo/autoresearch-trading[autoresearch-trading] applies Karpathys https://github.com/karpathy/autoresearch[autoresearch]-idea to trading algorithm optimization.
 LLMs are good at structure. Classical optimizers are good at searching numbers.
