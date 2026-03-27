@@ -58,16 +58,28 @@ build-dir = "build/{wheel_tag}"
 wheel.packages = ["fcmaes"]
 cmake.build-type = "Release"
 ninja.make-fallback = true
-sdist.include-mode = "manual"
 
 [tool.scikit-build.sdist]
-include = [
-  "CMakeLists.txt",
-  "README.md",
-  "README.adoc",
-  "LICENSE",
-  "fcmaes",
-  "_fcmaescpp",
+exclude = [
+  ".git",
+  ".github",
+  ".idea",
+  ".pytest_cache",
+  ".settings",
+  ".venv",
+  "build",
+  "dist",
+  "docs",
+  "examples",
+  "scripts",
+  "tests",
+  "tutorials",
+  "*.png",
+  "*.jpg",
+  "*.jpeg",
+  "*.gif",
+  "*.ipynb",
+  "*.pdf",
 ]
 
 [tool.cibuildwheel]
