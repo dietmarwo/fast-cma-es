@@ -9,7 +9,7 @@ np.set_printoptions(legacy='1.25')
 from scipy.optimize import OptimizeResult
 from typing import Any
 from fcmaes.testfun import Wrapper, Rosen, Rastrigin, Eggholder
-from fcmaes import cmaes, de, decpp, cmaescpp, retry, advretry
+from fcmaes import bitecpp, cmaes, de, decpp, cmaescpp, retry, advretry
 from fcmaes.optimizer import de_cma_py
 
 def almost_equal(X1: Any, X2: Any, eps: float = 1E-5) -> bool:
@@ -238,6 +238,40 @@ def test_rosen_ask_tell_de() -> None:
     assert(max_eval / popsize + 2 > ret.nit) # too much iterations
 #     assert(almost_equal(ret.x, wrapper.get_best_x())) # wrong best X returned
     assert(almost_equal(ret.fun, wrapper.get_best_y(), eps = 1E-1)) # wrong best y returned
+
+def test_rosen_ask_tell_bite() -> None:
+    popsize = 13
+    batch_size = 4
+    dim = 2
+    testfun = Rosen(dim)
+    max_eval = 12000
+    limit = 0.0001
+    for _ in range(5):
+        wrapper = Wrapper(testfun.fun, dim)
+        es = bitecpp.Bite_C(
+            dim,
+            testfun.bounds,
+            popsize=popsize,
+            batch_size=batch_size,
+            max_evaluations=max_eval,
+            M=2,
+        )
+        while True:
+            xs = es.ask()
+            if xs is None or len(xs) == 0:
+                break
+            ys = [wrapper.eval(x) for x in xs]
+            stop = es.tell(ys)
+            if stop != 0:
+                break
+        ret = es.result()
+        if limit > ret.fun:
+            break
+    assert(limit > ret.fun) # optimization target not reached
+    assert(max_eval + batch_size >= ret.nfev) # too much function calls
+    assert(ret.nfev == wrapper.get_count()) # wrong number of function calls returned
+    assert(almost_equal(ret.x, wrapper.get_best_x(), eps = 1E-3)) # wrong best X returned
+    assert(almost_equal(ret.fun, wrapper.get_best_y(), eps = 1E-6)) # wrong best y returned
 
 def test_rosen_decpp() -> None:
     popsize = 8

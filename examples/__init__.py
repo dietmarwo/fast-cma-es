@@ -3,8 +3,6 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory.
 
-__version__ = '2.0.1'
-
 __all__ = [
     'advexamples'
     'benchmark_gtop'

@@ -29,6 +29,25 @@ Detailed benchmark results are available in https://github.com/dietmarwo/fast-cm
 - Offers a selection of efficient single-objective optimizers.
 - Provides an ask-tell interface for CMA-ES, CR-FM-NES, DE, MODE, and PGPE.
 
+=== Update (2.0.2): Ask Tell interface for BiteOpt
+
+The native BiteOpt backend now also provides an ask/tell interface through `bitecpp.Bite_C`.
+This makes it possible to parallelize a single BiteOpt optimization run:
+generate a batch of candidate points with `ask()`, evaluate them externally in parallel, and feed the resulting objective values back with `tell()`.
+
+This is most useful for expensive objective functions where wall-clock time is dominated by the simulation or model evaluation.
+In that setting, evaluating several candidates concurrently can reduce elapsed optimization time even if the optimizer itself needs a few more function evaluations.
+
+There is an important trade-off: BiteOpt normally updates its internal selection strategy immediately after each evaluation.
+In ask/tell mode these updates are delayed until `tell()`, so a whole batch is generated from a frozen optimizer state.
+That delayed feedback introduces a convergence penalty compared to the ordinary sequential BiteOpt loop.
+In other words, ask/tell usually improves parallel throughput, but may reduce convergence efficiency measured in evaluations.
+
+So the rule of thumb is:
+
+- For cheap objective functions, prefer the standard sequential BiteOpt run or parallel retry.
+- For expensive objective functions, BiteOpt ask/tell can be a very practical way to parallelize one optimization run across several cores or workers.
+
 === Update: Split-Brain Automated Design of Stochastic Biochemical Circuits
 
 https://github.com/dietmarwo/autoresearch-circuit[autoresearch-circuit] applies the same split-brain pattern to biochemical circuit design, inspired by the https://www.biorxiv.org/content/10.1101/2025.01.27.635147v1[CircuiTree] paper. An LLM proposes circuit topology — which genes regulate which. fcmaes tunes the kinetic rates against a noisy stochastic simulator. A validation stage stress-tests the result with knockouts, knockdowns, and parameter jitter. Structure and numbers stay separated, each handled by the right tool.

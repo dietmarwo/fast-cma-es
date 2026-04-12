@@ -16,6 +16,8 @@ namespace {
 
 using ResultVector = nb::ndarray<nb::numpy, const double, nb::shape<-1>,
                                  nb::c_contig, nb::device::cpu>;
+using ResultMatrix = nb::ndarray<nb::numpy, const double, nb::shape<-1, -1>,
+                                 nb::c_contig, nb::device::cpu>;
 
 thread_local nb::callable *g_bite_objective = nullptr;
 
@@ -53,6 +55,35 @@ public:
 private:
     nb::callable *previous_;
 };
+
+void validate_bounds(F64Vector guess, F64Vector lower, F64Vector upper) {
+    const int dim = static_cast<int>(guess.shape(0));
+    if (dim <= 0)
+        throw std::invalid_argument("guess must be non-empty");
+    if (lower.size() != upper.size())
+        throw std::invalid_argument("lower and upper must both be empty or both be set");
+    if (lower.size() != 0 && static_cast<int>(lower.shape(0)) != dim)
+        throw std::invalid_argument("lower must match guess size");
+    if (upper.size() != 0 && static_cast<int>(upper.shape(0)) != dim)
+        throw std::invalid_argument("upper must match guess size");
+}
+
+ResultMatrix to_python_matrix(const Mat &population) {
+    auto *rows = new RowMat(population.cols(), population.rows());
+    for (Eigen::Index p = 0; p < population.cols(); p++)
+        rows->row(p) = population.col(p).transpose();
+    nb::capsule owner(rows, [](void *ptr) noexcept {
+        delete static_cast<RowMat *>(ptr);
+    });
+    return ResultMatrix(
+        rows->data(),
+        {
+            static_cast<size_t>(rows->rows()),
+            static_cast<size_t>(rows->cols()),
+        },
+        owner
+    );
+}
 
 }  // namespace
 
@@ -95,6 +126,67 @@ void bind_bite(nb::module_ &m) {
         "stall_criterion"_a = 0,
         "Execute the native BiteOpt solver through nanobind."
     );
+
+    nb::class_<biteopt::BiteState>(m, "Bite")
+        .def(
+            "__init__",
+            [](biteopt::BiteState *self, F64Vector guess, F64Vector lower,
+               F64Vector upper, int M, int popsize, int batch_size,
+               int max_evaluations, double stop_fitness, int stall_criterion,
+               uint64_t seed, long runid) {
+                validate_bounds(guess, lower, upper);
+                new (self) biteopt::BiteState(
+                    runid,
+                    static_cast<int>(guess.shape(0)),
+                    static_cast<const double *>(guess.data()),
+                    lower.size() == 0 ? nullptr : static_cast<const double *>(lower.data()),
+                    upper.size() == 0 ? nullptr : static_cast<const double *>(upper.data()),
+                    static_cast<int>(seed),
+                    M,
+                    popsize,
+                    batch_size,
+                    max_evaluations,
+                    stop_fitness,
+                    stall_criterion
+                );
+            },
+            "guess"_a.noconvert(),
+            "lower"_a.noconvert(),
+            "upper"_a.noconvert(),
+            "M"_a = 1,
+            "popsize"_a = 0,
+            "batch_size"_a = 8,
+            "max_evaluations"_a = 100000,
+            "stop_fitness"_a = -std::numeric_limits<double>::infinity(),
+            "stall_criterion"_a = 0,
+            "seed"_a,
+            "runid"_a = 0L
+        )
+        .def("ask", [](biteopt::BiteState &state) {
+            return to_python_matrix(without_gil([&]() {
+                return state.ask();
+            }));
+        })
+        .def("tell", [](biteopt::BiteState &state, F64Vector ys) {
+            if (static_cast<int>(ys.shape(0)) != state.current_batch_size())
+                throw std::invalid_argument("ys must match the current batch size");
+            Vec values = as_const_vector(ys);
+            return without_gil([&]() {
+                return state.tell(values);
+            });
+        }, "ys"_a.noconvert())
+        .def("result", [](biteopt::BiteState &state) {
+            return to_python_result(without_gil([&]() {
+                return state.result();
+            }));
+        })
+        .def_prop_ro("dim", &biteopt::BiteState::dim)
+        .def_prop_ro("popsize", &biteopt::BiteState::popsize)
+        .def_prop_ro("population_size", &biteopt::BiteState::population_size)
+        .def_prop_ro(
+            "current_batch_size", &biteopt::BiteState::current_batch_size
+        )
+        .def_prop_ro("stop", &biteopt::BiteState::stop);
 }
 
 }  // namespace fcmaes::bindings

@@ -178,10 +178,10 @@
       <main>
         <section id="init-py">
           <h3><code>__init__.py</code></h3>
-          <p class="summary">The package entry file declares the public module surface and the library version.</p>
-          <p>This file is small, but it is still useful because it shows what the project considers part of the top-level API. The <code>__all__</code> list points to the modules the author expects users to import directly, and the version constant is the simplest place to confirm the packaged release number.</p>
+          <p class="summary">The package entry file declares the public module surface.</p>
+          <p>This file is small, but it is still useful because it shows what the project considers part of the top-level API. The <code>__all__</code> list points to the modules the author expects users to import directly.</p>
           <ul>
-            <li>Main contents: <code>__version__</code> and <code>__all__</code>.</li>
+            <li>Main contents: <code>__all__</code>.</li>
             <li>Role in the package: a lightweight export map, not an implementation module.</li>
             <li>Worth opening next: <code>optimizer.py</code> to see how those modules are composed.</li>
           </ul>
@@ -214,14 +214,15 @@
 
         <section id="bitecpp-py">
           <h3><code>bitecpp.py</code></h3>
-          <p class="summary">This wrapper exposes the C++ BiteOpt solver through the same <code>minimize</code>-style interface used across the package.</p>
-          <p>The implementation is intentionally thin. It converts bounds and guesses into C types, wraps the Python objective as a callback, calls the compiled optimizer, and returns a <code>scipy.optimize.OptimizeResult</code>. That makes BiteOpt available anywhere an <code>fcmaes</code> optimizer can be slotted in.</p>
+          <p class="summary">This wrapper exposes the C++ BiteOpt solver through both the package-wide <code>minimize</code> interface and a lower-level ask/tell state object.</p>
+          <p>The implementation is intentionally thin. It converts bounds and guesses into C types, wraps the Python objective as a callback, calls the compiled optimizer, and returns a <code>scipy.optimize.OptimizeResult</code>. In addition to the one-shot entry point, it now exposes <code>Bite_C</code>, a native ask/tell wrapper around the stateful BiteOpt backend.</p>
           <ul>
-            <li>Main concepts: callback bridging, bound handling, <code>OptimizeResult</code> conversion.</li>
+            <li>Main concepts: callback bridging, bound handling, <code>OptimizeResult</code> conversion, native <code>Bite_C</code> ask/tell access.</li>
             <li>Role in the architecture: one of several compiled solver adapters alongside <code>cmaescpp.py</code>, <code>decpp.py</code>, <code>dacpp.py</code>, <code>crfmnescpp.py</code>, and <code>pgpecpp.py</code>.</li>
             <li>Worth opening next: <code>optimizer.py</code>, where BiteOpt can be composed into retry pipelines.</li>
           </ul>
-          <p>If you are browsing for algorithm details, this is not the place. If you are browsing for API integration patterns, it is a representative example.</p>
+          <p>The ask/tell addition comes with an important trade-off. BiteOpt’s internal strategy and selector updates are normally applied immediately after each evaluation. In ask/tell mode those updates are deferred until <code>tell()</code>, so a whole batch is generated from a frozen optimizer state. That usually introduces a convergence penalty compared with the ordinary sequential path, even though it can still be a good wall-clock trade when objective evaluations are expensive enough to justify parallel batching.</p>
+          <p>If you are browsing for algorithm details, this is not the place. If you are browsing for API integration patterns and trade-offs between sequential and delayed-update execution, it is a representative example.</p>
         </section>
 
         <section id="cmaes-py">
@@ -469,13 +470,13 @@
         <section id="test-cma-py">
           <h3><code>test_cma.py</code></h3>
           <p class="summary">This file is the regression test suite for the main optimization APIs, not part of the runtime library.</p>
-          <p>The tests cover Python and C++ CMA-ES, Python and C++ DE, ask/tell loops, parallel execution, and the retry layers. The benchmark functions are simple enough to assert convergence and evaluation counts, which makes the file a good reference for expected API behavior as well as correctness checks.</p>
+          <p>The tests cover Python and C++ CMA-ES, Python and C++ DE, the native BiteOpt wrapper, ask/tell loops, parallel execution, and the retry layers. The benchmark functions are simple enough to assert convergence and evaluation counts, which makes the file a good reference for expected API behavior as well as correctness checks.</p>
           <ul>
-            <li>Main concepts: stochastic test retries, convergence assertions, ask/tell usage examples.</li>
+            <li>Main concepts: stochastic test retries, convergence assertions, ask/tell usage examples, parity checks for compiled wrappers.</li>
             <li>Role in the package: automated verification.</li>
             <li>Worth opening next: <code>testfun.py</code> for the benchmark definitions used here.</li>
           </ul>
-          <p>Even if you are not changing tests, this file is useful because it shows the library’s preferred calling patterns in compact form.</p>
+          <p>Even if you are not changing tests, this file is useful because it shows the library’s preferred calling patterns in compact form, including the new BiteOpt ask/tell path and its expected bookkeeping behavior.</p>
         </section>
 
         <section id="testfun-py">

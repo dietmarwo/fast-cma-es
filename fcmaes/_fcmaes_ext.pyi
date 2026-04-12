@@ -66,6 +66,22 @@ class ACMA:
     def population(self): ...
     def result(self): ...
 
+class Bite:
+    dim: int
+    popsize: int
+    population_size: int
+    current_batch_size: int
+    stop: int
+    def __init__(self, guess, lower, upper, M: int = 1,
+                 popsize: int = 0, batch_size: int = 8, *,
+                 max_evaluations: int = 100000,
+                 stop_fitness: float = ...,
+                 stall_criterion: int = 0,
+                 seed: int, runid: int = 0): ...
+    def ask(self): ...
+    def tell(self, ys): ...
+    def result(self): ...
+
 class CRFMNES:
     dim: int
     popsize: int

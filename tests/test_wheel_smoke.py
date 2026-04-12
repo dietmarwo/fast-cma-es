@@ -16,8 +16,6 @@ def fixed_rg(seed):
 
 
 def test_native_extension_imports():
-    assert isinstance(fcmaes.__version__, str)
-    assert fcmaes.__version__
     assert callable(bitecpp.optimize_bite)
     assert callable(dacpp.optimize_da)
     assert callable(decpp.optimize_de)

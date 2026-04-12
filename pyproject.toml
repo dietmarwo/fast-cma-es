@@ -7,7 +7,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "fcmaes"
-version = "2.0.1"
+version = "2.0.2"
 description = "A Python 3 gradient-free optimization library."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
