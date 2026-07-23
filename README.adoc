@@ -29,6 +29,9 @@ Detailed benchmark results are available in https://github.com/dietmarwo/fast-cm
 - Offers a selection of efficient single-objective optimizers.
 - Provides an ask-tell interface for CMA-ES, CR-FM-NES, DE, MODE, and PGPE.
 
+=== Update: Native Rust implementation of fcmaes
+See https://github.com/dietmarwo/fcmaes-rust[fcmaes-rust].
+
 === Update (2.0.2): Ask Tell interface for BiteOpt
 
 The native BiteOpt backend now also provides an ask/tell interface through `bitecpp.Bite_C`.
