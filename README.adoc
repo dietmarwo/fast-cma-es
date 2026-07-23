@@ -30,7 +30,7 @@ Detailed benchmark results are available in https://github.com/dietmarwo/fast-cm
 - Provides an ask-tell interface for CMA-ES, CR-FM-NES, DE, MODE, and PGPE.
 
 === Update: Native Rust implementation of fcmaes
-See https://github.com/dietmarwo/fcmaes-rust[fcmaes-rust].
+See https://github.com/dietmarwo/fcmaes-rust[fcmaes-rust]. This repo is an alternative both for Rust and Python users as it provides a PyO3 API. See https://github.com/dietmarwo/fcmaes-rust/blob/main/examples/python/test_cma.py[python example].
 
 === Update (2.0.2): Ask Tell interface for BiteOpt
 
