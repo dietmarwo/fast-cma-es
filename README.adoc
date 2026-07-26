@@ -14,9 +14,9 @@ It supports multi-threaded use of several gradient-free
 https://dietmarwo.github.io/fast-cma-es/fcmaes_documentation.html[algorithms] partly implemented in https://dietmarwo.github.io/fast-cma-es/cpp_documentation.html[{cpp}].
 It is designed for real-world problems, including multi-objective and constrained optimization. The main algorithms are available in both Python and C++. They support parallel fitness evaluation as well as parallel retry strategies.
 
-There are many practical https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc[tutorials] and https://dietmarwo.github.io/fast-cma-es/examples_documentation.html[examples] that show how to use fcmaes in detail.
+The https://dietmarwo.github.io/fast-cma-es/[documentation book] combines the API references with many practical https://dietmarwo.github.io/fast-cma-es/tutorials/[tutorials] and https://dietmarwo.github.io/fast-cma-es/examples_documentation.html[examples] that show how to use fcmaes in detail.
 
-Detailed benchmark results are available in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Performance.adoc[performance].
+Detailed benchmark results are available in the book's https://dietmarwo.github.io/fast-cma-es/tutorials/Performance.html[performance chapter].
 
 === Features
 
@@ -247,6 +247,28 @@ Optional dependencies:
 Example dependencies:
 
 - pykep: https://esa.github.io/pykep/[pykep]. Install with 'pip install pykep'. 
+
+=== Documentation
+
+The GitHub Pages workflow builds this README, all AsciiDoc tutorials, and the
+three maintained HTML API references as one navigable site:
+
+- https://dietmarwo.github.io/fast-cma-es/[Documentation home]
+- https://dietmarwo.github.io/fast-cma-es/fcmaes_documentation.html[Python API]
+- https://dietmarwo.github.io/fast-cma-es/cpp_documentation.html[{cpp} API]
+- https://dietmarwo.github.io/fast-cma-es/examples_documentation.html[Examples API]
+- https://dietmarwo.github.io/fast-cma-es/tutorials/[Tutorial index]
+
+Build and validate the same site locally with Asciidoctor 2.0.23 or newer:
+
+[source,bash]
+----
+gem install asciidoctor --version 2.0.23 --no-document
+python scripts/build_docs.py
+----
+
+The generated site is written to `target/site`. AsciiDoc remains the canonical
+source; no Markdown conversion is required.
 
 === Packaging and release
 

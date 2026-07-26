@@ -51,6 +51,8 @@ jit = [
 [project.urls]
 Homepage = "https://github.com/dietmarwo/fast-cma-es"
 Repository = "https://github.com/dietmarwo/fast-cma-es"
+Documentation = "https://dietmarwo.github.io/fast-cma-es/"
+Tutorials = "https://dietmarwo.github.io/fast-cma-es/tutorials/"
 
 [tool.scikit-build]
 minimum-version = "build-system.requires"

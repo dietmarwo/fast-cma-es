@@ -118,9 +118,9 @@ def test_optimizer(opt, problem, num_retries = 120000, num = 100,
 test_optimizer(de_cma(1500), Tandem_minlp())
 ----
 
-and get
+and get the result described below.
 
-image::tandem-minlp.png[]
+NOTE: The original `tandem-minlp.png` result figure is not present in this repository.
 
 TandEm-MINLP is tractable.
 We find the optimum at around 1500 km/s.

@@ -308,11 +308,11 @@ def minimize_plot(name, optimizer, fun, bounds, weight_bounds,
 
 - Cassini weighted sum, 1024 retries, max 50000 evals, BiteOpt algorithm, time = 43.62 sec:
 
-image::front_.Cassini1_bite cpp.png[]
+image::front_.Cassini1_bite_cpp.png[]
 
 - Cassini weighted sum, 1024 retries, max 50000 evals, DE-CMA sequence, time = 31.94 sec:
 
-image::front_.Cassini1_de_cpp _cma_cpp.png[]
+image::front_.Cassini1_de_cpp_cma_cpp.png[]
 
 Now the non-dominated low-dv solutions with travel times > 6000 finally appear. Finding this dv optimum is not trivial even in the single-objective formulation. That may explain why NGSA-II fails here.
 
@@ -379,7 +379,7 @@ Let us start with random search:
 
 - Tandem unconstrained, 10000 retries 100000 evaluations each:
 
-image::front_.Tandem unconstrained_ random.png[]
+image::front_.Tandem_unconstrained_random.png[]
 
 That is a billion evaluations for a maximal mass of 22 kg. The true optimum is 1673.88 kg, so we are still very far away. This is a clear sign that the problem is extremely hard.
 
@@ -407,7 +407,7 @@ This took over 2 hours. The result looks smooth, but it is still far from the re
 
 - Tandem unconstrained, parallel retry de_cma, 100000 evaluations, 4096 retries, time = 556 sec
 
-image::front_.Tandem unconstrained_6_de_cpp_cma_cpp.png[]
+image::front_.Tandem_unconstrained_6_de_cpp_cma_cpp.png[]
 
 To handle the complexity of the problem, we increase the number of evaluations per retry to 100000.
 To avoid the drag toward low mission-time solutions, we completely block the second objective with
@@ -445,11 +445,11 @@ adv_minimize_plot(tandem_mo(), de_cma(1000), '_' + str(i) + '_smart', value_limi
 
 - Tandem unconstrained, parallel smart retry de_cma, 100000 retries between 1000 and 50000 evaluations, time = 3360 sec
 
-image::front_smart.Tandem unconstrained 6__2.png[]
+image::front_smart.Tandem_unconstrained_6_2.png[]
 
 If we inspect all generated solutions, we see that the smart parallel retry algorithm found three solutions above 1600 kg.
 
-image::all_smart.Tandem unconstrained 6__2.png[]
+image::all_smart.Tandem_unconstrained_6_2.png[]
 
 ==== Joined forces
 

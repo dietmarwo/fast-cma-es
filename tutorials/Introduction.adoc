@@ -438,9 +438,9 @@ Even with 200000 retries, a local optimizer still gives a poor best result on GT
 https://sophia.estec.esa.int/gtoc_portal/?page_id=13[GTOC1] was the first in a series of interesting space trajectory optimization competitions. For years, it was almost impossible to beat both ESA and JPL, which is not surprising given that they were the two strongest participants overall. GTOC1 was organized by ESA and won by JPL with an almost perfect solution.
 With the https://www.esa.int/gsp/ACT/projects/gtop/gtoc1/[ESA abstraction], we cannot reach JPL's winning score of -1850000. Adding more planets to the trajectory helps, but there is another issue:
 
-The number of revolutions around the sun is chosen from the minimal deltaV at departure from a planet. Higher deltaV means we need more fuel. This choice determines the incoming arc at the next planet, so a locally good decision can turn out to be poor for the full trajectory. To find the optimum, we have to branch over the number of revolutions for each planet-to-planet transfer. The following picture shows part of that search tree:
+The number of revolutions around the sun is chosen from the minimal deltaV at departure from a planet. Higher deltaV means we need more fuel. This choice determines the incoming arc at the next planet, so a locally good decision can turn out to be poor for the full trajectory. To find the optimum, we have to branch over the number of revolutions for each planet-to-planet transfer.
 
-image::revolutions.png[]
+NOTE: The original `revolutions.png` search-tree figure is not present in this repository.
 
 We chose the following planet sequence:
 EVVEVVEESJA (E = Earth, V = Venus, J = Jupiter, S = Saturn, A = incoming asteroid)

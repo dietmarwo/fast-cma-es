@@ -105,7 +105,7 @@ Initial mass: [2092.76404805]
 Final mass: [1490.35891505]
 Declination: 28.49999999999617
 ----
-image::tandem1.png[]
+NOTE: The original `tandem1.png` result figure is not present in this repository.
 
 In practice, a second retry run is often still needed.
 
@@ -387,7 +387,7 @@ Arrival epoch: 2014-Dec-07 06:14:41.875120 (5454.260206887967 mjd2000)
 Arrival Vinf: 474.4340670622277m/s
 Total mission time: 10.707718182076645 years (3910.9940660034945 days)
 ----
-image::rosetta.png[]
+NOTE: The original `rosetta.png` result figure is not present in this repository.
 
 ==== Earth-Mars 5 impulses
 https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_emNimp_udp.py[Earth-Mars 5 impulses] is a 5-impulse deep-space maneuver mission to reach Mars. A good score is reached after a few seconds.
@@ -869,4 +869,4 @@ Initial mass: [2172.69961397]
 Final mass: [1692.24953049]
 Declination: 15.480672242471464
 ----
-image::tandem2.png[]
+NOTE: The original `tandem2.png` result figure is not present in this repository.
