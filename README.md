@@ -7,6 +7,7 @@ A Python 3 gradient-free optimization library.
 - [Python API](https://dietmarwo.github.io/fast-cma-es/fcmaes_documentation.html)
 - [C++ API](https://dietmarwo.github.io/fast-cma-es/cpp_documentation.html)
 - [Examples API](https://dietmarwo.github.io/fast-cma-es/examples_documentation.html)
+- [Native Rust implementation](https://github.com/dietmarwo/fcmaes-rust) (with PyO3 API for Python users)
 
 
 
