@@ -9,6 +9,7 @@
 #include "mode_bindings.hpp"
 #include "ndarray_utils.hpp"
 #include "pgpe_bindings.hpp"
+#include "pareto_bindings.hpp"
 
 namespace {
 
@@ -51,4 +52,5 @@ NB_MODULE(_fcmaes_ext, m) {
     fcmaes::bindings::bind_gtop(m);
     fcmaes::bindings::bind_mode(m);
     fcmaes::bindings::bind_pgpe(m);
+    fcmaes::bindings::bind_pareto(m);
 }
