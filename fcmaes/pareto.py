@@ -1,31 +1,42 @@
 # Copyright (c) Dietmar Wolz. MIT license; see the repository LICENSE.
-"""Exact 2D minimization archive and incremental hypervolume.
+"""Exact 2D Pareto archive with incremental hypervolume.
 
-One update owner; native calls retain the GIL. This archive has no capacity
-limit and owns accepted payloads. It is separate from MODE's breeding
-population and from the bounded multiprocessing result store.
+Based on Aleksey Vaneev's 2D archive from BiteOpt (``bitehv2.h``). See
+``docs/pareto_archive.md`` for the semantics and a MODE example.
 """
 from __future__ import annotations
 
 import operator
 from typing import Optional, Tuple
+
 import numpy as np
 from numpy.typing import ArrayLike
+
 from fcmaes._fcmaes_ext import ParetoArchive2D as _Archive
 
 
 class ParetoArchive2D:
-    """Archive unique nondominated objective pairs with a fixed HV reference.
+    """All unique nondominated pairs of two minimized objectives, with payloads.
 
-    Bounds apply to objectives. Equal pairs retain the first payload. Use
-    ``payload_dim=0`` for HV only or the decision dimension to retain designs.
-    Numeric errors leave the failing row unapplied; earlier batch rows remain.
-    Allocation failures have no strong exception guarantee.
+    Every insertion updates the hypervolume dominated within the reference
+    box. Points with an objective above ``reference`` are not archived: they
+    add nothing to the hypervolume, and ``add`` returns ``False`` for them.
+    There is no lower bound. Equal objective pairs keep the first payload.
+
+    Parameters
+    ----------
+    reference : array_like, shape (2,)
+        Finite hypervolume reference point.
+    payload_dim : int, optional
+        Length of the payload stored with each point, usually the decision
+        vector dimension. 0 (the default) stores no payload.
     """
 
-    def __init__(self, lower: ArrayLike, reference: ArrayLike, payload_dim: int = 0):
+    def __init__(self, reference: ArrayLike, payload_dim: int = 0):
         dim = operator.index(payload_dim)
-        self._native = _Archive(self._vector(lower), self._vector(reference), dim)
+        reference = self._vector(reference)
+        self._native = _Archive(reference, dim)
+        self._reference = tuple(float(r) for r in reference)
 
     @staticmethod
     def _vector(values: ArrayLike) -> np.ndarray:
@@ -35,30 +46,41 @@ class ParetoArchive2D:
         return result
 
     @property
+    def reference(self) -> Tuple[float, float]:
+        """Hypervolume reference point."""
+        return self._reference
+
+    @property
     def size(self) -> int:
-        """Number of unique nondominated objective pairs."""
+        """Number of archived points."""
         return self._native.size
 
     @property
     def payload_dim(self) -> int:
-        """Fixed width of retained decision vectors."""
+        """Length of the payload stored with each point."""
         return self._native.payload_dim
 
     def __len__(self) -> int:
         return self.size
 
     def add(self, y: ArrayLike, x: Optional[ArrayLike] = None) -> bool:
-        """Insert an objective pair; copy its payload only if accepted."""
+        """Insert objective pair ``y`` with payload ``x``.
+
+        Returns ``True`` if the point was archived. The payload is copied only
+        then. Raises ``ValueError`` for non-finite objectives and
+        ``OverflowError`` if the area exceeds the float range; the archive is
+        unchanged in both cases.
+        """
         payload = np.empty(0) if x is None else self._vector(x)
         return self._native.add(self._vector(y), payload)
 
     def add_batch(self, ys: ArrayLike, xs: Optional[ArrayLike] = None) -> np.ndarray:
-        """Insert rows in order and return their boolean acceptance mask.
+        """Insert the rows of ``ys`` (shape ``(n, 2)``) with payloads ``xs``
+        (shape ``(n, payload_dim)``) in order.
 
-        Shapes must be ``(n, 2)`` and ``(n, payload_dim)``. For an empty batch
-        pass a matrix with shape ``(0, 2)``. Noncontiguous inputs are copied.
-        Shape errors precede mutation. A numeric error names its zero-based
-        row; the successfully processed prefix remains in the archive.
+        Returns a boolean mask of the archived rows. Shape errors are raised
+        before any change. If a row raises, the rows before it stay applied
+        and the message names the failing row.
         """
         values = np.ascontiguousarray(ys, dtype=np.float64)
         if values.ndim != 2 or values.shape[1] != 2:
@@ -74,17 +96,14 @@ class ParetoArchive2D:
         return self._native.add_batch(values, payloads)
 
     def front(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Return owned ``(xs, ys)`` snapshots in first-objective order.
-
-        Snapshots remain valid after clear, later updates or archive deletion.
-        Export traverses the ordered map without changing its representation.
-        """
+        """Return copies ``(xs, ys)`` of payloads and objectives, sorted by the
+        first objective."""
         return self._native.front()
 
     def hypervolume(self) -> float:
-        """Current dominated union area without exporting the front."""
+        """Area dominated by the archive within the reference box."""
         return self._native.hypervolume()
 
     def clear(self) -> None:
-        """Reset contents and HV while retaining bounds and payload width."""
+        """Remove all points, keeping the reference and payload length."""
         self._native.clear()

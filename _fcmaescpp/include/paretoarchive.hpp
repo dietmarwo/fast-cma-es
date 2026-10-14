@@ -1,15 +1,17 @@
 // Copyright (c) Dietmar Wolz. MIT license; see the repository LICENSE.
 #pragma once
 
-#include "bitehv2_optimized.h"
+#include "paretofront2d.h"
 #include <array>
 #include <climits>
 #include <string>
 
 namespace fcmaes {
 
-// One update owner. Python bindings retain the GIL throughout native calls.
-// Numeric row errors leave that row unapplied; earlier batch rows remain.
+// Exact 2D Pareto archive with fixed-width payloads, used by the Python
+// bindings (which hold the GIL during every call). Points outside the
+// reference box are not archived. A failing batch row is not applied;
+// the rows before it stay applied.
 class ParetoArchive2D {
 public:
     struct Snapshot {
@@ -18,26 +20,16 @@ public:
         std::size_t rows;
     };
 
-    ParetoArchive2D(std::array<double, 2> lower,
-                    std::array<double, 2> reference, std::size_t payload_dim = 0)
-        : lower_(lower), reference_(reference), payload_dim_(payload_dim),
-          front_(reference[0], reference[1]) {
+    explicit ParetoArchive2D(std::array<double, 2> reference, std::size_t payload_dim = 0)
+        : payload_dim_(payload_dim), front_(reference[0], reference[1]) {
         if (payload_dim > INT_MAX)
             throw std::invalid_argument("payload_dim exceeds the native limit");
-        for (std::size_t j = 0; j < 2; ++j)
-            if (!std::isfinite(lower[j]) || lower[j] > reference[j])
-                throw std::invalid_argument("lower must be finite and <= reference");
     }
 
     bool add(const double* point, const double* payload, std::size_t payload_size) {
         if (!point) throw std::invalid_argument("objective buffer must not be null");
         if (payload_size != payload_dim_ || (payload_dim_ && !payload))
             throw std::invalid_argument("payload width must equal payload_dim");
-        for (std::size_t j = 0; j < 2; ++j)
-            if (point[j] < lower_[j])
-                throw std::invalid_argument("objectives are below fixed lower bounds");
-        // The kernel validates finiteness and the upper reference before its
-        // cached rejection test; avoid duplicating those checks here.
         return front_.addPoint(point[0], point[1], payload, static_cast<int>(payload_dim_));
     }
 
@@ -84,8 +76,7 @@ public:
     double hypervolume() const { return front_.hypervolume(); }
 
 private:
-    std::array<double, 2> lower_, reference_;
     std::size_t payload_dim_;
-    RankSumFrontHV front_;
+    ParetoFront2D front_;
 };
 }  // namespace fcmaes

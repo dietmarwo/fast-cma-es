@@ -1,10 +1,12 @@
-#include "bitehv2_optimized.h"
+#include "paretofront2d.h"
 #include <algorithm>
 #include <limits>
 #include <cstdio>
 #include <cstring>
 #include <random>
 #include <string>
+
+using fcmaes::ParetoFront2D;
 
 struct Point { double a, b; int id; };
 static std::size_t checks = 0;
@@ -19,7 +21,7 @@ static bool oracle(std::vector<Point>& front, Point p) {
     front.push_back(p);
     return true;
 }
-static std::vector<Point> observed(const RankSumFrontHV& archive) {
+static std::vector<Point> observed(const ParetoFront2D& archive) {
     std::vector<Point> out;
     archive.forEachPoint([&out](double a, double b, const std::vector<double>& x) {
         require(x.size() == 1, "payload size");
@@ -27,7 +29,7 @@ static std::vector<Point> observed(const RankSumFrontHV& archive) {
     });
     return out;
 }
-static void verify(const RankSumFrontHV& archive, std::vector<Point> front, double rx, double ry) {
+static void verify(const ParetoFront2D& archive, std::vector<Point> front, double rx, double ry) {
     std::sort(front.begin(), front.end(), [](Point a, Point b) { return a.a < b.a; });
     const std::vector<Point> actual = observed(archive);
     require(actual.size() == front.size() && archive.size() == front.size(), "front size");
@@ -43,13 +45,14 @@ static void verify(const RankSumFrontHV& archive, std::vector<Point> front, doub
 }
 static std::size_t updates = 0;
 static void stream(const std::vector<Point>& points, double rx = 1, double ry = 1) {
-    std::vector<RankSumFrontHV> archives;
-    for (int k = 0; k < 4; ++k) archives.push_back(RankSumFrontHV(rx, ry));
+    std::vector<ParetoFront2D> archives;
+    for (int k = 0; k < 4; ++k) archives.push_back(ParetoFront2D(rx, ry));
     archives[1].getFront();
     std::vector<Point> front;
     for (std::size_t i = 0; i < points.size(); ++i) {
         const Point p = points[i];
-        const bool accepted = oracle(front, p);
+        // Points outside the reference box are never archived.
+        const bool accepted = p.a <= rx && p.b <= ry && oracle(front, p);
         if (i == 47) archives[2].getFront();
         if (i == 130) archives[3].getFront();
         for (std::size_t k = 0; k < archives.size(); ++k) {
@@ -66,9 +69,11 @@ int main() {
         std::mt19937_64 rng(20261010);
         for (int trial = 0; trial < 60; ++trial) {
             std::vector<Point> points;
+            // Half of the trials also produce points outside the reference (1, 1).
+            const double scale = trial % 4 < 2 ? 1.0 : 1.25;
             for (int i = 0; i < 1000; ++i) {
-                const double a = trial % 2 == 0 ? (static_cast<int>(rng()%257)-128)/128.0 : std::uniform_real_distribution<double>(-1,1)(rng);
-                const double b = trial % 2 == 0 ? (static_cast<int>(rng()%257)-128)/128.0 : std::uniform_real_distribution<double>(-1,1)(rng);
+                const double a = scale * (trial % 2 == 0 ? (static_cast<int>(rng()%257)-128)/128.0 : std::uniform_real_distribution<double>(-1,1)(rng));
+                const double b = scale * (trial % 2 == 0 ? (static_cast<int>(rng()%257)-128)/128.0 : std::uniform_real_distribution<double>(-1,1)(rng));
                 points.push_back(Point{a,b,i});
             }
             stream(points);
@@ -89,25 +94,30 @@ int main() {
         stream(std::vector<Point>{{1,0,0},{0,1,1},{.5,.5,2},{.5,.5,3},{-0.,.5,4},{0.,.4,5},{0.,0.,6},{-0.,-0.,7}});
 
         // Held std::map reference and surviving iterator remain usable.
-        RankSumFrontHV live(1,1);
-        const RankSumFrontHV::Front& view = live.getFront();
+        ParetoFront2D live(1,1);
+        const ParetoFront2D::Front& view = live.getFront();
         double id = 1;
         require(live.addPoint(.1,.9,&id,1), "live insert");
-        RankSumFrontHV::Front::const_iterator survivor = view.begin();
+        ParetoFront2D::Front::const_iterator survivor = view.begin();
         id=2; live.addPoint(.8,.1,&id,1);
         require(view.size()==2 && survivor->first==.1 && survivor->second.second[0]==1, "live reference/iterator");
         id=3; live.addPoint(0,0,&id,1);
         require(view.size()==1 && view.begin()->first==0, "live full clear");
 
-        RankSumFrontHV invalid(1,1);
+        ParetoFront2D invalid(1,1);
         id=42; invalid.addPoint(.5,.5,&id,1);
         const std::vector<Point> saved = observed(invalid);
         const double savedHV = invalid.hypervolume();
-        const double bad[][2] = {{NAN,0},{0,INFINITY},{2,0},{0,2}};
-        for (std::size_t i=0;i<4;++i) {
+        const double bad[][2] = {{NAN,0},{0,INFINITY},{-INFINITY,0}};
+        for (std::size_t i=0;i<3;++i) {
             bool threw=false;
             try { invalid.addPoint(bad[i][0],bad[i][1]); } catch (const std::invalid_argument&) { threw=true; }
             require(threw && invalid.hypervolume()==savedHV, "invalid input rollback");
+            verify(invalid,saved,1,1);
+        }
+        const double outside[][2] = {{2,0},{0,2},{1.0000001,-5}};
+        for (std::size_t i=0;i<3;++i) {
+            require(!invalid.addPoint(outside[i][0],outside[i][1],&id,1) && invalid.hypervolume()==savedHV, "outside point skipped");
             verify(invalid,saved,1,1);
         }
         // Rejection must not inspect an oversized caller payload.
@@ -115,7 +125,7 @@ int main() {
         require(observed(invalid)[0].id==42,"first payload copied");
 
         for (int mode=0;mode<2;++mode) {
-            RankSumFrontHV extreme(1e308,1e308);
+            ParetoFront2D extreme(1e308,1e308);
             if (mode) extreme.getFront();
             extreme.addPoint(1e308,1e308);
             bool threw=false;
@@ -123,12 +133,12 @@ int main() {
             require(threw && extreme.size()==1 && extreme.hypervolume()==0, "area overflow rollback");
             require(!extreme.addPoint(1e308,1e308), "cache valid after failure");
         }
-        RankSumFrontHV zero(1e308,1e308);
+        ParetoFront2D zero(1e308,1e308);
         require(zero.addPoint(-1e308,1e308) && zero.hypervolume()==0,"zero-height rectangle");
         bool badRef=false;
-        try { RankSumFrontHV bad(INFINITY,1); } catch (const std::invalid_argument&) { badRef=true; }
+        try { ParetoFront2D bad(INFINITY,1); } catch (const std::invalid_argument&) { badRef=true; }
         require(badRef,"finite reference");
-        RankSumFrontHV payload(1,1);
+        ParetoFront2D payload(1,1);
         double values[3]={1,2,3};
         require(payload.addPoint(.3,.3,values,3),"payload acceptance");
         values[0]=99;
@@ -136,9 +146,9 @@ int main() {
         require(!payload.addPoint(.3,.3,values,3),"duplicate rejected");
         require(payload.getFront().begin()->second.second[0]==1,"duplicate first payload");
         // Large contiguous deletion and independent copies of the ordered map.
-        RankSumFrontHV large(1,1);
+        ParetoFront2D large(1,1);
         for (int i=0;i<50000;++i) large.addPoint((i+.5)/50000,1-(i+.5)/50000);
-        RankSumFrontHV copy=large;
+        ParetoFront2D copy=large;
         require(large.size()==50000 && copy.size()==50000,"archive copy");
         copy.addPoint(0,0);
         require(copy.size()==1 && copy.hypervolume()==1 && large.size()==50000,"independent full clear");

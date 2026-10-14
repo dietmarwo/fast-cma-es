@@ -9,7 +9,8 @@ from fcmaes.pareto import ParetoArchive2D
 def run(generations=40, track=True):
     solver = MODE_C(2, 1, Bounds([0.0, 0.0], [1.0, 1.0]),
                     popsize=32, rg=Generator(PCG64DXSM(42)))
-    archive = ParetoArchive2D([0.0, 0.0], [2.0, 2.0], payload_dim=2)
+    # Both objectives lie in [0, 2]; points outside the reference are skipped.
+    archive = ParetoArchive2D([2.0, 2.0], payload_dim=2)
     trace = []
     for _ in range(generations):
         xs = solver.ask()
@@ -18,6 +19,7 @@ def run(generations=40, track=True):
                               xs.sum(axis=1) - 1.5))
         trace.extend(zip(xs.copy(), ys.copy()))
         if track:
+            # Archive feasible evaluations; non-finite objectives raise.
             keep = np.isfinite(ys).all(axis=1) & (ys[:, 2] <= 0.0)
             archive.add_batch(ys[keep, :2], xs[keep])
         solver.tell(ys)

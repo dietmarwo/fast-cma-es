@@ -1,12 +1,11 @@
 /**
- * @file bitehv2_optimized.h
- * Online 2-D Pareto front and incremental hypervolume, C++11.
+ * @file paretofront2d.h
+ * Exact online 2-D Pareto front with incremental hypervolume, C++11.
  *
- * Original archive: Copyright (c) 2026 Aleksey Vaneev.
- * fcmaes adaptation: one ordered map, cached rejection, and positive
- * compensated area increments, October 2026. Simplified after BiteOpt
- * commit 02427c2f1dad87f3a146eda8b4613f01ee2eb8d8. Safe append/gap
- * shortcuts adapted from 6f3a63a02da75f55242a5d51edf8f5b7e4ff680c.
+ * Copyright (c) 2026 Aleksey Vaneev (original archive, BiteOpt bitehv2.h,
+ * https://github.com/avaneev/biteopt).
+ * Copyright (c) 2026 Dietmar Wolz (fcmaes adaptation: compensated area sums,
+ * error handling, payloads, append/gap shortcuts).
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -26,8 +25,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#ifndef BITEHV2_INCLUDED
-#define BITEHV2_INCLUDED
+#ifndef FCMAES_PARETOFRONT2D_H
+#define FCMAES_PARETOFRONT2D_H
 
 #include <cmath>
 #include <cstddef>
@@ -37,15 +36,18 @@
 #include <utility>
 #include <vector>
 
-// Minimization: a increases and b strictly decreases along the front.
-// A predecessor suffices for rejection; dominated successors are contiguous.
-// The cached point is a rejection witness, never a replacement for dominance.
-class RankSumFrontHV {
+namespace fcmaes {
+
+// Both objectives are minimized. Along the front, a increases and b strictly
+// decreases, so one predecessor lookup decides rejection and the dominated
+// successors are contiguous. A cached front point rejects most candidates
+// in O(1); it is only a shortcut, never a replacement for the dominance test.
+class ParetoFront2D {
 public:
     typedef std::pair<double, std::vector<double> > Mapped;
     typedef std::map<double, Mapped> Front;
 
-    explicit RankSumFrontHV(double refX, double refY)
+    explicit ParetoFront2D(double refX, double refY)
         : refX_(refX), refY_(refY), cached_(false),
           cacheA_(0), cacheB_(0), cacheMean_(0) {
         if (!std::isfinite(refX) || !std::isfinite(refY))
@@ -54,21 +56,21 @@ public:
 
     // Coordinate caches copy safely; map iterators must belong to the copy.
     // A copied or moved archive rebuilds its gap hint on its next acceptance.
-    RankSumFrontHV(const RankSumFrontHV& other)
+    ParetoFront2D(const ParetoFront2D& other)
         : refX_(other.refX_), refY_(other.refY_), area_(other.area_),
           cached_(other.cached_), cacheA_(other.cacheA_), cacheB_(other.cacheB_),
           cacheMean_(other.cacheMean_), front_(other.front_) {}
-    RankSumFrontHV& operator=(const RankSumFrontHV& other) {
-        if (this != &other) { RankSumFrontHV copy(other); swap(copy); }
+    ParetoFront2D& operator=(const ParetoFront2D& other) {
+        if (this != &other) { ParetoFront2D copy(other); swap(copy); }
         return *this;
     }
-    RankSumFrontHV(RankSumFrontHV&& other) noexcept
-        : RankSumFrontHV(other.refX_, other.refY_) { swap(other); }
-    RankSumFrontHV& operator=(RankSumFrontHV&& other) noexcept {
-        if (this != &other) { RankSumFrontHV moved(std::move(other)); swap(moved); }
+    ParetoFront2D(ParetoFront2D&& other) noexcept
+        : ParetoFront2D(other.refX_, other.refY_) { swap(other); }
+    ParetoFront2D& operator=(ParetoFront2D&& other) noexcept {
+        if (this != &other) { ParetoFront2D moved(std::move(other)); swap(moved); }
         return *this;
     }
-    void swap(RankSumFrontHV& other) noexcept {
+    void swap(ParetoFront2D& other) noexcept {
         using std::swap;
         front_.swap(other.front_);
         swap(refX_, other.refX_); swap(refY_, other.refY_); swap(area_, other.area_);
@@ -80,17 +82,18 @@ public:
         front_.clear(); area_ = Sum(); cached_ = false; gapValid_ = false;
     }
 
-    // Finite a <= refX and b <= refY; objectives may be negative.
-    // Duplicate objectives retain their first payload. Payloads are copied
-    // only for accepted points, after numerical checks. A null pointer or
-    // nonpositive xN means no payload, as in the upstream API.
-    // Invalid input/area overflow throws before changing membership or HV.
-    // Numeric and allocation failures leave membership, payloads, caches and
-    // HV unchanged. x may borrow an existing archive payload: copy it before
-    // any erasure. There is one update owner; callbacks must not reenter.
+    // Returns true if (a, b) was archived. Points with a > refX or b > refY
+    // are outside the reference box and return false: they add nothing to the
+    // hypervolume. There is no lower bound. Duplicate objectives keep their
+    // first payload. The payload x[0..xN) is copied only for archived points;
+    // a null pointer or xN <= 0 means no payload. Non-finite objectives throw
+    // std::invalid_argument, a non-representable area std::overflow_error;
+    // both, and allocation failures, leave the front unchanged. x may point
+    // into an archived payload. Not thread-safe; callbacks must not reenter.
     bool addPoint(double a, double b, const double* x = nullptr, int xN = 0) {
-        if (!std::isfinite(a) || !std::isfinite(b) || a > refX_ || b > refY_)
-            throw std::invalid_argument("point outside finite reference box");
+        if (!std::isfinite(a) || !std::isfinite(b))
+            throw std::invalid_argument("objectives must be finite");
+        if (a > refX_ || b > refY_) return false;
         if (a == 0) a = 0;
         if (b == 0) b = 0;
         // Explicit initialization lets an empty archive accept the reference.
@@ -236,4 +239,5 @@ private:
     }
 
 };
-#endif // BITEHV2_INCLUDED
+}  // namespace fcmaes
+#endif  // FCMAES_PARETOFRONT2D_H

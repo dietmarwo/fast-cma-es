@@ -1,0 +1,44 @@
+name: Native tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pareto:
+    name: Pareto archive (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: gcc, ASan + UBSan
+            cxx: g++
+            build_type: Debug
+            sanitize: "ON"
+          - name: clang, release
+            cxx: clang++
+            build_type: Release
+            sanitize: "OFF"
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure
+        run: >-
+          cmake -S tests/native -B build-native
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DFCMAES_SANITIZE=${{ matrix.sanitize }}
+          -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+
+      - name: Build
+        run: cmake --build build-native --parallel
+
+      - name: Test
+        run: ctest --test-dir build-native --output-on-failure

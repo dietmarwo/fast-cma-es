@@ -14,5 +14,7 @@ A Python 3 gradient-free optimization library.
 
 ## Exact 2D Pareto archive
 
-`fcmaes.pareto.ParetoArchive2D` retains all unique nondominated evaluations and
-tracks hypervolume incrementally. See [usage and MODE example](docs/pareto_archive.md).
+`fcmaes.pareto.ParetoArchive2D` keeps all nondominated evaluations of a
+two-objective problem and updates their hypervolume with every insertion,
+based on Aleksey Vaneev's BiteOpt archive. See
+[usage and a MODE example](docs/pareto_archive.md).

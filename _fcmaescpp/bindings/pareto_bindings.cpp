@@ -34,14 +34,12 @@ Mask owned_mask(const std::vector<unsigned char>& values) {
 
 void bind_pareto(nb::module_ &m) {
     nb::class_<fcmaes::ParetoArchive2D>(m, "ParetoArchive2D")
-        .def("__init__", [](fcmaes::ParetoArchive2D* self, F64Vector lower,
-                            F64Vector reference, int payload_dim) {
-            if (lower.size() != 2 || reference.size() != 2 || payload_dim < 0)
-                throw std::invalid_argument("bounds must have length 2; payload_dim must be nonnegative");
+        .def("__init__", [](fcmaes::ParetoArchive2D* self, F64Vector reference, int payload_dim) {
+            if (reference.size() != 2 || payload_dim < 0)
+                throw std::invalid_argument("reference must have length 2; payload_dim must be nonnegative");
             new (self) fcmaes::ParetoArchive2D(
-                {lower.data()[0], lower.data()[1]},
                 {reference.data()[0], reference.data()[1]}, static_cast<std::size_t>(payload_dim));
-        }, "lower"_a.noconvert(), "reference"_a.noconvert(), "payload_dim"_a = 0)
+        }, "reference"_a.noconvert(), "payload_dim"_a = 0)
         .def("add", [](fcmaes::ParetoArchive2D& archive, F64Vector y, F64Vector x) {
             if (y.size() != 2) throw std::invalid_argument("objectives must have length 2");
             return archive.add(y.data(), x.data(), x.size());
