@@ -107,6 +107,7 @@ nanobind_add_module(_fcmaes_ext NOMINSIZE
   _fcmaescpp/bindings/gtop_bindings.cpp
   _fcmaescpp/bindings/mode_bindings.cpp
   _fcmaescpp/bindings/pgpe_bindings.cpp
+  _fcmaescpp/bindings/pareto_bindings.cpp
 )
 
 target_link_libraries(_fcmaes_ext PRIVATE Eigen3::Eigen fcmaes_backend)
