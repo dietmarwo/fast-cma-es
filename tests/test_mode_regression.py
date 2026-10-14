@@ -130,3 +130,12 @@ def test_python_constrained_population_keeps_feasible_points():
                 xs = np.asarray(m.ask())
                 m.tell(l4(xs))
             assert best_feasible_l4(m.x[:m.popsize]) < 1.05, (nsga_update, seed)
+
+
+def test_constraint_ranks_ignore_satisfied_constraints():
+    # violations after max(0, .); points 0 and 1 satisfy constraint 0, point 2 constraint 1
+    cons = np.array([[0.0, 1.0], [0.0, 2.0], [3.0, 0.0]])
+    feasible = np.zeros(3, dtype=bool)
+    # each point violates one of two constraints (alpha = 1/2); a satisfied
+    # constraint adds no rank, as in the native MODE
+    assert list(mode.ranks(cons, feasible, 0)) == [0.5, 1.0, 1.0]

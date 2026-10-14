@@ -492,6 +492,7 @@ def ranks(cons: np.ndarray, feasible: np.ndarray, eps: float | np.ndarray) -> np
     ar = np.arange(cons.shape[0])
     for i in range(cons.shape[1]):
         rank[ci[:,i], i] = ar
+    rank[np.less_equal(cons, eps)] = 0 # a satisfied constraint adds no rank (as in the native MODE)
     rank[feasible] = 0
     alpha = np.sum(np.greater(cons, eps), axis=1) / cons.shape[1] # violations
     alpha = np.tile(alpha, (cons.shape[1],1)).T
