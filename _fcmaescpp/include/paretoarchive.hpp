@@ -9,9 +9,11 @@
 namespace fcmaes {
 
 // Exact 2D Pareto archive with fixed-width payloads, used by the Python
-// bindings (which hold the GIL during every call). Points outside the
-// reference box are not archived. A failing batch row is not applied;
-// the rows before it stay applied.
+// bindings (which hold the GIL during every call). The archive itself is
+// ParetoFront2D (paretofront2d.h), derived from bitehv2.h in Aleksey
+// Vaneev's BiteOpt repository, https://github.com/avaneev/biteopt.
+// Points outside the reference box are not archived. A failing batch row
+// is not applied; the rows before it stay applied.
 class ParetoArchive2D {
 public:
     struct Snapshot {

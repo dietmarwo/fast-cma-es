@@ -1,7 +1,9 @@
 # Copyright (c) Dietmar Wolz. MIT license; see the repository LICENSE.
 """Exact 2D Pareto archive with incremental hypervolume.
 
-Based on Aleksey Vaneev's 2D archive from BiteOpt (``bitehv2.h``). See
+The native archive (``_fcmaescpp/include/paretofront2d.h``) is derived from
+``bitehv2.h`` in Aleksey Vaneev's BiteOpt repository,
+https://github.com/avaneev/biteopt (MIT license). See
 ``docs/pareto_archive.md`` for the semantics and a MODE example.
 """
 from __future__ import annotations

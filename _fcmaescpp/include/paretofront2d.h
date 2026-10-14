@@ -2,10 +2,16 @@
  * @file paretofront2d.h
  * Exact online 2-D Pareto front with incremental hypervolume, C++11.
  *
- * Copyright (c) 2026 Aleksey Vaneev (original archive, BiteOpt bitehv2.h,
- * https://github.com/avaneev/biteopt).
- * Copyright (c) 2026 Dietmar Wolz (fcmaes adaptation: compensated area sums,
- * error handling, payloads, append/gap shortcuts).
+ * This code is derived from bitehv2.h in Aleksey Vaneev's BiteOpt repository,
+ * https://github.com/avaneev/biteopt (bitehv2.h as of commit 5f86f50,
+ * 2026-10-13). From there come the front as a std::map keyed by the first
+ * objective, the delta hypervolume updates, the cached rejection point and
+ * the append/gap fast paths. The fcmaes adaptations by Dietmar Wolz add
+ * Kahan-compensated area sums, error handling with rollback, overflow
+ * checks, skipping of points outside the reference box, and payloads.
+ *
+ * Original code: Copyright (c) 2026 Aleksey Vaneev.
+ * fcmaes adaptations: Copyright (c) 2026 Dietmar Wolz.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),

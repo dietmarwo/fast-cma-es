@@ -89,9 +89,13 @@ O(1). Otherwise an insertion costs one O(log n) lookup plus O(k log n) for the
 k removed points; appending after the last point, or inserting into the gap
 behind the previous insertion, skips the lookup.
 
-The algorithm is Aleksey Vaneev's 2D archive from BiteOpt
-([`bitehv2.h`](https://github.com/avaneev/biteopt)), MIT license.
-`fcmaes-core` (Rust) contains the same archive as `ParetoArchive2D`.
+`paretofront2d.h` is derived from `bitehv2.h` in Aleksey Vaneev's BiteOpt
+repository, <https://github.com/avaneev/biteopt> (commit 5f86f50,
+2026-10-13), MIT license: the ordered front, the delta hypervolume updates,
+the cached rejection point and the append/gap fast paths come from there.
+fcmaes adds compensated area sums, error handling with rollback, skipping of
+outside points and payloads. `fcmaes-core` (Rust) has a port of the same
+archive as `ParetoArchive2D`.
 
 Standalone C++ tests and a benchmark, with optional sanitizers:
 
