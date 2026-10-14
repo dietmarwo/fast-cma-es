@@ -384,7 +384,7 @@ class MODE(object):
                 ny = y0[domlevel]
                 si = [0]
                 if len(ny) > 1:
-                    cd = crowd_dist(ny)
+                    cd = crowd_dist(ny[:, :self.nobj]) # objectives only
                     si = np.flip(np.argsort(cd))
                 for p in si:
                     if len(x) >= self.popsize:
@@ -492,6 +492,7 @@ def ranks(cons: np.ndarray, feasible: np.ndarray, eps: float | np.ndarray) -> np
     ar = np.arange(cons.shape[0])
     for i in range(cons.shape[1]):
         rank[ci[:,i], i] = ar
+    rank[np.less_equal(cons, eps)] = 0 # a satisfied constraint adds no rank (as in the native MODE)
     rank[feasible] = 0
     alpha = np.sum(np.greater(cons, eps), axis=1) / cons.shape[1] # violations
     alpha = np.tile(alpha, (cons.shape[1],1)).T
@@ -516,7 +517,7 @@ def pareto_sort(x0: np.ndarray, y0: np.ndarray, nobj: int, ncon: int) -> Tuple[n
         ny = y0[domlevel]
         si = [0]
         if len(ny) > 1:
-            cd = crowd_dist(ny)
+            cd = crowd_dist(ny[:, :nobj]) # objectives only
             si = np.flip(np.argsort(cd))
         for p in si:
             x.append(nx[p])
@@ -528,14 +529,15 @@ def pareto_domination(ys: np.ndarray,
                       ncon: int,
                       last_ycon: Optional[np.ndarray] = None,
                       last_eps: float | np.ndarray = 0) -> Tuple[np.ndarray, Optional[np.ndarray], float | np.ndarray]:
+    # Feasibility first: a point counts as feasible only if it violates no constraint.
+    # last_ycon and last_eps are kept for API compatibility and ignored: an adaptive
+    # tolerance derived from the previous generation's mean violation let slightly
+    # infeasible points displace all strictly feasible ones once the population
+    # converged onto active constraints.
     if ncon == 0:
         return pareto_levels(ys), None, 0
     else:
-        eps = 0 # adjust tolerance to small constraint violations
-        if not last_ycon is None and np.amax(last_ycon) < 1E90:
-            eps = 0.5*(last_eps + 0.5*np.mean(last_ycon, axis=0))
-            if np.amax(eps) < 1E-8: # ignore small eps
-                eps = 0
+        eps = 0
 
         yobj = np.array([y[:nobj] for y in ys])
         ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])
@@ -565,35 +567,40 @@ def pareto_domination(ys: np.ndarray,
         return domination, ycon, eps
 
 def pareto_levels(ys: np.ndarray) -> np.ndarray:
-    popn = len(ys)
-    pareto = np.arange(popn)
-    index = 0  # Next index to search for
-    domination = np.zeros(popn)
-    while index < len(ys):
-        mask = np.any(ys < ys[index], axis=1)
-        mask[index] = True
-        pareto = pareto[mask]  # Remove dominated points
-        domination[pareto] += 1
-        ys = ys[mask]
-        index = np.sum(mask[:index])+1
-    return domination
+    """Non-dominated sorting (Deb et al. 2002). Returns one level per point,
+    higher = better: the first front gets the highest level, the next front one
+    less, and so on, so dominated points are ranked by their distance to the front."""
+    ys = np.asarray(ys, dtype=float)
+    n = len(ys)
+    if n == 0:
+        return np.zeros(0)
+    le = np.all(ys[:, None, :] <= ys[None, :, :], axis=2)
+    lt = np.any(ys[:, None, :] < ys[None, :, :], axis=2)
+    dom = le & lt # dom[p, q]: p dominates q
+    count = dom.sum(axis=0)
+    rank = np.zeros(n, dtype=int)
+    remaining = np.ones(n, dtype=bool)
+    level = 0
+    while remaining.any():
+        front = remaining & (count == 0)
+        rank[front] = level
+        remaining &= ~front
+        count = count - dom[front].sum(axis=0)
+        level += 1
+    return (level - 1 - rank).astype(float)
 
-def crowd_dist(y: np.ndarray) -> np.ndarray: # crowd distance for 1st objective
-    n = len(y)
-    y0 = np.fromiter((yi[0] for yi in y), dtype=float)
-    si = np.argsort(y0) # sort 1st objective
-    y0_s = y0[si] # sorted
-    d = y0_s[1:n] - y0_s[0:n-1] # neighbor distance
-    if max(d) == 0:
-        return np.zeros(n)
-    dsum = np.zeros(n)
-    dsum += np.array(list(d) + [0]) # distance to left
-    dsum += np.array([0] + list(d)) # distance to right
-    dsum[0] = np.inf # keep borders
-    dsum[-1] = np.inf
-    ds = np.empty(n)
-    ds[si] = dsum # inverse order
-    return ds
+def crowd_dist(y: np.ndarray) -> np.ndarray: # NSGA-II crowding distance over all columns of y (pass objectives only)
+    y = np.asarray(y, dtype=float)
+    n, m = y.shape
+    d = np.zeros(n)
+    for j in range(m):
+        si = np.argsort(y[:, j])
+        ys = y[si, j]
+        d[si[0]] = d[si[-1]] = np.inf # keep borders
+        span = ys[-1] - ys[0]
+        if n > 2 and span > 0:
+            d[si[1:-1]] += (ys[2:] - ys[:-2]) / span
+    return d
 
 # derived from https://github.com/ChengHust/NSGA-II/blob/master/GLOBAL.py
 def variation(pop: np.ndarray,
@@ -614,7 +621,7 @@ def variation(pop: np.ndarray,
     beta = np.zeros((n // 2, d))
     mu = rg.random((n // 2, d))
     beta[mu <= 0.5] = np.power(2 * mu[mu <= 0.5], 1 / (dis_c + 1))
-    beta[mu > 0.5] = np.power(2 * mu[mu > 0.5], -1 / (dis_c + 1))
+    beta[mu > 0.5] = np.power(2 - 2 * mu[mu > 0.5], -1 / (dis_c + 1)) # expanding branch (beta >= 1)
     beta = beta * ((-1)** rg.integers(2, size=(n // 2, d)))
     beta[rg.random((n // 2, d)) < 0.5] = 1
     if pro_c < 1.0:
@@ -626,6 +633,8 @@ def variation(pop: np.ndarray,
     mu = rg.random((n, d))
     temp = site & (mu <= 0.5)
     lower, upper = np.tile(lower, (n, 1)), np.tile(upper, (n, 1))
+    # SBX can expand beyond the bounds; polynomial mutation needs 0 <= norm <= 1
+    offspring = np.clip(offspring, lower, upper)
     norm = (offspring[temp] - lower[temp]) / (upper[temp] - lower[temp])
     offspring[temp] += (upper[temp] - lower[temp]) * \
                            (np.power(2. * mu[temp] + (1. - 2. * mu[temp]) * np.power(1. - norm, dis_m + 1.),
