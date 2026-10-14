@@ -384,7 +384,7 @@ class MODE(object):
                 ny = y0[domlevel]
                 si = [0]
                 if len(ny) > 1:
-                    cd = crowd_dist(ny)
+                    cd = crowd_dist(ny[:, :self.nobj]) # objectives only
                     si = np.flip(np.argsort(cd))
                 for p in si:
                     if len(x) >= self.popsize:
@@ -516,7 +516,7 @@ def pareto_sort(x0: np.ndarray, y0: np.ndarray, nobj: int, ncon: int) -> Tuple[n
         ny = y0[domlevel]
         si = [0]
         if len(ny) > 1:
-            cd = crowd_dist(ny)
+            cd = crowd_dist(ny[:, :nobj]) # objectives only
             si = np.flip(np.argsort(cd))
         for p in si:
             x.append(nx[p])
@@ -528,14 +528,15 @@ def pareto_domination(ys: np.ndarray,
                       ncon: int,
                       last_ycon: Optional[np.ndarray] = None,
                       last_eps: float | np.ndarray = 0) -> Tuple[np.ndarray, Optional[np.ndarray], float | np.ndarray]:
+    # Feasibility first: a point counts as feasible only if it violates no constraint.
+    # last_ycon and last_eps are kept for API compatibility and ignored: an adaptive
+    # tolerance derived from the previous generation's mean violation let slightly
+    # infeasible points displace all strictly feasible ones once the population
+    # converged onto active constraints.
     if ncon == 0:
         return pareto_levels(ys), None, 0
     else:
-        eps = 0 # adjust tolerance to small constraint violations
-        if not last_ycon is None and np.amax(last_ycon) < 1E90:
-            eps = 0.5*(last_eps + 0.5*np.mean(last_ycon, axis=0))
-            if np.amax(eps) < 1E-8: # ignore small eps
-                eps = 0
+        eps = 0
 
         yobj = np.array([y[:nobj] for y in ys])
         ycon = np.array([np.maximum(y[-ncon:], 0) for y in ys])
@@ -587,7 +588,7 @@ def pareto_levels(ys: np.ndarray) -> np.ndarray:
         level += 1
     return (level - 1 - rank).astype(float)
 
-def crowd_dist(y: np.ndarray) -> np.ndarray: # NSGA-II crowding distance over all objectives
+def crowd_dist(y: np.ndarray) -> np.ndarray: # NSGA-II crowding distance over all columns of y (pass objectives only)
     y = np.asarray(y, dtype=float)
     n, m = y.shape
     d = np.zeros(n)

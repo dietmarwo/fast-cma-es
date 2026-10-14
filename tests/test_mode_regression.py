@@ -92,3 +92,41 @@ def test_variation_stays_finite_and_in_bounds():
                          pro_c=1.0, dis_c=15.0, pro_m=float(dim), dis_m=20.0)
     assert np.all(np.isfinite(off))
     assert off.min() >= 0.0 and off.max() <= 1.0
+
+
+def l4(X):
+    # min x^2 s.t. 1 - x <= 0 on [-2, 3]; the optimum x = 1 lies on the constraint
+    x = np.atleast_2d(X)[:, 0]
+    return np.stack([x * x, 1.0 - x], 1)
+
+
+def best_feasible_l4(pop):
+    ys = l4(pop)
+    feasible = ys[:, 1] <= 0
+    return ys[feasible, 0].min() if feasible.any() else np.inf
+
+
+def test_native_constrained_population_keeps_feasible_points():
+    # an adaptive constraint tolerance let slightly infeasible points displace
+    # every strictly feasible one once the population reached the constraint
+    for nsga_update in (True, False):
+        for seed in (1000, 1001, 1002):
+            m = MODE_C(1, 1, Bounds([-2.0], [3.0]), popsize=32, nsga_update=nsga_update,
+                       rg=np.random.default_rng(seed))
+            for _ in range(40):
+                xs = np.asarray(m.ask())
+                m.tell(np.ascontiguousarray(l4(xs)))
+            pop = np.asarray(m.population())
+            pop = pop if pop.shape[1] == 1 else pop.T
+            assert best_feasible_l4(pop) < 1.05, (nsga_update, seed)
+
+
+def test_python_constrained_population_keeps_feasible_points():
+    for nsga_update in (True, False):
+        for seed in (1000, 1001, 1002):
+            m = mode.MODE(1, 1, Bounds([-2.0], [3.0]), popsize=32, nsga_update=nsga_update,
+                          rg=np.random.default_rng(seed))
+            for _ in range(40):
+                xs = np.asarray(m.ask())
+                m.tell(l4(xs))
+            assert best_feasible_l4(m.x[:m.popsize]) < 1.05, (nsga_update, seed)

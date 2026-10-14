@@ -224,11 +224,12 @@ public:
         }
     }
 
-    // NSGA-II crowding distance over all objectives, each normalized by its range.
+    // NSGA-II crowding distance over the objectives (the first nobj rows of y;
+    // constraint rows are ignored), each normalized by its range.
     vec crowd_dist(mat &y) {
         int n = y.cols();
         vec d = zeros(n);
-        for (int j = 0; j < y.rows(); j++) {
+        for (int j = 0; j < nobj; j++) {
             vec yj = y.row(j);
             ivec si = sort_index(yj);
             d(si(0)) = DBL_MAX; // keep borders
@@ -343,16 +344,12 @@ public:
         mat yobj = ys(Eigen::seqN(0, nobj), Eigen::indexing::all);
         mat ycon = ys(Eigen::indexing::lastN(ncon), Eigen::indexing::all).cwiseMax(0);
 
+        // Feasibility first: a point counts as feasible only if it violates no
+        // constraint. An adaptive tolerance (eps, derived from the mean violation
+        // of the previous generation) let slightly infeasible points displace all
+        // strictly feasible ones once the population converged onto active
+        // constraints, so minimize() could return no feasible solution.
         vec eps = zeros(ncon);
-        if (iterations > 1 && lastCon.maxCoeff() < 1E90) {
-        	vec eps_mean = 0.5*(lastEps + 0.5*lastCon.rowwise().mean());
-        	if (eps_mean.maxCoeff() > 1E-8) {
-        		eps = eps_mean;
-        		//std::cout << "eps = " << eps.transpose() << std::endl;
-        	}
-        }
-        lastCon = ycon;
-        lastEps = eps;
 
         std::vector<char> feasible(popn, false);
         bool hasFeasable = false;
@@ -575,8 +572,6 @@ private:
     mat popY;
     mat vX;
     int vp;
-    mat lastCon;
-    vec lastEps;
     int next_size;
     std::vector<bool> vdone;
     int pos;
