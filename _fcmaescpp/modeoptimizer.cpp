@@ -12,8 +12,8 @@
 //
 // Can switch to NSGA-II like population update via parameter 'nsga_update'.
 // Then it works essentially like NSGA-II but instead of the tournament selection
-// the whole population is sorted and the best individuals survive. To do this
-// efficiently the crowd distance ordering is slightly inaccurate.
+// the whole population is sorted (non-dominated sorting, then crowding distance
+// over all objectives for the last front that does not fit) and the best individuals survive.
 //
 // Supports parallel fitness function evaluation.
 //
@@ -134,7 +134,7 @@ public:
                     if (r <= 0.5)
                         beta(i, p) = pow(2 * r, 1.0 / (dis_c_ + 1.0));
                     else
-                        beta(i, p) = pow(2 * r, -1.0 / (dis_c_ + 1.0));
+                        beta(i, p) = pow(2.0 - 2.0 * r, -1.0 / (dis_c_ + 1.0)); // expanding, beta >= 1
                     if (rand01(*rs) > 0.5)
                         beta(i, p) = -beta(i, p);
                 }
@@ -160,7 +160,7 @@ public:
                         					1. / (dis_m_ + 1.)) - 1.);
                     else
                         offspring(i, p) += scale(i) *
-                        		(1. - pow(2. * (1. - mu) + 2. * (mu - 0.5) * pow(1. - norm, dis_m_ + 1.),
+                        		(1. - pow(2. * (1. - mu) + 2. * (mu - 0.5) * pow(norm, dis_m_ + 1.),
                         					1. / (dis_m_ + 1.)));
                 }
             }
@@ -224,28 +224,23 @@ public:
         }
     }
 
-    vec crowd_dist(mat &y) { // crowd distance for 1st objective
+    // NSGA-II crowding distance over all objectives, each normalized by its range.
+    vec crowd_dist(mat &y) {
         int n = y.cols();
-        vec y0 = y.row(0);
-        ivec si = sort_index(y0); // sort 1st objective
-        vec y0s = y0(si); // sorted y0
-        vec d(n - 1);
-        for (int i = 0; i < n - 1; i++)
-            d(i) = y0s[i + 1] - y0s[i]; // neighbor distance
-        if (d.maxCoeff() == 0)
-            return zeros(n);
-        vec dsum = zeros(n);
-        for (int i = 0; i < n; i++) {
-            if (i > 0)
-                dsum(i) += d(i - 1); // distance to left
-            if (i < n - 1)
-                dsum(i) += d(i); //  distance to right
+        vec d = zeros(n);
+        for (int j = 0; j < y.rows(); j++) {
+            vec yj = y.row(j);
+            ivec si = sort_index(yj);
+            d(si(0)) = DBL_MAX; // keep borders
+            d(si(n - 1)) = DBL_MAX;
+            double range = yj(si(n - 1)) - yj(si(0));
+            if (range <= 0)
+                continue;
+            for (int i = 1; i < n - 1; i++)
+                if (d(si(i)) < DBL_MAX)
+                    d(si(i)) += (yj(si(i + 1)) - yj(si(i - 1))) / range;
         }
-        dsum(0) = DBL_MAX; // keep borders
-        dsum(n - 1) = DBL_MAX;
-        vec ds(n);
-        ds(si) = dsum;  // inverse order
-        return ds;
+        return d;
     }
 
     bool is_dominated(const vec &y, int p) {
@@ -255,34 +250,52 @@ public:
         return true;
     }
 
-    bool is_dominated(const mat &y, int i, int index) {
-        for (int j = 0; j < y.rows(); j++)
-            if (y(j, i) < y(j, index))
-                return false;
-        return true;
-    }
-
+    // Non-dominated sorting (Deb et al. 2002). Returns one level per point,
+    // higher = better: the first front gets the highest level, the next front
+    // one less, and so on, so dominated points are ranked by their distance to
+    // the front. (Counting sequential-elimination rounds instead ranks dominated
+    // points by the index of their first dominator, which removes convergence
+    // pressure whenever the first front is small.)
     vec pareto_levels(const mat &y) {
-        int n = y.cols();
-        ivec pareto(n);
-        for (int i = 0; i < n; i++)
-            pareto(i) = i;
-        vec domination = zeros(n);
-        std::vector<char> mask(n, true);
-        for (int index = 0; index < n;) {
-            for (int i = 0; i < n; i++) {
-                if (i != index && mask[i] && is_dominated(y, i, index))
-                    mask[i] = false;
+        int n = y.cols(), m = y.rows();
+        std::vector<std::vector<int>> dominates(n);
+        std::vector<int> count(n, 0), rank(n, 0), front;
+        for (int p = 0; p < n; p++) {
+            for (int q = p + 1; q < n; q++) {
+                bool p_le = true, q_le = true, p_lt = false, q_lt = false;
+                for (int j = 0; j < m; j++) {
+                    if (y(j, p) > y(j, q)) p_le = false;
+                    if (y(j, q) > y(j, p)) q_le = false;
+                    if (y(j, p) < y(j, q)) p_lt = true;
+                    if (y(j, q) < y(j, p)) q_lt = true;
+                }
+                if (p_le && p_lt) {
+                    dominates[p].push_back(q);
+                    count[q]++;
+                } else if (q_le && q_lt) {
+                    dominates[q].push_back(p);
+                    count[p]++;
+                }
             }
-            for (int i = 0; i < n; i++) {
-                if (mask[i])
-                    domination[i] += 1;
-            }
-            index++;
-            while (index < n && !mask[index])
-                index++;
         }
-        //std::cout << "ypar " << domination.transpose() << std::endl;
+        for (int p = 0; p < n; p++)
+            if (count[p] == 0)
+                front.push_back(p);
+        int level = 0;
+        while (!front.empty()) {
+            std::vector<int> next;
+            for (int p : front) {
+                rank[p] = level;
+                for (int q : dominates[p])
+                    if (--count[q] == 0)
+                        next.push_back(q);
+            }
+            front.swap(next);
+            level++;
+        }
+        vec domination(n);
+        for (int p = 0; p < n; p++)
+            domination(p) = level - 1 - rank[p];
         return domination;
     }
 
