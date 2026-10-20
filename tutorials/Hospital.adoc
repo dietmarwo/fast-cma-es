@@ -181,7 +181,7 @@ class BaseProblem:
         self.evals.value += 1
         if y < self.best_y.value:
             self.best_y.value = y
-            logger().info("evals = {0}: time = {1:.1f} y = {2:.5f} x= {3:s}"
+            logger.info("evals = {0}: time = {1:.1f} y = {2:.5f} x= {3:s}"
                           .format(self.evals.value, dtime(self.t0), y,
                                   '[' + ", ".join([f"{xi:.16f}" for xi in xs]) + ']'
                     ))

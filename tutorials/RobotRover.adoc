@@ -65,11 +65,11 @@ from scipy.optimize import Bounds
     def negated(x): # negation because we minimize
         return -f(x)
 
-    logger().info("rover retry.minimize(wrap(f, dim), bounds, De_cpp(10000), num_retries=32)")
+    logger.info("rover retry.minimize(wrap(f, dim), bounds, De_cpp(10000), num_retries=32)")
     for i in range(20):
         retry.minimize(wrapper(negated), bounds, optimizer=De_cpp(10000), num_retries=32)
 
-    logger().info("rover retry.minimize(wrap(f, dim), bounds, Bite_cpp(10000), num_retries=32)")
+    logger.info("rover retry.minimize(wrap(f, dim), bounds, Bite_cpp(10000), num_retries=32)")
     for i in range(20):
         retry.minimize(wrapper(negated), bounds, optimizer=Bite_cpp(10000), num_retries=32)
 ----
@@ -211,11 +211,11 @@ from scipy.optimize import Bounds
     f = PushReward()
     bounds = Bounds(f.xmin, f.xmax)
 
-    logger().info("push retry.minimize(wrap(f, dim), bounds, De_cpp(10000), num_retries=32)")
+    logger.info("push retry.minimize(wrap(f, dim), bounds, De_cpp(10000), num_retries=32)")
     for i in range(20):
         retry.minimize(wrapper(f), bounds, optimizer=De_cpp(10000), num_retries=32)
 
-    logger().info("push retry.minimize(wrap(f, dim), bounds, Bite_cpp(10000), num_retries=32)")
+    logger.info("push retry.minimize(wrap(f, dim), bounds, Bite_cpp(10000), num_retries=32)")
     for i in range(20):
         retry.minimize(wrapper(f), bounds, optimizer=Bite_cpp(10000), num_retries=32)
 ----

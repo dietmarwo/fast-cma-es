@@ -52,13 +52,19 @@ def minimize(fun: Objective,
             2. Sequence of ``(min, max)`` pairs for each element in `x`. None
                is used to specify no bound.
     weight_bounds : `Bounds`, optional
-        Bounds on objective weights.
+        Bounds on the weights, one per value ``fun`` returns: the objectives
+        first, then the ``ncon`` constraints.
     ncon : int, optional
-        number of constraints
+        number of constraints: the last ``ncon`` values ``fun`` returns,
+        satisfied at ``<= 0``. A violated constraint enters the weighted
+        norm with its value and adds its weight as a penalty; a satisfied
+        constraint adds nothing.
     value_exp : float, optional
-        exponent applied to the objective values for the weighted sum. 
+        exponent p of the weighted p-norm that scalarizes the values. 
     value_limits : sequence of floats, optional
-        Upper limit for optimized objective values to be stored. 
+        Upper limits for the leading values ``fun`` returns (objectives
+        first); a result is stored only if each value with a limit lies
+        below it. 
     num_retries : int, optional
         Number of optimization retries.    
     workers : int, optional
@@ -133,7 +139,9 @@ def _retry_loop(pid: int, rgs: list[Generator], fun: Objective, weight_bounds: B
                 x, y, evals = optimize(wrapper.eval, Bounds(store.lower, store.upper), None, 
                                          [rg.uniform(0.05, 0.1)]*len(lower), rg, store)
                 objs = wrapper.mo_eval(x) # retrieve the objective values
-                if value_limits is None or all([objs[i] < value_limits[i] for i in range(len(w))]):
+                # Limits may cover only the objectives (or fewer values).
+                if value_limits is None or all(objs[i] < value_limits[i]
+                        for i in range(min(len(value_limits), len(objs)))):
                     store.add_result(y, x, evals, np.inf)   
                     if not store.plot_name is None:
                         name = store.plot_name + "_moretry_" + str(store.get_count_evals())
@@ -153,7 +161,12 @@ def pareto(xs: np.ndarray, ys: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return xp[ya], yp[ya]
      
 class mo_wrapper(object):
-    """wrapper for multi objective functions applying the weighted sum approach."""
+    """wrapper for multi objective functions applying the weighted sum approach.
+
+    The scalar is the weighted ``y_exp``-norm of the objectives and of the
+    constraint violations ``max(c, 0)``, plus the weight of each violated
+    constraint. Constraints are the last ``ncon`` values, satisfied at ``<= 0``.
+    """
    
     def __init__(self, fun: Objective, weights: np.ndarray, ncon: int, y_exp: float = 2) -> None:
         self.fun = fun  
@@ -164,13 +177,14 @@ class mo_wrapper(object):
         self.y_exp = y_exp
 
     def eval(self, x: ArrayLike) -> float:
-        y = self.fun(np.array(x))
-        weighted = _avg_exp(self.weights*y, self.y_exp)
-        if self.ncon > 0: # check constraint violations
-            violations = np.fromiter((i for i in range(self.nobj, self.ny) if y[i] > 0), dtype=int)
-            if len(violations) > 0:
-                weighted += sum(self.weights[violations])     
-        return weighted
+        y = np.asarray(self.fun(np.array(x)), dtype=float)
+        if self.ncon > 0:
+            # Only violations enter the norm: a satisfied constraint must not
+            # penalize a point for lying deep inside the feasible region.
+            con = y[self.nobj:]
+            y = np.concatenate((y[:self.nobj], np.maximum(con, 0)))
+            return _avg_exp(self.weights*y, self.y_exp) + self.weights[self.nobj:][con > 0].sum()
+        return _avg_exp(self.weights*y, self.y_exp)
             
     def mo_eval(self, x: ArrayLike) -> np.ndarray:
         return self.fun(np.array(x))

@@ -108,11 +108,11 @@ We apply coordinated retry in the usual way:
 [source,python]
 ----
 def test_optimizer(opt, problem, num_retries = 120000, num = 100,
-                    value_limit = -10.0, log = logger()):
-    log.info(problem.name + ' ' + opt.name)
+                    value_limit = -10.0):
+    logger.info(problem.name + ' ' + opt.name)
     for _ in range(num):
         ret = advretry.minimize(problem.fun, problem.bounds, value_limit,
-                                num_retries, log, optimizer=opt)
+                                num_retries, optimizer=opt)
 
 
 test_optimizer(de_cma(1500), Tandem_minlp())
@@ -137,14 +137,14 @@ This shifts more computation toward the promising planet sequences.
 [source,python]
 ----
 def test_multiretry(num_retries = 512,
-             keep = 0.7, optimizer = de_cma(1500), logger = logger(), repeat = 50):
+             keep = 0.7, optimizer = de_cma(1500), repeat = 50):
     seqs = Tandem(0).seqs
     n = len(seqs)
     problems = [Tandem(i) for i in range(n)]
     ids = [str(seqs[i]) for i in range(n)]
     for _ in range(100):
     	 # sort the problem variations
-        problem_stats = multiretry.minimize(problems, ids, num_retries, keep, optimizer, logger)
+        problem_stats = multiretry.minimize(problems, ids, num_retries=num_retries, keep=keep, optimizer=optimizer)
         ps = problem_stats[0] # focus on the best one
         for _ in range(repeat):
             logger.info("problem " + ps.prob.name + ' ' + str(ps.id))
@@ -243,10 +243,10 @@ from fcmaes.astro import Cassini1minlp
 from fcmaes.optimizer import logger
 from fcmaes.advretry import minimize
 
-def test_optimizer(problem, num_retries = 100000, num = 100, value_limit = 100.0, log = logger()):
-    log.info(problem.name + ' ' + opt.name)
+def test_optimizer(problem, num_retries = 100000, num = 100, value_limit = 100.0):
+    logger.info(problem.name)
     for i in range(num):
-        ret = minimize(problem.fun, problem.bounds, value_limit, num_retries, log)
+        ret = minimize(problem.fun, problem.bounds, value_limit, num_retries)
 
 test_optimizer(Cassini1minlp())
 ----
@@ -361,15 +361,15 @@ def sequences():
                             for p7 in range(2, 4):
                                 yield[p1,p2,p3,p4,p5,p6,p7]
 
-def test_multiretry(num_retries = 1024),
-             keep = 0.7, optimizer = de_cma(1500), logger = logger(), repeat = 100):
+def test_multiretry(num_retries = 1024,
+             keep = 0.7, optimizer = de_cma(1500), repeat = 100):
     problems = []
     ids = []
     for seq in sequences():
         problems.append(Gtoc1(planets = seq))
         ids.append(str(seq))
     for _ in range(100):
-        problem_stats = multiretry.minimize(problems, ids, num_retries, keep, optimizer, logger)
+        problem_stats = multiretry.minimize(problems, ids, num_retries=num_retries, keep=keep, optimizer=optimizer)
         ps = problem_stats[0]
         for _ in range(repeat):
             logger.info("problem " + ps.prob.name + ' ' + str(ps.id))

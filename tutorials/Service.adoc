@@ -105,7 +105,7 @@ We run the optimization as a parallel retry. `retry.minimize` uses all available
     def optimize(anpcp, opt, num_retries = 32):
         ret = retry.minimize(wrapper(anpcp.fitness),
                                    anpcp.bounds, num_retries = num_retries,
-                                   optimizer=opt, logger=logger())
+                                   optimizer=opt)
 ----
 
 Finally, we choose a concrete problem instance and an optimizer. For this task, https://github.com/avaneev/biteopt[BiteOpt] combined with parallel retry performs best. For comparison, we use an adapted TSP instance from https://github.com/netotz/alpha-neighbor-p-center-problem.

@@ -44,7 +44,7 @@ alg2 = De_cpp(50000)
 alg3 = Sequence([alg2, alg1])
 alg4 = Choice([alg3, alg1])
 
-ret = retry.minimize(fun, bounds, num_retries = 2000, logger = logger(), optimizer = alg4)
+ret = retry.minimize(fun, bounds, num_retries = 2000, optimizer = alg4)
 ----
 
 These expressions can be passed to the parallel retry or the coordinated parallel retry in `fcmaes`.
@@ -133,10 +133,10 @@ from fcmaes.astro import Tandem
 
 problem = Tandem(5, False) # unconstrained variant using [earth, venus, earth, earth, saturn]
 
-logger().info("coordinated retry for problem " + problem.name)
+logger.info("coordinated retry for problem " + problem.name)
 
 ret = advretry.minimize(problem.fun, bounds=problem.bounds, num_retries = 500000,
-	value_limit = 0, logger = logger())
+	value_limit = 0)
 ----
 
 ----
@@ -166,7 +166,7 @@ We now redefine `algo` and increase the initial evaluation budget:
 isres = nlopt.opt(nlopt.GN_ISRES, 18)
 algo = NLopt(isres, 4000)])
 ret = advretry.minimize(problem.fun, bounds=problem.bounds, num_retries = 500000,
-	value_limit = 0, logger = logger(), optimizer = algo)
+	value_limit = 0, optimizer = algo)
 ...
 ----
 
@@ -271,7 +271,7 @@ Which Lambert solution should we choose? The simplest option is to compute the o
 [source,python]
 ----
 self.ret = advretry.minimize(problem.fun, bounds=problem.bounds, num_retries = 500000,
-	value_limit = 0, logger = logger())
+	value_limit = 0)
 ----
 
 With that change, we can finally "beat" `-1673.88` after about 5300 seconds.

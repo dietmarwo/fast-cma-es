@@ -42,10 +42,10 @@ import pykep as pk
 from fcmaes import advretry
 from fcmaes.optimizer import single_objective, dtime, logger, de_cma
 
-def test_problem(opt, problem, num_retries = 10000, num = 3, value_limit = math.inf, log = logger()):
-    log.info(problem.name + ' ' + opt.name)
+def test_problem(opt, problem, num_retries = 10000, num = 3, value_limit = math.inf):
+    logger.info(problem.name + ' ' + opt.name)
     for _ in range(num):
-        _ = advretry.minimize(problem.fun, problem.bounds, value_limit, num_retries, log, optimizer=opt)
+        _ = advretry.minimize(problem.fun, problem.bounds, value_limit, num_retries, optimizer=opt)
 ----
 `test_problem` calls coordinated retry `num` times. Each call performs `num_retries` optimization runs.
 
@@ -479,8 +479,8 @@ class two_objectives:
 def optim(weight):
     uda = pk.trajopt.gym.juice_mo
     pr = two_objectives(pg.problem(uda), weight)
-    logger().info(pr.name + ' weight = ' + str(weight))
-    advretry.minimize(pr.fun, pr.bounds, 10000, 10000, logger())
+    logger.info(pr.name + ' weight = ' + str(weight))
+    advretry.minimize(pr.fun, pr.bounds, 10000, 10000)
 
 weight = 0.0001
 while True:
@@ -722,7 +722,7 @@ from fcmaes.optimizer import single_objective, logger, de_cma
 class test_problem:
 
     def __init__(self, prob, num_evals, num_retries, id):
-        self.store = retry.Store(prob.bounds, logger = logger())
+        self.store = retry.Store(prob.bounds)
         self.prob = prob
         self.name = prob.name
         self.fun = prob.fun
@@ -741,7 +741,7 @@ class test_problem:
 
     def minimize(self):
         self.ret = advretry.minimize(self.fun, bounds=self.prob.bounds, num_retries = 20000,
-            value_limit = 0, logger = logger())
+            value_limit = 0)
         self.value = self.ret.fun
 ----
 
@@ -759,12 +759,12 @@ class test_problems:
 
     def retry(self):
         for tp in self.test_problems:
-            logger().info("retry for problem " + str(tp.id))
+            logger.info("retry for problem " + str(tp.id))
             tp.retry()
 
     def minimize(self):
         for tp in self.test_problems:
-            logger().info("coordinated retry for problem " + str(tp.id))
+            logger.info("coordinated retry for problem " + str(tp.id))
             tp.minimize()
 
     def values(self):
@@ -782,7 +782,7 @@ class test_problems:
         idx = self.values().argsort()
         for i in range(self.size()):
             tp = self.test_problems[idx[i]]
-            logger().info(str(tp.id) + ' ' + str(tp.value))
+            logger.info(str(tp.id) + ' ' + str(tp.value))
 ----
 
 Method `test_sequences` initializes the `test_problems` instance with all Tandem variants, calls `tps.retry()` in a loop, and finally calls `tps.minimize()` to run coordinated retry for the best Tandem planet sequences.

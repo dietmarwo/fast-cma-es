@@ -80,7 +80,6 @@ class filter():
             max_evaluations = 60000, 
             workers = 32,
             filter = self
-            # logger = logger()
             )
  
 if __name__ == '__main__':

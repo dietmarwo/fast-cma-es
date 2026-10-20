@@ -95,7 +95,7 @@ class TSP:
         self.bestY = np.inf
         self.bestX = []
         return modecpp.retry(self.mofun, 1, 0, self.bounds(), num_retries=320, popsize = 48, 
-                  max_evaluations = 1000000, nsga_update = nsga_update, logger = logger())
+                  max_evaluations = 1000000, nsga_update = nsga_update)
 
 
 def load_tsplib(path, noise_factor=1, iter_num=100):

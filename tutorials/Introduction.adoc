@@ -162,8 +162,7 @@ You can enable logging, including for `advretry.minimize`, like this:
 ----
 from fcmaes.optimizer import logger
 ...
-        ret = retry.minimize(problem.fun, bounds = problem.bounds, num_retries = 4000,
-                   logger = logger())
+        ret = retry.minimize(problem.fun, bounds = problem.bounds, num_retries = 4000)
 ...
 ----
 Logging writes both to the screen and to a log file. The https://github.com/dietmarwo/fast-cma-es/blob/master/Readme.adoc[Readme]

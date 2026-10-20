@@ -166,8 +166,7 @@ A normal wrapper would not work because `fcmaes` usually expects the objective f
 ----
     from fcmaes import pygmoretry
     from fcmaes.optimizer import logger
-    ret = pygmoretry.minimize(prob, algo, num_retries = 640,
-                    logger = logger())
+    ret = pygmoretry.minimize(prob, algo, num_retries = 640)
     print(ret.fun, ret.nfev, ret.x)
 ----
 
@@ -243,7 +242,7 @@ def test_penalty(udp):
     mprob = margo_problem(udp)
     ret = retry.minimize(mprob.fitness, bounds=mprob.bounds,
                              optimizer=Cma_cpp(300000, popsize=13),
-                             num_retries = 640, logger = logger())
+                             num_retries = 640)
 ----
 
 Note that we add a kind of "mini death" penalty for constraint violations. This makes the objective function non-smooth, which is not a problem for the `fcmaes` optimizers.

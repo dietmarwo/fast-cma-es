@@ -126,7 +126,7 @@ class fitness(object): # the objective function
 
             sc = score(np.amin(slot_mass), sdv)
 
-            logger().info("evals = {0}: time = {1:.1f} s = {2:.0f} a = {3:.0f} t = {4:s} s = {5:s} b = {6:s} m = {7:s} dv = {8:s}"
+            logger.info("evals = {0}: time = {1:.1f} s = {2:.0f} a = {3:.0f} t = {4:s} s = {5:s} b = {6:s} m = {7:s} dv = {8:s}"
                 .format(self.evals.value, dtime(self.t0), sc, ast_num(x, self.asteroid, self.trajectory), 
                         str([round(ti,2) for ti in times[1:-1]]), 
                         str([int(si) for si in stations]),
@@ -151,7 +151,7 @@ class fitness(object): # the objective function
             stations = dyson_stations(x, STATION_NUM) 
             times = timings(x, STATION_NUM) 
             sc = score(np.amin(slot_mass), sdv)
-            logger().info("evals = {0}: time = {1:.1f} s = {2:.0f} a = {3:.0f} t = {4:s} s = {5:s} b = {6:s} m = {7:s} dv = {8:s}"
+            logger.info("evals = {0}: time = {1:.1f} s = {2:.0f} a = {3:.0f} t = {4:s} s = {5:s} b = {6:s} m = {7:s} dv = {8:s}"
                 .format(self.evals.value, dtime(self.t0), -self.best_y.value, ast_num(x, self.asteroid, self.trajectory), 
                         str([round(ti,2) for ti in times[1:-1]]), 
                         str([int(si) for si in stations]),
@@ -175,7 +175,7 @@ class fitness(object): # the objective function
             trajectories = trajectory_selection(x, TRAJECTORY_NUM)[0] 
             stations = dyson_stations(x, STATION_NUM) 
             times = timings(x, STATION_NUM) 
-            logger().info("evals = {0}: time = {1:.1f} s = {2:.0f} a = {3:.0f} t = {4:s} s = {5:s} b = {6:s} m = {7:s} dv = {8:s}"
+            logger.info("evals = {0}: time = {1:.1f} s = {2:.0f} a = {3:.0f} t = {4:s} s = {5:s} b = {6:s} m = {7:s} dv = {8:s}"
                 .format(self.evals.value, dtime(self.t0), -self.best_y.value, ast_num(x, self.asteroid, self.trajectory), 
                         str([round(ti,2) for ti in times[1:-1]]), 
                         str([int(si) for si in stations]),
@@ -270,8 +270,7 @@ def check_de_update(dim, fit):
     fit.bounds.ub[:10] = TRAJECTORY_NUM-1 # integer variables include upper bound 
     # mixed integer multi objective optimization 'modecpp' multi threaded, DE population update
     xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 128, 
-                  max_evaluations = 3000000, nsga_update = False, 
-                  logger = logger(), workers=16, 
+                  max_evaluations = 3000000, nsga_update = False, workers=16, 
                   ints=[True]*10+[False]*(dim-10))
 
 def get_fitness():
@@ -308,7 +307,7 @@ def optimize():
     
     # multi objective optimization 'modecpp' multi threaded, NSGA-II population update
     # xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 96, 
-    #               max_evaluations = 3000000, nsga_update = True, logger = logger(), workers=16)
+    #               max_evaluations = 3000000, nsga_update = True, workers=16)
     
     # smart boundary management (SMB) with DE->CMA
     # store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0) 

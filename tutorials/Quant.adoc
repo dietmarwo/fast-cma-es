@@ -342,8 +342,7 @@ That trades some performance for higher reliability.
 def opt_biteopt_loop(fits):
     ...
     for fit in fits:
-        ret = retry.minimize(fit, fit.bounds, logger = None,
-                              num_retries=16, optimizer=Bite_cpp(100), workers=16)
+        ret = retry.minimize(fit, fit.bounds, num_retries=16, optimizer=Bite_cpp(100), workers=16)
     ...
 ----
 
@@ -648,7 +647,7 @@ Parallelizing full optimization runs does not have that restriction, so it can k
 
 Let us first execute 32 SPSA optimization runs in parallel:
 
-====  maxcut(fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator")
+====  maxcut(fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32, use_wrapper=True), n, "aer_simulator")
 
 [source,python]
 ----
@@ -658,7 +657,7 @@ time: 1065.901137828827
 max-cut objective: -24.0
 ----
 
-Parameter `logger=logger()` is used to monitor the stream of results from the parallel runs:
+fcmaes logs the stream of results from the parallel runs through loguru at level DEBUG (add a sink with `level="DEBUG"` to see it, for example `logger.add(sys.stdout, level="DEBUG")`):
 
 - 1065.9 : execution time in seconds.
 - 360 : number of fitness evaluations per second (eval/sec).
@@ -683,7 +682,7 @@ That saves nearly 6 hours of CPU time.
 
 For CR-FM-NES we get:
 
-==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
+==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16), max_retries = 16, use_wrapper=True), n, "aer_simulator")
 
 [source,python]
 ----
@@ -700,7 +699,7 @@ max-cut objective: -24.000000000000004
 This is faster and slightly better than SPSA.
 Using population size 24 slows things down slightly but improves the results further:
 
-==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 16, use_wrapper=True, logger=logger()), n, "aer_simulator")
+==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 16, use_wrapper=True), n, "aer_simulator")
 
 [source,python]
 ----
@@ -717,7 +716,7 @@ max-cut objective: -24.000000000000004
 What about noise?
 Let us execute 32 SPSA optimization runs in parallel:
 
-==== maxcut(fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+==== maxcut(fcmaes_Optimizer(fcmaes_SPSA(6000), max_retries = 32, use_wrapper=True), n, "aer_simulator", add_noise=True)
 
 [source,python]
 ----
@@ -733,7 +732,7 @@ max-cut objective: -23.8232421875
 
 We need 1752 seconds for 32 runs, which means factor `1082*32/1752 = 19.8` compared to qiskit's parallelization.
 
-==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=16), max_retries = 32, use_wrapper=True), n, "aer_simulator", add_noise=True)
 
 [source,python]
 ----
@@ -750,7 +749,7 @@ max-cut objective: -23.87109375
 This is slightly faster and marginally better than SPSA.
 With noise, population size 24 does not improve things:
 
-==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 32, use_wrapper=True, logger=logger()), n, "aer_simulator", add_noise=True)
+==== maxcut(fcmaes_Optimizer(Crfmnes_cpp(12000, popsize=24), max_retries = 32, use_wrapper=True), n, "aer_simulator", add_noise=True)
 
 [source,python]
 ----

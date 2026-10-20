@@ -82,7 +82,6 @@ class fcmaes_Optimizer(optimizers.Optimizer):
         max_retries: int = 1, # number of parallel optimization retries
         workers: int = None, # maximal number of parallel workers, if None uses all physical available threads
         use_wrapper = False, # monitors optimization progress
-        logger = None # monitors parallel retry
         
     ) -> None:
         self._optimizer = optimizer
@@ -90,7 +89,6 @@ class fcmaes_Optimizer(optimizers.Optimizer):
         self._max_retries = max_retries
         self._workers = mp.cpu_count() if workers is None else workers 
         self._use_wrapper = use_wrapper
-        self._logger = logger
         
     def get_support_level(self):
         """Returns support level dictionary."""

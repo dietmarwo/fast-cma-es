@@ -374,7 +374,7 @@ class fitness:
             n *= 10
         if y < self.best_y.value:
             self.best_y.value = y
-            logger().info("evals = {0}: time = {1:.1f} y = {2:.5f} x= {3:s}"
+            logger.info("evals = {0}: time = {1:.1f} y = {2:.5f} x= {3:s}"
                   .format(self.evals.value, dtime(self.t0), y, str(sol)))
         return y
 
@@ -384,7 +384,7 @@ class fitness:
         ret = retry.minimize(self, self.bounds(), optimizer=Bite_cpp(200000,M=16,stall_iterations=3), num_retries=32)
         sol = self.solution(ret.x)
         num = 10000
-        logger().info("val" + str(num) + " = " + str(self.value(sol, num)))
+        logger.info("val" + str(num) + " = " + str(self.value(sol, num)))
         return sol
 
 if __name__ == '__main__':

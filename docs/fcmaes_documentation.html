@@ -158,7 +158,7 @@
 
     <div class="note">
       <h2>What Lives In <code>fcmaes/</code></h2>
-      <p>The package mixes two kinds of code. One group implements optimizers directly in Python or exposes C++ implementations through <code>ctypes</code>. The other group builds higher-level workflows around those optimizers: restart strategies, multi-objective handling, archive-based diversification, parallel evaluators, benchmark helpers, and test utilities.</p>
+      <p>The package mixes two kinds of code. One group implements optimizers directly in Python or exposes C++ implementations through the nanobind extension <code>fcmaes._fcmaes_ext</code> (imported by <code>_native.py</code>). The other group builds higher-level workflows around those optimizers: restart strategies, multi-objective handling, archive-based diversification, parallel evaluators, benchmark helpers, and test utilities.</p>
       <p>If you are new to the repository, the most useful starting points are usually <code>optimizer.py</code>, <code>retry.py</code>, <code>de.py</code>, <code>cmaes.py</code>, <code>decpp.py</code>, <code>cmaescpp.py</code>, and for multi-objective work <code>mode.py</code>, <code>modecpp.py</code>, and <code>moretry.py</code>.</p>
     </div>
 
@@ -167,7 +167,7 @@
       <div class="map-grid">
         <div class="map-card"><strong>Single-objective optimizers</strong><br><span class="meta"><code>cmaes.py</code>, <code>de.py</code>, <code>crfmnes.py</code> and the <code>*cpp.py</code> wrappers.</span></div>
         <div class="map-card"><strong>Meta-algorithms</strong><br><span class="meta"><code>retry.py</code>, <code>advretry.py</code>, <code>multiretry.py</code>, <code>moretry.py</code>.</span></div>
-        <div class="map-card"><strong>Multi-objective search</strong><br><span class="meta"><code>mode.py</code> and <code>modecpp.py</code>, plus weighted-sum retry in <code>moretry.py</code>.</span></div>
+        <div class="map-card"><strong>Multi-objective search</strong><br><span class="meta"><code>mode.py</code> and <code>modecpp.py</code>, weighted-sum retry in <code>moretry.py</code>, and the exact two-objective archive in <code>pareto.py</code>.</span></div>
         <div class="map-card"><strong>Quality-diversity</strong><br><span class="meta"><code>mapelites.py</code> and <code>diversifier.py</code>.</span></div>
         <div class="map-card"><strong>Execution helpers</strong><br><span class="meta"><code>evaluator.py</code>, <code>optimizer.py</code>, <code>journal.py</code>.</span></div>
         <div class="map-card"><strong>Benchmarks and tests</strong><br><span class="meta"><code>astro.py</code>, <code>testfun.py</code>, <code>test_cma.py</code>.</span></div>
@@ -242,7 +242,7 @@
           <p class="summary">This module wraps the compiled CMA-ES implementation and matches the Python API closely.</p>
           <p>The file is the fast path for users who want CMA-ES without reading or maintaining the Python implementation details. Besides the top-level <code>minimize</code> function, it exposes <code>ACMA_C</code>, a lower-level ask/tell style wrapper around the native stateful optimizer.</p>
           <ul>
-            <li>Main concepts: <code>ctypes</code> callbacks, parallel objective evaluation, delayed update support, compiled ask/tell access.</li>
+            <li>Main concepts: Python callbacks into the nanobind extension, parallel objective evaluation, delayed update support, compiled ask/tell access.</li>
             <li>Role in the package: production-oriented CMA-ES backend.</li>
             <li>Relation to the rest of the repo: selected by many composite optimizers in <code>optimizer.py</code> and exercised in <code>test_cma.py</code>.</li>
           </ul>
@@ -431,6 +431,18 @@
           <p>If you want one file that explains how the package is assembled out of interchangeable solver parts, this is the one.</p>
         </section>
 
+        <section id="pareto-py">
+          <h3><code>pareto.py</code></h3>
+          <p class="summary">This module keeps the exact Pareto front of two minimized objectives over everything evaluated, with its hypervolume updated on every insertion.</p>
+          <p><code>ParetoArchive2D(reference, payload_dim)</code> wraps the native archive (<code>paretofront2d.h</code>, derived from BiteOpt's <code>bitehv2.h</code>). <code>add(y, x)</code> and <code>add_batch(ys, xs)</code> insert objective pairs with optional payloads such as decision vectors; <code>front()</code> returns the archived points and payloads, <code>hypervolume()</code> the exact dominated area inside the reference box. Points beyond the reference are not archived, and non-finite objectives raise <code>ValueError</code>. It does not change an optimizer: record a run's feasible evaluations in it, for example every population told to MODE.</p>
+          <ul>
+            <li>Main concepts: exact non-dominated set, incremental hypervolume, payloads, batch insertion.</li>
+            <li>Role in the package: the front of all evaluations, where MODE returns only its final population; for three or more objectives use <code>moretry.pareto</code> on stored rows.</li>
+            <li>Relation to other files: independent of the optimizers; see <code>docs/pareto_archive.md</code> and <code>examples/pareto_mode.py</code>.</li>
+          </ul>
+          <p>Use it when the report needs the best front over all evaluations or an exact hypervolume trace during the run.</p>
+        </section>
+
         <section id="pgpecpp-py">
           <h3><code>pgpecpp.py</code></h3>
           <p class="summary">This wrapper exposes a compiled PGPE optimizer with optional parallel population evaluation.</p>
@@ -515,6 +527,7 @@
           <li><a href="#moretry-py"><code>moretry.py</code></a></li>
           <li><a href="#multiretry-py"><code>multiretry.py</code></a></li>
           <li><a href="#optimizer-py"><code>optimizer.py</code></a></li>
+          <li><a href="#pareto-py"><code>pareto.py</code></a></li>
           <li><a href="#pgpecpp-py"><code>pgpecpp.py</code></a></li>
           <li><a href="#pygmoretry-py"><code>pygmoretry.py</code></a></li>
           <li><a href="#retry-py"><code>retry.py</code></a></li>
@@ -526,7 +539,7 @@
 
     <footer>
       <h2>How To Navigate The Package</h2>
-      <p>For core optimization flows, start with <code>optimizer.py</code>, then read <code>retry.py</code> and one optimizer pair such as <code>de.py</code> and <code>decpp.py</code> or <code>cmaes.py</code> and <code>cmaescpp.py</code>. For multi-objective work, read <code>moretry.py</code> and then <code>mode.py</code> or <code>modecpp.py</code> with the MODE tutorial beside them. For quality-diversity workflows, move from <code>mapelites.py</code> to <code>diversifier.py</code>. If you want usage examples that are short and concrete, <code>test_cma.py</code> is a good final stop.</p>
+      <p>For core optimization flows, start with <code>optimizer.py</code>, then read <code>retry.py</code> and one optimizer pair such as <code>de.py</code> and <code>decpp.py</code> or <code>cmaes.py</code> and <code>cmaescpp.py</code>. For multi-objective work, read <code>moretry.py</code> and then <code>mode.py</code> or <code>modecpp.py</code> with the MODE tutorial beside them, and <code>pareto.py</code> for the exact two-objective front of all evaluations. For quality-diversity workflows, move from <code>mapelites.py</code> to <code>diversifier.py</code>. If you want usage examples that are short and concrete, <code>test_cma.py</code> is a good final stop.</p>
     </footer>
   </div>
 </body>

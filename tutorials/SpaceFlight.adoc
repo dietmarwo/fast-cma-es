@@ -62,7 +62,7 @@ float interval.
         return y[0]
 
     advretry.minimize_plot("cassini1_mixed bm", de_cma(1500), cassini1,
-                               bounds, 10.0, 20.0, 5000, logger=logger())
+                               bounds, 10.0, 20.0, 5000)
 
 ----
 
@@ -103,7 +103,7 @@ the planet sequence.
         return y[0]
 
     advretry.minimize_plot("cassini2_mixed bm", de_cma(1500), cassini2,
-                               bounds, 12.0, 20.0, 20000, logger=logger())
+                               bounds, 12.0, 20.0, 20000)
 
 ----
 
