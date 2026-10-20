@@ -22,6 +22,16 @@ def test_native_extension_imports():
     assert callable(cmaescpp.optimize_acma)
 
 
+def test_every_exported_module_imports():
+    import importlib
+
+    for name in fcmaes.__all__:
+        importlib.import_module(f"fcmaes.{name}")
+    namespace = {}
+    exec("from fcmaes import *", namespace)
+    assert set(fcmaes.__all__) <= set(namespace)
+
+
 def test_native_optimizers_smoke():
     bounds = Bounds([-5.0, -5.0], [5.0, 5.0])
     x0 = np.array([3.0, -4.0], dtype=np.float64)
