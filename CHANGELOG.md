@@ -103,7 +103,9 @@ them.
   READMEs describe installation from source (C++17 compiler, Eigen 3.4 from
   the system or fetched with `FCMAES_FETCH_EIGEN=ON`; no other repository of
   ours is needed). This changelog replaces the "Changes from version"
-  lists in `README.adoc` as the complete record.
+  lists in `README.adoc` as the complete record. `ai-context.md` points to
+  the AI entry point of optimization-jobs, which chooses between the four
+  solver repositories.
 
 ### Fixed
 

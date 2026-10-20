@@ -11,6 +11,12 @@ optimizer is universally best. Use the problem structure, evaluation cost, and
 the user's desired output to choose a small set of defensible candidates, then
 compare them under the same evaluation and worker budget.
 
+If the solver is not chosen yet, start with the
+[entry point](https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md)
+in optimization-jobs. It routes between fast-cma-es, fcmaes-rust,
+LP-IP-craft and SQP-craft and covers installation, the job API and the MCP
+server.
+
 The repository provides the `fcmaes` Python package. It combines Python
 optimizer and orchestration code with a C++17 backend exposed through nanobind.
 The modules whose names end in `cpp`, and `pareto`, use that native backend;
