@@ -205,10 +205,10 @@ There is an obvious alternative: the well-known https://pymoo.org/algorithms/nsg
 def nsgaII_test(problem, fname, NGEN=2000, MU=100, value_limits = None):
     time0 = time.perf_counter() # optimization start time
     name = problem.__class__.__name__
-    logger().info('optimize ' + name + ' nsgaII')
+    logger.info('optimize ' + name + ' nsgaII')
     pbounds = np.array(list(zip(problem.bounds.lb, problem.bounds.ub)))
     pop, logbook, front = nsgaII(2, problem.fun, pbounds, NGEN=NGEN, MU=MU)
-    logger().info(name + ' nsgaII time ' + str(dtime(time0)))
+    logger.info(name + ' nsgaII time ' + str(dtime(time0)))
     if not value_limits is None:
         front = np.array(
             [y for y in front if all([y[i] < value_limits[i] for i in range(len(y))])])
@@ -288,7 +288,7 @@ We configure 1024 retries with a maximum of 50000 evaluations each. Our processo
 ----
 def minimize_plot(name, optimizer, fun, bounds, weight_bounds,
                   value_limits = None, num_retries = 1024,
-             exp = 2.0, workers = mp.cpu_count(), logger=logger(), statistic_num = 0):
+             exp = 2.0, workers = mp.cpu_count(), statistic_num = 0):
     time0 = time.perf_counter() # optimization start time
     name += ' ' + optimizer.name
     logger.info('optimize ' + name)
@@ -298,7 +298,7 @@ def minimize_plot(name, optimizer, fun, bounds, weight_bounds,
              num_retries = num_retries,
              optimizer = optimizer,
              workers = workers,
-             logger=logger, statistic_num = statistic_num)
+             statistic_num = statistic_num)
     retry.plot(ys, 'all_.' + name + '.png', interp=False)
     np.savez_compressed(name, xs=xs, ys=ys)
     xs, front = pareto(xs, ys)
@@ -425,12 +425,11 @@ Since we optimize only the first objective, we can also try advanced retry. This
 from fcmaes import advretry
 
 def adv_minimize_plot(name, optimizer, fun, bounds,
-                   value_limit = math.inf, num_retries = 1024, logger=logger(), statistic_num = 0):
+                   value_limit = math.inf, num_retries = 1024, statistic_num = 0):
     time0 = time.perf_counter() # optimization start time
     name += ' ' + optimizer.name
     logger.info('smart optimize ' + name)
-    store = advretry.Store(lambda x:fun(x)[0], bounds, capacity=5000, logger=logger,
-                           num_retries=num_retries, statistic_num = statistic_num)
+    store = advretry.Store(lambda x:fun(x)[0], bounds, capacity=5000, num_retries=num_retries, statistic_num = statistic_num)
     advretry.retry(store, optimizer.minimize, value_limit)
     xs = np.array(store.get_xs())
     ys = np.array([fun(x) for x in xs])

@@ -176,8 +176,8 @@
 
     <div class="note">
       <h2>What Lives In The Native Backend</h2>
-      <p>The backend has two clear layers. The <code>.cpp</code> files are the algorithm-facing entry points. They own the main optimizer classes and export plain C functions such as <code>optimizeDE_C</code> or <code>askACMA_C</code>. The headers in <code>include/</code> hold the shared evaluation layer and a bundle of numerical or optimizer support code.</p>
-      <p>Most users meet this code through <code>ctypes</code>. The Python modules <code>fcmaes/cmaescpp.py</code>, <code>fcmaes/decpp.py</code>, <code>fcmaes/modecpp.py</code>, <code>fcmaes/crfmnescpp.py</code>, <code>fcmaes/pgpecpp.py</code>, <code>fcmaes/bitecpp.py</code>, and <code>fcmaes/dacpp.py</code> load the compiled library and call the exported C functions here.</p>
+      <p>The backend has two clear layers. The <code>.cpp</code> files are the algorithm-facing entry points. They own the main optimizer classes. The nanobind bindings in <code>bindings/</code> expose them to Python as the extension module <code>fcmaes._fcmaes_ext</code>: one-call functions such as <code>optimize_de</code> and stateful classes such as <code>ACMA</code> with <code>ask</code> and <code>tell</code>. The headers in <code>include/</code> hold the shared evaluation layer and a bundle of numerical or optimizer support code.</p>
+      <p>Most users meet this code through the nanobind extension <code>fcmaes._fcmaes_ext</code>, which <code>fcmaes/_native.py</code> imports. The Python modules <code>fcmaes/cmaescpp.py</code>, <code>fcmaes/decpp.py</code>, <code>fcmaes/modecpp.py</code>, <code>fcmaes/crfmnescpp.py</code>, <code>fcmaes/pgpecpp.py</code>, <code>fcmaes/bitecpp.py</code>, <code>fcmaes/dacpp.py</code> and <code>fcmaes/pareto.py</code> call its functions and classes.</p>
     </div>
 
     <div class="map">
@@ -196,7 +196,7 @@
       <main>
         <section id="cpp-group">
           <h2>C++ Sources In <code>_fcmaescpp/</code></h2>
-          <p>The files in this group are the native optimizer implementations and their exported entry points. Most of them define an internal optimizer class plus a small set of <code>extern "C"</code> functions that make the code callable from Python.</p>
+          <p>The files in this group are the native optimizer implementations. Each defines an internal optimizer class; its binding in <code>bindings/</code> makes it callable from Python.</p>
         </section>
 
         <section id="acmaesoptimizer-cpp">
@@ -204,7 +204,7 @@
           <h3><code>acmaesoptimizer.cpp</code></h3>
           <p class="summary">This file is the native active CMA-ES engine, with both one-shot execution and a full ask/tell interface.</p>
           <p>The heart of the file is <code>AcmaesOptimizer</code>. It owns the population state, covariance adaptation, evolution paths, stopping checks, and the logic for sampling new candidates in Eigen arrays. The code also leans on <code>Fitness</code> from <code>evaluator.h</code> to encode and decode bounded variables, so the optimizer can work in normalized coordinates when the wrapper asks for it.</p>
-          <p>One detail that matters in this repository is the split between direct runs and stateful runs. <code>optimizeACMA_C</code> handles the simple "run until done" path. The <code>initACMA_C</code>, <code>askACMA_C</code>, <code>tellACMA_C</code>, <code>tellXACMA_C</code>, <code>populationACMA_C</code>, and <code>resultACMA_C</code> exports keep an optimizer object alive across calls. That is the surface used by <code>fcmaes/cmaescpp.py</code> for Python-side control loops.</p>
+          <p>One detail that matters in this repository is the split between direct runs and stateful runs. <code>optimize_acma</code> handles the simple "run until done" path. The <code>ACMA</code> class, with <code>ask</code>, <code>tell</code>, <code>tell_x</code>, <code>population</code> and <code>result</code>, keeps an optimizer object alive across calls. That is the surface used by <code>fcmaes/cmaescpp.py</code> (<code>ACMA_C</code>) for Python-side control loops.</p>
           <ul>
             <li>Main pieces: <code>AcmaesOptimizer</code>, population sampling, covariance updates, stop tests, and delayed-update evaluation.</li>
             <li>How it fits: one of the main single-objective native solvers in the project.</li>
@@ -225,7 +225,7 @@
           <h3><code>biteoptimizer.cpp</code></h3>
           <p class="summary">This is a thin native bridge from the repository callback API to the bundled BiteOpt deep optimizer.</p>
           <p>The file does not reimplement the BiteOpt method from first principles. Instead, it defines <code>BiteOptimizer</code> as a small subclass of <code>CBiteOptDeep</code>, wires its virtual methods to the local <code>Fitness</code> wrapper, and adds the stop logic that the Python layer expects. That keeps the C++ surface compact while still exposing the deeper BiteOpt stack.</p>
-          <p>Compared with the other optimizer sources, the C interface here is simple. The file exports only <code>optimizeBite_C</code>. There is no separate ask/tell lifecycle. That matches how <code>fcmaes/bitecpp.py</code> uses it today: as a direct single-call optimizer rather than a stateful native object.</p>
+          <p>The binding offers the one-call <code>optimize_bite</code> and, since 2.0.2, a stateful <code>Bite</code> class with <code>ask</code>, <code>tell</code> and <code>result</code>. <code>fcmaes/bitecpp.py</code> uses the first for <code>minimize</code> and wraps the second as <code>Bite_C</code> for Python-controlled ask/tell loops.</p>
           <ul>
             <li>Main pieces: <code>BiteOptimizer</code>, <code>CBiteOptDeep</code> inheritance, bound-aware objective callbacks, and stall-based stopping.</li>
             <li>How it fits: a wrapper around bundled BiteOpt code, not a new optimizer family unique to this repository.</li>
@@ -238,7 +238,7 @@
           <h3><code>crfmnes.cpp</code></h3>
           <p class="summary">This file implements the native CR-FM-NES solver and exposes it in both one-shot and ask/tell form.</p>
           <p><code>CrfmnesOptimizer</code> holds the mean vector, rank weights, evolution state, and the moving coordinate system used by the algorithm. The implementation works in encoded coordinates and can combine bound handling with either a penalty term or explicit constraint-violation treatment. That makes the file more than a direct paper transcription. It is adapted to the repository's bounded-objective setup.</p>
-          <p>The exported API mirrors the pattern used in other stateful solvers: <code>optimizeCRFMNES_C</code> for direct runs, then <code>init</code>, <code>ask</code>, <code>tell</code>, <code>population</code>, and <code>result</code> functions for repeated control from Python. The matching wrapper is <code>fcmaes/crfmnescpp.py</code>, which uses the parallel callback path because this optimizer naturally evaluates whole populations.</p>
+          <p>The binding mirrors the other stateful solvers: <code>optimize_crfmnes</code> for direct runs, and a <code>CRFMNES</code> class with <code>ask</code>, <code>tell</code>, <code>population</code> and <code>result</code> for repeated control from Python. The matching wrapper is <code>fcmaes/crfmnescpp.py</code>, which uses the parallel callback path because this optimizer naturally evaluates whole populations.</p>
           <ul>
             <li>Main pieces: <code>CrfmnesOptimizer</code>, encoded-space sampling, feasibility handling, and ask/tell exports.</li>
             <li>How it fits: one of the newer native solvers, aimed at high-dimensional search.</li>
@@ -259,7 +259,7 @@
           <h3><code>daoptimizer.cpp</code></h3>
           <p class="summary">This file is a self-contained dual annealing runner with optional LBFGS-B local search.</p>
           <p>Unlike most of the other optimizer sources, this one does not lean on <code>evaluator.h</code>. It defines its own bounded <code>Fitness</code> wrapper, the local-search adapter <code>LBFGSFunc</code>, the visiting distribution, the energy state, the annealing strategy chain, and the top-level <code>DARunner</code>. The file is close to a compact subsystem.</p>
-          <p>The implementation is adapted to normalized bounded coordinates and always uses the bundled <code>LBFGSBSolver</code> when local search is enabled. The C surface is deliberately small. <code>optimizeDA_C</code> is the only exported entry point, which is enough for <code>fcmaes/dacpp.py</code> because the Python layer treats this method as a one-shot optimizer.</p>
+          <p>The implementation is adapted to normalized bounded coordinates and always uses the bundled <code>LBFGSBSolver</code> when local search is enabled. The binding is deliberately small. <code>optimize_da</code> is the only entry point, which is enough for <code>fcmaes/dacpp.py</code> because the Python layer treats this method as a one-shot optimizer.</p>
           <ul>
             <li>Main pieces: local <code>Fitness</code>, <code>LBFGSFunc</code>, <code>EnergyState</code>, <code>StrategyChain</code>, <code>DARunner</code>, and the top-level <code>minimize</code> helper.</li>
             <li>How it fits: the native annealing method, separate from the population-based solvers.</li>
@@ -279,7 +279,7 @@
           <h3><code>deoptimizer.cpp</code></h3>
           <p class="summary">This file is the native differential evolution engine, with delayed-update parallel evaluation and explicit support for discrete variables.</p>
           <p><code>DeOptimizer</code> owns the population, trial-vector generation, aging logic, and replacement rules. The implementation is not a plain textbook DE loop. It folds in temporal locality, age-based reinitialization, oscillating <code>F</code> and <code>CR</code> behavior, and extra mutation handling for integer-marked coordinates. That combination is what the rest of the repository means when it talks about the C++ DE backend.</p>
-          <p>The file also shows the usual split between direct use and stateful use. <code>optimizeDE_C</code> handles the simple path. The <code>initDE_C</code>, <code>askDE_C</code>, <code>tellDE_C</code>, <code>populationDE_C</code>, and <code>resultDE_C</code> functions keep the optimizer alive for Python-controlled loops. The delayed-update path uses the worker machinery from <code>evaluator.h</code> to keep evaluations moving while the population update waits for results.</p>
+          <p>The file also shows the usual split between direct use and stateful use. <code>optimize_de</code> handles the simple path. The <code>DE</code> class, with <code>ask</code>, <code>tell</code>, <code>population</code> and <code>result</code>, keeps the optimizer alive for Python-controlled loops. The delayed-update path uses the worker machinery from <code>evaluator.h</code> to keep evaluations moving while the population update waits for results.</p>
           <ul>
             <li>Main pieces: <code>DeOptimizer</code>, integer-aware mutation, delayed-update worker path, and ask/tell exports.</li>
             <li>How it fits: one of the central single-objective native solvers and a baseline for several higher-level workflows.</li>
@@ -299,7 +299,7 @@
           <h3><code>modeoptimizer.cpp</code></h3>
           <p class="summary">This file is the native multi-objective DE core, with a switch that can swap between DE-style and NSGA-like survivor updates.</p>
           <p><code>MoDeOptimizer</code> extends the DE-style population machinery into the multi-objective case. It stores objective and constraint values together, computes Pareto levels, ranks feasible and infeasible solutions, and uses crowding-style information when it needs a total order. The file also keeps the discrete-variable treatment from the single-objective DE backend, which matters for mixed or combinatorial design problems.</p>
-          <p>The C interface is stateful by design. There is no one-call <code>optimizeMODE_C</code>. Instead the wrapper creates an optimizer with <code>initMODE_C</code>, asks for populations, feeds back evaluated objective vectors, and can even switch the update rule with <code>tellMODE_switchC</code> or replace the live population with <code>setPopulationMODE_C</code>. That matches how <code>fcmaes/modecpp.py</code> drives the algorithm from Python.</p>
+          <p>The binding is stateful by design. There is no one-call function. Instead the wrapper creates a <code>MODE</code> object, asks for populations, feeds back evaluated objective vectors, and can even switch the update rule with <code>tell_switch</code> or replace the live population with <code>set_population</code>. That matches how <code>fcmaes/modecpp.py</code> drives the algorithm from Python.</p>
           <ul>
             <li>Main pieces: <code>MoDeOptimizer</code>, Pareto ranking, constraint ranking, configurable DE or NSGA-style survival, and a population replacement hook.</li>
             <li>How it fits: the main native multi-objective engine in the repository.</li>
@@ -319,7 +319,7 @@
           <h3><code>pgpe.cpp</code></h3>
           <p class="summary">This file implements the native PGPE optimizer, including mirrored sampling and ADAM-based center updates.</p>
           <p>The file is split between a small optimizer helper, <code>ADAM</code>, and the main <code>PGPEOptimizer</code>. The optimizer samples perturbation pairs around a center, turns the paired scores into center and standard-deviation gradients, clips how fast the standard deviations can move, and then updates the center with ADAM. That keeps the code close to the policy-search formulation rather than making it look like another generic ES loop.</p>
-          <p>Like the native CMA and CR-FM-NES paths, this file offers both direct execution and a stateful ask/tell API. The exported functions are what <code>fcmaes/pgpecpp.py</code> loads. In practice the wrapper uses the direct path for standard runs and the stateful path when it wants tighter control from Python.</p>
+          <p>Like the native CMA and CR-FM-NES paths, this file offers both direct execution (<code>optimize_pgpe</code>) and a stateful <code>PGPE</code> class with an ask/tell API. They are what <code>fcmaes/pgpecpp.py</code> calls. In practice the wrapper uses the direct path for standard runs and the stateful path when it wants tighter control from Python.</p>
           <ul>
             <li>Main pieces: <code>ADAM</code>, <code>PGPEOptimizer</code>, mirrored perturbation sampling, ranking-aware score processing, and ask/tell exports.</li>
             <li>How it fits: the repository's native policy-gradient style optimizer.</li>
@@ -334,9 +334,21 @@
           </div>
         </section>
 
+        <section id="bindings-group">
+          <div class="directory-tag">_fcmaescpp/bindings/</div>
+          <h3>The nanobind bindings</h3>
+          <p class="summary">These files build the Python extension module <code>fcmaes._fcmaes_ext</code> that every native wrapper in <code>fcmaes/</code> uses.</p>
+          <p><code>module.cpp</code> defines the module and calls one <code>bind_*</code> function per file: <code>acma_bindings.cpp</code>, <code>bite_bindings.cpp</code>, <code>crfmnes_bindings.cpp</code>, <code>da_bindings.cpp</code>, <code>de_bindings.cpp</code>, <code>mode_bindings.cpp</code> and <code>pgpe_bindings.cpp</code> bind the optimizers above; <code>gtop_bindings.cpp</code> binds the GTOP space-mission benchmarks of <code>gtop.cpp</code> used by <code>fcmaes/astro.py</code>; and <code>pareto_bindings.cpp</code> binds the exact two-objective archive of <code>include/paretoarchive.hpp</code> as <code>ParetoArchive2D</code>. The helpers <code>common.hpp</code>, <code>ndarray_utils.hpp</code> and <code>gil_utils.hpp</code> convert NumPy arrays and release the GIL around native work.</p>
+          <ul>
+            <li>Main pieces: <code>NB_MODULE(_fcmaes_ext, m)</code>, one-call <code>optimize_*</code> functions, stateful classes (<code>ACMA</code>, <code>Bite</code>, <code>CRFMNES</code>, <code>DE</code>, <code>MODE</code>, <code>PGPE</code>, <code>ParetoArchive2D</code>).</li>
+            <li>How it fits: the only boundary between Python and the native code since 2.0, which replaced the earlier <code>ctypes</code> loading of exported C functions.</li>
+            <li>Python side: imported through <code>fcmaes/_native.py</code>.</li>
+          </ul>
+        </section>
+
         <section id="headers-group">
           <h2>Headers In <code>_fcmaescpp/include/</code></h2>
-          <p>The headers fall into three camps. <code>evaluator.h</code> is repository-specific glue. <code>LBFGS.h</code> and <code>LBFGSB.h</code> are bundled numerical solver headers. The rest are the BiteOpt family and its supporting classes.</p>
+          <p>The headers fall into three camps. <code>evaluator.h</code> is repository-specific glue. <code>LBFGS.h</code> and <code>LBFGSB.h</code> are bundled numerical solver headers. <code>paretofront2d.h</code> and <code>paretoarchive.hpp</code> hold the exact two-objective Pareto archive. The rest are the BiteOpt family and its supporting classes.</p>
         </section>
 
         <section id="evaluator-h">
@@ -348,7 +360,7 @@
           <ul>
             <li>Main pieces: callback typedefs, <code>Fitness</code>, bound normalization, evaluation accounting, <code>blocking_queue</code>, and <code>evaluator</code>.</li>
             <li>How it fits: project-specific glue shared by most native optimizers.</li>
-            <li>Python side: it matches the callback contracts used by the <code>ctypes</code> wrappers.</li>
+            <li>Python side: it matches the callback contracts of the nanobind bindings in <code>bindings/</code>, which release the GIL around native work.</li>
           </ul>
         </section>
 
@@ -496,6 +508,24 @@
           </div>
         </section>
 
+        <section id="paretofront2d-h">
+          <div class="directory-tag">_fcmaescpp/include/</div>
+          <h3><code>paretofront2d.h</code> and <code>paretoarchive.hpp</code></h3>
+          <p class="summary">These headers keep the exact Pareto front of two minimized objectives and its hypervolume, updated on every insertion.</p>
+          <p><code>ParetoFront2D</code> in <code>paretofront2d.h</code> is derived from <code>bitehv2.h</code> in the BiteOpt repository. It stores every unique non-dominated pair below a fixed reference point in an ordered map, removes the points a new one dominates, and adds the exact hypervolume change with a compensated sum. <code>ParetoArchive2D</code> in <code>paretoarchive.hpp</code> adds fixed-width payloads, such as decision vectors, and the batch insertion that <code>bindings/pareto_bindings.cpp</code> exposes to <code>fcmaes/pareto.py</code>.</p>
+          <ul>
+            <li>Main pieces: <code>ParetoFront2D::addPoint</code>, the dominated-range removal, the incremental hypervolume, and <code>ParetoArchive2D::add</code> and <code>add_batch</code>.</li>
+            <li>How it fits: independent of the optimizers; it records the evaluations of any two-objective run, for example MODE's.</li>
+            <li>Python side: <code>fcmaes.pareto.ParetoArchive2D</code>; see <code>docs/pareto_archive.md</code>.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="https://github.com/avaneev/biteopt">https://github.com/avaneev/biteopt</a></li>
+            </ul>
+          </div>
+        </section>
+
         <footer>
           <h2>How To Navigate The Native Code</h2>
           <p>If you want to understand the project-specific part of the backend, start with <code>evaluator.h</code> and then read one algorithm file plus its Python wrapper. A good pair is <code>deoptimizer.cpp</code> with <code>fcmaes/decpp.py</code>, or <code>acmaesoptimizer.cpp</code> with <code>fcmaes/cmaescpp.py</code>. If your goal is to understand why the BiteOpt side looks different, read <code>biteaux.h</code> first and then <code>biteopt.h</code>.</p>
@@ -514,6 +544,7 @@
           <li><a href="#deoptimizer-cpp"><code>deoptimizer.cpp</code></a></li>
           <li><a href="#modeoptimizer-cpp"><code>modeoptimizer.cpp</code></a></li>
           <li><a href="#pgpe-cpp"><code>pgpe.cpp</code></a></li>
+          <li><a href="#bindings-group">nanobind bindings</a></li>
         </ul>
         <div class="group-title">Headers</div>
         <ul class="toc">
@@ -528,6 +559,7 @@
           <li><a href="#nmsopt-h"><code>nmsopt.h</code></a></li>
           <li><a href="#smaesopt-h"><code>smaesopt.h</code></a></li>
           <li><a href="#spheropt-h"><code>spheropt.h</code></a></li>
+          <li><a href="#paretofront2d-h"><code>paretofront2d.h</code></a></li>
         </ul>
       </aside>
     </div>

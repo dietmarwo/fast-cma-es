@@ -194,7 +194,7 @@ The optimization driver is then:
     def optimize(fit, opt, num_retries = 32):
         ret = retry.minimize(wrapper(fit.fitness),
                                    fit.bounds, num_retries = num_retries,
-                                   optimizer=opt, logger=logger())
+                                   optimizer=opt)
         print("facility locations = ", fit.get_facilities(ret.x))
         print("value = ", ret.fun)
         return fit.get_facilities(ret.x), ret.fun

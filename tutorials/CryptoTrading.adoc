@@ -386,7 +386,7 @@ that runs the optimization and generates the plots:
 def optimize(tickers, start, end):
     bounds = Bounds([20,50,10,10], [50,100,200,200])
     fit = fitness(tickers, start, end)
-    ret = retry.minimize(fit, bounds, logger = None, num_retries=32, optimizer=Bite_cpp(2000))
+    ret = retry.minimize(fit, bounds, num_retries=32, optimizer=Bite_cpp(2000))
     fit.plot(ret.x)
 ----
 
@@ -415,7 +415,7 @@ def optimize(tickers, start, end):
     # changed so so we wait at least 365 days until we sell
     bounds = Bounds([20,50,10,365], [50,100,200,800])
     fit = fitness(tickers, start, end)
-    ret = retry.minimize(fit, bounds, logger = None, num_retries=32, optimizer=Bite_cpp(2000))
+    ret = retry.minimize(fit, bounds, num_retries=32, optimizer=Bite_cpp(2000))
     fit.plot(ret.x)
 ----
 
@@ -541,7 +541,7 @@ def optimize_mo(tickers, start, end, nsga_update = True):
     max_trades = 8
     fit = fitness(tickers, start, end, max_trades)
     bounds = Bounds([20,50,10,10], [50,100,200,200])
-    xs, front = modecpp.retry(fit.mofun, len(tickers), ncon, bounds, num_retries=32, popsize = 48, max_evaluations = 16000, nsga_update = nsga_update, logger = logger())
+    xs, front = modecpp.retry(fit.mofun, len(tickers), ncon, bounds, num_retries=32, popsize = 48, max_evaluations = 16000, nsga_update = nsga_update)
 ----
 
 This shows how to call the `modecpp` optimizer. Instead of one run, we launch as many parallel

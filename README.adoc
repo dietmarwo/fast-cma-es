@@ -84,6 +84,18 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/examples/prophet_opt.py[pro
 - How to identify the parameters to optimize using the AI.  
 - How the parameter optimization process can be automated efficiently utilizing trading simulations executed in parallel.
 
+=== Changes after version 2.0.3 (not yet released):
+
+- `moretry`: satisfied constraints no longer enter the weighted norm, which
+penalized points for lying deep inside the feasible region and made results
+depend on the constraint weights; only violations count. `value_limits` may
+list only the objectives of a constrained problem (before, every result was
+dropped).
+- Tutorials and examples use the loguru `logger` of version 1.6.3 on; the
+`logger=logger()` arguments of earlier versions are gone.
+- The API reference pages cover `fcmaes.pareto`, the nanobind bindings and
+`examples/pareto_mode.py`; `examples.__all__` lists the example modules.
+
 === Changes from version 2.0.0:
 
 - Switch from ctypes C++ binding to nanobind.

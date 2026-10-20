@@ -247,9 +247,9 @@ implemented in {cpp}. We call it through the parallel retry mechanism:
 [source,python]
 ----
     xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=32, popsize = 48,
-              max_evaluations = 960000, nsga_update = True, logger = logger(), workers=16)
-    logger().info(name + " modecpp.retry(num_retries=32, popsize = 48, max_evals = 960000, nsga_update = True, workers=16" )
-    logger().info(str([tuple(y) for y in front]))
+              max_evaluations = 960000, nsga_update = True, workers=16)
+    logger.info(name + " modecpp.retry(num_retries=32, popsize = 48, max_evals = 960000, nsga_update = True, workers=16" )
+    logger.info(str([tuple(y) for y in front]))
 ----
 
 To collect optimization results, the parallel retry stores the Pareto front
@@ -269,8 +269,8 @@ optimization is already covered by `fcmaes.retry`.
 
 [source,python]
 ----
-    store = retry.Store(fit, bounds, logger=logger())
-    logger().info(name + " Bite_cpp(960000,M=1).minimize, num_retries=256)" )
+    store = retry.Store(fit, bounds)
+    logger.info(name + " Bite_cpp(960000,M=1).minimize, num_retries=256)" )
     retry.retry(store, Bite_cpp(960000,M=1).minimize, num_retries=256)
 ----
 
@@ -367,9 +367,9 @@ After calling `modecpp.retry` we filter infeasible results:
 [source,python]
 ----
 def retry_modecpp(fit, retry_num = 32, popsize = 48, max_eval = 500000,
-                  nsga_update = True, logger = logger(), workers=mp.cpu_count()):
-    xf, yf = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, retry_num, popsize,
-                  max_evaluations = 960000, nsga_update = nsga_update, logger = logger, workers=workers)
+                  nsga_update = True, workers=mp.cpu_count()):
+    xf, yf = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=retry_num, popsize=popsize,
+                  max_evaluations = 960000, nsga_update = nsga_update, workers=workers)
     xs = []; ys = []
     for i in range(len(yf)):
         if yf[i][-1] == 0: # filter valid solutions
@@ -693,7 +693,7 @@ class is_terminate(object):
     ys = mp.RawArray(ct.c_double, workers)
     for i in range(workers): ys[i] = 1E99
     xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=6400, popsize = 480,
-              max_evaluations = max_evals, nsga_update = True, logger = logger(),
+              max_evaluations = max_evals, nsga_update = True,
               is_terminate = is_terminate(ys, workers, max_evals),
               workers=workers)
 ----

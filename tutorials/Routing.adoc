@@ -178,7 +178,7 @@ def optimize_so(filename, capacity, opt, num_retries = 320):
     routing = Routing(filename, capacity)
     name = "routing." + str(opt.max_evaluations)
     ret = retry.minimize_plot(name, opt, wrapper(routing.fitness_so),
-                               routing.bounds, num_retries = num_retries, logger=logger())
+                               routing.bounds, num_retries = num_retries)
     routing.dump(np.argsort(ret.x), ret.fun)
 
 capacity = 70

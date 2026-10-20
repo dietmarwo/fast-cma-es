@@ -273,7 +273,7 @@ progress.
     bounds = Bounds(lower_bound, upper_bound)
 
     # smart boundary management (SMB) with DE->CMA
-    store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0, logger=logger())
+    store = advretry.Store(fitness(transfers), bounds, num_retries=10000, max_eval_fac=5.0)
     advretry.retry(store, de_cma(10000).minimize)
 ----
 
@@ -283,7 +283,7 @@ algorithms.
 
 [source,python]
 ----
-    store = retry.Store(fitness(transfers), bounds, logger=logger())
+    store = retry.Store(fitness(transfers), bounds)
     # apply BiteOpt algorithm in parallel
     retry.retry(store, Bite_cpp(1000000, M=6).minimize, num_retries=320)
 ----
@@ -672,7 +672,7 @@ implemented in {cpp}. We call it through the parallel retry mechanism:
 ----
     # multi objective optimization 'modecpp' multi threaded, NSGA-II population update
     xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 96,
-                max_evaluations = 3000000, nsga_update = True, logger = logger(), workers=16)
+                max_evaluations = 3000000, nsga_update = True, workers=16)
 ----
 https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/modeoptimizer.cpp[MoDe]
 offers two population update mechanisms: one derived from NSGA-II and
@@ -691,7 +691,7 @@ variables via the `ints` parameter:
     fit.bounds.lb[:10] = 0
     fit.bounds.ub[:10] = TRAJECTORY_NUM-1 # integer variables include upper bound
     xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 128,
-                max_evaluations = 10000000, nsga_update = False, logger = logger(), workers=16,
+                max_evaluations = 10000000, nsga_update = False, workers=16,
                 ints=[True]*10+[False]*(dim-10))
 ----
 
@@ -716,7 +716,7 @@ You can customize the termination criteria by providing an
 [source,python]
 ----
     xs, front = modecpp.retry(fit.fun, fit.nobj, fit.ncon, fit.bounds, num_retries=640, popsize = 96,
-                  max_evaluations = 3000000, nsga_update = True, logger = logger(),
+                  max_evaluations = 3000000, nsga_update = True,
                   is_terminate = is_terminate(), workers=16)
    ...
 
@@ -732,7 +732,7 @@ You can customize the termination criteria by providing an
         if self.score < score:
             self.score = score
         if self.count == 300000 and self.score < 20500:
-            logger().info("fail: " + str(self.score))
+            logger.info("fail: " + str(self.score))
             self.score = 0
             self.count = 0
             return True

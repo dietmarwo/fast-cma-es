@@ -116,5 +116,5 @@ if __name__ == '__main__':
     
     t0 = time.perf_counter();
     ret = advretry.minimize(feasable_cost_penalty, bounds, num_retries=320)
-    #ret = retry.minimize(feasable_cost_penalty, bounds, logger = logger(), num_retries=32)
+    #ret = retry.minimize(feasable_cost_penalty, bounds, num_retries=32)
     print_result(ret, 10000, t0, 0)

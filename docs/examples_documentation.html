@@ -170,7 +170,7 @@
         <div class="map-card"><strong>Start with the library workflow</strong><br><span class="meta"><code>tutorial.py</code>, <code>examples.py</code>, <code>advexamples.py</code>, <code>benchmark_gtop.py</code>.</span></div>
         <div class="map-card"><strong>Look at difficult real problems</strong><br><span class="meta"><code>jobshop.py</code>, <code>scheduling.py</code>, <code>employee.py</code>, <code>routing.py</code>, <code>crypto.py</code>.</span></div>
         <div class="map-card"><strong>Study quality-diversity</strong><br><span class="meta"><code>arm.py</code>, <code>damp.py</code>, <code>elitescass2.py</code>, <code>powerplant.py</code>, <code>yahpo.py</code>.</span></div>
-        <div class="map-card"><strong>Compare against other ecosystems</strong><br><span class="meta"><code>benchmark_gtop_pygmo.py</code>, <code>maxcut.py</code>, <code>repython.py</code>, <code>reproblem.py</code>.</span></div>
+        <div class="map-card"><strong>Compare against other ecosystems</strong><br><span class="meta"><code>benchmark_gtop_pygmo.py</code>, <code>maxcut.py</code>.</span></div>
         <div class="map-card"><strong>Read domain wrappers with the driver beside them</strong><br><span class="meta"><code>interferometry.py</code> with <code>interferometry_udp.py</code>, and <code>solo_mgar.py</code> with <code>solo_mgar_udp.py</code>.</span></div>
         <div class="map-card"><strong>Skim the design examples</strong><br><span class="meta"><code>gear_train.py</code>, <code>spring.py</code>, <code>vessel.py</code>, <code>subset.py</code>, <code>subset_mo.py</code>.</span></div>
       </div>
@@ -518,6 +518,16 @@
           </div>
         </section>
 
+        <section id="pareto-mode-py">
+          <h3><code>pareto_mode.py</code></h3>
+          <p class="summary">This example records every feasible evaluation of a constrained MODE run in the exact two-objective archive, without changing the run.</p>
+          <p>The script drives <code>MODE_C</code> through <code>ask</code> and <code>tell</code> on a small constrained bi-objective problem and inserts each generation's feasible rows into <code>fcmaes.pareto.ParetoArchive2D</code> with their decision vectors as payloads. It prints the number of evaluations, the size of MODE's final population and of the archive, which keeps the front of everything evaluated, and the archive's exact hypervolume.</p>
+          <ul>
+            <li>Main pieces: an ask/tell MODE loop, a feasibility filter, <code>ParetoArchive2D.add_batch</code>, front and hypervolume reporting.</li>
+            <li>How it fits: the runnable companion of <code>docs/pareto_archive.md</code>.</li>
+          </ul>
+        </section>
+
         <section id="powerplant-py">
           <h3><code>powerplant.py</code></h3>
           <p class="summary">This example optimizes a TESPy-based thermal power-plant model and then explores its behavior space with quality-diversity tools.</p>
@@ -559,26 +569,6 @@
               <li><a href="https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc">https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc</a></li>
             </ul>
           </div>
-        </section>
-
-        <section id="reproblem-py">
-          <h3><code>reproblem.py</code></h3>
-          <p class="summary">This file wraps the compiled RE multi-objective benchmark suite so it can be used from the <code>fcmaes</code> side.</p>
-          <p>The script is about integration rather than problem invention. It bridges to the external C version of the RE suite, exposes bounds and objective calls, and then runs weighted-sum or advanced-retry style multi-objective experiments. It is helpful if you want to compare <code>fcmaes</code> on an established benchmark family without rewriting those problems in Python first.</p>
-          <ul>
-            <li>Main pieces: the <code>re_problem</code> wrapper, benchmark objective access, and retry-based Pareto experiments.</li>
-            <li>How it fits: one half of the RE benchmark support, with <code>repython.py</code> as the other half.</li>
-          </ul>
-        </section>
-
-        <section id="repython-py">
-          <h3><code>repython.py</code></h3>
-          <p class="summary">This file reimplements several RE benchmark problems directly in Python and compares them with other multi-objective stacks.</p>
-          <p>The module defines the RE problems in Python, adds optional <code>pymoo</code> problem wrappers, and then exercises MODE, compiled MODE, DE-based search, and weighted-sum retry on top of them. It is broader than <code>reproblem.py</code> because it is not just a bridge. It is also a test bed for multi-objective tooling around the same benchmark family.</p>
-          <ul>
-            <li>Main pieces: RE problem classes, helper functions, <code>pymoo</code> adapters, and multi-objective driver code.</li>
-            <li>How it fits: a portable benchmark script and a useful comparison harness.</li>
-          </ul>
         </section>
 
         <section id="robot-py">
@@ -873,11 +863,10 @@
           <li><a href="#maxcut-py"><code>maxcut.py</code></a></li>
           <li><a href="#moexamples-py"><code>moexamples.py</code></a></li>
           <li><a href="#noisy-tsp-py"><code>noisy_tsp.py</code></a></li>
+          <li><a href="#pareto-mode-py"><code>pareto_mode.py</code></a></li>
           <li><a href="#powerplant-py"><code>powerplant.py</code></a></li>
           <li><a href="#prophet-opt-py"><code>prophet_opt.py</code></a></li>
           <li><a href="#quant-py"><code>quant.py</code></a></li>
-          <li><a href="#reproblem-py"><code>reproblem.py</code></a></li>
-          <li><a href="#repython-py"><code>repython.py</code></a></li>
           <li><a href="#robot-py"><code>robot.py</code></a></li>
           <li><a href="#routing-py"><code>routing.py</code></a></li>
           <li><a href="#rover-py"><code>rover.py</code></a></li>

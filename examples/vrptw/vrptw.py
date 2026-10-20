@@ -146,7 +146,7 @@ class VRPTW():
         filename = 'solutions/' + problem + '.txt'
         with open(filename, 'w') as f:
             f.writelines(lines)
-        logger().info(''.join(lines))
+        logger.info(''.join(lines))
     
 def optimize(vrptw, opt, num_retries = 64):
     ret = retry.minimize(wrapper(vrptw.fitness), 

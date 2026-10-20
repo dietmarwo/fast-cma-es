@@ -431,11 +431,14 @@ shared between processes, so collect evaluations in the parent. See
 ### Weighted multi-objective retry
 
 `moretry.minimize` samples one weight per output value inside
-`weight_bounds`, takes the `value_exp`-norm of the weighted outputs, adds the
-weight of each positive trailing constraint, runs a scalar optimizer, and
-then re-evaluates retained points using the original multi-objective
-function. With `ncon > 0`, `weight_bounds` needs `nobj + ncon` entries and
-constraint values also enter the norm; prefer MODE when constraints matter.
+`weight_bounds`, takes the `value_exp`-norm of the weighted objectives and
+constraint violations `max(c, 0)`, adds the weight of each violated trailing
+constraint, runs a scalar optimizer, and then re-evaluates retained points
+using the original multi-objective function. With `ncon > 0`, `weight_bounds`
+needs `nobj + ncon` entries; a satisfied constraint adds nothing, so a large
+constraint weight enforces feasibility without distorting the objective
+trade-off. `value_limits` may list only the objectives. MODE remains the
+better choice for one coordinated, constrained Pareto population.
 
 Use it when independent scalar runs are effective and easy to parallelize.
 Set `ncon` exactly. Normalize or shift objective values to comparable,

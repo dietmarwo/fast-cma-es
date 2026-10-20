@@ -137,13 +137,13 @@ class De_pyg(Optimizer):
         return pop.champion_x, pop.champion_f, pop.problem.get_fevals()
 
 def _test_optimizer(opt, problem, num_retries = 10000, num = 1, value_limit = 100.0, 
-                    stop_val = -np.inf, log = logger()):
+                    stop_val = -np.inf):
     logger.info("Testing coordinated retry " + opt.name +  ' ' + problem.name )
     for _ in range(num):
-        ret = minimize(problem.fun, problem.bounds, value_limit, num_retries, log, 
+        ret = minimize(problem.fun, problem.bounds, value_limit, num_retries, 
                        optimizer=opt, stop_fitness = stop_val)
 
-def _test_archipelago(algo, problem, num = 10000, stop_val = -np.inf, log = logger()):   
+def _test_archipelago(algo, problem, num = 10000, stop_val = -np.inf):   
     udp = pygmo_udp(problem.fun, problem.bounds)
     prob = pg.problem(udp) 
     best_y = np.inf

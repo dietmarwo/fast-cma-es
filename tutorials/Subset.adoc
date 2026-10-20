@@ -172,8 +172,7 @@ As optimizer we choose `modecpp` with NSGA-II population update by setting `nsga
         ncon = 0
         xs, ys = modecpp.retry(mode.wrapper(fitness, nobj), nobj, ncon,
                                fit.bounds, num_retries=num_retries, popsize = 500,
-                               max_evaluations = 100000, nsga_update = True,
-                               logger = logger(), workers=32)
+                               max_evaluations = 100000, nsga_update = True, workers=32)
     ...
 ----
 
