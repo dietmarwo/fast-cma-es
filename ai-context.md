@@ -1,5 +1,10 @@
 # AI context for solving user optimization problems with fcmaes
 
+Last reviewed 2026-10-20 against `master` at `a028f25` (v2.0.3 plus the MODE
+fixes of #31 and the exact 2-D Pareto archive of #32; the PyPI 2.0.3 release
+predates both). In another checkout, check `pyproject.toml`, the module
+signatures, and `tests` before relying on a claim.
+
 This file is operational context for an AI that must design and implement an
 optimization solution with this repository. It is not a claim that one
 optimizer is universally best. Use the problem structure, evaluation cost, and
@@ -8,9 +13,9 @@ compare them under the same evaluation and worker budget.
 
 The repository provides the `fcmaes` Python package. It combines Python
 optimizer and orchestration code with a C++17 backend exposed through nanobind.
-The modules whose names end in `cpp` use that native backend; modules such as
-`de.py`, `cmaes.py`, and `mode.py` contain Python implementations. All
-optimizers minimize.
+The modules whose names end in `cpp`, and `pareto`, use that native backend;
+modules such as `de.py`, `cmaes.py`, and `mode.py` contain Python
+implementations. All optimizers minimize.
 
 The public distribution and import name are the same:
 
@@ -22,9 +27,13 @@ python -c "import fcmaes"
 The published package requires Python 3.10 or newer. Release wheels target
 CPython 3.10 through 3.13 on Linux x86-64, Windows AMD64, and current Intel and
 Apple Silicon macOS runners. Installing a matching wheel needs no compiler.
-A source build needs a C++17 compiler, CMake, nanobind, and Eigen 3.4.
-Repository `examples`, `tutorials`, documentation sources, scripts, and tests
-are intentionally excluded from the source distribution.
+A source build needs a C++17 compiler, CMake, nanobind, and Eigen 3.4; the
+CMake option `FCMAES_FETCH_EIGEN=ON` downloads Eigen instead. Repository
+`examples`, `tutorials`, documentation sources, scripts, and tests are
+intentionally excluded from the source distribution. Until a release after
+2.0.3, `fcmaes.pareto` and the corrected MODE need a source build of `master`:
+`python -m pip install git+https://github.com/dietmarwo/fast-cma-es`, adding
+`--config-settings=cmake.define.FCMAES_FETCH_EIGEN=ON` without a local Eigen.
 
 Use public Python wrappers such as `fcmaes.decpp.minimize` rather than calling
 private extension symbols directly. Return values from scalar minimizers are
@@ -92,7 +101,10 @@ can be fitted. Route exact linear, mixed-integer linear, routing, and
 scheduling formulations to dedicated mathematical-programming solvers when
 their structure can be expressed faithfully. Use fcmaes for structured
 problems only when a defensible continuous encoding and deterministic repair
-are part of the formulation.
+are part of the formulation. See "Related projects" for sibling solvers.
+Before choosing a generic surrogate, check whether evaluations can be made
+cheap (a library call instead of a command line, Numba, parallel evaluation)
+or a domain-specific approximation exists, as in `tutorials/Surrogate.adoc`.
 
 ## Fast algorithm-selection decision tree
 
@@ -104,8 +116,13 @@ are part of the formulation.
 3. If there are two or more competing objectives:
    - Use `modecpp.minimize` for one coordinated Pareto population, especially
      with explicit constraints or integer-decoded variables.
+   - Use `modecpp.retry` for cheap objectives: parallel independent MODE
+     runs joined into one front scale better per core than one population.
    - Use `moretry.minimize` when many independent weighted scalar runs are
-     desirable or a DE/CMA/BiteOpt scalar pipeline is already effective.
+     desirable or a DE/CMA/BiteOpt scalar pipeline is already effective,
+     typically for two cheap objectives.
+   - With exactly two objectives, record every evaluated batch in
+     `pareto.ParetoArchive2D` to keep the exact front over all evaluations.
 4. For one scalar objective:
    - Start with native BiteOpt for a difficult bounded, nonsmooth,
      multimodal, or poorly characterized black box.
@@ -175,7 +192,7 @@ The objective callback boundary is important:
 | PGPE (`pgpecpp`) | Very high-dimensional mirrored sampling, noisy objectives, policy search | Diagonal distribution does not learn a full covariance matrix | Even population 32; ranking enabled for one-shot `minimize` |
 | Dual Annealing (`dacpp`) | Low/moderate-dimensional global exploration with optional refinement | No population ask/tell interface | Keep local search for deterministic smooth-enough objectives |
 | BiteOpt (`bitecpp`) | Hard bounded black boxes, nonsmoothness, multimodality, little tuning | Constraints need penalties or repair; batched ask/tell changes feedback timing | Automatic population and `M=1` first |
-| MODE (`modecpp`) | Constrained multi-objective Pareto search | Objective rows and constraint conventions must be exact | Population 64–256, NSGA-II update, evaluate complete populations |
+| MODE (`modecpp`) | Constrained multi-objective Pareto search | Objective rows and constraint conventions must be exact | Population 64–200 first, NSGA-II update (DE update for `ints`), evaluate complete populations |
 | Weighted MO retry (`moretry`) | Independent scalarizations with any scalar optimizer | Sensitive to objective scaling and weight ranges | Tens or hundreds of retries; normalize objectives |
 | CVT MAP-Elites (`mapelites`) | Quality-diversity over meaningful descriptors | Requires fixed descriptor bounds and enough evaluations for coverage | Pilot with hundreds of niches before increasing capacity |
 | Diversifier (`diversifier`) | CMA-ME-style local improvement of an archive | More expensive and parameter-rich than basic MAP-Elites | Seed an archive first; use a small solver set |
@@ -281,9 +298,11 @@ that case.
 evaluations, `M=1`, automatic stall criterion, and no finite target.
 
 Start with `M=1`. Test a small deeper value only when multimodality and budget
-justify multiple internal populations. `Bite_C` provides batched ask/tell with
-configurable `batch_size`; compare it against ordinary one-at-a-time BiteOpt
-because delayed selector feedback can change convergence.
+justify multiple internal populations. `Bite_C` (since 2.0.2) provides batched
+ask/tell with configurable `batch_size` (default 8); compare it against
+ordinary one-at-a-time BiteOpt because delayed selector feedback can change
+convergence. Use it to parallelize one run of an expensive objective; for
+cheap objectives prefer sequential BiteOpt or parallel retry.
 
 ## Recommended scalar recipes
 
@@ -338,13 +357,18 @@ Use these conventions consistently:
   constraint_0, ..., constraint_k]`.
 - A constraint is feasible when `constraint <= 0`.
 - Convert `h(x) = 0` to `abs(h(x)) - tolerance <= 0` when a tolerance is
-  meaningful.
+  meaningful. Since #31, MODE counts a row as feasible only when every
+  constraint is `<= 0`; the former adaptive tolerance for small violations is
+  gone, so equality constraints need this explicit tolerance.
 - For scalar optimizers, use decoding or repair for hard structure and a
   scaled penalty for remaining violations. A useful starting form is
   `objective + rho * sum(max(0, g_i(x))**2)` after normalizing terms.
+  `tutorials/Constraints.adoc` instead adds a constant plus the violation for
+  each violated constraint, a nonsmooth step these optimizers tolerate.
 - Return a large finite rejection value for invalid simulations.
 - Encode a bounded integer as a real coordinate, round it, and clamp it in the
-  objective; optionally also set DE or MODE's integer mask.
+  objective; optionally also set DE or MODE's integer mask. MODE ignores
+  `ints` unless `nsga_update=False`.
 - Encode a category as an index into a fixed list. Do not interpret distances
   between unrelated categories physically.
 - Decode random keys or repair permutations, schedules, subsets, and mutually
@@ -370,23 +394,48 @@ objectives. The defaults are population 64, `F=0.5`, `CR=0.9`, NSGA-II update,
 
 Guidance:
 
-- Start with NSGA-II update.
-- Use at least population 64; try 128–512 for difficult fronts, cheap
-  objectives, or more objectives while preserving many generations.
+- Start with NSGA-II update, then compare `nsga_update=False` (DE update) in
+  longer runs. Only the DE update uses the `ints` mask.
+- Use population 64 to about 200 in the first experiment; try up to 512 later
+  for difficult fronts, cheap objectives, or more objectives while preserving
+  many generations.
 - Scale objective magnitudes before judging front quality.
 - Use `workers > 1` for expensive objective populations, not for tiny Python
   callbacks.
 - Use `MODE_C.ask()` and `tell(ys)` when the application owns evaluation.
-- Filter feasible rows before calculating or reporting a Pareto front.
+- `minimize` returns the last evaluated generation, not all evaluations.
+  Select feasible rows, then non-dominated objective rows with
+  `moretry.pareto(xs[ok], ys[ok, :nobj])`. `mode.feasible` tolerates a summed
+  violation below `eps=1e-2` and returns all rows when none is feasible.
 - `modecpp.retry` runs independent MODE processes and can consume
-  approximately `num_retries * max_evaluations`; set both explicitly.
+  approximately `num_retries * max_evaluations`; set both explicitly. Its
+  defaults differ from `minimize`: 64 retries and `nsga_update=False`.
+- #31 fixed SBX expansion, polynomial mutation (native), non-dominated
+  sorting, crowding, and feasibility-first ranking in `modecpp` and `mode`.
+  Rerun MODE baselines from 2.0.3 or earlier instead of comparing to them.
+
+### Exact two-objective archive
+
+`pareto.ParetoArchive2D(reference, payload_dim=0)` keeps every unique
+non-dominated pair of two minimized objectives inside the reference box, with
+an optional payload such as `x`, and updates the exact hypervolume on every
+insertion. It only observes evaluations, so it runs alongside a `MODE_C`
+ask/tell loop or any optimizer whose evaluations the application sees. Use it
+when the report needs the front over all evaluations, not the final
+population, or an exact hypervolume trace. Pass only feasible rows and the two
+objective columns; points above the reference are skipped (`add` returns
+`False`) and non-finite values raise `ValueError`. It is unbounded and not
+shared between processes, so collect evaluations in the parent. See
+`docs/pareto_archive.md` and `examples/pareto_mode.py`.
 
 ### Weighted multi-objective retry
 
-`moretry.minimize` samples weights inside `weight_bounds`, scalarizes the
-objective prefix, adds penalties for positive trailing constraints, runs a
-scalar optimizer, and then re-evaluates retained points using the original
-multi-objective function.
+`moretry.minimize` samples one weight per output value inside
+`weight_bounds`, takes the `value_exp`-norm of the weighted outputs, adds the
+weight of each positive trailing constraint, runs a scalar optimizer, and
+then re-evaluates retained points using the original multi-objective
+function. With `ncon > 0`, `weight_bounds` needs `nobj + ncon` entries and
+constraint values also enter the norm; prefer MODE when constraints matter.
 
 Use it when independent scalar runs are effective and easy to parallelize.
 Set `ncon` exactly. Normalize or shift objective values to comparable,
@@ -418,8 +467,9 @@ The descriptor must match `qd_bounds`. A typical workflow is:
 `mapelites.optimize_map_elites` defaults to 4,000 niches, 20 CVT samples per
 niche, all CPU processes, and 100 iterations. Those defaults can be expensive:
 pilot with fewer niches and a measured evaluation budget. In two descriptor
-dimensions, inspect whether grid indexing or CVT centers fit the intended
-geometry. Capacity controls both resolution and memory.
+dimensions, inspect whether grid indexing (`samples_per_niche=0`) or CVT
+centers fit the intended geometry. Capacity controls both resolution and
+memory.
 
 `diversifier.minimize` accepts one solver configuration or a sequence through
 `opt_params`. Supported maintained solver names include `CMA`, `CMA_CPP`,
@@ -607,7 +657,7 @@ if __name__ == "__main__":
 import numpy as np
 from numpy.random import Generator, PCG64DXSM
 from scipy.optimize import Bounds
-from fcmaes import modecpp
+from fcmaes import modecpp, moretry
 
 def objectives_and_constraint(x):
     return np.asarray([
@@ -627,6 +677,7 @@ xs, ys = modecpp.minimize(
     rg=Generator(PCG64DXSM(3)),
 )
 feasible = ys[:, -1] <= 0
+front_x, front_y = moretry.pareto(xs[feasible], ys[feasible, :2])
 ```
 
 For optimizer sequences and advanced retry, copy the maintained adapters from
@@ -639,8 +690,10 @@ Before declaring success:
 - Unit-test decoding, objective signs, constraint signs, bounds, and known
   reference points.
 - Confirm every final point is decoded and re-evaluated independently.
-- Run the deterministic wheel smoke suite with the selected interpreter:
-  `python -m pytest -q tests/test_wheel_smoke.py`.
+- Run the tests with the selected interpreter: `python -m pytest -q tests`,
+  as the wheel CI does (wheel smoke, MODE regression, and Pareto archive
+  tests). Against the PyPI 2.0.3 wheel, only `tests/test_wheel_smoke.py`
+  applies.
 - Run relevant module and example tests; the historical `fcmaes/test_cma.py`
   suite is stochastic and comparatively expensive, so report retries or
   failures honestly.
@@ -650,7 +703,8 @@ Before declaring success:
 - Use multiple seeds and report best, median or mean, dispersion, and
   success/feasibility rate.
 - For multi-objective runs, report feasible Pareto points and an appropriate
-  front-quality measure, not only one selected point.
+  front-quality measure, not only one selected point. For two objectives,
+  `ParetoArchive2D.hypervolume()` is exact; report its reference point.
 - For QD runs, report capacity, occupied niches, coverage, best fitness,
   descriptor ranges, and holdout niche migration for noisy problems.
 - Test scaling with workers 1 and N before claiming parallel speedup.
@@ -671,6 +725,25 @@ Before declaring success:
 | Noisy runs stop inconsistently | Target or tolerance is tighter than the noise | Increase replication/population and validate on disjoint seeds. |
 | Native wrapper returns `success=False` with a huge value | Input shape/type error or an exception hidden by the defensive wrapper | Reproduce with a tiny call, validate contiguous numeric arrays, and inspect the underlying exception path. |
 
+## Related projects
+
+- [fcmaes-rust](https://github.com/dietmarwo/fcmaes-rust) is an independent
+  pure-Rust reimplementation, not a wrapper of this backend, with a PyO3
+  binding (`pip install fcmaes-rust`, import `fcmaes_rust`). Its README
+  recommends this package for objectives written in Python and the binding for
+  objectives in Rust. It adds CMA-ES IPOP/BIPOP restarts, CMA-MAE emitters, an
+  experimental source-only GP surrogate for expensive simulations, and
+  job-API workers. CR-FM-NES, PGPE, MODE, CVT MAP-Elites with a CMA-ES
+  emitter, the CMA-ME-style `diversifier`, and `ParetoArchive2D` exist here.
+- [optimization-jobs](https://github.com/dietmarwo/optimization-jobs) holds
+  the shared job API, the `optimization-run` runner, and the `optimization-mcp`
+  MCP server through which agents run durable jobs on fcmaes-rust,
+  LP-IP-craft, and SQP-craft workers. This package has no job worker.
+- LP and MIP models belong in
+  [LP-IP-craft](https://github.com/dietmarwo/LP-IP-craft); smooth constrained
+  NLPs with derivatives (at most 256 variables) in
+  [SQP-craft](https://github.com/dietmarwo/SQP-craft).
+
 ## Repository references
 
 - `README.adoc`: installation, algorithm overview, release behavior, and
@@ -684,12 +757,16 @@ Before declaring success:
 - `fcmaes/modecpp.py`: native constrained MODE wrapper and ask/tell state.
 - `fcmaes/mode.py`: Python MODE implementation, modifiers, feasibility, and
   Pareto utilities.
+- `fcmaes/pareto.py`, `docs/pareto_archive.md`, and `examples/pareto_mode.py`:
+  exact 2-D Pareto archive, its semantics, and a constrained MODE recording.
 - `fcmaes/mapelites.py`: CVT MAP-Elites archive and emitters.
 - `fcmaes/diversifier.py`: archive improvement with scalar solvers.
 - `fcmaes/evaluator.py`: persistent multiprocessing evaluators and callback
   safety behavior.
 - `fcmaes/_fcmaes_ext.pyi`: native extension signatures.
 - `tests/test_wheel_smoke.py`: deterministic installed-wheel smoke coverage.
+- `tests/test_mode_regression.py`, `tests/test_pareto.py`, and `tests/native`:
+  MODE regression, Pareto archive, and standalone C++ archive tests.
 - `tutorials/README.adoc`: tutorial index and retry output explanation.
 - `tutorials/Introduction.adoc`: practical optimizer selection and trajectory
   examples.
@@ -702,9 +779,10 @@ Before declaring success:
   `tutorials/JobShop.adoc`, `tutorials/Scheduling.adoc`,
   `tutorials/Routing.adoc`, `tutorials/Subset.adoc`, and
   `tutorials/UAV.adoc`: mixed and structured encodings.
-- Generated API documentation:
+- Generated API documentation (built before #32, without `fcmaes.pareto`):
   `https://dietmarwo.github.io/fast-cma-es/fcmaes_documentation.html`.
-- Local documentation build: `python scripts/build_docs.py`.
+- Local documentation build: `python scripts/build_docs.py` (needs
+  Asciidoctor).
 
 When this guide and the implementation disagree, treat the current public
 Python API, native type stub, and tests as authoritative. Update this file with
