@@ -26,6 +26,26 @@ permissions:
   contents: read
 
 jobs:
+  version:
+    name: Check the version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      # A tag must equal v + the pyproject version: publishing uses
+      # skip-existing, so a tag without the version bump would silently
+      # publish nothing.
+      - name: Require the tag to match the package version
+        shell: bash
+        run: |
+          version="$(python scripts/package_version.py)"
+          echo "version $version"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            test "$GITHUB_REF_NAME" = "v$version"
+          fi
+
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -61,7 +81,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build_sdist:
-    name: Build sdist
+    name: Build and test sdist
     runs-on: ubuntu-latest
 
     steps:
@@ -76,6 +96,22 @@ jobs:
           python -m pip install --upgrade build
           python -m build --sdist
 
+      # The source build that pip runs when no wheel matches; Eigen and
+      # nanobind are fetched as in the wheel builds.
+      - name: Install the sdist and run the tests outside the checkout
+        shell: bash
+        run: |
+          python -m pip install pytest
+          python -m pip install dist/*.tar.gz \
+            --config-settings=cmake.define.FCMAES_FETCH_EIGEN=ON
+          work="$(mktemp -d)"
+          cp -r tests "$work/tests"
+          mkdir -p "$work/examples" && cp examples/pareto_mode.py "$work/examples/"
+          cd "$work"
+          EXPECTED_VERSION="$(python "$GITHUB_WORKSPACE/scripts/package_version.py")" \
+            python -c "import os; from importlib.metadata import version; assert version('fcmaes') == os.environ['EXPECTED_VERSION']"
+          PYTHONSAFEPATH=1 python -m pytest tests -q
+
       - uses: actions/upload-artifact@v6
         with:
           name: sdist
@@ -84,6 +120,7 @@ jobs:
   publish_testpypi:
     name: Publish to TestPyPI
     needs:
+      - version
       - build_wheels
       - build_sdist
     if: github.event_name == 'workflow_dispatch' && inputs.publish_target == 'testpypi'
@@ -108,6 +145,7 @@ jobs:
   publish_pypi:
     name: Publish to PyPI
     needs:
+      - version
       - build_wheels
       - build_sdist
     if: startsWith(github.ref, 'refs/tags/v')
@@ -115,12 +153,18 @@ jobs:
     environment: pypi
     permissions:
       id-token: write
+      attestations: write
 
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
+
+      - name: Generate artifact attestations
+        uses: actions/attest@v4
+        with:
+          subject-path: "dist/*"
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

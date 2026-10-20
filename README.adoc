@@ -86,15 +86,27 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/examples/prophet_opt.py[pro
 
 === Changes after version 2.0.3 (not yet released):
 
+The full list, with earlier versions, is in https://github.com/dietmarwo/fast-cma-es/blob/master/CHANGELOG.md[CHANGELOG.md].
+
+- MODE (`modecpp`, `mode`): SBX can expand beyond the parents, polynomial
+mutation no longer pins variables at their lower bound, levels are true
+non-dominated fronts, crowding uses all objectives, and a point is feasible
+only if it violates no constraint. MODE results change; it no longer
+collapses on ZDT2/ZDT4.
+- New `fcmaes.pareto.ParetoArchive2D`: the exact two-objective front of all
+evaluations with incremental hypervolume (derived from BiteOpt's `bitehv2.h`).
 - `moretry`: satisfied constraints no longer enter the weighted norm, which
 penalized points for lying deep inside the feasible region and made results
 depend on the constraint weights; only violations count. `value_limits` may
 list only the objectives of a constrained problem (before, every result was
 dropped).
+- `from fcmaes import *` works again (`fcmaes.__all__` named missing modules).
 - Tutorials and examples use the loguru `logger` of version 1.6.3 on; the
 `logger=logger()` arguments of earlier versions are gone.
 - The API reference pages cover `fcmaes.pareto`, the nanobind bindings and
 `examples/pareto_mode.py`; `examples.__all__` lists the example modules.
+- Releases: a tag must match the version in `pyproject.toml`, and CI installs
+the source distribution and runs the tests on it.
 
 === Changes from version 2.0.0:
 
@@ -207,6 +219,33 @@ The nanobind-based native backend now supports macOS as part of the wheel build 
 If no matching wheel is available for your Python version or architecture, `pip`
 falls back to a source build.
 
+==== From source
+
+Building from source needs:
+
+- Python 3.10 or newer and `pip`. The build backend (scikit-build-core),
+nanobind and, if missing, CMake are installed by `pip` itself.
+- A C++17 compiler: GCC or Clang on Linux, Xcode's Clang on macOS, Visual
+Studio 2019 or newer (MSVC) on Windows.
+- Eigen 3.4 or newer, either installed on the system (for example
+`apt install libeigen3-dev` or `brew install eigen`) or fetched during the
+build with `FCMAES_FETCH_EIGEN=ON` as below.
+- fcmaes depends on no other repository of ours; the PCG random number
+generator and LBFGSpp headers are bundled.
+
+[source,bash]
+----
+git clone https://github.com/dietmarwo/fast-cma-es
+cd fast-cma-es
+python -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
+python -m pip install . --config-settings=cmake.define.FCMAES_FETCH_EIGEN=ON
+cd .. && python -m pytest fast-cma-es/tests -q   # run the tests outside the checkout
+----
+
+`pip install fcmaes --no-binary fcmaes` builds the published source
+distribution the same way. https://github.com/dietmarwo/fast-cma-es/blob/master/RELEASING.md[RELEASING.md]
+describes how releases are built and published.
+
 === Usage
 
 Usage is similar to https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html[scipy.optimize.minimize].
@@ -286,7 +325,8 @@ source; no Markdown conversion is required.
 
 - Pull requests and branch pushes build wheels on Linux, Windows, and macOS.
 - A manual GitHub Actions run with `publish_target=testpypi` publishes to TestPyPI.
-- Tags matching `v*` publish to PyPI.
+- Tags matching `v*` publish to PyPI; the tag must equal `v` plus the version in `pyproject.toml`.
+- CI also installs the source distribution and runs the tests on it.
 - CI releases use Trusted Publishing, so no long-lived PyPI API token is required in GitHub Actions.
 
 === Citing

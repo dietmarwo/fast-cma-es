@@ -13,6 +13,25 @@ A Python 3 gradient-free optimization library.
 
 
 
+## Installation
+
+```bash
+python -m pip install fcmaes
+```
+
+To build from source you need a C++17 compiler and Python 3.10 or newer;
+`pip` fetches the build tools, and Eigen is fetched if it is not installed:
+
+```bash
+git clone https://github.com/dietmarwo/fast-cma-es
+cd fast-cma-es
+python -m pip install . --config-settings=cmake.define.FCMAES_FETCH_EIGEN=ON
+```
+
+See the [full README](https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc)
+for the requirements, the [changelog](CHANGELOG.md) for what changed, and
+[RELEASING.md](RELEASING.md) for the release process.
+
 ## Exact 2D Pareto archive
 
 `fcmaes.pareto.ParetoArchive2D` keeps all nondominated evaluations of a
