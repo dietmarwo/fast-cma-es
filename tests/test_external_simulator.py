@@ -1,6 +1,6 @@
 """examples/external_simulator.py: one working directory per evaluation,
 failures and timeouts as failure values, reproducible seeds, picklable."""
-import importlib.util
+import importlib
 import json
 import pickle
 import sys
@@ -11,12 +11,13 @@ from scipy.optimize import Bounds
 
 
 def load_example():
-    path = Path(__file__).parents[1] / "examples/external_simulator.py"
-    spec = importlib.util.spec_from_file_location("external_simulator", path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["external_simulator"] = module  # so pickle finds the class
-    spec.loader.exec_module(module)
-    return module
+    # Import through sys.path, not from a file spec: with the spawn start
+    # method (macOS, Windows) retry's worker processes unpickle the objective
+    # and must import its module; they inherit the parent's sys.path.
+    examples = str(Path(__file__).parents[1] / "examples")
+    if examples not in sys.path:
+        sys.path.insert(0, examples)
+    return importlib.import_module("external_simulator")
 
 
 SIMULATOR = """\
