@@ -22,14 +22,27 @@ them.
 ### Added
 
 - `examples/external_simulator.py`: an objective that runs an external
-  program once per evaluation in a fresh working directory. A timeout, a
-  nonzero exit, a missing output or a non-finite value gives a finite failure
-  value and is counted. The seed is derived from the point, the program's
-  thread pools are limited to one thread unless set, and the object is
-  picklable for parallel `retry`. `usable_cpus()` counts the CPUs the process
-  may use (affinity mask and cgroup v2 quota) instead of the machine's.
-  Tested in `tests/test_external_simulator.py`, which the wheel and sdist
-  jobs run.
+  program in a fresh working directory.
+  - **Process tree:** each run gets a process group of its own. On exit,
+    timeout or interruption the whole group is stopped (SIGTERM, then
+    SIGKILL), so solver processes the program started do not keep running.
+  - **Failures:** a timeout, a nonzero exit, a missing output or a non-finite
+    value gives a finite failure value. They are counted in a ledger shared
+    by the worker processes (fork and spawn): `summary()` counts by kind, and
+    `check_result` refuses a campaign without a successful evaluation or with
+    a best point that fails its recheck.
+  - **Seeds:** the default point-derived seed replays a point. `seeds=` runs
+    every candidate on the same replication seeds (common random numbers),
+    and `replication_seeds` and `with_seeds` give disjoint holdout
+    validation.
+  - **Threads:** the program's thread pools are set to one thread, which
+    overwrites inherited values, unless set explicitly; `topology()` records
+    the layout.
+  - **Usable CPUs:** `usable_cpus()` counts the CPUs the process may use: the
+    affinity mask and the cgroup v1 or v2 quota.
+
+  The object is picklable for parallel `retry`. Tested in
+  `tests/test_external_simulator.py`, which the wheel and sdist jobs run.
 - `AGENTS.md`, a short entry point for coding agents. Both READMEs link it
   and `ai-context.md`. `ai-context.md` covers external programs, usable
   CPUs and memory, and running a long Python job detached.

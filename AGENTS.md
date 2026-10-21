@@ -28,6 +28,7 @@ optimizers with a C++17 backend exposed through nanobind:
 ```bash
 python -m venv .venv && . .venv/bin/activate
 python -m pip install . --config-settings=cmake.define.FCMAES_FETCH_EIGEN=ON
+python -m pip install pytest                     # the tests' only extra dependency
 cd .. && python -m pytest fast-cma-es/tests -q   # outside the checkout, so the installed extension is imported
 ```
 

@@ -344,15 +344,32 @@ core allowance equal.
 
 For an external program (a CFD or FEM solver, a legacy executable), start
 from [`examples/external_simulator.py`](examples/external_simulator.py),
-which `tests/test_external_simulator.py` tests. It runs the program once per
-evaluation in a fresh working directory and removes it afterwards (or keeps
-failures). A timeout, a nonzero exit, a missing output or a non-finite value
-returns a finite `failure_value`, worse than every real result, and is
-counted. The seed is derived from the point, so evaluations are reproducible.
-`OMP_NUM_THREADS` and the other thread-pool variables are 1 unless set. The
-object is picklable for `retry.minimize(..., workers=...)`. Report the number
-of failed evaluations with the result, and recheck the best point with a fresh
-evaluation.
+which `tests/test_external_simulator.py` tests:
+
+- **Runs.** The program runs in a fresh working directory, removed afterwards
+  (kept on failure with `keep_failed=True`). It runs in a process group of its
+  own: when it ends, times out or is interrupted, the whole group is stopped
+  (SIGTERM, then SIGKILL), solver processes it started included. Children that
+  leave the group (`setsid`, daemons) need a container or a systemd scope.
+- **Failures.** A timeout, a nonzero exit, a missing output or a non-finite
+  value make the evaluation fail. The objective then returns a finite
+  `failure_value`, worse than every real result. Every evaluation is recorded
+  in a ledger shared by all worker processes. `summary()` in the parent
+  counts successes and failures by kind, and `check_result` refuses a
+  campaign with no successful evaluation, or a best point whose fresh
+  recheck fails. Report these counts with the result: a finite best value can
+  be a failure penalty.
+- **Seeds.** By default the seed is derived from the point, which replays one
+  point exactly but is not common random numbers. For a stochastic simulator,
+  pass `seeds=` (training seeds from `replication_seeds`): every candidate
+  then runs on the same seeds, aggregated. Validate the result on the
+  disjoint holdout seeds with `with_seeds(holdout)`.
+- **Threads.** `OMP_NUM_THREADS` and the other thread-pool variables are set
+  to 1, overwriting inherited values. Set them explicitly in `env` for a
+  multithreaded simulator, with fewer workers. `topology(workers)` records
+  the layout.
+- **Parallel retry.** The object is picklable for
+  `retry.minimize(..., workers=...)`.
 
 ### Noisy objective
 
@@ -553,7 +570,9 @@ Count the CPUs the process may actually use, not the machine:
 `os.cpu_count()` and `multiprocessing.cpu_count()` ignore the affinity mask
 (`taskset`, cpusets) and container or systemd CPU quotas. `usable_cpus()` in
 [`examples/external_simulator.py`](examples/external_simulator.py) combines
-`os.sched_getaffinity(0)` with the cgroup v2 quota. Then lower the worker
+`os.sched_getaffinity(0)` with the cgroup quota (v2 `cpu.max` or v1
+`cpu.cfs_quota_us`). Workers times the threads of each evaluation should stay
+within it. Then lower the worker
 count until the memory of all concurrent evaluations (model data copied into
 each process, simulator working sets) fits the available memory.
 
