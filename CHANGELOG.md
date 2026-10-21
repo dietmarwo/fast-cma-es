@@ -34,7 +34,10 @@ them.
   - **Seeds:** the default point-derived seed replays a point. `seeds=` runs
     every candidate on the same replication seeds (common random numbers),
     and `replication_seeds` and `with_seeds` give disjoint holdout
-    validation.
+    validation. `with_seeds` copies the objective, so a subclass's file
+    formats, transformations and state carry over to the holdout. The
+    ledger counts attempted simulator runs; an aggregate that is not finite
+    fails as `invalid_aggregate`, apart from simulator failures.
   - **Threads:** the program's thread pools are set to one thread, which
     overwrites inherited values, unless set explicitly; `topology()` records
     the layout.

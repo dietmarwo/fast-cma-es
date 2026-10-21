@@ -200,3 +200,50 @@ def test_picklable_and_optimizes(tmp_path):
     assert result.fun < 0.5
     assert ex.check_result(f, result.x).ok
     assert f.summary()["evaluations"] >= 150
+
+
+
+def load_adapters():
+    # tests/ is on sys.path (pytest's prepend import mode), and so is examples/
+    # after load_example: spawned workers can import both modules.
+    load_example()
+    return importlib.import_module("external_adapters")
+
+
+def test_holdout_keeps_the_adapter(tmp_path):
+    a = load_adapters()
+    program = tmp_path / "custom.py"
+    program.write_text(a.CUSTOM_SIMULATOR, encoding="utf-8")
+    custom = a.CustomIO([sys.executable, str(program)], scale=3.0, seeds=[1], work_root=tmp_path,
+                        ledger_dir=tmp_path / "training")
+    holdout = custom.with_seeds([2])
+    assert type(holdout) is a.CustomIO and holdout.scale == 3.0 and holdout.seeds == [2]
+    assert custom.evaluate([2.0]).value == holdout.evaluate([2.0]).value == 12.0
+    assert holdout.ledger_dir != custom.ledger_dir
+    assert (custom.summary()["evaluations"], holdout.summary()["evaluations"]) == (1, 1)
+    scaled = a.Transformed(a.STANDARD, seeds=[1], work_root=tmp_path)
+    assert scaled.evaluate([0.0]).value == scaled.with_seeds([2]).evaluate([0.0]).value == 200.0
+
+
+def test_a_holdout_copy_pickles_under_spawn(tmp_path):
+    a = load_adapters()
+    objective = a.Transformed(a.STANDARD, seeds=[1], work_root=tmp_path)
+    holdout = objective.with_seeds([2, 3])
+    assert evaluate_in(holdout, [[0.0], [1.0]], "spawn") == [200.0, 200.0]
+    assert holdout.summary()["simulator_runs"] == 4 and objective.summary()["evaluations"] == 0
+
+
+def test_runs_count_attempts_and_aggregation_fails_separately(tmp_path):
+    a = load_adapters()
+    ex = load_example()
+    nan = ex.ExternalObjective(a.STANDARD, seeds=[1, 2], aggregate=a.nan_aggregate, work_root=tmp_path)
+    e = nan.evaluate([0.0])
+    assert (e.ok, e.status, e.values, e.runs) == (False, "invalid_aggregate", [2.0, 2.0], 2)
+    s = nan.summary()
+    assert (s["evaluations"], s["failed"], s["simulator_runs"], s["invalid_aggregate"]) == (1, 1, 2, 1)
+    assert s["invalid_output"] == 0
+    # A simulator failure on the second seed: two attempted runs, one value.
+    flaky = ex.ExternalObjective(a.FLAKY, seeds=[1, 2, 3], work_root=tmp_path)
+    e = flaky.evaluate([0.0])
+    assert (e.status, e.values, e.runs) == ("exit", [1.0], 2)
+    assert flaky.summary()["simulator_runs"] == 2
