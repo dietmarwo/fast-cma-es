@@ -321,6 +321,12 @@ python scripts/build_docs.py
 The generated site is written to `target/site`. AsciiDoc remains the canonical
 source; no Markdown conversion is required.
 
+For AI agents, https://github.com/dietmarwo/fast-cma-es/blob/master/ai-context.md[`ai-context.md`] describes how to choose,
+configure and validate the optimizers, and https://github.com/dietmarwo/fast-cma-es/blob/master/AGENTS.md[`AGENTS.md`] is the
+short entry point for coding agents. To choose between fcmaes and the sibling
+LP/MIP, NLP and job-API projects, start at the
+https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md[optimization-jobs entry point].
+
 === Packaging and release
 
 - Pull requests and branch pushes build wheels on Linux, Windows, and macOS.

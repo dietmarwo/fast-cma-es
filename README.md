@@ -9,6 +9,7 @@ A Python 3 gradient-free optimization library.
 - [Examples API](https://dietmarwo.github.io/fast-cma-es/examples_documentation.html)
 - [Native Rust implementation](https://github.com/dietmarwo/fcmaes-rust) (with PyO3 API for Python users)
 - [Optimization jobs](https://github.com/dietmarwo/optimization-jobs): durable jobs and an MCP server for AI agents, with fcmaes-rust workers
+- [AI agent context](https://github.com/dietmarwo/fast-cma-es/blob/master/ai-context.md): how an AI agent chooses, configures and validates fcmaes optimizers ([AGENTS.md](https://github.com/dietmarwo/fast-cma-es/blob/master/AGENTS.md) for coding agents)
 
 
 
@@ -29,8 +30,8 @@ python -m pip install . --config-settings=cmake.define.FCMAES_FETCH_EIGEN=ON
 ```
 
 See the [full README](https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc)
-for the requirements, the [changelog](CHANGELOG.md) for what changed, and
-[RELEASING.md](RELEASING.md) for the release process.
+for the requirements, the [changelog](https://github.com/dietmarwo/fast-cma-es/blob/master/CHANGELOG.md) for what changed, and
+[RELEASING.md](https://github.com/dietmarwo/fast-cma-es/blob/master/RELEASING.md) for the release process.
 
 ## Exact 2D Pareto archive
 

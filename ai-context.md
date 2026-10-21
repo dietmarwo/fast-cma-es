@@ -342,6 +342,18 @@ topologies: many serial simulator evaluations under fcmaes versus fewer
 fcmaes evaluations using the simulator's internal parallelism. Keep the total
 core allowance equal.
 
+For an external program (a CFD or FEM solver, a legacy executable), start
+from [`examples/external_simulator.py`](examples/external_simulator.py),
+which `tests/test_external_simulator.py` tests. It runs the program once per
+evaluation in a fresh working directory and removes it afterwards (or keeps
+failures). A timeout, a nonzero exit, a missing output or a non-finite value
+returns a finite `failure_value`, worse than every real result, and is
+counted. The seed is derived from the point, so evaluations are reproducible.
+`OMP_NUM_THREADS` and the other thread-pool variables are 1 unless set. The
+object is picklable for `retry.minimize(..., workers=...)`. Report the number
+of failed evaluations with the result, and recheck the best point with a fresh
+evaluation.
+
 ### Noisy objective
 
 Use PGPE ranking, larger populations, or repeated evaluations. Do not use a
@@ -536,6 +548,14 @@ There are three possible levels:
    `evaluator.parallel`, `parallel_mo`, or application-owned ask/tell batches.
 3. Parallelism inside NumPy, BLAS, a simulator, an external program, or a
    machine-learning framework.
+
+Count the CPUs the process may actually use, not the machine:
+`os.cpu_count()` and `multiprocessing.cpu_count()` ignore the affinity mask
+(`taskset`, cpusets) and container or systemd CPU quotas. `usable_cpus()` in
+[`examples/external_simulator.py`](examples/external_simulator.py) combines
+`os.sched_getaffinity(0)` with the cgroup v2 quota. Then lower the worker
+count until the memory of all concurrent evaluations (model data copied into
+each process, simulator working sets) fits the available memory.
 
 Do not enable every level at the full core count. For 16 cores, compare:
 
@@ -747,7 +767,13 @@ Before declaring success:
 - [optimization-jobs](https://github.com/dietmarwo/optimization-jobs) holds
   the shared job API, the `optimization-run` runner, and the `optimization-mcp`
   MCP server through which agents run durable jobs on fcmaes-rust,
-  LP-IP-craft, and SQP-craft workers. This package has no job worker.
+  LP-IP-craft, and SQP-craft workers. This package has no job worker. A
+  Python objective therefore runs in process. To make a long run outlive the
+  agent's session, start the script in a session of its own
+  (`setsid python run.py > run.log 2>&1 &`). Have it write its parameters,
+  seeds and results to a file as it goes, then read that file. The job API's
+  budgets, journals, cancellation and recovery need the objective as a Rust
+  model in an fcmaes-rust application worker.
 - LP and MIP models belong in
   [LP-IP-craft](https://github.com/dietmarwo/LP-IP-craft); smooth constrained
   NLPs with derivatives (at most 256 variables) in
