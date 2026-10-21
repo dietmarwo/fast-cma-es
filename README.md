@@ -1,5 +1,13 @@
 # fcmaes
+
 A Python 3 gradient-free optimization library.
+
+**Choosing an optimization tool?** Start with the
+[shared solver-selection and agent guide](https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md) or the
+[optimization ecosystem overview](https://dietmarwo.github.io/optimization-jobs/).
+Use `fcmaes` for Python black-box objectives, parallel retry, Pareto search
+and quality diversity. Durable MCP jobs use the separate Rust workers;
+this Python package does not include an MCP server.
 
 - [Documentation book](https://dietmarwo.github.io/fast-cma-es/)
 - [Full README](https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc)
@@ -40,3 +48,10 @@ two-objective problem and updates their hypervolume with every insertion.
 Its native code is derived from `bitehv2.h` in Aleksey Vaneev's
 [BiteOpt](https://github.com/avaneev/biteopt) repository. See
 [usage and a MODE example](docs/pareto_archive.md).
+
+## Third-party integration
+
+[OptunaHub's FastCmaesSampler](https://hub.optuna.org/samplers/fcmaes/), by
+Jacob Pfeil, connects fcmaes CMA-ES to Optuna. See its example and supported
+Optuna version there. This is an external integration, not a comparative
+benchmark of the five-project ecosystem.

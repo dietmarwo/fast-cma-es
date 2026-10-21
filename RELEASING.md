@@ -69,3 +69,11 @@ python -m venv /tmp/fcmaes-check
 
 Check the PyPI page (wheels, sdist, attestations), then create the GitHub
 release with the changelog entry.
+
+## Discovery after a release
+
+Follow the [ecosystem publication checklist](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/discovery/README.md).
+Package descriptions and README links reach registries only with a new
+release. Check the rendered package page after publishing and update the
+shared catalog when installation availability changes. Repository topics
+and About text are GitHub settings, not fields a commit changes.

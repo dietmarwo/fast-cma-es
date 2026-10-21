@@ -72,6 +72,11 @@ them.
 
 ### Changed
 
+- Discovery: the READMEs start with links to the shared solver-selection
+  guide and the ecosystem overview, and credit OptunaHub's FastCmaesSampler
+  as a third-party integration. The package description is more specific,
+  with more keywords and project URLs (ecosystem, agent guide, issues,
+  changelog). `RELEASING.md` covers discovery after a release.
 - MODE (`modecpp` and `mode`): feasibility first. A point counts as
   feasible only if it violates no constraint (tolerance `eps = 0`). The
   adaptive tolerance, half the smoothed mean violation of the previous
