@@ -106,7 +106,7 @@ jobs:
             --config-settings=cmake.define.FCMAES_FETCH_EIGEN=ON
           work="$(mktemp -d)"
           cp -r tests "$work/tests"
-          mkdir -p "$work/examples" && cp examples/pareto_mode.py "$work/examples/"
+          mkdir -p "$work/examples" && cp examples/pareto_mode.py examples/external_simulator.py "$work/examples/"
           cd "$work"
           EXPECTED_VERSION="$(python "$GITHUB_WORKSPACE/scripts/package_version.py")" \
             python -c "import os; from importlib.metadata import version; assert version('fcmaes') == os.environ['EXPECTED_VERSION']"

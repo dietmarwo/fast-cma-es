@@ -93,7 +93,7 @@ skip = [
 ]
 build-verbosity = 1
 test-requires = ["pytest"]
-test-sources = ["tests", "examples/pareto_mode.py"]
+test-sources = ["tests", "examples/pareto_mode.py", "examples/external_simulator.py"]
 test-command = "pytest ./tests -q"
 test-environment = { PYTHONSAFEPATH = "1" }
 

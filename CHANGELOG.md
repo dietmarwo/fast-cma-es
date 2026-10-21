@@ -21,6 +21,18 @@ them.
 
 ### Added
 
+- `examples/external_simulator.py`: an objective that runs an external
+  program once per evaluation in a fresh working directory. A timeout, a
+  nonzero exit, a missing output or a non-finite value gives a finite failure
+  value and is counted. The seed is derived from the point, the program's
+  thread pools are limited to one thread unless set, and the object is
+  picklable for parallel `retry`. `usable_cpus()` counts the CPUs the process
+  may use (affinity mask and cgroup v2 quota) instead of the machine's.
+  Tested in `tests/test_external_simulator.py`, which the wheel and sdist
+  jobs run.
+- `AGENTS.md`, a short entry point for coding agents. Both READMEs link it
+  and `ai-context.md`. `ai-context.md` covers external programs, usable
+  CPUs and memory, and running a long Python job detached.
 - `fcmaes.pareto.ParetoArchive2D`: exact archive of all nondominated points
   of a two-objective minimization problem inside a reference box, each with
   an optional payload (usually the decision vector). Every insertion updates
