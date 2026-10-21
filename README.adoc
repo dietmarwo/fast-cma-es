@@ -239,6 +239,7 @@ git clone https://github.com/dietmarwo/fast-cma-es
 cd fast-cma-es
 python -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
 python -m pip install . --config-settings=cmake.define.FCMAES_FETCH_EIGEN=ON
+python -m pip install pytest                     # for the tests
 cd .. && python -m pytest fast-cma-es/tests -q   # run the tests outside the checkout
 ----
 
