@@ -8,14 +8,14 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "fcmaes"
 version = "2.0.3"
-description = "A Python 3 gradient-free optimization library."
+description = "Parallel gradient-free optimization for Python: black-box, multi-objective and quality-diversity search."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
 authors = [
   { name = "Dietmar Wolz", email = "drdietmarwolz@yahoo.de" },
 ]
 license = { text = "MIT" }
-keywords = ["optimization", "multi-objective", "parallel"]
+keywords = ["optimization", "black-box", "gradient-free", "parallel", "CMA-ES", "multi-objective", "quality-diversity"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
@@ -49,10 +49,14 @@ jit = [
 ]
 
 [project.urls]
+"Optimization ecosystem" = "https://dietmarwo.github.io/optimization-jobs/"
+"AI agent guide" = "https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md"
 Homepage = "https://github.com/dietmarwo/fast-cma-es"
 Repository = "https://github.com/dietmarwo/fast-cma-es"
 Documentation = "https://dietmarwo.github.io/fast-cma-es/"
 Tutorials = "https://dietmarwo.github.io/fast-cma-es/tutorials/"
+Issues = "https://github.com/dietmarwo/fast-cma-es/issues"
+Changelog = "https://github.com/dietmarwo/fast-cma-es/blob/master/CHANGELOG.md"
 
 [tool.scikit-build]
 minimum-version = "build-system.requires"

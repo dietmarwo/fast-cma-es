@@ -4,6 +4,14 @@
 
 = fcmaes - a Python 3 gradient-free optimization library
 
+*Choosing an optimization tool?* Start with the
+https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md[shared solver-selection and agent guide] or the
+https://dietmarwo.github.io/optimization-jobs/[optimization ecosystem overview].
+Use fcmaes for Python black-box objectives, parallel retry, Pareto search
+and quality diversity. The guide also routes to native Rust optimization,
+LP/MIP, smooth nonlinear solvers and durable MCP jobs. This Python package
+does not include an MCP server.
+
 link:https://pepy.tech/projects/fcmaes[image:https://static.pepy.tech/badge/fcmaes[PyPI Downloads]]
 https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
 
@@ -350,3 +358,10 @@ https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md[optimizat
     howpublished = {Available at \url{https://github.com/dietmarwo/fast-cma-es}},
 }
 ----
+
+== Third-party integration
+
+https://hub.optuna.org/samplers/fcmaes/[OptunaHub's FastCmaesSampler],
+by Jacob Pfeil, connects fcmaes CMA-ES to Optuna. Its published example and
+verified Optuna version are maintained there. This demonstrates an external
+integration; it is not a comparative benchmark of this ecosystem.
