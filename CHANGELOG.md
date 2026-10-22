@@ -7,6 +7,8 @@ publishes that version to PyPI.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-22
+
 Behaviour changes: MODE (`modecpp` and `mode`) gives different results than
 2.0.3, and `moretry` gives different results for problems with constraints
 (`ncon > 0`). With the MODE fixes below (popsize 64, default settings,
@@ -350,7 +352,8 @@ Among them, 1.3.1 added the multi-objective optimizer MODE (`mode`; the C++
 `crfmnescpp`). See the git history and the tags `v1.0.7` to `v1.3.37`; not
 every PyPI release has a tag.
 
-[Unreleased]: https://github.com/dietmarwo/fast-cma-es/compare/v2.0.3...HEAD
+[Unreleased]: https://github.com/dietmarwo/fast-cma-es/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/dietmarwo/fast-cma-es/compare/v2.0.3...v2.1.0
 [2.0.3]: https://github.com/dietmarwo/fast-cma-es/compare/v2.0.2...v2.0.3
 [2.0.2]: https://github.com/dietmarwo/fast-cma-es/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/dietmarwo/fast-cma-es/compare/v2.0.0...v2.0.1

@@ -7,7 +7,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "fcmaes"
-version = "2.0.3"
+version = "2.1.0"
 description = "Parallel gradient-free optimization for Python: black-box, multi-objective and quality-diversity search."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
