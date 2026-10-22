@@ -92,7 +92,7 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/examples/prophet_opt.py[pro
 - How to identify the parameters to optimize using the AI.  
 - How the parameter optimization process can be automated efficiently utilizing trading simulations executed in parallel.
 
-=== Changes after version 2.0.3 (not yet released):
+=== Changes in version 2.1.0:
 
 The full list, with earlier versions, is in https://github.com/dietmarwo/fast-cma-es/blob/master/CHANGELOG.md[CHANGELOG.md].
 
@@ -113,6 +113,12 @@ dropped).
 `logger=logger()` arguments of earlier versions are gone.
 - The API reference pages cover `fcmaes.pareto`, the nanobind bindings and
 `examples/pareto_mode.py`; `examples.__all__` lists the example modules.
+- New `examples/external_simulator.py`: runs an external simulator program as
+the objective, with a process group per run, timeouts, a failure ledger
+shared across worker processes, seeds for common random numbers and holdout
+validation, and CPU-quota-aware parallelism.
+- `AGENTS.md` and `ai-context.md` guide coding agents; the READMEs link the
+shared solver-selection guide of the five fcmaes and craft repositories.
 - Releases: a tag must match the version in `pyproject.toml`, and CI installs
 the source distribution and runs the tests on it.
 

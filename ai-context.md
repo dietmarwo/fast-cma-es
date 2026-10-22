@@ -1,8 +1,8 @@
 # AI context for solving user optimization problems with fcmaes
 
-Last reviewed 2026-10-20 against `master` at `a028f25` (v2.0.3 plus the MODE
-fixes of #31 and the exact 2-D Pareto archive of #32; the PyPI 2.0.3 release
-predates both). In another checkout, check `pyproject.toml`, the module
+Last reviewed 2026-10-20 against `master` at `a028f25`. Release 2.1.0
+contains the MODE fixes of #31 and the exact 2-D Pareto archive of #32;
+2.0.3 and earlier predate both. In another checkout, check `pyproject.toml`, the module
 signatures, and `tests` before relying on a claim.
 
 This file is operational context for an AI that must design and implement an
@@ -36,8 +36,9 @@ Apple Silicon macOS runners. Installing a matching wheel needs no compiler.
 A source build needs a C++17 compiler, CMake, nanobind, and Eigen 3.4; the
 CMake option `FCMAES_FETCH_EIGEN=ON` downloads Eigen instead. Repository
 `examples`, `tutorials`, documentation sources, scripts, and tests are
-intentionally excluded from the source distribution. Until a release after
-2.0.3, `fcmaes.pareto` and the corrected MODE need a source build of `master`:
+intentionally excluded from the source distribution. `fcmaes.pareto` and the
+corrected MODE need fcmaes 2.1.0 or later (`pip install "fcmaes>=2.1"`).
+Changes after the latest release need a source build of `master`:
 `python -m pip install git+https://github.com/dietmarwo/fast-cma-es`, adding
 `--config-settings=cmake.define.FCMAES_FETCH_EIGEN=ON` without a local Eigen.
 
@@ -741,7 +742,7 @@ Before declaring success:
 - Confirm every final point is decoded and re-evaluated independently.
 - Run the tests with the selected interpreter: `python -m pytest -q tests`,
   as the wheel CI does (wheel smoke, MODE regression, and Pareto archive
-  tests). Against the PyPI 2.0.3 wheel, only `tests/test_wheel_smoke.py`
+  tests). Against a 2.0.3 or older wheel, only `tests/test_wheel_smoke.py`
   applies.
 - Run relevant module and example tests; the historical `fcmaes/test_cma.py`
   suite is stochastic and comparatively expensive, so report retries or
