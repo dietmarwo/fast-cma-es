@@ -41,8 +41,11 @@ per seed and the values are aggregated (mean by default). All candidates
 then see the same random draws, which makes their comparison fair for a
 stochastic simulator. ``replication_seeds`` returns disjoint training and
 holdout seed sets. Optimize on the training seeds, then validate the result
-with ``with_seeds(holdout)``. The ledger counts simulator runs as well as
-evaluations.
+with ``with_seeds(holdout)``, a copy of the objective (a subclass keeps its
+type, its overridden methods and its state) with other seeds and a ledger of
+its own. The ledger counts attempted simulator runs as well as evaluations;
+an aggregate that is not finite fails the evaluation as
+``invalid_aggregate``, separate from simulator failures.
 
 Threads. The program's thread pools are set to one thread
 (``OMP_NUM_THREADS`` and friends are overwritten, not inherited), because
@@ -59,6 +62,7 @@ Python script written to a temporary directory::
     python examples/external_simulator.py
 """
 
+import copy
 import hashlib
 import json
 import math
@@ -182,11 +186,15 @@ class Evaluation:
     for ranking (``failure_value`` on failure) and its raw values."""
     ok: bool
     value: float
-    status: str  # "ok", "timeout", "exit", "invalid_output" or "error"
+    # "ok"; a simulator run's "timeout", "exit", "invalid_output" or "error";
+    # or "invalid_aggregate" when every run succeeded but the aggregate of
+    # their values is not a finite number.
+    status: str
     seeds: list = field(default_factory=list)
     values: list = field(default_factory=list)
     seconds: float = 0.0
     message: str = ""
+    runs: int = 0  # simulator runs attempted, successful or not
 
 
 class NoValidResult(RuntimeError):
@@ -217,10 +225,17 @@ class ExternalObjective:
 
     def with_seeds(self, seeds, ledger_dir=None):
         """The same objective on other seeds (holdout validation), with a
-        ledger of its own."""
-        return ExternalObjective(self.command, self.timeout, self.failure_value, self.work_root,
-                                 self.keep_failed, self.env, seeds, self.aggregate, self.grace,
-                                 ledger_dir)
+        ledger of its own.
+
+        A shallow copy of this object, so a subclass keeps its type, its
+        overridden ``write_input``/``read_value`` and its attributes (shared,
+        not copied): training and holdout evaluate the same objective and
+        differ only in the seeds and the ledger."""
+        clone = copy.copy(self)
+        clone.seeds = None if seeds is None else [int(s) for s in seeds]
+        clone.ledger_dir = str(ledger_dir or tempfile.mkdtemp(prefix="fcmaes-ledger-", dir=self.work_root))
+        Path(clone.ledger_dir).mkdir(parents=True, exist_ok=True)
+        return clone
 
     def thread_env(self) -> dict:
         """The thread-pool variables every simulator run gets: 1, unless set
@@ -246,17 +261,26 @@ class ExternalObjective:
     def evaluate(self, x) -> Evaluation:
         start = time.monotonic()
         seeds = self.seeds if self.seeds is not None else [seed_of(x)]
-        values, status, message = [], "ok", ""
+        values, status, message, runs = [], "ok", "", 0
         for seed in seeds:
+            runs += 1
             status, value, message = self._run_once(x, seed)
             if status != "ok":
                 break
             values.append(value)
         ok = status == "ok"
-        value = float(self.aggregate(values)) if ok else self.failure_value
-        if ok and not math.isfinite(value):
-            ok, status, value, message = False, "invalid_output", self.failure_value, "aggregate not finite"
-        evaluation = Evaluation(ok, value, status, list(seeds), values, time.monotonic() - start, message)
+        value = self.failure_value
+        if ok:
+            # Every run succeeded; a failing aggregate is no simulator failure.
+            try:
+                value = float(self.aggregate(values))
+            except (ArithmeticError, TypeError, ValueError) as e:
+                value, message = math.nan, f"{type(e).__name__}: {e}"
+            if not math.isfinite(value):
+                ok, status, value = False, "invalid_aggregate", self.failure_value
+                message = message or "aggregate not finite"
+        evaluation = Evaluation(ok, value, status, list(seeds), values, time.monotonic() - start,
+                                message, runs)
         self._record(evaluation)
         return evaluation
 
@@ -266,7 +290,8 @@ class ExternalObjective:
     def summary(self) -> dict:
         """Counts over every evaluation of every process that used this ledger."""
         counts = {"evaluations": 0, "ok": 0, "failed": 0, "timeout": 0, "exit": 0,
-                  "invalid_output": 0, "error": 0, "simulator_runs": 0}
+                  "invalid_output": 0, "error": 0, "invalid_aggregate": 0,
+                  "simulator_runs": 0}  # attempted runs, successful or not
         for file in Path(self.ledger_dir).glob("*.jsonl"):
             # Complete lines only: a process may be appending right now.
             for line in file.read_text(encoding="utf-8").split("\n")[:-1]:
@@ -280,7 +305,7 @@ class ExternalObjective:
 
     def _record(self, e: Evaluation) -> None:
         line = json.dumps({"ok": e.ok, "status": e.status, "value": e.value, "seeds": e.seeds,
-                           "runs": len(e.values) + (0 if e.ok else 1), "seconds": e.seconds})
+                           "runs": e.runs, "seconds": e.seconds})
         with open(Path(self.ledger_dir) / f"{os.getpid()}.jsonl", "a", encoding="utf-8") as f:
             f.write(line + "\n")
 

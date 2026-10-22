@@ -363,7 +363,8 @@ which `tests/test_external_simulator.py` tests:
   point exactly but is not common random numbers. For a stochastic simulator,
   pass `seeds=` (training seeds from `replication_seeds`): every candidate
   then runs on the same seeds, aggregated. Validate the result on the
-  disjoint holdout seeds with `with_seeds(holdout)`.
+  disjoint holdout seeds with `with_seeds(holdout)`, a copy that keeps a
+  subclass's file formats, transformations and state.
 - **Threads.** `OMP_NUM_THREADS` and the other thread-pool variables are set
   to 1, overwriting inherited values. Set them explicitly in `env` for a
   multithreaded simulator, with fewer workers. `topology(workers)` records
