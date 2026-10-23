@@ -4,6 +4,8 @@
 
 = fcmaes - a Python 3 gradient-free optimization library
 
+image::fast-cma-es.png[fast-cma-es: gradient-free optimization for Python,align=center]
+
 *Choosing an optimization tool?* Start with the
 https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md[shared solver-selection and agent guide] or the
 https://dietmarwo.github.io/optimization-jobs/[optimization ecosystem overview].
@@ -14,8 +16,6 @@ does not include an MCP server.
 
 link:https://pepy.tech/projects/fcmaes[image:https://static.pepy.tech/badge/fcmaes[PyPI Downloads]]
 https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
-
-image::logo.gif[]
 
 fcmaes extends https://docs.scipy.org/doc/scipy/reference/optimize.html[scipy optimize] with additional optimization methods, fast {cpp}/Eigen-based implementations, and a coordinated parallel retry mechanism.
 It supports multi-threaded use of several gradient-free

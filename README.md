@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dietmarwo/fast-cma-es/master/tutorials/img/fast-cma-es.png" alt="fast-cma-es: gradient-free optimization for Python">
+</p>
+
 # fcmaes
 
 A Python 3 gradient-free optimization library.

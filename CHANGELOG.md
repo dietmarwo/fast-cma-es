@@ -7,6 +7,12 @@ publishes that version to PyPI.
 
 ## [Unreleased]
 
+### Changed
+
+- The READMEs open with the fast-cma-es banner (`tutorials/img/fast-cma-es.png`)
+  instead of the animated logo; `README.md`, the PyPI description, links it by
+  absolute URL. The tutorials keep `logo.gif`.
+
 ## [2.1.0] - 2026-10-22
 
 Behaviour changes: MODE (`modecpp` and `mode`) gives different results than
