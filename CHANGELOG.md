@@ -7,7 +7,7 @@ publishes that version to PyPI.
 
 ## [Unreleased]
 
-### Prompt tutorials
+### Added
 
 - [Prompt-driven optimization tutorials](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic) demonstrate the shared agent workflow with native Rust application workers. Python objectives continue to use this package in process; these tutorials do not add a worker to fast-cma-es.
 
