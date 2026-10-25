@@ -21,6 +21,7 @@ this Python package does not include an MCP server.
 - [Examples API](https://dietmarwo.github.io/fast-cma-es/examples_documentation.html)
 - [Native Rust implementation](https://github.com/dietmarwo/fcmaes-rust) (with PyO3 API for Python users)
 - [Optimization jobs](https://github.com/dietmarwo/optimization-jobs): durable jobs and an MCP server for AI agents, with fcmaes-rust workers
+- [experiment-craft](https://github.com/dietmarwo/experiment-craft): reproducible campaigns of those jobs (parameter sweeps, dependent steps, budgets and reports); it drives the Rust workers, not this package, and is in early development
 - [AI agent context](https://github.com/dietmarwo/fast-cma-es/blob/master/ai-context.md): how an AI agent chooses, configures and validates fcmaes optimizers ([AGENTS.md](https://github.com/dietmarwo/fast-cma-es/blob/master/AGENTS.md) for coding agents)
 
 

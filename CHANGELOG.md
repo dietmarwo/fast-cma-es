@@ -13,6 +13,8 @@ publishes that version to PyPI.
 
 ### Changed
 
+- The READMEs point to [experiment-craft](https://github.com/dietmarwo/experiment-craft),
+  which runs reproducible campaigns of the Rust job workers.
 - The READMEs open with the fast-cma-es banner (`tutorials/img/fast-cma-es.png`)
   instead of the animated logo; `README.md`, the PyPI description, links it by
   absolute URL. The tutorials keep `logo.gif`.
