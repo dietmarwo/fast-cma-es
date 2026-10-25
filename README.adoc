@@ -13,6 +13,10 @@ Use fcmaes for Python black-box objectives, parallel retry, Pareto search
 and quality diversity. The guide also routes to native Rust optimization,
 LP/MIP, smooth nonlinear solvers and durable MCP jobs. This Python package
 does not include an MCP server.
+https://github.com/dietmarwo/experiment-craft[experiment-craft] runs
+reproducible campaigns of those jobs (parameter sweeps, dependent steps,
+budgets and reports); it drives the Rust workers, not this package, and is in
+early development.
 
 link:https://pepy.tech/projects/fcmaes[image:https://static.pepy.tech/badge/fcmaes[PyPI Downloads]]
 https://gitter.im/fast-cma-es/community[image:https://badges.gitter.im/Join%20Chat.svg[]]
