@@ -9,6 +9,7 @@ publishes that version to PyPI.
 
 ### Added
 
+- Links to the eight CRN/CFD simulator optimization lessons, distinguishing their native Rust/command execution from this package's in-process Python API.
 - [Prompt-driven optimization tutorials](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic) demonstrate the shared agent workflow with native Rust application workers. Python objectives continue to use this package in process; these tutorials do not add a worker to fast-cma-es.
 
 ### Changed

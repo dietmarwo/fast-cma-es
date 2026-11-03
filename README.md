@@ -29,6 +29,8 @@ this Python package does not include an MCP server.
 
 [Prompt-driven optimization tutorials](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic) demonstrate the shared agent workflow with native Rust application workers. Python objectives continue to use this package in process; these tutorials do not add a worker to fast-cma-es.
 
+The [eight CRN/CFD simulator lessons](https://github.com/dietmarwo/optimization-jobs/blob/main/tutorials/simulators/README.md) connect stochastic calibration, sensitivities, oscillator searches, source-allocation LP, sensor MIP and coupled-flow validation to complete campaigns. Their runnable examples use native Rust bindings and existing command/scalar-worker routes; they do not add a worker to this package.
+
 ## Installation
 
 ```bash
