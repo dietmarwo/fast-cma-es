@@ -14,6 +14,7 @@ publishes that version to PyPI.
 
 ### Changed
 
+- README: links the [overview of the 18 related repositories](https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/repositories.md).
 - The READMEs point to [experiment-craft](https://github.com/dietmarwo/experiment-craft),
   which runs reproducible campaigns of the Rust job workers.
 - The READMEs open with the fast-cma-es banner (`tutorials/img/fast-cma-es.png`)
