@@ -4,6 +4,8 @@
 
 # fcmaes
 
+> **One of 18 related repositories.** The [repository overview](https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/repositories.md) shows what each one does and how they connect.
+
 A Python 3 gradient-free optimization library.
 
 **Choosing an optimization tool?** Start with the
