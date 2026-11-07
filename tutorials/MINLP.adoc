@@ -288,7 +288,7 @@ f(x) = 2.381303161294389
 
 As already mentioned in https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[pykep gym results],
 there is a fundamental flaw in both the https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] problems and their newer replacements
-https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[pykep gym]:
+https://github.com/esa/pykep/tree/v2.6.4/pykep/trajopt/gym[pykep gym]:
 
 Restricting the coasting trajectory legs to single-revolution transfers has several nasty side effects,
 especially for the inner planets:
@@ -319,7 +319,7 @@ The best one, with `deltaV = 1.846` and planet sequence "Earth, Venus, Venus, Ea
 ==== Why did they use Venus Venus Earth Jupiter for the real Cassini mission?
 
 The choice of Venus, Venus, Earth, Jupiter for the real Cassini mission is easy to explain once we check the alternative planet sequences in the much more accurate model from
-https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_cassini2.py[pykep cassini2].
+https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/gym/_cassini2.py[pykep cassini2].
 In https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results] we show a good solution for the original planet sequence with deltaV = 0.729 km/s.
 A quick 5 min check for the other sequences gives:
 

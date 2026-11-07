@@ -266,7 +266,7 @@ VRPTW is a variant of the vehicle routing problem for multiple vehicles with cus
 Because of its practical relevance, it is one of the best-studied optimization problems in computer science. There is a large body of literature, many sophisticated problem-specific algorithms, and benchmark sets with reference solutions proven to be optimal.
 See https://developers.google.com/optimization/routing/vrp for a nice introduction.
 
-Open source libraries such as https://github.com/google/or-tools[or-tools] provide a vehicle-routing-specific API and produce nearly perfect results (see https://github.com/dietmarwo/VRPTW/blob/master/Results.adoc[VRPTW results]).
+Open source libraries such as https://github.com/google/or-tools[or-tools] provide a vehicle-routing-specific API and produce nearly perfect results (see https://github.com/dietmarwo/VRPTW/blob/main/Results.adoc[VRPTW results]).
 
 The "optimization without a problem-specific optimizer" approach should not be applied here if the standard problem is all you need. Still, it is interesting to measure how much we lose when we try it anyway. The code can also be adapted easily to other variants with additional constraints or different objectives. That is where this approach is most useful.
 
@@ -288,12 +288,12 @@ There are two different objectives for Solomon's VRPTW benchmark:
 https://www.sintef.no/projectweb/top/vrptw/100-customers/[sintef].
 
 The single-objective variant can be solved almost perfectly using https://github.com/google/or-tools[or-tools], so we choose that one.
-See https://github.com/dietmarwo/VRPTW/blob/master/optimize_or.py[optimize_or.py] for the or-tools implementation used to generate the reference results for comparison here.
+See https://github.com/dietmarwo/VRPTW/blob/main/optimize_or.py[optimize_or.py] for the or-tools implementation used to generate the reference results for comparison here.
 We found other reference solutions at http://vrp.galgos.inf.puc-rio.br/index.php/en/[galgos], but some of them did not pass our validation. These solutions assume rounding of the distances, which makes them incompatible with the interpretation of the problem used here.
 
 ==== Alternative implementations
 
-Besides https://github.com/dietmarwo/VRPTW/blob/master/optimize_or.py[optimize_or.py],
+Besides https://github.com/dietmarwo/VRPTW/blob/main/optimize_or.py[optimize_or.py],
 there are many implementations for this problem. http://vrp.galgos.inf.puc-rio.br/index.php/en/links links to some of them.
 That is not the case for optimization without a problem-specific algorithm.
 Maybe that is because most continuous optimization algorithms do not work well here.
@@ -399,7 +399,7 @@ For example, when using `demands[customer]`, multiply it with a random factor in
 You then need to call `fitness_` multiple times and use a "worst case" value as the fitness.
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc where this was done for TSP.
 Can you do the same using https://github.com/google/or-tools[or-tools] by modifying
-https://github.com/dietmarwo/VRPTW/blob/master/optimize_or.py[optimize_or.py]?
+https://github.com/dietmarwo/VRPTW/blob/main/optimize_or.py[optimize_or.py]?
 
 ==== Results
 

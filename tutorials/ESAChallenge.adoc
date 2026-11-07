@@ -190,7 +190,7 @@ to reproduce these three diagrams for the three algorithms.
 
 === pymoo
 
-https://github.com/anyoptimisation/pymoo[Pymoo] is a very popular optimisation library (https://www.pepy.tech/projects/pymoo[nearly 2 million downloads])
+https://github.com/anyoptimization/pymoo[Pymoo] is a very popular optimisation library (https://www.pepy.tech/projects/pymoo[nearly 2 million downloads])
 With pymoo parallelization works using the given objective function, but its overhead is so high that it slows down the computation instead of speeding it up.
 
 [source,python]

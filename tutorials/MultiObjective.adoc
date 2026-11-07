@@ -48,7 +48,7 @@ With the first result set, you can reevaluate the limited number of candidate so
 `fcmaes` does not rely on a dedicated multi-objective algorithm here. Instead, it runs single-objective optimizers in parallel and applies random weighted sums. This often works surprisingly well, especially when the alternative is a single-threaded multi-objective algorithm. As we will see later, for many real-world multi-objective problems from space-flight planning with multiple gravity assists, this is the only approach here that delivers useful results in a reasonable time.
 
 We start with artificial multi-objective benchmark functions from
-https://github.com/DEAP/deap/blob/master/deap/benchmarks/[deap-tests].
+https://github.com/DEAP/deap/tree/master/deap/benchmarks/[deap-tests].
 See https://www.sciencedirect.com/science/article/pii/S2352711020300911[MOBOpt]
 for a description of these functions. As in that paper, we use the well-known
 benchmark functions Schaffer, Fonseca, Poloni, and ZDT1.
@@ -198,7 +198,7 @@ From the https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc[Readme
 
 === NSGA-II Non-dominated Sorting Genetic Algorithm
 
-There is an obvious alternative: the well-known https://pymoo.org/algorithms/nsga2.html[NSGA-II] algorithm. We adapted the code from https://github.com/ppgaluzio/MOBOpt/blob/master/mobopt/_NSGA-II.py[NSGA-II.py] for this experiment.
+There is an obvious alternative: the well-known https://pymoo.org/algorithms/nsga2.html[NSGA-II] algorithm. We adapted the code from https://github.com/ppgaluzio/MOBOpt/blob/master/mobopt/_NSGA2.py[NSGA-II.py] for this experiment.
 
 [source,python]
 ----

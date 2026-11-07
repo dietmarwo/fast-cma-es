@@ -45,7 +45,7 @@ There are multiple ways to do this:
 
 - Population based algorithms such as
 https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaescpp.py[CMA-ES] and
-https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/gcldecpp.py[GCL-DE]
+https://github.com/dietmarwo/fast-cma-es/blob/2b9dcb92a7d7349e20edabd31385a808323db6ab/fcmaes/gcldecpp.py[GCL-DE] (removed in fcmaes 1.6.9)
 can evaluate the whole population at once. This can be implemented as a serial loop or
 with a parallel evaluator. The disadvantages are:
 
@@ -236,7 +236,7 @@ with delayed update are worth trying whenever the following conditions hold:
 Many simulation-based objective functions fall into this category. Still, if possible,
 it is often even better to run parallel optimization retries instead of parallelizing
 objective function evaluation. For the
-https://github.com/dietmarwo/fcmaes-java/blob/master/CTOC11.adoc[CTOC11 competition]
+https://github.com/dietmarwo/fcmaes-java/blob/master/tutorials/CTOC11.adoc[CTOC11 competition]
 we chose that option, although the simulation in the objective function was quite costly.
 
 ==== Remarks
@@ -244,7 +244,7 @@ we chose that option, although the simulation in the objective function was quit
 - The CMA-ES algorithm implemented in fcmaes is the well known "active CMA" algorithm, see
   https://www.researchgate.net/publication/227050324_The_CMA_Evolution_Strategy_A_Comparing_Review[CMA_Evolution_Strategy]
 - The DE variant used is special to fcmaes, it was successfully applied at the
-  https://github.com/dietmarwo/fcmaes-java/blob/master/CTOC11.adoc[CTOC11 competition].
+  https://github.com/dietmarwo/fcmaes-java/blob/master/tutorials/CTOC11.adoc[CTOC11 competition].
   Other DE variants may perform significantly worse.
 - GCL-DE, which is also implemented in fcmaes, doesn't support delayed update yet, but can evaluate a whole
   population in parallel. It requires more function evaluations, but still performs better than

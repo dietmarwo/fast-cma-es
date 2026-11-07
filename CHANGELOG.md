@@ -21,6 +21,16 @@ publishes that version to PyPI.
   instead of the animated logo; `README.md`, the PyPI description, links it by
   absolute URL. The tutorials keep `logo.gif`.
 
+### Fixed
+
+- Broken GitHub links in the tutorials and the examples API page:
+  - Files that were removed from this repository (`ascent.cpp`, `gcldecpp.py`, the old `Results.adoc`) now link to their last version.
+  - The missing `Filter.adoc` link points to the filtering exercise in `Hospital.adoc`.
+  - VRPTW and fcmaes-java links use their current branch and path.
+  - pykep links point to the 2.6.4 release that the tutorials use.
+  - Moved upstream files (GillesPy2, MOBOpt, floris) and the pymoo URL are corrected.
+  - Two attributions to repositories that no longer exist keep their names without a dead link.
+
 ## [2.1.0] - 2026-10-22
 
 Behaviour changes: MODE (`modecpp` and `mode`) gives different results than

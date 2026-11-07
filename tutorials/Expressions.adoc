@@ -115,10 +115,10 @@ For coordinated retry, however, a wrapper is required. Use `NLopt` instead if yo
 
 === Example
 
-For the example, we use the https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_tandem.py[Tandem]
+For the example, we use the https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/gym/_tandem.py[Tandem]
 problem already discussed in https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[Pykep gym results].
 To compare algorithms, we take the much faster old variant with the 6th-planet sequence
-`[earth, venus, earth, earth, saturn]`. For `fcmaes`, the unconstrained version of this problem is by far the hardest one among the https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] and https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[Pykep Gym] problems.
+`[earth, venus, earth, earth, saturn]`. For `fcmaes`, the unconstrained version of this problem is by far the hardest one among the https://www.esa.int/gsp/ACT/projects/gtop/[GTOP] and https://github.com/esa/pykep/tree/v2.6.4/pykep/trajopt/gym[Pykep Gym] problems.
 The https://www.esa.int/gsp/ACT/projects/gtop/tandem_unc[GTOP result] page reports a best score of -1673.88 from the paper https://www.springerprofessional.de/design-of-robust-space-trajectories/1770072[Design of Robust Space Trajectories]. That paper also reports an average score of -1654.94 with standard deviation 2.18. Its Messenger full score of -2.970 km/s is easily improved by `fcmaes` in about 1000 seconds (see https://github.com/dietmarwo/fast-cma-es/blob/master/README.adoc[README]), but for `Tandem 6 unconstraint` the default `fcmaes` configuration has no real chance.
 
 The question is whether algorithm expressions can help here.
@@ -264,7 +264,7 @@ Besides the different meta algorithm, the implementations of CMA-ES, DE, and DiR
 ==== Changing the objective function
 
 There is, however, a way to solve the unconstrained Tandem-6 problem with `fcmaes`: change the objective function.
-The argument is simple. If there is no time constraint and each planet-to-planet transfer may take up to 2500 days, then restricting the Lambert transfers, the coasting phases to and from the single deep-space maneuver, to single-revolution transfers as in https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem] is unnecessarily restrictive. The new Lambert implementation https://github.com/esa/pykep/tree/master/include/keplerian_toolbox/lambert_problem.hpp[PYKEP lambert] returns multiple solutions for different numbers of revolutions, and we can use that instead.
+The argument is simple. If there is no time constraint and each planet-to-planet transfer may take up to 2500 days, then restricting the Lambert transfers, the coasting phases to and from the single deep-space maneuver, to single-revolution transfers as in https://www.esa.int/gsp/ACT/projects/gtop/tandem/[Tandem] is unnecessarily restrictive. The new Lambert implementation https://github.com/esa/pykep/tree/v2.6.4/include/keplerian_toolbox/lambert_problem.hpp[PYKEP lambert] returns multiple solutions for different numbers of revolutions, and we can use that instead.
 
 Which Lambert solution should we choose? The simplest option is to compute the outgoing delta velocity, which we want to minimize, and pick the solution with minimal DV. After "fixing" the objective function in this way, we can use the standard `fcmaes` coordinated retry algorithm:
 

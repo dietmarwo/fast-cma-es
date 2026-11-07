@@ -8,7 +8,8 @@
 # differential evolution, both single threaded or with parallel function evaluation. 
 # A machine learning based filter should only be used with expensive objective functions. 
 
-# See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Filter.adoc for a detailed description.
+# See the exercise "Filtering candidate solutions for DE and MO-DE" in
+# https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc
 
 # Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 

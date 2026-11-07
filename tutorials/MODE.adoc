@@ -147,7 +147,7 @@ Since DE uses sorting instead of tournament selection, the implementation uses s
 
 For some problems, NSGA-II converged better on parts of the Pareto front.
 Because of that, we added a configuration parameter that switches the population update mechanism from DE to the NSGA-II update.
-The NSGA-II update code is derived from https://github.com/ChengHust/NSGA-II/blob/master/GLOBAL.py[GLOBAL.py], which provides an efficient Python implementation.
+The NSGA-II update code is derived from `GLOBAL.py` in the ChengHust/NSGA-II repository (no longer available on GitHub), which provides an efficient Python implementation.
 
 This gives https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/mode.py[mode.py] some useful features:
 

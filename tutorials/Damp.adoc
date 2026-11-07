@@ -51,7 +51,7 @@ We use the example from https://math.berkeley.edu/~evans/control.course.pdf[EXAM
 - The derivative of x2(t) is `-x1(t) + alpha(t)`, which means the acceleration pushing the spring back in its original position grows with its extension. Additionally, we apply an additional "force" alpha(t), which is the "control" we have over the dynamic system.
 
 The full example code is at https://github.com/dietmarwo/fast-cma-es/blob/master/examples/damp.py[damp.py] and
-https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/ascent.cpp[ascent.cpp].
+https://github.com/dietmarwo/fast-cma-es/blob/02e04c133d9878c5aed65fae7545ba3918e892fc/_fcmaescpp/ascent.cpp[ascent.cpp] (no longer part of fcmaes; the link shows its last version).
 
 If no external force is applied we get:
 

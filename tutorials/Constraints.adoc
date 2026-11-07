@@ -21,8 +21,8 @@ As an alternative, the `fcmaes` multi-objective MODE optimizer supports explicit
 
 === Fly to near earth asteroid K14Y00D
 
-We use https://github.com/esa/pykep/blob/master/pykep/examples/_ex11.py[pykep example 11], which is based on
-https://github.com/esa/pykep/blob/master/pykep/trajopt/_lt_margo.py[lt_margo]
+We use https://github.com/esa/pykep/blob/v2.6.4/pykep/examples/_ex11.py[pykep example 11], which is based on
+https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/_lt_margo.py[lt_margo]
 
 This problem models a low-thrust interplanetary trajectory from Earth to the near-Earth asteroid "K14Y00D".
 It was developed for the European Space Agency interplanetary cubesat M-ARGO study.
@@ -35,7 +35,7 @@ The trajectory is split into 30 equal segments. Each segment has its own maximum
 A Taylor integrator propagates position, velocity, and mass numerically.
 The Taylor integrator is efficient, but each objective function evaluation is still expensive.
 
-This problem is quite different from the https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[GYM] problems discussed
+This problem is quite different from the https://github.com/esa/pykep/tree/v2.6.4/pykep/trajopt/gym[GYM] problems discussed
 in https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[GYM results]:
 
 - Example 11 has 93 dimensions, but it is still much easier than the GYM problems because it covers only a single segmented transfer. The GYM problems span multiple transfers and visits to many planets. They have lower dimensionality because they use only one segment per transfer.
@@ -45,7 +45,7 @@ in https://github.com/dietmarwo/fast-cma-es/blob/master/PYKEP.adoc[GYM results]:
 
 The basic idea is simple. We propagate 15 segments forward from the start and 15 segments backward from the target.
 Both trajectories should "meet" in the middle. This creates equality constraints for the mismatch in position, velocity, and mass.
-Each segment has its own thrust values. These values are computed from the argument vector and depend on the distance from the Sun, see https://github.com/esa/pykep/blob/master/pykep/trajopt/_lt_margo.py#L287[L287]
+Each segment has its own thrust values. These values are computed from the argument vector and depend on the distance from the Sun, see https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/_lt_margo.py#L287[L287]
 
 Since Example 11 does not include Earth gravity (`earth_gravity=False`), all inequality constraints come from the maximum thrust in each segment.
 Thrust is represented as `(x,y,z)` vectors. Each component is box-constrained, but that is not enough. We also need inequality constraints to limit the total thrust, which is given by the norm of the thrust vector.
@@ -56,7 +56,7 @@ This leads to an important observation:
 === Solving Example 11
 
 Since the problem is defined as a PYGMO2 user-defined problem, it can be solved with PYGMO/PAGMO optimizers, as the
-https://github.com/esa/pykep/blob/master/pykep/examples/_ex11.py[Example 11 code] shows:
+https://github.com/esa/pykep/blob/v2.6.4/pykep/examples/_ex11.py[Example 11 code] shows:
 
 [source,python]
 ----
