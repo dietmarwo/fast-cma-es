@@ -23,6 +23,12 @@ publishes that version to PyPI.
 
 ### Fixed
 
+- Tutorial text and figures that disagreed:
+  - Scheduling: the SBM BiteOpt section showed the single-thread `Bite1.png`; it now shows `sbmBite32.png`.
+  - UAV: `uav_reward.png` was a screenshot of six image-viewer windows whose legends covered the leading bars. It is redrawn from the Multi-UAV benchmark CSVs with the same means.
+  - Claims corrected to match the plots and tables they describe: OneForAll MMKP timing, TopTrumps random search at 20 s, EvoJax (cartpole hard, brax, waterworld, waterworld MA and the larger-budget runs), MINLP best run and Employee solve times.
+  - PAGMO notes a mislabelled axis and empty legend counters.
+  - CryptoTrading no longer shows the first run's plot as the second run's.
 - Section levels in `README.adoc` and seven tutorials skipped levels. Asciidoctor reported 86 "section title out of sequence" warnings, and the HTML went from `h1` straight to `h3`/`h4`. The levels now close the gaps and keep the original nesting. `scripts/build_docs.py` prints Asciidoctor warnings and fails on them (`--failure-level WARN`), so new ones stop the documentation build.
 - Broken GitHub links in the tutorials and the examples API page:
   - Files that were removed from this repository (`ascent.cpp`, `gcldecpp.py`, the old `Results.adoc`) now link to their last version.

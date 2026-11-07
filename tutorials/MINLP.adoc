@@ -259,7 +259,7 @@ image::minlp.png[]
 
 We observe strong resistance at deltaV = 2.896.
 After about 1000 sec, many runs improve on this value significantly.
-The best solution at deltaV = 2.17576 appears only once in 20 runs.
+The runs shown here reach at best about deltaV = 2.25. Our best solution overall, deltaV = 2.17576, appeared only once in 20 runs.
 
 ----
 Solution 1:

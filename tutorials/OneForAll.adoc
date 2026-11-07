@@ -129,11 +129,11 @@ These benchmark results for continuous optimization were computed on a 16 core A
 |I13|97077.0|1.39|2342|95
 |===
 
-As you can see, we lose about 0.5% accuracy compared to the reference solutions above. We still reach 2% accuracy in less than a minute, even for the larger instances. The following diagram shows the relation between the number of groups or decision variables and the time to reach 2% accuracy:
+As you can see, we lose about 0.5% accuracy compared to the reference solutions above. We reach 2% accuracy in less than a minute up to I11 (51 seconds); the two largest instances need 74 and 95 seconds. The following diagram shows the relation between the number of groups or decision variables and the time to reach 2% accuracy:
 
 image::MMKP_time.png[]
 
-The relation is almost linear. That suggests we can handle even larger instances with reasonable effort.
+The time grows faster than linearly, roughly with the square of the number of groups: from 8 seconds for 100 groups (I07) to 95 seconds for 400 groups (I13). Larger instances remain feasible, but the effort grows accordingly.
 
 ==== Alternative approaches
 

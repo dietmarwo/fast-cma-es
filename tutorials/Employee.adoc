@@ -265,7 +265,7 @@ this leads to 32 optimizations running in parallel.
 In the diagrams below you can see:
 
 - Both BiteOpt and Differential Evolution can solve this problem.
-- Less than three seconds are needed to find the solution, although the optimizer runs a bit longer.
+- BiteOpt finds the solution in less than two seconds, DE after about 17 seconds. Both optimizers keep running a bit longer.
 
 image::employeeres.png[]
 
