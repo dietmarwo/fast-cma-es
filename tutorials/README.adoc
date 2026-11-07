@@ -10,17 +10,17 @@ image::logo.gif[]
 
 The tutorials in this directory cover many optimization domains. Together they show how fcmaes can be used for practical gradient-free problems in engineering, science, planning, simulation, and machine learning.
 
-=== Dimensional Analysis
+== Dimensional Analysis
 
 - https://github.com/dietmarwo/BuckinghamExamples[BuckinghamExamples] Compute π-groups for dimensional analysis.
 
-=== Quality Diversity
+== Quality Diversity
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Diversity.adoc[Quality Diversity] Run a multi-algorithm improvement emitter in parallel with CVT MAP-Elites.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MapElites.adoc[Map Elites] Combine CVT MAP-Elites with an adapted CMA-ES.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Damp.adoc[Map Elites 2] Apply quality diversity to ODE-based control problems.
 
-=== Space Flight Trajectory Design
+== Space Flight Trajectory Design
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Introduction.adoc[Introduction] Solve simple example problems from space flight dynamics.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SpaceFlight.adoc[Space Flight] Revisit space flight mission design.
@@ -30,45 +30,45 @@ The tutorials in this directory cover many optimization domains. Together they s
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ESAChallenge.adoc[ESAChallenge] The ESA Optimization Challenge.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SphericalTDesign.adoc[Spherical t-design] Weighted spherical t-design.
 
-=== Quantum Computing
+== Quantum Computing
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Quant.adoc[Variational Qubit] Optimize a variational qubit and a variational quantum eigensolver.
 
-=== Service - Demand Network Planning (p-center problem)
+== Service - Demand Network Planning (p-center problem)
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/5G.adoc[5G network planning] Solve the p-center problem for irregular shapes with holes.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Service.adoc[Service Locations] Solve the α-neighbor p-center optimization problem.
 
-=== Scheduling
+== Scheduling
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Employee.adoc[Employee Scheduling] Optimize an employee schedule.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/JobShop.adoc[JobShop] Solve the flexible job shop scheduling problem.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Scheduling.adoc[Scheduling] Solve a complex scheduling problem from the GTOC11 competition.
 
-=== Routing
+== Routing
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/OneForAll.adoc[One For All] Work on MMKP and VRPTW problems.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/UAV.adoc[Multi-UAV] Solve a multi-UAV task assignment problem.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Routing.adoc[Routing] Capacitated Vehicle Routing.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TSP.adoc[Noisy TSP] Solve the noisy Traveling Salesman Problem.
 
-=== Trading
+== Trading
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/CryptoTrading.adoc[Crypto Trading] Optimize a crypto trading strategy.
 
-=== Water Management
+== Water Management
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Water.adoc[Water Management] Optimize water resource management.
 
-=== Social Media
+== Social Media
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Media.adoc[Social Media] Analyze social media user data.
 
-=== Game Design
+== Game Design
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/TopTrumps.adoc[gbea TopTrumps Benchmark] The TopTrumps game optimization benchmark.
 
-=== Simulation
+== Simulation
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Simulation.adoc[Moran Process] Optimize a Moran process, a real case from aging research.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc[Parameter Sweep] Optimize parameters of a biochemical stochastic model.
@@ -79,19 +79,19 @@ The tutorials in this directory cover many optimization domains. Together they s
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Vaccination.adoc[Vaccination] Model vaccination.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Hospital.adoc[Hospital] Managing hospital resources during a pandemic.
 
-=== Machine Learning
+== Machine Learning
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/EvoJax.adoc[EvoJax] Hardware-accelerated neuroevolution.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/HyperparameterOptimization.adoc[Hyper Parameters] Hyperparameter optimization.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Assistant.adoc[Optimization Assistant] An open source AI optimization assistant.
 
-=== Miscellaneous
+== Miscellaneous
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc[Subset selection] Select an optimal subset.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc[Clustering] Out-of-the-box clustering.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ODE.adoc[ODE] Use differential equation solvers.
 
-=== fcmaes-Details
+== fcmaes-Details
 
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MODE.adoc[MO-DE] MO-DE, a new multi-objective algorithm.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/MultiObjective.adoc[Multi-Objective] Solve multi-objective problems using variable weights.
@@ -99,11 +99,11 @@ The tutorials in this directory cover many optimization domains. Together they s
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Expressions.adoc[Expressions] Use sequences and random choices of optimizers.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/DelayedUpdate.adoc[Delayed Update] Asynchronous parallel function evaluation.
 
-=== Log output of the parallel retry
+== Log output of the parallel retry
 
 The log output of the parallel retry contains the following rows:
 
-==== Parallel retry
+=== Parallel retry
 
 - time (in sec)
 - evaluations / sec
@@ -117,7 +117,7 @@ The log output of the parallel retry contains the following rows:
 
 Mean and standard deviation would be misleading when using coordinated retry because some retries are initiated by crossover. Therefore, the rows in the log output differ slightly:
 
-==== Smart retry
+=== Smart retry
 
 - time (in sec)
 - evaluations / sec

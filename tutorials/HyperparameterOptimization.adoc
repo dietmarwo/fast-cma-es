@@ -174,7 +174,7 @@ def cv_score(X):
     return score
 ----
 
-===== Remark
+==== Remark
 Using `mp.RawValue` to share state between processes works only when subprocesses are forked,
 which is the default on Linux.
 Windows only supports spawning new processes, so there will be separate instances of `best_f` and `f_evals`

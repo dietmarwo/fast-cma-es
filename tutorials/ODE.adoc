@@ -121,7 +121,7 @@ shoot a fox every year, fitness = -62.19130394089944
 Intuitively, killing a fox each year should maximize the final rabbit population.
 Let us see whether optimization can improve on the `-62.19` result, and by how much:
 
-===== Smart parallel retry
+==== Smart parallel retry
 
 [source,python]
 ----
@@ -136,7 +136,7 @@ evolution and CMA-ES, and `De_cpp`, pure differential evolution. Our recommendat
 `max_eval_fac*1500` by the end of `num_retries` optimization runs. The result of each run
 is used to configure the bounds for future runs.
 
-===== Parallel retry
+==== Parallel retry
 
 [source,python]
 ----
@@ -151,7 +151,7 @@ after being included in the fcmaes library. It became the recommended algorithm
 for parallel retry and as a standalone optimizer. For smart retry it still works well, but often not
 as well as `de_cma` and `De_cpp`.
 
-===== Parallel function evaluation
+==== Parallel function evaluation
 
 [source,python]
 ----

@@ -392,7 +392,7 @@ https://www.lle.rochester.edu/media/publications/lle_review/documents/v172/172_0
 
 The minimal relative intensities for 48, 60, 72 and 132 lasers are 0.982725, 0.984542, 0.995359 and 0.999907. The uniform N=60 design proposed by Shvydky has a minimal relative intensity of 0.985446, almost equal to the weighted N=60 design.
 
-==== N=48, l_max = 11, 2 different weights
+== N=48, l_max = 11, 2 different weights
 
 image::48intense.png[]
 
@@ -411,7 +411,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.982725 rms = 0.00432292
 ----
 
-==== N=60, l_max = 12, 5 different weights
+== N=60, l_max = 12, 5 different weights
 
 image::60intense.png[]
 
@@ -429,7 +429,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.985146 rms = 0.00255375
 ----
 
-==== N=72, l_max = 14, 2 different weights
+== N=72, l_max = 14, 2 different weights
 
 image::72intense.png[]
 
@@ -449,7 +449,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.995359 rms = 0.00105520
 ----
 
-=== N = 132, l_max = 19, 3 different weights
+== N = 132, l_max = 19, 3 different weights
 
 image::132intense.png[]
 
@@ -468,7 +468,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999234 rms = 0.00014760
 ----
 
-=== N = 192, l_max = 23, 4 different weights;
+== N = 192, l_max = 23, 4 different weights;
 
 image::192intense.png[]
 
@@ -491,7 +491,7 @@ minimal relative intensity = 0.999974 rms = 0.00000467
 In the table below all solutions N >= 100 are created using this method and also
 show a reduced number of distinct weights.
 
-=== Lebedev Spherical Designs
+== Lebedev Spherical Designs
 
 Some Lebedev spherical designs show relatively smooth weight distribution and could be viable alternatives:
 
@@ -520,7 +520,7 @@ weigths = [0.8811758899171654, 0.9311143754732957, 0.9426232933462958, 1.0146252
 minimal relative intensity = 0.999955 rms = 0.00000756
 ----
 
-=== Variation of Beam Strength
+== Variation of Beam Strength
 
 There are unavoidable fluctuations in laser energy in each beam, roughly 1% variation in peak power. Are perfect t-designs of any value at all?
 We can check by randomly varying the weight for each beam and check the resulting error for each l <= l_max:
@@ -1160,22 +1160,22 @@ weighted designs use negative or highly uneven weights compared to our approach.
 Also, except for the l_max = 27 design, they require more points.
 It seems this optimization approach reaches its limits at l_max = 27.
 
-=== N = 2, l_max = 1
+== N = 2, l_max = 1
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.2.1.txt[2.1]
 - no better weighted solution
 
-=== N = 4, l_max = 2
+== N = 4, l_max = 2
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.4.2.txt[4.2]
 - no better weighted solution
 
-=== N = 6, l_max = 3
+== N = 6, l_max = 3
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.6.3.txt[6.3]
 - no better weighted solution
 
-=== N = 10, l_max = 4
+== N = 10, l_max = 4
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.12.5.txt[12.5]
 
@@ -1193,12 +1193,12 @@ symmetry error = 0.0
 minimal relative intensity = 0.417921 rms = 0.14275317
 ----
 
-=== N = 12, l_max = 5
+== N = 12, l_max = 5
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.12.5.txt[12.5]
 - no better weighted solution
 
-=== N = 18, l_max = 6
+== N = 18, l_max = 6
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.24.7.txt[24.7]
 
@@ -1215,7 +1215,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.726816 rms = 0.07977770
 ----
 
-=== N = 22, l_max = 7
+== N = 22, l_max = 7
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.24.7.txt[24.7]
 
@@ -1233,7 +1233,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.724756 rms = 0.06836737
 ----
 
-=== N = 28, l_max = 8
+== N = 28, l_max = 8
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.36.8.txt[36.8]
 
@@ -1250,7 +1250,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.827053 rms = 0.04465091
 ----
 
-=== N = 34, l_max = 9
+== N = 34, l_max = 9
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.48.9.txt[48.9]
 
@@ -1269,7 +1269,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.897265 rms = 0.01825170
 ----
 
-=== N = 42, l_max = 10
+== N = 42, l_max = 10
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.60.10.txt[60.10]
 
@@ -1287,7 +1287,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.976213 rms = 0.00393389
 ----
 
-=== N = 48, l_max = 11
+== N = 48, l_max = 11
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.70.11.txt[70.11]
 
@@ -1306,7 +1306,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.982725 rms = 0.00432292
 ----
 
-=== N = 58/60, l_max = 12
+== N = 58/60, l_max = 12
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.84.12.txt[84.12]
 
@@ -1335,7 +1335,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.984542 rms = 0.00329519
 ----
 
-=== N = 64, l_max = 13
+== N = 64, l_max = 13
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.96.13.txt[96.13]
 
@@ -1355,7 +1355,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.985146 rms = 0.00255375
 ----
 
-=== N = 72, l_max = 14
+== N = 72, l_max = 14
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.108.14.txt[108.14]
 
@@ -1373,7 +1373,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.995359 rms = 0.00105520
 ----
 
-=== N = 82, l_max = 15
+== N = 82, l_max = 15
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.120.15.txt[120.15]
 
@@ -1393,7 +1393,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.998525 rms = 0.00024952
 ----
 
-=== N = 98/100, l_max = 16
+== N = 98/100, l_max = 16
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.144.16.txt[144.16]
 
@@ -1424,7 +1424,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999289 rms = 0.00015548
 ----
 
-=== N = 108, l_max = 17
+== N = 108, l_max = 17
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.156.17.txt[156.17]
 
@@ -1443,7 +1443,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999234 rms = 0.00014760
 ----
 
-=== N = 126, l_max = 18
+== N = 126, l_max = 18
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.180.18.txt[180.18]
 
@@ -1462,7 +1462,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999538 rms = 0.00008887
 ----
 
-=== N = 132, l_max = 19
+== N = 132, l_max = 19
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.204.19.txt[204.19]
 
@@ -1481,7 +1481,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999907 rms = 0.00002414
 ----
 
-=== N = 150, l_max = 20
+== N = 150, l_max = 20
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.216.20.txt[216.20]
 
@@ -1500,7 +1500,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999937 rms = 0.00001155
 ----
 
-=== N = 168, l_max = 21
+== N = 168, l_max = 21
 
 - best uniform solution: http://neilsloane.com/sphdesigns/dim3/des.3.240.21.txt[240.21]
 
@@ -1520,7 +1520,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999915 rms = 0.00001471
 ----
 
-=== N = 180, l_max = 22:
+== N = 180, l_max = 22:
 
 - best uniform solution: https://web.maths.unsw.edu.au/~rsw/Sphere/Points/SF/SF29-Nov-2012/sf022.00266[266.22]
 
@@ -1542,7 +1542,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999948 rms = 0.00000885
 ----
 
-=== N = 192, l_max = 23:
+== N = 192, l_max = 23:
 
 - best uniform solution: https://web.maths.unsw.edu.au/~rsw/Sphere/Points/SS/SS31-Mar-2016/ss023.00278[278.23]
 
@@ -1562,7 +1562,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999974 rms = 0.00000467
 ----
 
-=== N = 216, l_max = 24:
+== N = 216, l_max = 24:
 
 - best uniform solution: https://web.maths.unsw.edu.au/~rsw/Sphere/Points/SF/SF29-Nov-2012/sf024.00314[314.24]
 
@@ -1582,7 +1582,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999976 rms = 0.00000395
 ----
 
-=== N = 228, l_max = 25:
+== N = 228, l_max = 25:
 
 - best uniform solution: https://web.maths.unsw.edu.au/~rsw/Sphere/Points/SS/SS31-Mar-2016/ss025.00328[328.25]
 
@@ -1602,7 +1602,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999978 rms = 0.00000355
 ----
 
-=== N = 252, l_max = 26:
+== N = 252, l_max = 26:
 
 - best uniform solution: https://web.maths.unsw.edu.au/~rsw/Sphere/Points/SF/SF29-Nov-2012/sf026.00366[366.26]
 
@@ -1622,7 +1622,7 @@ symmetry error = 0.0
 minimal relative intensity = 0.999989 rms = 0.00000166
 ----
 
-=== N = 276, l_max = 27:
+== N = 276, l_max = 27:
 
 - best uniform solution: https://web.maths.unsw.edu.au/~rsw/Sphere/Points/SS/SS31-Mar-2016/ss027.00380[380.27]
 
