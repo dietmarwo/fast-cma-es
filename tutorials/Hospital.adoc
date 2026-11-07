@@ -375,7 +375,7 @@ This benchmark problem uses the FLORIS wake simulator to analyse how much power 
 when windmills are located in each other's wake.
 The objective is to maximize power production.
 
-We executed the `WindWakeLayout('example_input.json', n_samples=5)` benchmark using https://raw.githubusercontent.com/NREL/floris/master/examples/example_input.json[example_input.json] with parallel differential evolution:
+We executed the `WindWakeLayout('example_input.json', n_samples=5)` benchmark using https://raw.githubusercontent.com/NREL/floris/10200746c4b98ec10f2d2e1fb5e7cdfc22f4cf60/examples/example_input.json[example_input.json] with parallel differential evolution:
 
 image::WindWake_Optimization.png[]
 

@@ -130,7 +130,7 @@ At https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveop
 we find several optimization algorithms to test.
 Many are not suitable for the TSP problem, so we focus on:
 
-- https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/MVRSM[MVRSM]
+- https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/MVRSM[MVRSM]
 - https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/IDONE[IDONE]
 - https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/SA[Simulated Annealing]
 
@@ -234,14 +234,14 @@ image::original_solvers_comparison_b.png[]
 
 The CMA algorithm shown here is not the one from fcmaes, but the original one:
 
-- https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/CMA[CMA-ES]
+- https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/CMA[CMA-ES]
 
 The CMA results are hard to see because the run ends with "termination on tolstagnation"
 after about 8000 function evaluations.
 The default termination criteria do not seem to work well for this TSP problem.
 As we will see, that is not a problem with CMA-ES itself.
 
-https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/blob/master/expensiveoptimbenchmark/solvers/CMA[CMA-ES] is based on
+https://github.com/AlgTUDelft/ExpensiveOptimBenchmark/tree/master/expensiveoptimbenchmark/solvers/CMA[CMA-ES] is based on
 https://github.com/CMA-ES/pycma[pycma] from Nikolaus Hansen.
 
 Here are the results for fcmaes-CMA, not the original one,

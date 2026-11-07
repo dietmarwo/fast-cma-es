@@ -40,11 +40,11 @@ https://github.com/google/evojax/blob/main/evojax/algo/cma_jax.py[cma_jax.py] is
 - CMA-ES has not only performance issues, it may converge slower in case of dependencies between decision variables.
 
 fcmaes provides two algorithms specialized for high-dimensional problems: CR-FM-NES and PGPE. We will compare them with other
-EvoJax https://github.com/google/evojax/blob/main/evojax/algo[algorithms].
+EvoJax https://github.com/google/evojax/tree/main/evojax/algo[algorithms].
 
 All CPU-based algorithms have one clear disadvantage. Argument and result vectors must be transferred between CPU and GPU/TPU, which adds overhead. We need experiments to see how much this matters in practice.
 
-We will show that both fcmaes {cpp} implementations of CR-FM-NES and PGPE outperform most EvoJax https://github.com/google/evojax/blob/main/evojax/algo[algorithms], at least on our hardware: an AMD 5950x CPU and an NVIDIA 3090 GPU. This is a typical configuration, and the NVIDIA 3090 is well suited for machine learning because of its 24GB RAM.
+We will show that both fcmaes {cpp} implementations of CR-FM-NES and PGPE outperform most EvoJax https://github.com/google/evojax/tree/main/evojax/algo[algorithms], at least on our hardware: an AMD 5950x CPU and an NVIDIA 3090 GPU. This is a typical configuration, and the NVIDIA 3090 is well suited for machine learning because of its 24GB RAM.
 
 Both "jaxified" Python implementations of CR-FM-NES and PGPE, implemented only in EvoJax, perform similarly to the {cpp} implementations. The main differences are:
 

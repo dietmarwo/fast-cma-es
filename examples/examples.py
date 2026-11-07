@@ -4,7 +4,7 @@
 # LICENSE file in the root directory.
 
 # Examples for fcmaes parallel retry from https://www.esa.int/gsp/ACT/projects/gtop/
-# Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Results.adoc
+# Used to generate the results in https://github.com/dietmarwo/fast-cma-es/blob/8653cca3e85e3092f10be318b7386a42087d70d8/Results.adoc
 
 # Tested using https://docs.conda.io/en/main/miniconda.html on Linux Mint 21.2
 

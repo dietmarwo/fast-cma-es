@@ -194,7 +194,7 @@ of 747 through friendship edges. But maybe this number can be reduced.
 ==== Using a greedy algorithm
 
 This code is inspired by
-https://github.com/sliao7/CSE6140-Final-Project-Minimum-Vertex-Cover/blob/main/code/SA.py[SA.py].
+`SA.py` in the sliao7/CSE6140-Final-Project-Minimum-Vertex-Cover repository (no longer available on GitHub).
 Note that neither the improved variant shown here nor the original code actually implements
 "Simulated Annealing" as stated in the original. Still, it is a very efficient algorithm and works
 well even for huge graphs. It is not as fast as `jgrapht.algorithms.vertexcover.greedy`,

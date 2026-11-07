@@ -11,7 +11,7 @@
 
 # Uses compiled differential equations based on the Ascent library 
 # https://github.com/AnyarInc/Ascent see 
-# https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/ascent.cpp
+# https://github.com/dietmarwo/fast-cma-es/blob/02e04c133d9878c5aed65fae7545ba3918e892fc/_fcmaescpp/ascent.cpp
 
 # Compare with the F8 results 
 # given in http://www.midaco-solver.com/data/pub/The_Oracle_Penalty_Method.pdf

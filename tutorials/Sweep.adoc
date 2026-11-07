@@ -14,7 +14,7 @@ image::logo.gif[]
 
 This tutorial
 
-- Is related to https://github.com/StochSS/GillesPy2/blob/main/examples/StartingModels/VilarOscillator/VilarOscillator.py[VilarOscillator.py]
+- Is related to https://github.com/StochSS/GillesPy2/blob/main/examples/Models/Starting_Models/vilar_oscillator.py[VilarOscillator.py]
   and http://uu.diva-portal.org/smash/get/diva2:1543699/FULLTEXT01.pdf[Large-scale simulation-based experiments with stochastic models using machine learning assisted approaches].
 
 - Explains semi-automated parameter sweeping for stochastic biochemical reaction networks.
@@ -47,7 +47,7 @@ optimization could feed the machine-learning-based interactive method.
 In https://www.pnas.org/doi/10.1073/pnas.092133899[Mechanisms of noise-resistance in genetic oscillators] Jose M.G.Vilar
 presented a biochemical model of a "circadian clock" that lets organisms maintain an internal sense of daily time.
 This model can be simulated using https://github.com/StochSS/GillesPy2[GillesPy2], see
-https://github.com/StochSS/GillesPy2/blob/main/examples/StartingModels/VilarOscillator/VilarOscillator.py[VilarOscillator.py].
+https://github.com/StochSS/GillesPy2/blob/main/examples/Models/Starting_Models/vilar_oscillator.py[VilarOscillator.py].
 The Vilar model has 15 parameters, and we want to understand:
 
  - Is the oscillating behavior of the model dependent on specific parameter settings?

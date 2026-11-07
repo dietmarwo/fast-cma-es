@@ -174,7 +174,7 @@ image::powerplant_nd.png[]
 
 The complete code for this example is here: https://github.com/dietmarwo/fast-cma-es/blob/master/examples/vilar.py[vilar.py]. https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Sweep.adoc[Sweep.adoc] explains the single-objective and multi-objective versions. Here we add QD methods.
 
-In https://www.pnas.org/doi/10.1073/pnas.092133899[Mechanisms of noise-resistance in genetic oscillators], Jose M. G. Vilar introduced a biochemical model of a circadian clock that lets organisms keep an internal sense of daily time. The model can be simulated with https://github.com/StochSS/GillesPy2[GillesPy2]; see https://github.com/StochSS/GillesPy2/blob/main/examples/StartingModels/VilarOscillator/VilarOscillator.py[VilarOscillator.py]. The Vilar model has 15 parameters, and we want to answer these questions:
+In https://www.pnas.org/doi/10.1073/pnas.092133899[Mechanisms of noise-resistance in genetic oscillators], Jose M. G. Vilar introduced a biochemical model of a circadian clock that lets organisms keep an internal sense of daily time. The model can be simulated with https://github.com/StochSS/GillesPy2[GillesPy2]; see https://github.com/StochSS/GillesPy2/blob/main/examples/Models/Starting_Models/vilar_oscillator.py[VilarOscillator.py]. The Vilar model has 15 parameters, and we want to answer these questions:
 
  - Does the oscillating behavior depend on specific parameter settings?
  - Can we find parameter settings that degrade the oscillation?

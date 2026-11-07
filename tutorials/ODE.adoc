@@ -205,5 +205,5 @@ to reduce that cost. Scipy provides two interfaces, https://docs.scipy.org/doc/s
 and https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html[solve_ivp].
 For F8 we provide an `ode` based implementation for comparison, but we recommend compiled ODEs based on
 the https://github.com/AnyarInc/Ascent[Ascent] library, see
-https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/ascent.cpp[ascent.cpp]
+https://github.com/dietmarwo/fast-cma-es/blob/02e04c133d9878c5aed65fae7545ba3918e892fc/_fcmaescpp/ascent.cpp[ascent.cpp] (no longer part of fcmaes; the link shows its last version)
 Using this approach, you can get a good solution in less than a second on a fast 16 core machine.

@@ -11,7 +11,7 @@ image::logo.gif[]
 
 == Solving the PYKEP trajopt/gym Reference Problems
 
-PYKEP provides a set of https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[reference problems] for testing optimization methods. Many of them replace the older GTOP problems.
+PYKEP provides a set of https://github.com/esa/pykep/tree/v2.6.4/pykep/trajopt/gym[reference problems] for testing optimization methods. Many of them replace the older GTOP problems.
 These newer implementations have several practical advantages:
 
 - They are written in Python, so they are easy to adapt.
@@ -25,11 +25,11 @@ Another limitation is the lack of reference solutions. The problems are implemen
 Most of these problems are single-objective and unconstrained, or can be made unconstrained with https://esa.github.io/pagmo2/docs/cpp/problems/unconstrain.html[unconstrain]. That makes them a good fit for `fcmaes`. They are also a useful way to show what coordinated retry can do on real trajectory optimization tasks.
 
 === Applying fcmaes coordinated retry to PYKEP trajopt/gym
-See https://github.com/esa/pykep/tree/master/pykep/trajopt/gym[trajopt/gym] for the full list of problems.
+See https://github.com/esa/pykep/tree/v2.6.4/pykep/trajopt/gym[trajopt/gym] for the full list of problems.
 
 ==== Tandem
 
-https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_tandem.py[Tandem] models a rendezvous mission to Saturn as an MGA-1DSM transfer. The mission parameters are inspired by the TandEM mission. A launcher model, Atlas 501, is included, so the main objective is the final mass delivered at Saturn.
+https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/gym/_tandem.py[Tandem] models a rendezvous mission to Saturn as an MGA-1DSM transfer. The mission parameters are inspired by the TandEM mission. A launcher model, Atlas 501, is included, so the main objective is the final mass delivered at Saturn.
 
 The problem includes several planet sequences. We start with sequence 6, `[earth, venus, earth, earth, saturn]`, which later turns out to be the best one. Tandem has two variants. Here we use the time-constrained version, with total mission time limited to 10 years.
 
@@ -110,7 +110,7 @@ NOTE: The original `tandem1.png` result figure is not present in this repository
 In practice, a second retry run is often still needed.
 
 ==== Messenger
-https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_messenger.py[Messenger] models a mission to Mercury as an MGA-1DSM transfer. The selected fly-by sequence, `E-VVMeMeMe-Me`, and the other parameters are inspired by the Messenger mission.
+https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/gym/_messenger.py[Messenger] models a mission to Mercury as an MGA-1DSM transfer. The selected fly-by sequence, `E-VVMeMeMe-Me`, and the other parameters are inspired by the Messenger mission.
 As already noted for the corresponding GTOP benchmark in `Readme.adoc`, this is a hard problem and needs many more optimization retries:
 
 [source,python]
@@ -196,7 +196,7 @@ for uda in udas:
 For these cases, the first try usually succeeds. `Messenger` often still needs a second or even a third try.
 
 ==== Juice
-https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_juice.py[Juice] models a rendezvous mission to Jupiter as an MGA-1DSM transfer. The selected fly-by sequence, `E-EVEME-J`, and the other parameters are inspired by the ESA Juice mission. A launcher model is included, namely an Ariane5 launch from Kourou. JUICE, JUpiter ICy moons Explorer, is the first large-class mission in ESA's Cosmic Vision 2015-2025 program. Planned for launch in 2022 and arrival at Jupiter in 2029, it will spend at least three years making detailed observations of Jupiter and three of its largest moons: Ganymede, Callisto, and Europa.
+https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/gym/_juice.py[Juice] models a rendezvous mission to Jupiter as an MGA-1DSM transfer. The selected fly-by sequence, `E-EVEME-J`, and the other parameters are inspired by the ESA Juice mission. A launcher model is included, namely an Ariane5 launch from Kourou. JUICE, JUpiter ICy moons Explorer, is the first large-class mission in ESA's Cosmic Vision 2015-2025 program. Planned for launch in 2022 and arrival at Jupiter in 2029, it will spend at least three years making detailed observations of Jupiter and three of its largest moons: Ganymede, Callisto, and Europa.
 
 Juice is a very easy optimization problem. On a 16-core machine it takes about three minutes to surpass `-7.99`, and about 12 minutes to reach the solution below. In fact, coordinated retry is only needed here if you want a nearly optimal solution. With a fixed `50000` evaluation budget for the `DE -> CMA-ES` sequence, you will usually find a solution better than `-7.99` in `< 64` retries, which takes about 13 to 26 seconds. But that setup does not find a solution `< -7.9994`.
 
@@ -261,7 +261,7 @@ Declination: -5.8308136937633926e-08
 image::juice.png[]
 
 ==== Cassini2
-https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_cassini2.py[Cassini2] is an MGA-1DSM mission to reach Saturn and be captured by its gravity. The fly-by sequence is Earth, Venus, Venus, Earth, Jupiter, Saturn, the same sequence used by the Cassini spacecraft. A score `< 730` is usually reached after about three minutes. Unlike Juice, this problem does need coordinated retry.
+https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/gym/_cassini2.py[Cassini2] is an MGA-1DSM mission to reach Saturn and be captured by its gravity. The fly-by sequence is Earth, Venus, Venus, Earth, Jupiter, Saturn, the same sequence used by the Cassini spacecraft. A score `< 730` is usually reached after about three minutes. Unlike Juice, this problem does need coordinated retry.
 ----
 solution = [-798.1255840834085, 0.9640536574861399, 0.3842218637483862, 4999.999999998122, 0.054074087669290435, 200.6367375026563, 4.499361877566994, 1.8874938091428237, 0.4971735916709705, 410.34433523595055, -1.9594016768524416, 1.0500000000006968, 0.1669972234371695, 53.27314941868789, 4.727848530339341, 1.3063321404420816, 0.8999999999402388, 588.1308355706944, 4.769745501055804, 70.0, 0.015517225867226283, 2199.999999999682]
 
@@ -311,7 +311,7 @@ Total mission time: 9.45211514778281 years (3452.385057727671 days)
 image::cassini2.png[]
 
 ==== Earth-Venus-Earth mga-1dsm
-https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_eve_mga1dsm.py[EVE] is an MGA-1DSM mission to Venus and back to Earth. A good score is usually found in a few seconds.
+https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/gym/_eve_mga1dsm.py[EVE] is an MGA-1DSM mission to Venus and back to Earth. A good score is usually found in a few seconds.
 ----
 solution = [946.5833262188481, 0.6183687175025218, 0.3663093221347987, 2499.999999999999, 0.14694954450113987, 123.97290946310139, -0.805792681834026, 1.1, 0.3272449823968612, 397.2667888747656]
 
@@ -339,7 +339,7 @@ Total mission time: 1.4270765183788283 years (521.239698337867 days)
 image::eve.png[]
 
 ==== Rosetta
-https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_rosetta.py[Rosetta] is a rendezvous mission to comet 67P/Churyumov-Gerasimenko modeled as an MGA-1DSM transfer. The selected fly-by sequence, `E-EMEE-C`, is similar to the one planned for the Rosetta spacecraft. The objective is total mission delta V. No launcher model is used, and the final rendezvous with the comet is included in the delta V calculation.
+https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/gym/_rosetta.py[Rosetta] is a rendezvous mission to comet 67P/Churyumov-Gerasimenko modeled as an MGA-1DSM transfer. The selected fly-by sequence, `E-EMEE-C`, is similar to the one planned for the Rosetta spacecraft. The objective is total mission delta V. No launcher model is used, and the final rendezvous with the comet is included in the delta V calculation.
 
 A score `< 1350` is usually reached after three to five minutes. It is possible to get such a score without coordinated retry, but it is not easy.
 ----
@@ -390,7 +390,7 @@ Total mission time: 10.707718182076645 years (3910.9940660034945 days)
 NOTE: The original `rosetta.png` result figure is not present in this repository.
 
 ==== Earth-Mars 5 impulses
-https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_emNimp_udp.py[Earth-Mars 5 impulses] is a 5-impulse deep-space maneuver mission to reach Mars. A good score is reached after a few seconds.
+https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/gym/_emNimp.py[Earth-Mars 5 impulses] is a 5-impulse deep-space maneuver mission to reach Mars. A good score is reached after a few seconds.
 ----
 solution = [10359.962016407258, 700.0, 0.792397890631979, 1.0, 0.8009792273038916, 0.0, 0.386976567420959, 0.9334318605507639, 0.5661862201543786, 2433.127502980495, 0.0010315860640127835, 0.8853736291405103, 0.36888093872468103, 0.0, 0.0349218381975402]
 
@@ -403,7 +403,7 @@ Tofs (days):  [14.271327937417231, 58.22758851188319, 421.7557808109648, 205.745
 image::earthmars5.png[]
 
 ==== Earth-Mars 7 impulses
-https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_emNimp_udp.py[Earth-Mars 7 impulses] is a 7-impulse deep-space maneuver mission to reach Mars. A good score is reached after a few seconds.
+https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/gym/_emNimp.py[Earth-Mars 7 impulses] is a 7-impulse deep-space maneuver mission to reach Mars. A good score is reached after a few seconds.
 ----
 solution = [10359.96201621306, 699.99999999967, 0.8675858244378735, 0.980238773107442, 0.8654116976301882, 0.0, 0.5819397340477784, 0.9334318599048091, 0.5661862216940652, 2433.1275174375482, 0.969600805658548, 1.0, 0.9986677954486534, 0.0, 0.016922153243993637, 0.20270767737395895, 0.051295766859595894, 0.0, 0.8817674494223253, 0.9466891232243391, 0.490939062775394, 0.0, 0.12902376918710104]
 
@@ -417,7 +417,7 @@ image::earthmars7.png[]
 
 === Multi Objective Optimization
 
-We can also study a multi-objective variant of https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_juice.py[Juice].
+We can also study a multi-objective variant of https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/gym/_juice.py[Juice].
 Our two objectives are:
 
 - Save propellant by increasing the final mass.
@@ -706,7 +706,7 @@ image::juice2.png[]
 Can MOO optimizers like https://esa.github.io/pagmo2/docs/cpp/algorithms/moead.html[moead], https://esa.github.io/pagmo2/docs/cpp/algorithms/nsga2.html[nsga2], and https://esa.github.io/pagmo2/docs/cpp/algorithms/maco.html[maco] find similar results? How should we configure them, and what is the right `archipelago` topology for parallel execution?
 
 === Tandem Planet Sequence
-In the discussion of the https://github.com/esa/pykep/blob/master/pykep/trajopt/gym/_tandem.py[Tandem] problem above, we chose the 6th planet sequence, `[earth, venus, earth, earth, saturn]`, because we suspected it was the best one. Now we can test that assumption. Instead of giving every sequence a full optimization budget up front, we use an iterative elimination approach. Each round applies parallel retry to all remaining sequences for a limited number of retries. We then remove the worst ones and continue with the rest. This concentrates more compute time on the better candidates.
+In the discussion of the https://github.com/esa/pykep/blob/v2.6.4/pykep/trajopt/gym/_tandem.py[Tandem] problem above, we chose the 6th planet sequence, `[earth, venus, earth, earth, saturn]`, because we suspected it was the best one. Now we can test that assumption. Instead of giving every sequence a full optimization budget up front, we use an iterative elimination approach. Each round applies parallel retry to all remaining sequences for a limited number of retries. We then remove the worst ones and continue with the rest. This concentrates more compute time on the better candidates.
 
 Only the best remaining sequences get coordinated retry in the final stage. To make that work, we keep the evaluation store for each sequence across all iterations.
 
