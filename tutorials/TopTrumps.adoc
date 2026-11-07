@@ -199,7 +199,7 @@ All experiments were performed on the same processor, a 16-core AMD 5950x using 
 
 - Random search
 
-Even a budget of `64 * 10000 = 640000` evaluations is not enough to find good solutions. But note that after 20 seconds, about 6000 evaluations, random search is better than all other optimizers. You should never judge an optimizer after only a few evaluations.
+Even a budget of `64 * 10000 = 640000` evaluations is not enough to find good solutions. But note that after 20 seconds, about 6000 evaluations, random search is still competitive: it is close to CMA-ES and ahead of BiteOpt, and only DE is clearly better. You should never judge an optimizer after only a few evaluations.
 
 image::progress_ret.rw-top-trumps_f5i5d128_10k64_random.png[]
 

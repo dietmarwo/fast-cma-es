@@ -961,7 +961,7 @@ image::sbm32.png[]
 
 - fcmaes SBM applied to https://github.com/avaneev/biteopt[BiteOpt]
 
-image::Bite1.png[]
+image::sbmBite32.png[]
 
 - fcmaes SBM applied to CMA-ES
 

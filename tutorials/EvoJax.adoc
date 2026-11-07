@@ -135,7 +135,7 @@ image::cartpole_easy_EvoJax_Score_relative_to_ARS_native.png[]
 image::cartpole_hard_EvoJax_Benchmark_Score.png[]
 
 Almost the same result as for Cartpole Easy. PGPE/FPGPEC and FCRFMC/CRFMNES are in the lead, with CMA_ES_JAX lagging behind.
-All algorithms are > 800 after 1000 iterations, inconsistent with the results reported https://github.com/google/evojax/tree/main/scripts/benchmarks[here].
+All algorithms except ARS_native are above 800 after 1000 iterations (ARS_native reaches about 835 later), inconsistent with the results reported https://github.com/google/evojax/tree/main/scripts/benchmarks[here].
 
 image::cartpole_hard_EvoJax_Score_relative_to_ARS_native.png[]
 
@@ -143,8 +143,8 @@ image::cartpole_hard_EvoJax_Score_relative_to_ARS_native.png[]
 
 image::brax_EvoJax_Benchmark_Score.png[]
 
-Again PGPE/FPGPEC and FCRFMC/CRFMNES lead the pack. Since this task is harder, the pattern is clearer. PGPE is better at the beginning, but FCRFMC/CRFMNES improves faster
-and takes the lead in the end. OpenES also performs very well here, while CMA_ES_JAX loses again.
+Again PGPE/FPGPEC and FCRFMC/CRFMNES lead the pack, together with OpenES. PGPE/FPGPEC are better at the beginning. FCRFMC improves faster later and finishes ahead of PGPE, level with OpenES,
+but FPGPEC reaches the best final score (about 7050 versus 6750), and CRFMNES ends below PGPE. CMA_ES_JAX loses again.
 
 image::brax_EvoJax_Score_relative_to_ARS_native.png[]
 
@@ -161,8 +161,8 @@ image::mnist_EvoJax_Score_relative_to_ARS_native.png[]
 image::waterworld_EvoJax_Benchmark_Score.png[]
 
 Our Waterworld results after 1000 iterations are generally much higher than those reported in https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks],
-but the distance between algorithms is quite consistent. Again PGPE leads at first, then FCRFMC/CRFMNES catches up in the end. OpenES performs strongly, while CMA_ES_JAX lags behind.
-Note that OpenES shows no further improvement up to 3000 iterations, while the scores of PGPE/FPGPEC and FCRFMC/CRFMNES are still growing.
+but the distance between algorithms is quite consistent. Again PGPE leads at first, then FCRFMC/CRFMNES catch up and finish slightly above PGPE (about 15.2 versus 15.0).
+FPGPEC, the {cpp} PGPE variant, reaches the best score, about 16.9, and is the only algorithm still improving at 3000 iterations. OpenES stops improving at about 13, while CMA_ES_JAX lags behind.
 
 image::waterworld_EvoJax_Score_relative_to_ARS_native.png[]
 
@@ -171,8 +171,8 @@ image::waterworld_EvoJax_Score_relative_to_ARS_native.png[]
 image::waterworld_ma_EvoJax_Benchmark_Score.png[]
 
 This benchmark has a very small fixed population size (16).
-Only PGPE/FPGPEC and FCRFMC/CRFMNES are successful. This is the only benchmark where FCRFMC is faster than CRFMNES, perhaps because
-of its 64-bit accuracy.
+FPGPEC is clearly best with a score of 3.0. PGPE, ARS_native, FCRFMC and CRFMNES follow between 2.2 and 2.4, while OpenES, CMA_ES_JAX and iAMaLGaM stay below 1.8.
+This is the only benchmark where FCRFMC is faster than CRFMNES, perhaps because of its 64-bit accuracy.
 
 image::waterworld_ma_EvoJax_Score_relative_to_ARS_native.png[]
 
@@ -195,7 +195,7 @@ We further increase the optimization budget for the two Waterworld tasks to inve
 
 image::waterworld_EvoJax_Benchmark_Score384.png[]
 
-We increased the population size to 384 and applied the best algorithms from the first test. The best score is now 16.0625,
+We increased the population size to 384 and applied CRFMNES, FCRFMC and PGPE from the first test. All three reach 16.0625,
 a lot better than the 11.64 reported at https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks].
 
 .Score/Time for Waterworld task
@@ -217,7 +217,7 @@ image::waterworld_ma_EvoJax_Benchmark_Score384.png[]
 
 Population size cannot be changed here. It remains 16. Increasing the budget reveals:
 - A score of 3.03125 can be reached, far better than what is reported in https://github.com/google/evojax/tree/main/scripts/benchmarks[benchmarks].
-- No algorithm can compete with PGPE, which was not visible before.
+- PGPE clearly beats FCRFMC and CRFMNES here, as its {cpp} variant FPGPEC already did in the first test.
 
 === Summary
 

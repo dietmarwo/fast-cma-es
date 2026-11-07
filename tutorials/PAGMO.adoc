@@ -55,7 +55,8 @@ until 2013:
 
 image::coordTandem.png[]
 
-The next figure shows the 10 coordinated retry runs for Messenger Full:
+The next figure shows the 10 coordinated retry runs for Messenger Full
+(the evaluation counters in its legend were not recorded and show 0):
 
 image::coordMess.png[]
 
@@ -93,7 +94,8 @@ this sequence is called `de_pyg_cma`.
 |=========================================================
 
 These tests were executed on a single AMD 5950x CPU.
-The Tandem EVEES Constrained result is especially impressive:
+The Tandem EVEES Constrained result is especially impressive. The plot's y-axis is labelled deltaV, but
+it shows Tandem's objective, the negative final mass in kg:
 
 image::coordTandem2.png[]
 

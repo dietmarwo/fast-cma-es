@@ -478,9 +478,8 @@ ADA-USD
 2022.02.16 cash 0 sell 35615353 num_coins 35615353 price 107 ct
 ----
 
-Here are the new plots:
-
-image::crypto_opt.png[]
+The plots of this second run were not kept; the trade log above lists its transactions.
+The figure earlier in this tutorial shows the first parameter set.
 
 === Multi Objective Optimization
 
