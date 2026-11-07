@@ -30,7 +30,7 @@ The https://dietmarwo.github.io/fast-cma-es/[documentation book] combines the AP
 
 Detailed benchmark results are available in the book's https://dietmarwo.github.io/fast-cma-es/tutorials/Performance.html[performance chapter].
 
-=== Features
+== Features
 
 - Built for optimization problems that are difficult to solve and benefit from modern many-core CPUs.
 - Supports parallel fitness evaluation and several parallel retry strategies.
@@ -41,10 +41,10 @@ Detailed benchmark results are available in the book's https://dietmarwo.github.
 - Offers a selection of efficient single-objective optimizers.
 - Provides an ask-tell interface for CMA-ES, CR-FM-NES, DE, MODE, and PGPE.
 
-=== Update: Native Rust implementation of fcmaes
+== Update: Native Rust implementation of fcmaes
 See https://github.com/dietmarwo/fcmaes-rust[fcmaes-rust]. This repo is an alternative both for Rust and Python users as it provides a PyO3 API. See https://github.com/dietmarwo/fcmaes-rust/blob/main/examples/python/test_cma.py[python example].
 
-=== Update (2.0.2): Ask Tell interface for BiteOpt
+== Update (2.0.2): Ask Tell interface for BiteOpt
 
 The native BiteOpt backend now also provides an ask/tell interface through `bitecpp.Bite_C`.
 This makes it possible to parallelize a single BiteOpt optimization run:
@@ -63,31 +63,31 @@ So the rule of thumb is:
 - For cheap objective functions, prefer the standard sequential BiteOpt run or parallel retry.
 - For expensive objective functions, BiteOpt ask/tell can be a very practical way to parallelize one optimization run across several cores or workers.
 
-=== Update: Split-Brain Automated Design of Stochastic Biochemical Circuits
+== Update: Split-Brain Automated Design of Stochastic Biochemical Circuits
 
 https://github.com/dietmarwo/autoresearch-circuit[autoresearch-circuit] applies the same split-brain pattern to biochemical circuit design, inspired by the https://www.biorxiv.org/content/10.1101/2025.01.27.635147v1[CircuiTree] paper. An LLM proposes circuit topology — which genes regulate which. fcmaes tunes the kinetic rates against a noisy stochastic simulator. A validation stage stress-tests the result with knockouts, knockdowns, and parameter jitter. Structure and numbers stay separated, each handled by the right tool.
 
-=== Update: The Split-Brain Pattern For Agentic Search
+== Update: The Split-Brain Pattern For Agentic Search
 https://github.com/dietmarwo/autoresearch-trading[autoresearch-trading] applies Karpathys https://github.com/karpathy/autoresearch[autoresearch]-idea to trading algorithm optimization.
 LLMs are good at structure. Classical optimizers are good at searching numbers.
 So I built a system that separates the two. I think this pattern goes beyond trading.
 Anywhere you have a simulator and a mix of logic + tunable numbers, this approach may be useful.
 
-=== Update: Open Source AI Optimization Assistant
+== Update: Open Source AI Optimization Assistant
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Assistant.adoc[Optimization Assistant] How to set up, configure and use an open source AI optimization assistant specialized for fcmaes.
 
-=== Update: A real case in aging research
+== Update: A real case in aging research
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Simulation.adoc[Moran Process] Optimize a Moran Process. Check out if you have to optimize parameters for an expensive simulation. Includes a detailed comparison with Optuna.
 
-=== Update: How to compute π-groups for dimensional analysis
+== Update: How to compute π-groups for dimensional analysis
 See https://github.com/dietmarwo/BuckinghamExamples[BuckinghamExamples] Reveal the underlying structure of physical models by using evolutionary algorithms to fit continuous powers that maximize data collapse R^2^
  under variance constraints.
 
-=== Update: How to compute weighted spherical t-designs
+== Update: How to compute weighted spherical t-designs
 
 See https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/SphericalTDesign.adoc[Spherical t-design] Shows how to compute weighted spherical t-designs to optimize laser fusion reactor designs.
 
-=== Update: Interaction between AI code generation and optimization
+== Update: Interaction between AI code generation and optimization
 
 LLMs can help to generate code implementing a trading strategy. It can even propose ways to optimize the final return. 
 https://github.com/dietmarwo/fast-cma-es/blob/master/examples/prophet_opt.py[prophet_opt.py] shows: 
@@ -96,7 +96,7 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/examples/prophet_opt.py[pro
 - How to identify the parameters to optimize using the AI.  
 - How the parameter optimization process can be automated efficiently utilizing trading simulations executed in parallel.
 
-=== Changes in version 2.1.0:
+== Changes in version 2.1.0:
 
 The full list, with earlier versions, is in https://github.com/dietmarwo/fast-cma-es/blob/master/CHANGELOG.md[CHANGELOG.md].
 
@@ -126,7 +126,7 @@ shared solver-selection guide of the five fcmaes and craft repositories.
 - Releases: a tag must match the version in `pyproject.toml`, and CI installs
 the source distribution and runs the tests on it.
 
-=== Changes from version 2.0.0:
+== Changes from version 2.0.0:
 
 - Switch from ctypes C++ binding to nanobind.
 - MacOS fully supported - including ARM.
@@ -134,7 +134,7 @@ the source distribution and runs the tests on it.
 - Improved type annotations
 - Improved test coverage
 
-=== Changes from version 1.6.3:
+== Changes from version 1.6.3:
 
 - Logging now based on loguru. All examples are adapted.
 - New dependency: loguru. `numba` is optional and mainly used as a speedup for MAP-Elites and some examples.
@@ -142,7 +142,7 @@ the source distribution and runs the tests on it.
 https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ESAChallenge.adoc[ESAChallenge].
 - You can define an initial population as guess for multi objective optimization.
 
-=== Changes from version 1.4.0:
+== Changes from version 1.4.0:
 
 - Pure Python versions of the algorithms are now usable also for parallel retry. Pure Python features: 
 Algorithms: CMA-ES, CR-FM-NES, DE, MODE (multiple objective), Map-Elites+Diversifier (quality diversity). All 
@@ -163,7 +163,7 @@ Since fcmaes has a different focus (parallel optimizations and parallel fitness 
 algorithms to https://github.com/google/evojax/tree/main/evojax/algo[EvoJax] which utilizes https://github.com/google/jax[JAX]
 for GPU/TPU execution. 
 
-=== Optimization algorithms
+== Optimization algorithms
 
 To utilize modern many-core processors all single-objective algorithms should be used with the parallel retry for cheap fitness functions, otherwise use parallel function evaluation.  
 
@@ -200,9 +200,9 @@ parallel function evaluation.
 - Expressions: There are two operators for constructing expressions over optimization algorithms: Sequence and random choice.
 Not only the single objective algorithms above, but also scipy and NLopt optimization methods and custom algorithms can be used for defining algorithm expressions.
  
-=== Installation
+== Installation
 
-==== Linux
+=== Linux
  
 * `pip install fcmaes`
 
@@ -211,7 +211,7 @@ Not only the single objective algorithms above, but also scipy and NLopt optimiz
 Wheels are built by the release CI. If no matching wheel is available for your
 platform or Python version, `pip` falls back to a source build.
 
-==== Windows
+=== Windows
 
 * `pip install fcmaes`
 
@@ -229,7 +229,7 @@ The Linux subsystem can read/write NTFS, so you can do your development on a NTF
 If performance of the fitness function is an issue and you don't want to use the Linux subsystem for Windows, 
 think about using the fcmaes java port: https://github.com/dietmarwo/fcmaes-java[fcmaes-java]. 
 
-==== MacOS
+=== MacOS
 
 * `pip install fcmaes`
 
@@ -237,7 +237,7 @@ The nanobind-based native backend now supports macOS as part of the wheel build 
 If no matching wheel is available for your Python version or architecture, `pip`
 falls back to a source build.
 
-==== From source
+=== From source
 
 Building from source needs:
 
@@ -265,7 +265,7 @@ cd .. && python -m pytest fast-cma-es/tests -q   # run the tests outside the che
 distribution the same way. https://github.com/dietmarwo/fast-cma-es/blob/master/RELEASING.md[RELEASING.md]
 describes how releases are built and published.
 
-=== Usage
+== Usage
 
 Usage is similar to https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html[scipy.optimize.minimize].
 
@@ -292,7 +292,7 @@ ret = retry.minimize(fun, bounds, optimizer=Sequence([De_cpp(50000), Cma_cpp(500
 Here https://github.com/dietmarwo/fast-cma-es/blob/master/examples you find more examples.
 Check the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/README.adoc[tutorials] for more details.
 
-=== Dependencies
+== Dependencies
 
 Runtime:
 
@@ -318,7 +318,7 @@ Example dependencies:
 
 - pykep: https://esa.github.io/pykep/[pykep]. Install with 'pip install pykep'. 
 
-=== Documentation
+== Documentation
 
 The GitHub Pages workflow builds this README, all AsciiDoc tutorials, and the
 three maintained HTML API references as one navigable site:
@@ -346,7 +346,7 @@ short entry point for coding agents. To choose between fcmaes and the sibling
 LP/MIP, NLP and job-API projects, start at the
 https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md[optimization-jobs entry point].
 
-=== Packaging and release
+== Packaging and release
 
 - Pull requests and branch pushes build wheels on Linux, Windows, and macOS.
 - A manual GitHub Actions run with `publish_target=testpypi` publishes to TestPyPI.
@@ -354,7 +354,7 @@ https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md[optimizat
 - CI also installs the source distribution and runs the tests on it.
 - CI releases use Trusted Publishing, so no long-lived PyPI API token is required in GitHub Actions.
 
-=== Citing
+== Citing
 
 [source]
 ----

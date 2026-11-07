@@ -32,7 +32,7 @@ Note that this tutorial was tested on Windows, but it runs much slower there, of
 than a factor of 3. The reason is Python multi-threading on Windows. Use Linux, or the Linux
 subsystem on Windows, whenever possible.
 
-==== Motivation
+=== Motivation
 
 Imagine you are one of the many crypto https://blog.feedspot.com/cryptocurrency_youtube_channels/[youtubers].
 You probably use https://www.tradingview.com/[Tradingview] and the
@@ -76,7 +76,7 @@ and it can also include constraints, such as a minimum holding time to avoid inc
 
 This tutorial provides a starting point and shows how such a workflow can be built with `fcmaes`.
 
-==== Key ideas
+=== Key ideas
 
 The main ideas behind an efficient simulation or replay are:
 
@@ -90,7 +90,7 @@ optimization itself, but later for plotting the buy and sell actions.
 
 Our example strategy is intentionally simple. Even so, it already improves noticeably over HODL.
 
-==== The HODL strategy used as reference point
+=== The HODL strategy used as reference point
 
 https://www.investopedia.com/terms/h/hodl.asp[HODL] stands for "hold on for dear life" and is a
 well-known strategy in the crypto scene. Over longer periods, larger cryptos such as Bitcoin,
@@ -101,7 +101,7 @@ We use a simple version of HODL as a reference: invest everything at the start o
 and sell everything at the end. Our objective is the return on investment (ROI) of a strategy,
 divided by the HODL ROI for the same coin.
 
-==== EMA / SMA exponential and simple moving average
+=== EMA / SMA exponential and simple moving average
 
 The example strategy used here is very simple. Its purpose is not to recommend a real trading
 system. It is only meant to show how to build a fast simulation and optimization loop around a
@@ -128,7 +128,7 @@ So the EMA/SMA strategy has four input parameters:
 - `min wait buy` (after the last sell).
 - `min wait sell` (after the last buy).
 
-==== Example Plot
+=== Example Plot
 
 This tutorial is based on https://github.com/dietmarwo/fast-cma-es/blob/master/examples/crypto.py[crypto.py].
 Adapt this code for your own experiments. The following diagram was produced with the code below:
@@ -191,7 +191,7 @@ and SMA depend on the parameters, so we defer their computation and keep the clo
 pandas series in `self.closes[ticker]`. Values shared across process boundaries, such as the best
 objective seen so far in all threads (`best_y`), are stored as `mp.RawValue`.
 
-==== Caching historical ticker data
+=== Caching historical ticker data
 
 `fitness` first checks a local cache and downloads historical data only when needed
 (`get_history(ticker, start=start, end=end)`). This cache is intentionally simple. If you change

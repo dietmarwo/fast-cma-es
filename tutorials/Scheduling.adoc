@@ -44,7 +44,7 @@ Whether that is enough to beat carefully tuned genetic algorithms coded
 in C/{cpp} is still open. This tutorial makes a narrower point: {cpp}
 does not win automatically.
 
-==== Important concepts used
+=== Important concepts used
 
 - Indirect encoding
 
@@ -62,7 +62,7 @@ sums for constraint handling. Using multi-objective optimization for a
 single-objective problem is less common. It does not work equally well
 for all problems, but this scheduling problem is a good fit.
 
-==== Update
+=== Update
 
 After applying a similar approach to the more general multi-objective
 flexible jobshop problem, see

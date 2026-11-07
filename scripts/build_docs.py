@@ -252,9 +252,8 @@ def run_asciidoctor(source: Path, output: Path) -> None:
     subprocess.run(
         [
             executable,
-            "--quiet",
             "--failure-level",
-            "ERROR",
+            "WARN",
             "--doctype",
             "book",
             "--attribute",

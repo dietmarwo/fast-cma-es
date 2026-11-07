@@ -62,7 +62,7 @@ https://www.researchgate.net/publication/333946807_Review_on_flexible_job_shop_s
 One reason is that the indirect encoding of real-valued parameters can resolve
 constraints in a flexible and efficient way.
 
-==== Indirect Encoding
+=== Indirect Encoding
 
 A decoder maps the encoded parameters to a solution expressed by a vector of
 continuous variables. The decoder handles the constraints of the optimization
@@ -114,7 +114,7 @@ def reorder(tasks, order_relation):
     return tasks
 ----
 
-==== Objective function
+=== Objective function
 
 We can now state the flexible job shop problem more precisely:
 
@@ -156,7 +156,7 @@ of processes created and destroyed and lowers overhead. We also use
 https://numba.pydata.org/[Numba], so the objective function is written in terms
 of vectors (numpy arrays) instead of classes or objects.
 
-==== Implementation
+=== Implementation
 
 We first convert the problem into a list of 4-tuples:
 (job-id, operation-id, machine-id, execution-time). The ids are integers and

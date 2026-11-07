@@ -23,6 +23,7 @@ publishes that version to PyPI.
 
 ### Fixed
 
+- Section levels in `README.adoc` and seven tutorials skipped levels. Asciidoctor reported 86 "section title out of sequence" warnings, and the HTML went from `h1` straight to `h3`/`h4`. The levels now close the gaps and keep the original nesting. `scripts/build_docs.py` prints Asciidoctor warnings and fails on them (`--failure-level WARN`), so new ones stop the documentation build.
 - Broken GitHub links in the tutorials and the examples API page:
   - Files that were removed from this repository (`ascent.cpp`, `gcldecpp.py`, the old `Results.adoc`) now link to their last version.
   - The missing `Filter.adoc` link points to the filtering exercise in `Hospital.adoc`.
