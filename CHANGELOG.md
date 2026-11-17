@@ -23,6 +23,7 @@ publishes that version to PyPI.
 
 ### Fixed
 
+- CMA-ES (`cmaescpp.ACMA_C`): the history of best values was shifted with a forward copy, which filled it with one value, so the TolFun and TolHistFun stops and the flat-fitness step-size increase saw only the last two generations instead of the last `historySize`. On functions with flat steps the optimizer stopped early on a plateau (e.g. 23 of 30 runs at f = 0.1 instead of reaching f = 0); on smooth functions it stopped a few generations early (f about 1e-12 instead of 1e-14). The history now behaves as in the Python `cmaes.Cmaes`.
 - Tutorial text and figures that disagreed:
   - Scheduling: the SBM BiteOpt section showed the single-thread `Bite1.png`; it now shows `sbmBite32.png`.
   - UAV: `uav_reward.png` was a screenshot of six image-viewer windows whose legends covered the leading bars. It is redrawn from the Multi-UAV benchmark CSVs with the same means.
