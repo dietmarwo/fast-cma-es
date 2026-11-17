@@ -417,7 +417,7 @@ public:
             sigma *= ::exp(0.2 + cs / damps);
         }
         // store best in history
-        for (int i = 1; i < fitnessHistory.size(); i++)
+        for (int i = fitnessHistory.size() - 1; i > 0; i--)
             fitnessHistory[i] = fitnessHistory[i - 1];
         fitnessHistory[0] = bestFitness;
     }
