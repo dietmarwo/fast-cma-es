@@ -496,6 +496,7 @@ class Cmaes(object):
         zmean = np.transpose(bestArz) @ self.weights
         hsig = self.updateEvolutionPaths(zmean, xold)            
         # Adapt step size sigma - Eq. (5)
+        self.sigma_old = self.sigma
         self.sigma *= math.exp(min(1.0, (self.normps / self.chiN - 1.) * self.cs / self.damps))            
         
         if self.iterations >= self.last_update + self.lazy_update_gap:
@@ -590,7 +591,7 @@ class Cmaes(object):
       
         negccov = 0.
         if self.ccov1 + self.ccovmu > 0:
-            arpos = (bestArx - xold) * (1. / self.sigma) # mu difference vectors
+            arpos = (bestArx - xold) * (1. / self.sigma_old) # mu difference vectors
             pc2d = self.pc[:, np.newaxis] 
             roneu = (pc2d @ np.transpose(pc2d)) * self.ccov1
             # minor correction if hsig==false
