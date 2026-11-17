@@ -7,6 +7,10 @@ publishes that version to PyPI.
 
 ## [Unreleased]
 
+### Fixed
+
+- CMA-ES (`cmaescpp.ACMA_C`): the history of best values was shifted with a forward copy, which filled it with one value, so the TolFun and TolHistFun stops and the flat-fitness step-size increase saw only the last two generations instead of the last `historySize`. On functions with flat steps the optimizer stopped early on a plateau (e.g. 23 of 30 runs at f = 0.1 instead of reaching f = 0); on smooth functions it stopped a few generations early (f about 1e-12 instead of 1e-14). The history now behaves as in the Python `cmaes.Cmaes`.
+
 ## [2.2.0] - 2026-11-20
 
 Behaviour changes: PGPE (`pgpecpp`, `PGPE_C`, `Pgpe_cpp` and the
