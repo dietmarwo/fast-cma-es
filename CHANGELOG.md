@@ -23,6 +23,7 @@ publishes that version to PyPI.
 
 ### Fixed
 
+- CMA-ES (`cmaescpp.ACMA_C` and the Python `cmaes.Cmaes`): the rank-mu covariance update divided the selected steps by the step size `sigma` after it had already been updated for the next generation, instead of the `sigma` that sampled them. The effect grows with the population size (as `ccovmu` approaches 1): on Schwefel with popsize 800-6400 the success rate dropped, e.g. from 46/50 to 4/50 at n = 10, popsize 1600. Results with the default popsize are practically unchanged.
 - Tutorial text and figures that disagreed:
   - Scheduling: the SBM BiteOpt section showed the single-thread `Bite1.png`; it now shows `sbmBite32.png`.
   - UAV: `uav_reward.png` was a screenshot of six image-viewer windows whose legends covered the leading bars. It is redrawn from the Multi-UAV benchmark CSVs with the same means.
