@@ -3,15 +3,16 @@
 Samples outside the box are evaluated at their repaired (clamped) point. The
 update must use the z of the repaired point; with the z of the unrepaired
 sample the step size grew until the run stopped (stop 3 or 5) after about
-1000 evaluations, far from the optimum.
+1000 evaluations, far from the optimum. ``repair_z=False`` restores that
+update for comparison.
 """
 
 import numpy as np
 import pytest
 from numpy.random import Generator, PCG64DXSM
-from scipy.optimize import Bounds
+from scipy.optimize import Bounds, OptimizeResult
 
-from fcmaes import cmaes, cmaescpp
+from fcmaes import cmaes, cmaescpp, optimizer
 
 DIM = 20
 BOUNDS = Bounds([-1.0] * DIM, [1.0] * DIM)
@@ -29,9 +30,9 @@ def shifted_sphere(x):
     return float(np.sum((np.asarray(x) - CENTER) ** 2))  # constrained optimum 10
 
 
-def run_minimize(backend, fun, seed):
+def run_minimize(backend, fun, seed, **options):
     kwargs = dict(input_sigma=0.3, popsize=16, max_evaluations=EVALS,
-                  rg=Generator(PCG64DXSM(seed)))
+                  rg=Generator(PCG64DXSM(seed)), **options)
     if backend == "cpp":
         r = cmaescpp.minimize(fun, BOUNDS, np.zeros(DIM), **kwargs)
         return r.fun, r.nfev
@@ -44,15 +45,32 @@ def run_minimize(backend, fun, seed):
     return r.fun, r.nfev
 
 
-def make_es(backend, seed, bounds=BOUNDS, x0=np.zeros(DIM), popsize=16):
+def make_es(backend, seed, bounds=BOUNDS, x0=np.zeros(DIM), popsize=16,
+            **options):
     rg = Generator(PCG64DXSM(seed))
     if backend == "cpp":
         return cmaescpp.ACMA_C(len(x0), bounds, x0, input_sigma=0.3,
-                               popsize=popsize, max_evaluations=EVALS, rg=rg)
+                               popsize=popsize, max_evaluations=EVALS, rg=rg,
+                               **options)
     sampler = Generator(PCG64DXSM(seed + 1000))
     return cmaes.Cmaes(bounds, x0, input_sigma=0.3, popsize=popsize,
                        max_evaluations=EVALS, rg=rg,
-                       randn=lambda *shape: sampler.standard_normal(shape))
+                       randn=lambda *shape: sampler.standard_normal(shape),
+                       **options)
+
+
+def run_ask_tell(backend, fun, seed, max_evals=EVALS, **options):
+    es = make_es(backend, seed, **options)
+    best, nfev, stop = np.inf, 0, 0
+    while nfev < max_evals:
+        xs = es.ask()
+        ys = np.array([fun(x) for x in xs])
+        nfev += len(ys)
+        best = min(best, ys.min())
+        stop = es.tell(ys)
+        if stop != 0:
+            break
+    return best, nfev, stop
 
 
 @pytest.mark.parametrize("backend", ["cpp", "py"])
@@ -115,3 +133,62 @@ def test_tell_with_points_after_ask_updates_from_the_points(backend):
             states.append([es.xmean.copy(), np.array(es.sigma), es.C.copy()])
     for a, b in zip(*states):
         np.testing.assert_allclose(a, b, rtol=0, atol=1e-9)
+
+
+# repair_z=False restores the update with the z of the unrepaired samples.
+# Those runs stopped after 800 to 1200 evaluations (repaired z: 2300 to 4300)
+# at -13 to -16.4 on linear and 12.3 to 16.9 on the sphere (repaired z: about
+# -19.9 and 10.2 to 11.1). The limits keep a wide margin to both; y is
+# checked as the mean over the seeds, single runs scatter more.
+@pytest.mark.parametrize("entry", ["cpp_minimize", "cpp_ask_tell",
+                                   "py_ask_tell"])
+@pytest.mark.parametrize("fun,limit", [(linear, -18.0), (shifted_sphere, 12.0)],
+                         ids=["linear", "shifted_sphere"])
+def test_without_repair_z_stops_early_far_from_the_optimum(entry, fun, limit):
+    ys = []
+    for seed in SEEDS:
+        if entry == "cpp_minimize":
+            y, nfev = run_minimize("cpp", fun, seed, repair_z=False)
+        else:
+            y, nfev, _ = run_ask_tell(entry[:entry.index("_")], fun, seed,
+                                      repair_z=False)
+        assert nfev < 1800, f"seed {seed}: y={y}, nfev={nfev}"
+        ys.append(y)
+    assert np.mean(ys) > limit, f"ys={ys}"
+
+
+@pytest.mark.parametrize("entry", ["cpp_minimize", "cpp_ask_tell",
+                                   "py_ask_tell"])
+def test_repair_z_defaults_to_true(entry):
+    # Same computation in the same order, so the results are identical.
+    results = []
+    for options in ({}, {"repair_z": True}):
+        if entry == "cpp_minimize":
+            results.append(run_minimize("cpp", shifted_sphere, 1, **options))
+        else:
+            results.append(run_ask_tell(entry[:entry.index("_")],
+                                        shifted_sphere, 1, max_evals=1600,
+                                        **options))
+    assert results[0] == results[1]
+
+
+def test_cma_wrappers_forward_repair_z(monkeypatch):
+    seen = []
+
+    def fake_minimize(*args, **kwargs):
+        seen.append(kwargs.get("repair_z", "missing"))
+        return OptimizeResult(x=np.zeros(2), fun=0.0, nfev=1)
+
+    monkeypatch.setattr(optimizer.cmaescpp, "minimize", fake_minimize)
+    monkeypatch.setattr(optimizer.cmaes, "minimize", fake_minimize)
+    bounds = Bounds([-1.0] * 2, [1.0] * 2)
+    opts = [optimizer.Cma_cpp(100), optimizer.Cma_cpp(100, repair_z=False),
+            optimizer.Cma_python(100), optimizer.Cma_python(100, repair_z=False),
+            optimizer.de_cma(1500).optimizers[1],
+            optimizer.de_cma(1500, repair_z=False).optimizers[1],
+            optimizer.da_cma(1500, repair_z=False).optimizers[1],
+            optimizer.bite_cma(1500, repair_z=False).optimizers[1],
+            optimizer.cma_bite(1500, repair_z=False).optimizers[0]]
+    for opt in opts:
+        opt.minimize(linear, bounds, np.zeros(2), 0.3)
+    assert seen == [True, False, True, False, True, False, False, False, False]
