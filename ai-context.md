@@ -256,6 +256,17 @@ uses a multiprocessing batch evaluator; with delayed update enabled, native
 parallel callback behavior applies. Do not combine a full process pool with a
 simulator or BLAS library already using all cores.
 
+`repair_z=True` (the default) lets a sample that the bound repair moved onto
+the bounds enter the update with the `z` of its evaluated point. On problems
+whose samples keep hitting the bounds this avoids an early stop far from the
+optimum, but it has cost results on others. `repair_z=False` restores the
+update of fcmaes 2.1.0 and earlier. It is available on `cmaescpp.minimize`,
+`cmaescpp.ACMA_C`, `cmaes.Cmaes` (ask/tell with `tell(ys)`), `Cma_cpp`,
+`Cma_python` and the sequences `de_cma`, `da_cma`, `bite_cma` and `cma_bite`.
+`cmaes.minimize` accepts it without effect: it always updates from the
+evaluated points. Compare both settings on bounded problems before
+committing to one.
+
 ### CR-FM-NES
 
 `crfmnescpp.minimize` defaults to an even population of 32, 100,000
