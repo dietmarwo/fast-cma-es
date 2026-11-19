@@ -56,7 +56,10 @@ def make_es(backend, seed, bounds=BOUNDS, x0=np.zeros(DIM), popsize=16):
 
 
 @pytest.mark.parametrize("backend", ["cpp", "py"])
-@pytest.mark.parametrize("fun,limit", [(linear, -19.0), (shifted_sphere, 11.0)],
+# Limits lie between the results with the repaired z (about -19.9 and 10.3 to
+# 11.1, depending on platform and numpy version) and those without it (-14 to
+# -16 and 13.6 to 16.9).
+@pytest.mark.parametrize("fun,limit", [(linear, -18.5), (shifted_sphere, 12.5)],
                          ids=["linear", "shifted_sphere"])
 def test_minimize_reaches_the_bounded_optimum(backend, fun, limit):
     for seed in SEEDS:
@@ -77,7 +80,7 @@ def test_ask_tell_reaches_the_bounded_optimum(backend):
             best = min(best, ys.min())
             if es.tell(ys) != 0:
                 break
-        assert best < 11.0, f"seed {seed}: y={best}, nfev={nfev}"
+        assert best < 12.5, f"seed {seed}: y={best}, nfev={nfev}"
         assert nfev > 2000, f"seed {seed}: stopped early after {nfev}"
 
 
@@ -93,7 +96,7 @@ def test_tell_with_points_after_ask_updates_from_the_points(backend):
     dim, popsize = 5, 10
     bounds = Bounds([-2.0] * dim, [2.0] * dim)
     perm = np.random.default_rng(0).permutation(popsize)
-    populations = []
+    states = []
     for order in (None, perm):
         es = make_es(backend, 5, bounds, np.full(dim, 0.5), popsize)
         for _ in range(3):
@@ -102,5 +105,13 @@ def test_tell_with_points_after_ask_updates_from_the_points(backend):
             if order is not None:
                 xs, ys = xs[order], ys[order]
             es.tell(ys, xs)
-        populations.append(es.ask())
-    np.testing.assert_allclose(populations[0], populations[1], rtol=0, atol=1e-9)
+        if backend == "cpp":
+            states.append([es.ask()])
+        else:
+            # Compare the distribution, not the next samples: the samples
+            # also depend on the eigenbasis of C, which is not stable under
+            # rounding while eigenvalues are nearly equal, and the rounding
+            # of the BLAS product depends on the column order.
+            states.append([es.xmean.copy(), np.array(es.sigma), es.C.copy()])
+    for a, b in zip(*states):
+        np.testing.assert_allclose(a, b, rtol=0, atol=1e-9)
