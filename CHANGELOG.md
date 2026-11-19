@@ -41,7 +41,16 @@ publishes that version to PyPI.
   `z` of the asked samples instead of the supplied points `xs`.
 - Behaviour change: CMA-ES results change on bounded problems whose samples
   reach the bounds. Problems whose samples stay inside the box, and unbounded
-  problems, give bit-identical results.
+  problems, give bit-identical results. Advanced retry narrows the
+  bounds around good solutions and is affected. In a preliminary check of
+  the same change in fcmaes-rust (coordinated DE→CMA retry on the eight GTOP
+  problems, 300 retries, 7 to 8 seeds) the changed version spent 8% to 32%
+  fewer evaluations for the same number of retries, was better more often
+  on Cassini1 and Cassini2, and worse more often on Messenger (6 of 8
+  seeds) and Messenger full (5 of 7). Wider tests at equal evaluations are
+  pending. The change is marked `REPAIR-Z` in
+  `_fcmaescpp/acmaesoptimizer.cpp` and `fcmaes/cmaes.py`, each with one
+  call site, so it can be made optional.
 - Tutorial text and figures that disagreed:
   - Scheduling: the SBM BiteOpt section showed the single-thread `Bite1.png`; it now shows `sbmBite32.png`.
   - UAV: `uav_reward.png` was a screenshot of six image-viewer windows whose legends covered the leading bars. It is redrawn from the Multi-UAV benchmark CSVs with the same means.

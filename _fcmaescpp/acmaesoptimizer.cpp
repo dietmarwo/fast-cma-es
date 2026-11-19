@@ -342,6 +342,10 @@ public:
                     arz = normal(dim, popsize, *rs);
                 }
             } else
+                // REPAIR-Z: the one call that enables the repaired-sample
+                // update. Removing it restores the update of 2.1.0 and
+                // earlier (z of the unrepaired samples). To make the change
+                // optional, guard this call with a parameter.
                 repairArz();
             updateCMA();
             told = 0;
@@ -356,6 +360,11 @@ public:
     // paths and the rank-mu / active update follow the unrepaired samples;
     // on problems whose samples keep hitting the bounds the step size then
     // grows until the run stops (stopTolUpX). Unrepaired samples keep their z.
+    //
+    // REPAIR-Z: this changes results on every problem whose samples reach
+    // the bounds, including advanced retry, which narrows the bounds around
+    // good solutions. It has one call site, in tell(), and may become an
+    // option after wider tests; see CHANGELOG.md.
     void repairArz() {
         for (int k = 0; k < popsize; k++) {
             if (!repaired[k])

@@ -290,6 +290,10 @@ class Cmaes(object):
         if xs is None:
             if self.arz is None:
                 raise ValueError('either call ask before or define xs')
+            # REPAIR-Z: the one call that enables the repaired-sample update.
+            # Removing it restores the update of 2.1.0 and earlier (z of the
+            # unrepaired samples). To make the change optional, guard this
+            # call with a parameter.
             self._repair_arz()
         else:
             self.arx = np.array([self.fitfun.encode(x) for x in xs])
@@ -379,6 +383,9 @@ class Cmaes(object):
         self.repaired = np.any(self.arx != x, axis=1)
 
     def _repair_arz(self) -> None:
+        # REPAIR-Z: changes results on every problem whose samples reach the
+        # bounds. One call site, in tell(); may become an option after wider
+        # tests, see CHANGELOG.md.
         # Samples moved into the bounds by newArgs are told at their repaired
         # point, so their z is recomputed as D^-1 B^T (x - xmean) / sigma.
         # Otherwise the mean follows the repaired points while the evolution
