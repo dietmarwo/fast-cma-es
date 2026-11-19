@@ -170,6 +170,7 @@ public:
         rs = new pcg64(seed);
 
         computeArz = true;
+        repaired = std::vector<bool>(popsize, false);
         fitness = vec(popsize);
         arx = mat(dim, popsize);
     }
@@ -284,7 +285,9 @@ public:
         mat xs(dim, popsize);
         for (int k = 0; k < popsize; k++) {
             vec delta = (BD * arz.col(k)) * sigma;
-            xs.col(k) = fitfun->getClosestFeasibleNormed(xmean + delta);
+            vec x = xmean + delta;
+            xs.col(k) = fitfun->getClosestFeasibleNormed(x);
+            repaired[k] = xs.col(k) != x;
         }
         computeArz = false;
         return xs;
@@ -292,9 +295,11 @@ public:
 
     int tell_all(const vec &ys, const mat &xs) {
        told = 0;
+       // The update takes the z of the supplied points. Set before the tells:
+       // ask_all() clears it, and the last tell performs the update.
+       computeArz = true;
        for (int p = 0; p < popsize; p++)
            tell(ys(p), xs.col(p));
-       computeArz = true;
        return stop;
     }
 
@@ -336,12 +341,38 @@ public:
                 } catch (std::exception &e) {
                     arz = normal(dim, popsize, *rs);
                 }
-            }
+            } else
+                // REPAIR-Z: the one call that enables the repaired-sample
+                // update. Removing it restores the update of 2.1.0 and
+                // earlier (z of the unrepaired samples). To make the change
+                // optional, guard this call with a parameter.
+                repairArz();
             updateCMA();
             told = 0;
             iterations += 1;
         }
         return stop;
+    }
+
+    // Samples moved into the bounds by ask_all() are told at their repaired
+    // point, so their z is recomputed as D^-1 B^T (x - xmean) / sigma.
+    // Otherwise the mean follows the repaired points while the evolution
+    // paths and the rank-mu / active update follow the unrepaired samples;
+    // on problems whose samples keep hitting the bounds the step size then
+    // grows until the run stops (stopTolUpX). Unrepaired samples keep their z.
+    //
+    // REPAIR-Z: this changes results on every problem whose samples reach
+    // the bounds, including advanced retry, which narrows the bounds around
+    // good solutions. It has one call site, in tell(), and may become an
+    // option after wider tests; see CHANGELOG.md.
+    void repairArz() {
+        for (int k = 0; k < popsize; k++) {
+            if (!repaired[k])
+                continue;
+            vec y = (arx.col(k) - xmean) / sigma;
+            arz.col(k) = (B.transpose() * y).cwiseQuotient(diagD);
+            repaired[k] = false;
+        }
     }
 
     void updateCMA() {
@@ -552,6 +583,8 @@ private:
     int told = 0;
     pcg64 *rs;
     bool computeArz;
+    // columns of the last ask_all() population moved into the bounds
+    std::vector<bool> repaired;
 };
 }
 

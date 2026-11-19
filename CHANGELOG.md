@@ -23,6 +23,34 @@ publishes that version to PyPI.
 
 ### Fixed
 
+- CMA-ES on bounded problems: a sample outside the box was evaluated at its
+  point moved onto the bounds, and the mean followed these repaired points,
+  but the evolution paths and the rank-mu / active covariance update used the
+  random vector `z` of the unrepaired sample. On problems whose samples keep
+  hitting the bounds the step size grew until the run stopped (stop 3 or 5)
+  after about 1000 evaluations, far from the optimum. The `z` of a repaired
+  sample is now recomputed from its repaired point. Affected: `cmaescpp.minimize`
+  (single-threaded and with `workers > 1, delayed_update=False`),
+  `cmaescpp.ACMA_C.ask`/`tell(ys)` and `cmaes.Cmaes.ask`/`tell(ys)`;
+  `cmaes.minimize`, `tell(ys, xs)` of `cmaes.Cmaes` and the delayed-update
+  paths already derived `z` from the evaluated points. On `sum(x)` and on a
+  sphere with half its optimum outside `[-1,1]^20` (popsize 16, 20,000
+  evaluations), `cmaescpp.minimize` now reaches -19.8..-20.0 (optimum -20)
+  instead of -14.2..-16.0 and 10.3..10.7 (optimum 10) instead of 14.5..16.9.
+- `cmaescpp.ACMA_C.tell(ys, xs)` right after an `ask()` updated from the
+  `z` of the asked samples instead of the supplied points `xs`.
+- Behaviour change: CMA-ES results change on bounded problems whose samples
+  reach the bounds. Problems whose samples stay inside the box, and unbounded
+  problems, give bit-identical results. Advanced retry narrows the
+  bounds around good solutions and is affected. In a preliminary check of
+  the same change in fcmaes-rust (coordinated DE→CMA retry on the eight GTOP
+  problems, 300 retries, 7 to 8 seeds) the changed version spent 8% to 32%
+  fewer evaluations for the same number of retries, was better more often
+  on Cassini1 and Cassini2, and worse more often on Messenger (6 of 8
+  seeds) and Messenger full (5 of 7). Wider tests at equal evaluations are
+  pending. The change is marked `REPAIR-Z` in
+  `_fcmaescpp/acmaesoptimizer.cpp` and `fcmaes/cmaes.py`, each with one
+  call site, so it can be made optional.
 - Tutorial text and figures that disagreed:
   - Scheduling: the SBM BiteOpt section showed the single-thread `Bite1.png`; it now shows `sbmBite32.png`.
   - UAV: `uav_reward.png` was a screenshot of six image-viewer windows whose legends covered the leading bars. It is redrawn from the Multi-UAV benchmark CSVs with the same means.

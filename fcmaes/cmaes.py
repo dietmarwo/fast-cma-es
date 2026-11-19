@@ -258,6 +258,7 @@ class Cmaes(object):
         self.fitness_history = np.full(self.historySize, sys.float_info.max)
         self.fitness_history[0] = self.best_value    
         self.arz = None
+        self.repaired = None
         self.fitness = None
 
     def ask(self) -> np.ndarray:
@@ -289,6 +290,11 @@ class Cmaes(object):
         if xs is None:
             if self.arz is None:
                 raise ValueError('either call ask before or define xs')
+            # REPAIR-Z: the one call that enables the repaired-sample update.
+            # Removing it restores the update of 2.1.0 and earlier (z of the
+            # unrepaired samples). To make the change optional, guard this
+            # call with a parameter.
+            self._repair_arz()
         else:
             self.arx = np.array([self.fitfun.encode(x) for x in xs])
             try:
@@ -371,7 +377,27 @@ class Cmaes(object):
         # generate random offspring
         self.arz = self.randn(self.popsize, self.dim)    
         delta = (self.BD @ self.arz.transpose()) * self.sigma
-        self.arx = self.fitfun.closestFeasible(self.xmean + delta.transpose())  
+        x = self.xmean + delta.transpose()
+        self.arx = self.fitfun.closestFeasible(x)
+        # rows moved into the bounds, see _repair_arz
+        self.repaired = np.any(self.arx != x, axis=1)
+
+    def _repair_arz(self) -> None:
+        # REPAIR-Z: changes results on every problem whose samples reach the
+        # bounds. One call site, in tell(); may become an option after wider
+        # tests, see CHANGELOG.md.
+        # Samples moved into the bounds by newArgs are told at their repaired
+        # point, so their z is recomputed as D^-1 B^T (x - xmean) / sigma.
+        # Otherwise the mean follows the repaired points while the evolution
+        # paths and the rank-mu / active update follow the unrepaired samples;
+        # on problems whose samples keep hitting the bounds the step size then
+        # grows until the run stops (stopTolUpX). Other rows keep their z.
+        if self.repaired is None or not self.repaired.any():
+            return
+        k = self.repaired
+        y = (self.arx[k] - self.xmean) / self.sigma
+        self.arz[k] = (y @ self.B) / self.diagD
+        self.repaired = None
     
     def do_optimize_delayed_update(self,
                                    fun: Objective,
