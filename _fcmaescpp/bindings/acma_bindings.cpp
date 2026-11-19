@@ -170,7 +170,8 @@ void bind_acma(nb::module_ &m) {
            F64Vector lower, F64Vector upper, F64Vector sigma, uint64_t seed,
            long runid, int max_evaluations, double stop_fitness,
            double stop_hist, int mu, int popsize, double accuracy,
-           bool normalize, bool delayed_update, int update_gap, int workers) {
+           bool normalize, bool delayed_update, int update_gap, int workers,
+           bool repair_z) {
             validate_bounds(guess, lower, upper, sigma);
 
             nb::callable objective_ref = fun;
@@ -196,7 +197,8 @@ void bind_acma(nb::module_ &m) {
                     normalize,
                     delayed_update,
                     update_gap,
-                    workers
+                    workers,
+                    repair_z
                 );
             });
             return to_python_result(std::move(result));
@@ -219,6 +221,7 @@ void bind_acma(nb::module_ &m) {
         "delayed_update"_a = true,
         "update_gap"_a = -1,
         "workers"_a = 1,
+        "repair_z"_a = true,
         "Execute the native ACMA solver through nanobind."
     );
 
@@ -229,7 +232,7 @@ void bind_acma(nb::module_ &m) {
                F64Vector upper, F64Vector sigma, int max_evaluations,
                double stop_fitness, double stop_hist, int mu, int popsize,
                double accuracy, uint64_t seed, long runid, bool normalize,
-               bool delayed_update, int update_gap) {
+               bool delayed_update, int update_gap, bool repair_z) {
                 validate_bounds(guess, lower, upper, sigma);
                 new (self) acmaes::AcmaState(
                     runid,
@@ -247,7 +250,8 @@ void bind_acma(nb::module_ &m) {
                     static_cast<long>(seed),
                     normalize,
                     delayed_update,
-                    update_gap
+                    update_gap,
+                    repair_z
                 );
             },
             "guess"_a.noconvert(),
@@ -264,7 +268,8 @@ void bind_acma(nb::module_ &m) {
             "runid"_a = 0L,
             "normalize"_a = true,
             "delayed_update"_a = true,
-            "update_gap"_a = -1
+            "update_gap"_a = -1,
+            "repair_z"_a = true
         )
         .def("ask", [](acmaes::AcmaState &state) {
             return to_python_matrix(without_gil([&]() {

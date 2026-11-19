@@ -25,7 +25,8 @@ AcmaResult optimize_acma(
     const double *init, const double *lower, const double *upper,
     const double *sigma, int max_evals, double stop_fitness,
     double stop_tol_hist_fun, int mu, int popsize, double accuracy, long seed,
-    bool normalize, bool use_delayed_update, int update_gap, int workers
+    bool normalize, bool use_delayed_update, int update_gap, int workers,
+    bool repair_z = true
 );
 
 class AcmaState {
@@ -35,7 +36,7 @@ public:
         const double *upper, const double *sigma, int max_evals,
         double stop_fitness, double stop_tol_hist_fun, int mu, int popsize,
         double accuracy, long seed, bool normalize, bool use_delayed_update,
-        int update_gap
+        int update_gap, bool repair_z = true
     );
     ~AcmaState();
 
