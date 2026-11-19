@@ -57,7 +57,7 @@ public:
     AcmaesOptimizer(long runid_, Fitness *fitfun_, int popsize_, int mu_,
             const vec &guess_, const vec &inputSigma_, int maxEvaluations_,
             double accuracy_, double stopfitness_, double stopTolHistFun_,
-            int update_gap_, long seed) {
+            int update_gap_, long seed, bool repair_z_ = true) {
         // runid used for debugging / logging
         runid = runid_;
         // fitness function to minimize
@@ -131,6 +131,9 @@ public:
         chiN = sqrt(dim) * (1. - 1. / (4. * dim) + 1 / (21. * dim * dim));
         ccov1Sep = min(1., ccov1 * (dim + 1.5) / 3.);
         ccovmuSep = min(1. - ccov1, ccovmu * (dim + 1.5) / 3.);
+        // REPAIR-Z: recompute the z of samples repaired onto the bounds,
+        // see repairArz(). false restores the update of 2.1.0 and earlier.
+        repair_z = repair_z_;
         // lazy covariance update gap
         lazy_update_gap =
                 update_gap_ >= 0 ?
@@ -341,11 +344,11 @@ public:
                 } catch (std::exception &e) {
                     arz = normal(dim, popsize, *rs);
                 }
-            } else
+            } else if (repair_z)
                 // REPAIR-Z: the one call that enables the repaired-sample
-                // update. Removing it restores the update of 2.1.0 and
-                // earlier (z of the unrepaired samples). To make the change
-                // optional, guard this call with a parameter.
+                // update, guarded by the option repair_z (default true).
+                // With repair_z == false the update is that of 2.1.0 and
+                // earlier (z of the unrepaired samples).
                 repairArz();
             updateCMA();
             told = 0;
@@ -363,8 +366,8 @@ public:
     //
     // REPAIR-Z: this changes results on every problem whose samples reach
     // the bounds, including advanced retry, which narrows the bounds around
-    // good solutions. It has one call site, in tell(), and may become an
-    // option after wider tests; see CHANGELOG.md.
+    // good solutions. It has one call site, in tell(), and is the option
+    // repair_z (default true; false skips it); see CHANGELOG.md.
     void repairArz() {
         for (int k = 0; k < popsize; k++) {
             if (!repaired[k])
@@ -583,6 +586,8 @@ private:
     int told = 0;
     pcg64 *rs;
     bool computeArz;
+    // REPAIR-Z option: call repairArz() in tell() after ask_all()
+    bool repair_z = true;
     // columns of the last ask_all() population moved into the bounds
     std::vector<bool> repaired;
 };
@@ -650,7 +655,7 @@ public:
             const double *upper, const double *sigma, int max_evals,
             double stop_fitness, double stop_tol_hist_fun, int mu, int popsize,
             double accuracy, long seed, bool normalize,
-            bool /*use_delayed_update*/, int update_gap) {
+            bool /*use_delayed_update*/, int update_gap, bool repair_z) {
         initialize_problem(dim, init, lower, upper, sigma, normalize, guess,
                            lower_limit, upper_limit, input_sigma);
         fitfun = std::make_unique<Fitness>(
@@ -659,7 +664,8 @@ public:
         fitfun->setNormalize(normalize);
         opt = std::make_unique<AcmaesOptimizer>(
             runid, fitfun.get(), popsize, mu, guess, input_sigma, max_evals,
-            accuracy, stop_fitness, stop_tol_hist_fun, update_gap, seed
+            accuracy, stop_fitness, stop_tol_hist_fun, update_gap, seed,
+            repair_z
         );
         population_decoded = guess.replicate(1, opt->getPopsize());
         asked_x = encode_population(*fitfun, population_decoded);
@@ -725,7 +731,7 @@ AcmaResult optimize_acma(
         const double *sigma, int max_evals, double stop_fitness,
         double stop_tol_hist_fun, int mu, int popsize, double accuracy,
         long seed, bool normalize, bool use_delayed_update, int update_gap,
-        int workers) {
+        int workers, bool repair_z) {
     vec guess, lower_limit, upper_limit, input_sigma;
     initialize_problem(dim, init, lower, upper, sigma, normalize, guess,
                        lower_limit, upper_limit, input_sigma);
@@ -735,7 +741,7 @@ AcmaResult optimize_acma(
 
     AcmaesOptimizer opt(runid, &fitfun, popsize, mu, guess, input_sigma,
             max_evals, accuracy, stop_fitness, stop_tol_hist_fun, update_gap,
-            seed);
+            seed, repair_z);
     int evaluations = 0;
     try {
         if (workers > 1 && use_delayed_update)
@@ -755,10 +761,11 @@ AcmaState::AcmaState(
         const double *upper, const double *sigma, int max_evals,
         double stop_fitness, double stop_tol_hist_fun, int mu, int popsize,
         double accuracy, long seed, bool normalize, bool use_delayed_update,
-        int update_gap)
+        int update_gap, bool repair_z)
         : impl_(std::make_unique<Impl>(runid, dim, init, lower, upper, sigma,
                   max_evals, stop_fitness, stop_tol_hist_fun, mu, popsize,
-                  accuracy, seed, normalize, use_delayed_update, update_gap)) {
+                  accuracy, seed, normalize, use_delayed_update, update_gap,
+                  repair_z)) {
 }
 
 AcmaState::~AcmaState() = default;

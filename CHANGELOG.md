@@ -11,6 +11,16 @@ publishes that version to PyPI.
 
 - Links to the eight CRN/CFD simulator optimization lessons, distinguishing their native Rust/command execution from this package's in-process Python API.
 - [Prompt-driven optimization tutorials](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic) demonstrate the shared agent workflow with native Rust application workers. Python objectives continue to use this package in process; these tutorials do not add a worker to fast-cma-es.
+- CMA-ES option `repair_z` (default `True`) for the repaired-sample update
+  described under Fixed. `repair_z=False` restores the update of 2.1.0 and
+  earlier exactly, so both can be compared. Available on
+  `cmaescpp.minimize`, `cmaescpp.ACMA_C`, `cmaes.Cmaes`, `cmaes.minimize`,
+  `optimizer.Cma_cpp`, `optimizer.Cma_python` and the sequences
+  `optimizer.de_cma`, `da_cma`, `bite_cma` and `cma_bite`, e.g.
+  `advretry.minimize(..., optimizer=de_cma(1500, repair_z=False))`. It has
+  no effect on `cmaes.minimize`, `Cma_python`, `tell(ys, xs)`, `tell_one`
+  and the delayed-update paths, which derive `z` from the evaluated points
+  either way. The `tell(ys, xs)` fix of `ACMA_C` below is not optional.
 
 ### Changed
 
@@ -48,9 +58,9 @@ publishes that version to PyPI.
   fewer evaluations for the same number of retries, was better more often
   on Cassini1 and Cassini2, and worse more often on Messenger (6 of 8
   seeds) and Messenger full (5 of 7). Wider tests at equal evaluations are
-  pending. The change is marked `REPAIR-Z` in
-  `_fcmaescpp/acmaesoptimizer.cpp` and `fcmaes/cmaes.py`, each with one
-  call site, so it can be made optional.
+  pending. The change is optional: `repair_z=False` (see Added) turns it
+  off. It is marked `REPAIR-Z` in `_fcmaescpp/acmaesoptimizer.cpp` and
+  `fcmaes/cmaes.py`, each with one call site, which the option guards.
 - Tutorial text and figures that disagreed:
   - Scheduling: the SBM BiteOpt section showed the single-thread `Bite1.png`; it now shows `sbmBite32.png`.
   - UAV: `uav_reward.png` was a screenshot of six image-viewer windows whose legends covered the leading bars. It is redrawn from the Multi-UAV benchmark CSVs with the same means.
