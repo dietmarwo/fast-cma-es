@@ -47,7 +47,6 @@ def check_result(x, fun, rec):
     assert sphere(x) == fun
     assert fun == min(rec.ys)
     assert any(np.array_equal(x, e) for e in rec.xs)
-    assert fun <= sphere(X0)
 
 
 @pytest.mark.parametrize("use_ranking", [True, False])

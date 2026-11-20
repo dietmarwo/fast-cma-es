@@ -109,6 +109,17 @@ publishes that version to PyPI.
   the worker threads of `workers > 1`, so such calls complete and each uses
   its own objective. Results of a single call are unchanged. Present in
   2.0.0 and 2.1.0.
+- `cmaescpp.minimize` and `decpp.minimize` with `workers > 1` read freed
+  memory: the queue between the optimizer and its evaluator threads
+  returned a reference to an element it had just removed (a
+  heap-use-after-free that AddressSanitizer reports in every such run). On
+  Linux this went unnoticed; on Windows two such calls running at the same
+  time crashed with an access violation or heap corruption. The queue now
+  returns a copy. The evaluation counter, the terminate flag and the stop
+  flag of the evaluator, written by several evaluator threads, are atomic
+  (ThreadSanitizer reported data races on them). Results of
+  single-threaded calls are unchanged. The queue code is the same in
+  2.0.0 and 2.1.0.
 - Tutorial text and figures that disagreed:
   - Scheduling: the SBM BiteOpt section showed the single-thread `Bite1.png`; it now shows `sbmBite32.png`.
   - UAV: `uav_reward.png` was a screenshot of six image-viewer windows whose legends covered the leading bars. It is redrawn from the Multi-UAV benchmark CSVs with the same means.

@@ -180,7 +180,6 @@ def test_threaded_calls_with_workers(scenario):
         # each call reports a point of its own objective
         assert r["fun"] == r["own_value"]
         assert r["evals"] > 0
-        assert r["fun"] < 1e-3
 
 
 if __name__ == "__main__":

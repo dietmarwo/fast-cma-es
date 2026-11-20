@@ -9,6 +9,7 @@
 #define EVALUATOR_HPP_
 
 #include <Eigen/Core>
+#include <atomic>
 #include <iostream>
 #include <algorithm>
 #include <queue>
@@ -64,11 +65,12 @@ public:
 
     // Retrieves and removes the head of this queue,
     // waiting if necessary until an element becomes available.
-    inline const T& take() {
+    // Returns a copy: pop() destroys the element and can free its storage.
+    inline T take() {
         std::unique_lock<std::mutex> lock(_mutex);
         while (_queue.size() == 0)
             _not_empty.wait(lock);
-        T &front = _queue.front();
+        T front = std::move(_queue.front());
         _queue.pop();
         _not_full.notify_one();
         return front;
@@ -224,7 +226,8 @@ public:
 
     vec eval(const vec &X) {
         std::vector<double> res(_nobj);
-        _terminate = _terminate || _func(_dim, X.data(), res.data());
+        if (!_terminate && _func(_dim, X.data(), res.data()))
+            _terminate = true;
         for (int i = 0; i < _nobj; i++) {
             if (std::isnan(res[i]) || !std::isfinite(res[i]))
                 res[i] = 1E99;
@@ -236,7 +239,8 @@ public:
 
     vec eval(const double *const p) {
         std::vector<double> res(_nobj);
-        _terminate = _terminate || _func(_dim, p, res.data());
+        if (!_terminate && _func(_dim, p, res.data()))
+            _terminate = true;
         for (int i = 0; i < _nobj; i++) {
             if (std::isnan(res[i]) || !std::isfinite(res[i]))
                 res[i] = 1E99;
@@ -416,8 +420,9 @@ private:
     vec _scale;
     vec _typx;
     bool _normalize;
-    bool _terminate;
-    long _evaluationCounter;
+    // written by the evaluator threads of a run with workers > 1
+    std::atomic<bool> _terminate;
+    std::atomic<long> _evaluationCounter;
 };
 
 struct vec_id {
@@ -513,7 +518,7 @@ private:
     Fitness *_fit;
     int _nobj;
     int _workers;
-    bool _stop;
+    std::atomic<bool> _stop;
     const void *_context;
     blocking_queue<vec_id*> *_requests;
     blocking_queue<vec_id*> *_evaled;
