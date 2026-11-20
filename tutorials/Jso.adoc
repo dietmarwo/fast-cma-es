@@ -57,8 +57,12 @@ all evaluations fail, `success` is false and `fun` is positive infinity.
 Serial minimization stops at the first target hit. With multiple workers,
 the batch in flight is completed within the hard budget.
 
-Use a fresh seeded `numpy.random.Generator` for repeatable runs within a
-backend. The two backends use different random streams.
+With a fresh `numpy.random.Generator` built from the same seed, a backend
+repeats a run on the same platform. The two backends use different random
+streams. `fcmaes.jsocpp` draws its random indices and normal values with
+the {cpp} standard library, whose distributions differ between
+implementations, so the same seed can give different runs on Linux, macOS
+and Windows builds.
 
 == Ask and tell
 
@@ -81,6 +85,15 @@ the best point evaluated to date. A second `ask()` while a batch is
 pending or a `tell()` with the wrong number of values raises an exception.
 
 == Use jSO as the first stage
+
+jSO is meant as the first stage of a sequence with CMA-ES. In the
+https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/algorithm-portfolio.md#why-jso-is-in[candidate-optimizer benchmark of fcmaes-rust]
+over ten problems, jSO→CMA-ES ranked about level with DE→CMA-ES (mean rank
+3.7 against 3.9 among twelve solvers), with a different profile: it was
+significantly better on GTOC1 and Tandem and worse on Cassini1, Sagas and
+Messenger full. jSO alone lost most comparisons. DE→CMA-ES stays the
+default sequence, and jSO→CMA-ES is a second candidate. How the two
+sequences compare in coordinated retry (`advretry`) is not known yet.
 
 `optimizer.Jso_cpp` and `optimizer.Jso_python` can be passed to scalar
 `retry.minimize`. `optimizer.jso_cma` composes native jSO with active
