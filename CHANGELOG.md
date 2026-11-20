@@ -49,6 +49,9 @@ publishes that version to PyPI.
 
 ### Changed
 
+- The READMEs and `ai-context.md` link the
+  [algorithm portfolio of fcmaes-rust](https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/algorithm-portfolio.md), which records how the scalar
+  algorithms were selected and the measurements behind each decision.
 - README: links the [overview of the 18 related repositories](https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/repositories.md).
 - The READMEs point to [experiment-craft](https://github.com/dietmarwo/experiment-craft),
   which runs reproducible campaigns of the Rust job workers.

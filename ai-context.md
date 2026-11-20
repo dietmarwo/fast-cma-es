@@ -115,6 +115,11 @@ or a domain-specific approximation exists, as in `tutorials/Surrogate.adoc`.
 
 ## Fast algorithm-selection decision tree
 
+The benchmark evidence behind the scalar algorithms (which were selected, which
+were tested and left out, on which problems each one wins) is in the
+[algorithm portfolio of fcmaes-rust](https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/algorithm-portfolio.md). It was measured with the Rust
+implementations; the algorithms are the same.
+
 1. If valid and economical gradients exist for the complete map from decisions
    to objectives, start with a gradient-based method.
 2. If the user wants the best solution in many behavior niches, use
