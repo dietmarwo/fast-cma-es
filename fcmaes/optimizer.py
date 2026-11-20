@@ -5,6 +5,7 @@
 
 import numpy as np
 np.set_printoptions(legacy='1.25')
+from operator import index
 import traceback
 from numpy.random import PCG64DXSM, Generator
 from scipy.optimize import Bounds, minimize, shgo, differential_evolution, dual_annealing, basinhopping
@@ -14,7 +15,7 @@ from loguru import logger
 import ctypes as ct
 import multiprocessing as mp
 from fcmaes.evaluator import serial, parallel
-from fcmaes import crfmnes, crfmnescpp, pgpecpp, cmaes, de, cmaescpp, decpp, dacpp, bitecpp
+from fcmaes import crfmnes, crfmnescpp, pgpecpp, cmaes, de, cmaescpp, decpp, dacpp, bitecpp, jso, jsocpp
 
 from typing import Any, Optional, Callable, Tuple, Union
 from numpy.typing import ArrayLike
@@ -121,12 +122,14 @@ class Sequence(Optimizer):
                  store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
         evals = 0
         y = np.inf
+        x = None
         for optimizer in self.optimizers:
             ret = optimizer.minimize(fun, bounds, guess, sdevs, rg, store)
-            if ret[1] < y:
+            if ret[0] is not None and not np.isnan(ret[1]) and (x is None or ret[1] < y):
                 y = ret[1]
                 x = ret[0]
-            guess = x
+            if x is not None:
+                guess = x
             evals += ret[2]
         return x, y, evals
 
@@ -177,6 +180,29 @@ def de_cma(max_evaluations: Optional[int] = 50000,
                    stop_fitness = stop_fitness, workers = workers,
                    repair_z = repair_z)
     return Sequence([opt1, opt2])
+
+def jso_cma(max_evaluations: int = 50000,
+            popsize: int = 31,
+            stop_fitness: float = -np.inf,
+            *, jso_popsize: int = 0,
+            workers: Optional[int] = None,
+            repair_z: bool = False) -> Sequence:
+    """Native jSO then CMA-ES, with nominal 40%/60% stage budgets.
+
+    ``jso_popsize`` controls the first stage and ``popsize`` the second.
+    CMA-ES evaluates whole generations and uses the best point found by jSO.
+    """
+    max_evaluations = index(max_evaluations)
+    if max_evaluations < 2:
+        raise ValueError("jSO -> CMA-ES needs positive budgets for both stages")
+    jso_evaluations = max(1, 2 * max_evaluations // 5)
+    return Sequence([
+        Jso_cpp(max_evaluations=jso_evaluations, popsize=jso_popsize,
+                stop_fitness=stop_fitness, workers=workers),
+        Cma_cpp(max_evaluations=max_evaluations - jso_evaluations, popsize=popsize,
+                stop_fitness=stop_fitness, workers=workers, delayed_update=False,
+                repair_z=repair_z),
+    ])
 
 def de_cma_py(max_evaluations: Optional[int] = 50000,
            popsize: Optional[int] = 31,
@@ -501,9 +527,10 @@ class Cma_cpp(Optimizer):
                  rg: Generator = Generator(PCG64DXSM()),
                  store: StoreLike = None) -> Tuple[np.ndarray, float, int]:
 
+        sigma = self.sdevs if self.sdevs is not None else sdevs
         ret = cmaescpp.minimize(fun, bounds,
                 self.guess if not self.guess is None else guess,
-                input_sigma = self.sdevs if not self.sdevs is None else sdevs,
+                input_sigma = 0.1 if sigma is None else sigma,
                 max_evaluations =self.max_eval_num(store),
                 popsize = self.popsize,
                 stop_fitness = self.stop_fitness,
@@ -830,6 +857,37 @@ class De_python(Optimizer):
                 keep = self.keep, f = self.f, cr = self.cr, ints=self.ints,
                 rg=rg, workers = self.workers)
         return ret.x, ret.fun, ret.nfev
+
+class Jso_python(Optimizer):
+    """Python jSO for scalar retry with a uniform start in the retry box."""
+
+    _solver = staticmethod(jso.minimize)
+    _label = 'jso py'
+
+    def __init__(self, max_evaluations: int = 50000, popsize: int = 0,
+                 stop_fitness: float = -np.inf, workers: Optional[int] = None) -> None:
+        super().__init__(max_evaluations, self._label)
+        self.popsize = popsize
+        self.stop_fitness = stop_fitness
+        self.workers = workers
+
+    def minimize(self, fun: Callable[[ArrayLike], float], bounds: Bounds,
+                 guess: Optional[ArrayLike] = None, sdevs: Optional[float] = None,
+                 rg: Optional[Generator] = None, store: StoreLike = None
+                 ) -> Tuple[np.ndarray, float, int]:
+        result = self._solver(fun, bounds, popsize=self.popsize,
+                              max_evaluations=self.max_eval_num(store),
+                              stop_fitness=self.stop_fitness, workers=self.workers,
+                              rg=rg, runid=self.get_count_runs(store))
+        return result.x, result.fun, result.nfev
+
+
+class Jso_cpp(Jso_python):
+    """Native C++ jSO for scalar retry with a uniform start in the retry box."""
+
+    _solver = staticmethod(jsocpp.minimize)
+    _label = 'jso cpp'
+
 
 class Cma_ask_tell(Optimizer):
     """CMA ask tell implementation."""

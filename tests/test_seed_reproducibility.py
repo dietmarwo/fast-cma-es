@@ -6,9 +6,14 @@ caches the second value of each generated pair. Each optimizer instance owns
 that cache, so a run with the same seed gives the same ``x`` and ``f`` whatever
 ran before it in the process. The run in between uses an odd number of normal
 draws, so a cache shared between instances would shift the sample stream.
-PGPE is checked through ``PGPE_C``.
+PGPE is checked through ``PGPE_C``. Both jSO backends (``jsocpp`` and the
+Python ``jso``) keep all random state in the optimizer object, and two
+``jsocpp.minimize`` calls in different Python threads complete.
 """
 
+import subprocess
+import sys
+import textwrap
 import threading
 
 import numpy as np
@@ -17,7 +22,7 @@ from numpy.random import Generator, PCG64DXSM
 from scipy.optimize import Bounds
 from scipy.optimize import rosen as scipy_rosen
 
-from fcmaes import cmaescpp, crfmnescpp, dacpp, decpp, pgpecpp
+from fcmaes import cmaescpp, crfmnescpp, dacpp, decpp, jso, jsocpp, pgpecpp
 
 GENERATIONS = 30
 
@@ -210,3 +215,100 @@ def test_cma_parallel_batch_same_seed_after_other_run():
     for dim in (7, 6):
         other_run("cma", dim)
         assert_same(first, run())
+
+
+JSO = {"jsocpp": jsocpp, "jso": jso}
+
+
+def jso_minimize(module, seed, dim=5):
+    r = module.minimize(rosen, bounds(dim), max_evaluations=600, rg=rg(seed))
+    return r.x, r.fun
+
+
+def jso_ask_tell(module, seed, dim=5, generations=GENERATIONS):
+    es = module.Jso(bounds(dim), max_evaluations=10**6, rg=rg(seed))
+    for _ in range(generations):
+        xs = es.ask()
+        es.tell(np.array([rosen(x) for x in xs]))
+    r = es.result()
+    return r.x, r.fun
+
+
+@pytest.mark.parametrize("name", sorted(JSO))
+def test_jso_same_seed_after_other_run(name):
+    module = JSO[name]
+    first, first_at = jso_minimize(module, 11), jso_ask_tell(module, 11)
+    for dim in (7, 6):
+        jso_minimize(module, 12, dim=dim)
+        assert_same(first, jso_minimize(module, 11))
+        assert_same(first_at, jso_ask_tell(module, 11))
+
+
+@pytest.mark.parametrize("name", sorted(JSO))
+def test_jso_interleaved_objects(name):
+    module = JSO[name]
+    objects = [module.Jso(bounds(5), max_evaluations=10**6, rg=rg(seed))
+               for seed in (11, 12)]
+    for _ in range(GENERATIONS):
+        for es in objects:
+            xs = es.ask()
+            es.tell(np.array([rosen(x) for x in xs]))
+    for es, seed in zip(objects, (11, 12)):
+        r = es.result()
+        assert_same((r.x, r.fun), jso_ask_tell(module, seed))
+
+
+@pytest.mark.parametrize("name", sorted(JSO))
+def test_jso_objects_in_threads(name):
+    module = JSO[name]
+    seeds = (11, 12, 13, 14)
+    expected = [jso_ask_tell(module, seed, generations=100) for seed in seeds]
+    results = [None] * len(seeds)
+
+    def work(i):
+        results[i] = jso_ask_tell(module, seeds[i], generations=100)
+
+    threads = [threading.Thread(target=work, args=(i,))
+               for i in range(len(seeds))]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    for got, want in zip(results, expected):
+        assert_same(got, want)
+
+
+def test_jsocpp_minimize_in_two_threads_completes():
+    """Two ``jsocpp.minimize`` calls in different Python threads finish and
+    give their serial results. Run in a subprocess so that a deadlock fails
+    the test instead of hanging the suite."""
+    code = textwrap.dedent("""
+        import threading
+        import numpy as np
+        from fcmaes import jsocpp
+
+        def f(x):
+            return float(np.sum((x - 0.3) ** 2))
+
+        def run(seed):
+            return jsocpp.minimize(f, [(-2.0, 2.0)] * 6, max_evaluations=20000,
+                                   rg=np.random.default_rng(seed))
+
+        serial = [run(1), run(2)]
+        out = [None, None]
+
+        def work(k):
+            out[k] = run(k + 1)
+
+        threads = [threading.Thread(target=work, args=(k,)) for k in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert all(np.array_equal(a.x, b.x) and a.fun == b.fun
+                   for a, b in zip(out, serial))
+        print("ok")
+    """)
+    done = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                          text=True, timeout=300)
+    assert done.returncode == 0 and done.stdout.strip() == "ok", done.stderr

@@ -1,0 +1,122 @@
+:encoding: utf-8
+:cpp: C++
+
+= jSO and CMA-ES
+
+Use jSO for bounded continuous scalar optimization. jSO adapts the
+differential evolution scaling factor and crossover rate using successful
+trials. It keeps an archive of replaced parents and decreases population
+size as the evaluation budget is spent. The implementation follows the
+stock https://github.com/dietmarwo/fcmaes-rust[fcmaes-rust] port and the
+https://doi.org/10.1109/CEC.2017.7969456[CEC 2017 paper by Brest, Maučec and Bošković].
+
+== Minimize
+
+`fcmaes.jso` implements the search in Python. `fcmaes.jsocpp` runs the same
+algorithm in a native {cpp} search state. Both call the user's Python
+objective and return a SciPy `OptimizeResult`.
+
+[source,python]
+----
+import numpy as np
+from scipy.optimize import Bounds
+from fcmaes import jsocpp
+
+def loss(x):
+    delta = x - 0.7
+    return float(delta @ delta)
+
+bounds = Bounds([-5.0] * 4, [5.0] * 4)
+result = jsocpp.minimize(loss, bounds, max_evaluations=4_000,
+                         rg=np.random.default_rng(42))
+print(result.x, result.fun, result.nfev)
+----
+
+Either wrapper accepts `Bounds` or a sequence of `(lower, upper)` pairs.
+Both endpoints must be finite and can coincide to fix a coordinate. The
+initial population is sampled uniformly inside the box. `max_evaluations`
+is a hard cap and includes the evaluations of the initial population.
+
+[cols="1,1,3",options="header"]
+|===
+| Parameter | Default | Meaning
+| `popsize` | `0` | Initial size. A nonpositive value selects `round(25 * ln(D) * sqrt(D))`, raised to the population floor when needed.
+| `min_popsize` | `4` | Population floor, at least four, reached after linear reduction.
+| `max_evaluations` | `100000` | Positive hard cap and the clock for adaptation and population reduction.
+| `memory_size` | `5` | Success-history cells, at least two, including the fixed final cell.
+| `p_max`, `p_min` | `0.25`, `0.125` | Initial and final p-best fractions.
+| `archive_rate` | `1.0` | Archive capacity relative to population size. Zero disables the archive.
+| `stop_fitness` | negative infinity | Stop when an evaluated objective is strictly below this value.
+| `workers` | serial | Values above one evaluate each proposed batch in Python processes.
+|===
+
+`nfev` counts actual objective calls. `nit` counts generations after the
+initial batch. `status` is `0` at the budget or `1` at the target. Non-finite
+objective values and objective exceptions count as failed evaluations. If
+all evaluations fail, `success` is false and `fun` is positive infinity.
+Serial minimization stops at the first target hit. With multiple workers,
+the batch in flight is completed within the hard budget.
+
+With a fresh `numpy.random.Generator` built from the same seed, a backend
+repeats a run on the same platform. The two backends use different random
+streams. `fcmaes.jsocpp` draws its random indices and normal values with
+the {cpp} standard library, whose distributions differ between
+implementations, so the same seed can give different runs on Linux, macOS
+and Windows builds.
+
+== Ask and tell
+
+`Jso` in either module exposes the same interface. An `ask()` returns a
+snapshot of the next batch. Pass one objective value per row to `tell()`
+in the same order. Batch length can change each generation. It may be
+smaller than `popsize` when the remaining budget is short. An empty batch
+signals completion.
+
+[source,python]
+----
+state = jsocpp.Jso(bounds, max_evaluations=4_000)
+while len(batch := state.ask()):
+    state.tell([loss(x) for x in batch])
+result = state.result()
+----
+
+`population()` returns the current parent population. `result()` returns
+the best point evaluated to date. A second `ask()` while a batch is
+pending or a `tell()` with the wrong number of values raises an exception.
+
+== Use jSO as the first stage
+
+jSO is meant as the first stage of a sequence with CMA-ES. In the
+https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/algorithm-portfolio.md#why-jso-is-in[candidate-optimizer benchmark of fcmaes-rust]
+over ten problems, jSO→CMA-ES ranked about level with DE→CMA-ES (mean rank
+3.7 against 3.9 among twelve solvers), with a different profile: it was
+significantly better on GTOC1 and Tandem and worse on Cassini1, Sagas and
+Messenger full. jSO alone lost most comparisons. DE→CMA-ES stays the
+default sequence, and jSO→CMA-ES is a second candidate. How the two
+sequences compare in coordinated retry (`advretry`) is not known yet.
+
+`optimizer.Jso_cpp` and `optimizer.Jso_python` can be passed to scalar
+`retry.minimize`. `optimizer.jso_cma` composes native jSO with active
+CMA-ES. It assigns about 40% of the nominal per-retry budget to jSO and
+passes the best evaluated point to normalized CMA-ES for the remaining
+60%. `jso_popsize` controls the jSO population. `popsize` controls the
+CMA-ES population. CMA-ES evaluates whole generations and can exceed the
+nominal sequence allocation by up to `popsize - 1` calls. Use defaults for
+the inner worker count when parallelizing independent retries.
+
+[source,python]
+----
+from fcmaes import retry
+from fcmaes.optimizer import jso_cma
+
+if __name__ == '__main__':
+    result = retry.minimize(loss, bounds, optimizer=jso_cma(20_000),
+                            num_retries=16, workers=4)
+    print(result.fun, result.nfev)
+----
+
+The first stage needs a finite box and draws a uniform population within
+the bounds that the retry supplies. CMA-ES starts at the jSO incumbent
+with the requested deviations. Direct sequence calls default to a
+normalized deviation of 0.1. Use `repair_z=True` on the sequence to select
+the repaired-sample update in CMA-ES.

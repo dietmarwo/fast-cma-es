@@ -39,7 +39,7 @@ Detailed benchmark results are available in the book's https://dietmarwo.github.
 - Includes the multi-objective and constrained optimizer MODE. It combines ideas from Differential Evolution and NSGA-II and supports parallel function evaluation. It also uses https://www.jstage.jst.go.jp/article/tjpnsec/11/2/11_18/_article/-char/en/[enhanced multiple constraint ranking], which improves constraint handling in engineering design problems.
 - Supports quality-diversity methods, including CVT-map-elites, a CMA-ES emitter, and the new "diversifier" meta-algorithm based on CVT-map-elites archives.
 - Offers a selection of efficient single-objective optimizers.
-- Provides an ask-tell interface for CMA-ES, CR-FM-NES, DE, MODE, and PGPE.
+- Provides an ask-tell interface for CMA-ES, CR-FM-NES, DE, jSO, MODE, and PGPE.
 
 == Update: Native Rust implementation of fcmaes
 See https://github.com/dietmarwo/fcmaes-rust[fcmaes-rust]. This repo is an alternative both for Rust and Python users as it provides a PyO3 API. See https://github.com/dietmarwo/fcmaes-rust/blob/main/examples/python/test_cma.py[python example].
@@ -179,6 +179,8 @@ Can also be applied to single-objective problems with constraints. Supports mixe
 
 - Differential Evolution: Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/de.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/deoptimizer.cpp[{cpp}]. Additional concepts implemented are
 https://www.researchgate.net/publication/309179699_Differential_evolution_for_protein_folding_optimization_based_on_a_three-dimensional_AB_off-lattice_model[temporal locality], stochastic reinitialization of individuals based on their age and oscillating CR/F parameters. Provides an ask/tell interface and supports parallel function evaluation. Supports mixed integer problems (see https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/FluidDynamics.adoc[CFD] for details)
+
+- jSO: Adaptive differential evolution with success-history memory and a shrinking population. `fcmaes.jso` is the Python implementation and `fcmaes.jsocpp` uses the {cpp} backend. Both honor a hard jSO evaluation budget. Use `optimizer.jso_cma` to refine the jSO incumbent with CMA-ES. See the https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Jso.adoc[jSO tutorial].
 
 - CMA-ES: Implemented both in https://github.com/dietmarwo/fast-cma-es/blob/master/fcmaes/cmaes.py[Python] and in https://github.com/dietmarwo/fast-cma-es/blob/master/_fcmaescpp/acmaesoptimizer.cpp[{cpp}]. Provides an ask/tell interface and supports parallel function evaluation. Good option for low number of decision variables (< 500).
 

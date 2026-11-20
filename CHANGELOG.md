@@ -9,6 +9,11 @@ publishes that version to PyPI.
 
 ### Added
 
+- Stock jSO for bounded continuous scalar optimization. `fcmaes.jso` and
+  `fcmaes.jsocpp` expose `minimize` and synchronous `Jso` ask/tell with a
+  hard evaluation cap and optional process-parallel objective evaluation.
+  `Jso_python` and `Jso_cpp` support retry, and `optimizer.jso_cma` starts
+  CMA-ES from the native jSO incumbent with a nominal 40/60 budget split.
 - Links to the eight CRN/CFD simulator optimization lessons, distinguishing their native Rust/command execution from this package's in-process Python API.
 - [Prompt-driven optimization tutorials](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic) demonstrate the shared agent workflow with native Rust application workers. Python objectives continue to use this package in process; these tutorials do not add a worker to fast-cma-es.
 - CMA-ES option `repair_z` (default `False`) for samples that the bound
@@ -19,7 +24,7 @@ publishes that version to PyPI.
   Available on `cmaescpp.minimize` (single-threaded and with `workers > 1,
   delayed_update=False`), `cmaescpp.ACMA_C` and `cmaes.Cmaes` (ask and
   `tell(ys)`), `optimizer.Cma_cpp`, `optimizer.Cma_python` and the sequences
-  `optimizer.de_cma`, `da_cma`, `bite_cma` and `cma_bite`, e.g.
+  `optimizer.de_cma`, `jso_cma`, `da_cma`, `bite_cma` and `cma_bite`, e.g.
   `advretry.minimize(..., optimizer=de_cma(1500, repair_z=True))`.
   `cmaes.minimize` (used by `Cma_python`), `tell(ys, xs)`, `tell_one` and the
   delayed-update paths have always derived `z` from the evaluated points and
@@ -69,6 +74,17 @@ publishes that version to PyPI.
   skips the same way, which changes results only in that case.
 - `cmaescpp.ACMA_C.tell(ys, xs)` right after an `ask()` updated from the
   `z` of the asked samples instead of the supplied points `xs`.
+- `optimizer.Cma_cpp` with `sdevs=None` passed NaN step sizes to CMA-ES,
+  which stopped after two generations (62 evaluations at popsize 31) with
+  the value of a failed evaluation (1.8e308). `Sequence.minimize` passes
+  `sdevs=None` unless the caller supplies step sizes, so a direct call such
+  as `de_cma(...).minimize(fun, bounds)` skipped the CMA-ES stage of
+  `de_cma`, `da_cma`, `bite_cma` and `cma_bite`. `Cma_cpp` uses 0.1, its
+  default for `sdevs`, in that case. `retry.minimize` and
+  `advretry.minimize` always pass step sizes; their results are unchanged.
+  `Sequence.minimize` raised `UnboundLocalError` when its first stage
+  returned an infinite or NaN value; it keeps the first stage's point and
+  does not let a NaN value replace a result.
 - C++ optimizers: a run with a fixed seed could give a different result
   depending on what ran before it in the same process. The normal samplers
   shared one `std::normal_distribution` object per source file (a

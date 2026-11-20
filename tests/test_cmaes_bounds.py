@@ -199,6 +199,34 @@ def test_cma_wrappers_forward_repair_z(monkeypatch):
     assert seen == [False, True] * 6
 
 
+def test_cma_cpp_without_step_sizes_uses_its_default(monkeypatch):
+    """``Sequence.minimize`` passes ``sdevs=None`` to its stages unless the
+    caller supplies step sizes; ``Cma_cpp`` then uses 0.1, not NaN."""
+    bounds = Bounds([-1.0] * 2, [1.0] * 2)
+
+    def sphere2(x):
+        return float(np.sum((np.asarray(x) - 0.3) ** 2))
+
+    x, y, nfev = optimizer.Sequence([optimizer.Cma_cpp(1000)]).minimize(
+        sphere2, bounds, rg=Generator(PCG64DXSM(5)))
+    assert nfev > 900 and y < 1e-6
+
+    seen = []
+
+    def fake_minimize(fun, bounds, x0, input_sigma, **kwargs):
+        seen.append(input_sigma)
+        return OptimizeResult(x=np.zeros(2), fun=0.0, nfev=1)
+
+    monkeypatch.setattr(optimizer.cmaescpp, "minimize", fake_minimize)
+    optimizer.Cma_cpp(100).minimize(linear, bounds)
+    optimizer.Cma_cpp(100).minimize(linear, bounds, None, None)
+    optimizer.Cma_cpp(100, sdevs=0.2).minimize(linear, bounds, None, None)
+    optimizer.de_cma(1500).minimize(linear, bounds, rg=Generator(PCG64DXSM(5)))
+    optimizer.de_cma(1500).minimize(linear, bounds, None, 0.3,
+                                    rg=Generator(PCG64DXSM(5)))
+    assert seen == [0.1, 0.1, 0.2, 0.1, 0.3]
+
+
 # A sample told at exactly the mean has z = 0. One variable on [0, 1] started
 # on the bound: samples below 0 are clipped onto the mean, and with
 # repair_z=True (ask/tell(ys)), with tell(ys, xs) and, once the mean lies on
