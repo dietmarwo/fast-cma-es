@@ -7,6 +7,19 @@ publishes that version to PyPI.
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-11-20
+
+Behaviour changes: PGPE (`pgpecpp`, `PGPE_C`, `Pgpe_cpp` and the
+Diversifier's `'PGPE'` solver) gives different results than 2.1.0 with
+`normalize=True` and bounds other than `[-1, 1]`, and returns the best
+evaluated point and its objective value instead of an unevaluated point and
+a rank value. Seeded C++ runs after other runs in the same process now
+reproduce the first run in a fresh process. `de_cma`, `da_cma`, `bite_cma`
+and `cma_bite` called directly through `Sequence.minimize` run their CMA-ES
+stage again. The default `repair_z=False` keeps the CMA-ES update of 2.1.0;
+`retry.minimize` and `advretry.minimize` results are unchanged except
+through these fixes. See Fixed for the details.
+
 ### Added
 
 - Stock jSO for bounded continuous scalar optimization. `fcmaes.jso` and

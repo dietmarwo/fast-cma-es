@@ -2,7 +2,9 @@
 
 Last reviewed 2026-10-20 against `master` at `a028f25`. Release 2.1.0
 contains the MODE fixes of #31 and the exact 2-D Pareto archive of #32;
-2.0.3 and earlier predate both. In another checkout, check `pyproject.toml`, the module
+2.0.3 and earlier predate both. Release 2.2.0 adds jSO (`fcmaes.jso`,
+`fcmaes.jsocpp`, `optimizer.jso_cma`) and the CMA-ES option `repair_z`, and
+fixes PGPE results and seeded reproducibility of the C++ optimizers. In another checkout, check `pyproject.toml`, the module
 signatures, and `tests` before relying on a claim.
 
 This file is operational context for an AI that must design and implement an
@@ -37,7 +39,9 @@ A source build needs a C++17 compiler, CMake, nanobind, and Eigen 3.4; the
 CMake option `FCMAES_FETCH_EIGEN=ON` downloads Eigen instead. Repository
 `examples`, `tutorials`, documentation sources, scripts, and tests are
 intentionally excluded from the source distribution. `fcmaes.pareto` and the
-corrected MODE need fcmaes 2.1.0 or later (`pip install "fcmaes>=2.1"`).
+corrected MODE need fcmaes 2.1.0 or later (`pip install "fcmaes>=2.1"`);
+jSO, `repair_z` and the PGPE fixes need 2.2.0 or later
+(`pip install "fcmaes>=2.2"`).
 Changes after the latest release need a source build of `master`:
 `python -m pip install git+https://github.com/dietmarwo/fast-cma-es`, adding
 `--config-settings=cmake.define.FCMAES_FETCH_EIGEN=ON` without a local Eigen.
