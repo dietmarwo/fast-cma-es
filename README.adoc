@@ -165,6 +165,11 @@ for GPU/TPU execution.
 
 == Optimization algorithms
 
+The https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/algorithm-portfolio.md[algorithm portfolio] of fcmaes-rust records how the
+scalar algorithms were selected: which are in, which were benchmarked and left out,
+and the measurements behind each decision. The algorithms it shares with this package
+are BiteOpt, DE, jSO, CMA-ES, CR-FM-NES, PGPE and Dual Annealing.
+
 To utilize modern many-core processors all single-objective algorithms should be used with the parallel retry for cheap fitness functions, otherwise use parallel function evaluation.  
 
 - MO-DE: A new multi-objective optimization algorithm merging concepts from differential evolution and NSGA. 
