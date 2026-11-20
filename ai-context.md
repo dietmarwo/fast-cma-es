@@ -260,8 +260,9 @@ simulator or BLAS library already using all cores.
 sample that the bound repair moved onto the bounds enters the update: with
 `False` with the `z` of the unrepaired sample, with `True` with the `z` of
 its evaluated point. `False` won more often in a study of 2,400 matched
-pairs on 12 application objectives (standalone bounded CMA-ES and as the
-second stage of DE or jSO, also at equal evaluations). Try `repair_z=True`
+pairs on 12 application objectives (standalone bounded CMA-ES, as the
+second stage of DE or jSO, also at equal evaluations, and in coordinated
+retry at about 63,000 evaluations per run). Try `repair_z=True`
 when runs stop early far from the optimum with the step-size stop (status 3
 or 5), when the optimum lies on or outside the bounds, or when samples keep
 being clipped; there it avoids a step size that inflates until the run
