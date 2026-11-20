@@ -360,15 +360,21 @@ public:
             return X;
     }
 
-    void values(const mat &popX, vec &ys) {
+    // evaluatedX, if given, receives the points passed to the objective
+    // (decoded and clipped to the bounds), one per column.
+    void values(const mat &popX, vec &ys, mat *evaluatedX = nullptr) {
         int popsize = popX.cols();
         int n = popX.rows();
         std::vector<double> pargs(popsize * n);
         std::vector<double> res(popsize);
+        if (evaluatedX != nullptr)
+            evaluatedX->resize(n, popsize);
         for (int p = 0; p < popsize; p++) {
             vec x = getClosestFeasible(decode(popX.col(p)));
             for (int i = 0; i < n; i++)
                 pargs[p * n + i] = x(i);
+            if (evaluatedX != nullptr)
+                evaluatedX->col(p) = x;
         }
         _func_par(popsize, n, pargs.data(), res.data());
         for (int p = 0; p < popX.cols(); p++)

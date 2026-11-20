@@ -88,6 +88,17 @@ publishes that version to PyPI.
   first run in a fresh process gives the same results as before; a later
   run with the same seed reproduces the first instead of depending on the
   runs before it.
+- PGPE result: `pgpecpp.minimize` (and `optimizer.Pgpe_cpp`) returned an `x`
+  that was never evaluated, usually uninitialized memory (e.g. values like
+  `4.7e-315` or `6.9e-310`), and with the default `use_ranking=True` a `fun`
+  that was a rank value (e.g. `-0.4375` for popsize 16), not an objective
+  value. `PGPE_C.result()` with `use_ranking=True` returned the same rank
+  value as `fun` and the best point of the first generation as `x`. Both now
+  return the best evaluated point (decoded, inside the bounds) and its
+  objective value, with and without ranking. The evaluated points, the
+  number of evaluations and the stop criterion are unchanged; with
+  `use_ranking=True`, `stop_fitness` is still compared with the rank value.
+  Present in 2.0.0 and 2.1.0.
 - Tutorial text and figures that disagreed:
   - Scheduling: the SBM BiteOpt section showed the single-thread `Bite1.png`; it now shows `sbmBite32.png`.
   - UAV: `uav_reward.png` was a screenshot of six image-viewer windows whose legends covered the leading bars. It is redrawn from the Multi-UAV benchmark CSVs with the same means.

@@ -101,6 +101,7 @@ public:
         stopfitness = stopfitness_;
         iterations = 0;
         bestY = DBL_MAX;
+        bestScore = DBL_MAX;
         stop = 0;
         rs = new pcg64(seed_);
         optimizer = new ADAM(guess_, b1_, b2_, eps_, center_learning_rate_,
@@ -198,19 +199,22 @@ public:
         return popX;
     }
 
+    // ys are the objective values of the points in popX.
     int tell(vec ys) {
         popY = process_scores(-ys);
+        // The stop test uses the processed score, which is the rank value
+        // if use_ranking is set.
         double bY = -popY.maxCoeff();
-        if (bestY > bY) {
-            bestY = bY;
-            for (int p = 0; p < popsize; p++) {
-                if (popY[p] == -bestY) {
-                    bestX = popX.col(p);
-                    break;
-                }
-            }
-            if (bestY < stopfitness)
+        if (bestScore > bY) {
+            bestScore = bY;
+            if (bestScore < stopfitness)
                 stop = 1;
+        }
+        for (int p = 0; p < popsize; p++) {
+            if (ys[p] < bestY) {
+                bestY = ys[p];
+                bestX = popX.col(p);
+            }
         }
         compute_reinforce_update(popY, scaled_noises, stdev);
         optimizer->update(((int) iterations) / lr_decay_steps, -grad_center);
@@ -219,6 +223,12 @@ public:
         stdev = update_stdev(stdev, stdev_learning_rate, grad_stdev,
                 stdev_max_change);
         return stop;
+    }
+
+    // xs are the evaluated points, in the order of ys.
+    int tell(const vec &ys, const mat &xs) {
+        popX = xs;
+        return tell(ys);
     }
 
     mat getPopulation() const {
@@ -264,6 +274,7 @@ private:
     double stopfitness;
     int iterations;
     double bestY;
+    double bestScore;
     vec bestX;
     int stop;
     pcg64 *rs;
@@ -408,8 +419,9 @@ PgpeResult optimize_pgpe(
                 && opt.getStop() == 0) {
             mat xs = opt.ask();
             vec ys(popsize);
-            fitfun.values(xs, ys);
-            opt.tell(ys);
+            mat evaluated;
+            fitfun.values(xs, ys, &evaluated);
+            opt.tell(ys, evaluated);
         }
     } catch (std::exception &e) {
         cout << e.what() << endl;
