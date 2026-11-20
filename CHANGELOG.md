@@ -74,6 +74,17 @@ publishes that version to PyPI.
   skips the same way, which changes results only in that case.
 - `cmaescpp.ACMA_C.tell(ys, xs)` right after an `ask()` updated from the
   `z` of the asked samples instead of the supplied points `xs`.
+- `optimizer.Cma_cpp` with `sdevs=None` passed NaN step sizes to CMA-ES,
+  which stopped after two generations (62 evaluations at popsize 31) with
+  the value of a failed evaluation (1.8e308). `Sequence.minimize` passes
+  `sdevs=None` unless the caller supplies step sizes, so a direct call such
+  as `de_cma(...).minimize(fun, bounds)` skipped the CMA-ES stage of
+  `de_cma`, `da_cma`, `bite_cma` and `cma_bite`. `Cma_cpp` uses 0.1, its
+  default for `sdevs`, in that case. `retry.minimize` and
+  `advretry.minimize` always pass step sizes; their results are unchanged.
+  `Sequence.minimize` raised `UnboundLocalError` when its first stage
+  returned an infinite or NaN value; it keeps the first stage's point and
+  does not let a NaN value replace a result.
 - C++ optimizers: a run with a fixed seed could give a different result
   depending on what ran before it in the same process. The normal samplers
   shared one `std::normal_distribution` object per source file (a
