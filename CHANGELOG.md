@@ -114,10 +114,9 @@ publishes that version to PyPI.
   value. `PGPE_C.result()` with `use_ranking=True` returned the same rank
   value as `fun` and the best point of the first generation as `x`. Both now
   return the best evaluated point (decoded, inside the bounds) and its
-  objective value, with and without ranking. The evaluated points, the
-  number of evaluations and the stop criterion are unchanged; with
-  `use_ranking=True`, `stop_fitness` is still compared with the rank value.
-  Present in 2.0.0 and 2.1.0.
+  objective value, with and without ranking. The evaluated points and the
+  number of evaluations are unchanged; for the stop criterion see the
+  `stop_fitness` entry below. Present in 2.0.0 and 2.1.0.
 - PGPE start point: ADAM, which updates the center of the search
   distribution, started from the raw `x0` while the center is kept in
   normalized coordinates (the bounds mapped to `[-1, 1]`). After the first
@@ -132,6 +131,16 @@ publishes that version to PyPI.
   starts from the normalized `x0`; results of such runs differ from 2.1.0.
   Runs with `normalize=False`, without bounds or with bounds `[-1, 1]`
   evaluate the same points as before. Present in 2.0.0 and 2.1.0.
+- PGPE `stop_fitness`: with `use_ranking=True` (the default of
+  `pgpecpp.minimize` and `optimizer.Pgpe_cpp`) it was compared with the best
+  rank value instead of the best objective value. The best rank value is
+  `-(0.5 - 1/popsize)` in every generation (`-0.4375` for popsize 16,
+  `-0.46875` for 32), so a `stop_fitness` above it stopped the run after
+  the first generation and a lower one never stopped it. It is compared with
+  the best objective value found, as with `use_ranking=False`. This fix
+  does not change runs with the default `stop_fitness=-inf` or with
+  `use_ranking=False`.
+  `PGPE_C` has no stop test. Present in 2.0.0 and 2.1.0.
 - `cmaescpp.minimize` or `decpp.minimize` called from two Python threads at
   the same time hung forever, and so did a CMA-ES objective that itself
   calls `cmaescpp.minimize` (and a DE objective calling `decpp.minimize`).

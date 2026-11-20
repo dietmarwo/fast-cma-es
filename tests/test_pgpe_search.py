@@ -78,3 +78,40 @@ def test_minimize_center_stays_near_start(seed, dim, use_ranking, shift):
     assert len(xs) == 2 * POPSIZE
     mean = np.mean(xs[POPSIZE:], axis=0)
     assert np.all(np.abs(mean - X0) <= MAX_DEVIATION), mean
+
+
+STOP_DIM = 3
+STOP_EVALS = 3200
+
+
+@pytest.mark.parametrize("stop_fitness", [0.5, 1e-2])
+@pytest.mark.parametrize("use_ranking", [True, False])
+@pytest.mark.parametrize("seed", SEEDS)
+def test_stop_fitness_compares_objective_values(seed, use_ranking,
+                                                stop_fitness):
+    """The run stops after the first generation whose best objective value
+    is below stop_fitness, and runs the whole budget if there is none."""
+    fun = shifted_sphere(0.7)
+    ys = []
+
+    def recorder(x):
+        y = fun(x)
+        ys.append(y)
+        return y
+
+    r = pgpecpp.minimize(recorder, bounds(STOP_DIM), np.full(STOP_DIM, 3.0),
+                         0.1, popsize=POPSIZE, max_evaluations=STOP_EVALS,
+                         stop_fitness=stop_fitness,
+                         rg=Generator(PCG64DXSM(seed)),
+                         use_ranking=use_ranking)
+    generations = np.reshape(ys, (-1, POPSIZE)).min(axis=1)
+    reached = np.flatnonzero(generations < stop_fitness)
+    if reached.size:
+        assert r.status == 1
+        assert r.nfev == len(ys) == (reached[0] + 1) * POPSIZE
+        assert r.fun < stop_fitness
+    else:
+        assert r.status == 0
+        assert r.nfev == len(ys) == STOP_EVALS
+        assert r.fun >= stop_fitness
+    assert r.fun == min(ys)
