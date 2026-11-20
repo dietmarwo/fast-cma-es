@@ -3,14 +3,13 @@
 #include "gil_utils.hpp"
 #include "ndarray_utils.hpp"
 
-#include <atomic>
 #include <cfloat>
 #include <cmath>
 #include <limits>
-#include <mutex>
 #include <stdexcept>
 
 #include "acmaesoptimizer.hpp"
+#include "callback_context.hpp"
 
 namespace fcmaes::bindings {
 
@@ -25,26 +24,33 @@ using ResultVector = nb::ndarray<
 using ResultMatrix = nb::ndarray<
     nb::numpy, const double, nb::shape<-1, -1>, nb::c_contig, nb::device::cpu>;
 
-std::mutex g_acma_callback_mutex;
-std::atomic<nb::callable *> g_acma_objective{ nullptr };
-std::atomic<nb::object *> g_acma_batch{ nullptr };
+struct AcmaCallbacks {
+    nb::callable *objective;
+    nb::object *batch;
+};
 
+// Makes the callbacks of one optimize_acma call visible to the trampolines,
+// on the calling thread and on the evaluator threads it creates.
 class AcmaCallbackScope {
 public:
     AcmaCallbackScope(nb::callable &objective, nb::object &batch)
-            : lock_(g_acma_callback_mutex) {
-        g_acma_objective.store(&objective, std::memory_order_release);
-        g_acma_batch.store(&batch, std::memory_order_release);
+            : callbacks_{ &objective, &batch },
+              previous_(fcmaes::callback_context) {
+        fcmaes::callback_context = &callbacks_;
     }
 
     ~AcmaCallbackScope() {
-        g_acma_batch.store(nullptr, std::memory_order_release);
-        g_acma_objective.store(nullptr, std::memory_order_release);
+        fcmaes::callback_context = previous_;
     }
 
 private:
-    std::unique_lock<std::mutex> lock_;
+    AcmaCallbacks callbacks_;
+    const void *previous_;
 };
+
+const AcmaCallbacks *current_callbacks() {
+    return static_cast<const AcmaCallbacks *>(fcmaes::callback_context);
+}
 
 void validate_bounds(F64Vector guess, F64Vector lower, F64Vector upper,
                      F64Vector sigma) {
@@ -107,7 +113,8 @@ nb::tuple to_python_result(acmaes::AcmaResult result) {
 }
 
 bool acma_objective_trampoline(int dim, const double *x, double *y) {
-    auto *objective = g_acma_objective.load(std::memory_order_acquire);
+    const AcmaCallbacks *callbacks = current_callbacks();
+    nb::callable *objective = callbacks == nullptr ? nullptr : callbacks->objective;
     if (objective == nullptr) {
         y[0] = DBL_MAX;
         return false;
@@ -125,8 +132,9 @@ bool acma_objective_trampoline(int dim, const double *x, double *y) {
 }
 
 void acma_batch_trampoline(int popsize, int dim, double *xs, double *ys) {
-    auto *batch = g_acma_batch.load(std::memory_order_acquire);
-    auto *objective = g_acma_objective.load(std::memory_order_acquire);
+    const AcmaCallbacks *callbacks = current_callbacks();
+    nb::object *batch = callbacks == nullptr ? nullptr : callbacks->batch;
+    nb::callable *objective = callbacks == nullptr ? nullptr : callbacks->objective;
     if ((batch == nullptr || batch->is_none()) && objective == nullptr)
         throw std::runtime_error("ACMA callbacks were not initialized");
 

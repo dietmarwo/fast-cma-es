@@ -3,13 +3,12 @@
 #include "gil_utils.hpp"
 #include "ndarray_utils.hpp"
 
-#include <atomic>
 #include <cfloat>
 #include <cmath>
 #include <limits>
-#include <mutex>
 #include <stdexcept>
 
+#include "callback_context.hpp"
 #include "deoptimizer.hpp"
 
 namespace fcmaes::bindings {
@@ -23,25 +22,28 @@ using ResultVector = nb::ndarray<nb::numpy, const double, nb::shape<-1>,
 using ResultMatrix = nb::ndarray<nb::numpy, const double, nb::shape<-1, -1>,
                                  nb::c_contig, nb::device::cpu>;
 
-std::mutex g_de_callback_mutex;
-std::atomic<nb::callable *> g_de_objective{ nullptr };
-std::atomic<nb::object *> g_de_terminate{ nullptr };
+struct DeCallbacks {
+    nb::callable *objective;
+    nb::object *terminate;
+};
 
+// Makes the callbacks of one optimize_de call visible to the trampoline,
+// on the calling thread and on the evaluator threads it creates.
 class DeObjectiveScope {
 public:
     DeObjectiveScope(nb::callable &objective, nb::object &terminate)
-            : lock_(g_de_callback_mutex) {
-        g_de_objective.store(&objective, std::memory_order_release);
-        g_de_terminate.store(&terminate, std::memory_order_release);
+            : callbacks_{ &objective, &terminate },
+              previous_(fcmaes::callback_context) {
+        fcmaes::callback_context = &callbacks_;
     }
 
     ~DeObjectiveScope() {
-        g_de_terminate.store(nullptr, std::memory_order_release);
-        g_de_objective.store(nullptr, std::memory_order_release);
+        fcmaes::callback_context = previous_;
     }
 
 private:
-    std::unique_lock<std::mutex> lock_;
+    DeCallbacks callbacks_;
+    const void *previous_;
 };
 
 void validate_problem(int dim, F64Vector lower, F64Vector upper, F64Vector guess,
@@ -100,7 +102,9 @@ nb::tuple to_python_result(differential_evolution::DeResult result) {
 }
 
 bool de_callback_trampoline(int dim, const double *x, double *y) {
-    auto *objective = g_de_objective.load(std::memory_order_acquire);
+    const auto *callbacks =
+        static_cast<const DeCallbacks *>(fcmaes::callback_context);
+    nb::callable *objective = callbacks == nullptr ? nullptr : callbacks->objective;
     if (objective == nullptr) {
         y[0] = DBL_MAX;
         return false;
@@ -112,7 +116,7 @@ bool de_callback_trampoline(int dim, const double *x, double *y) {
         double value = nb::cast<double>((*objective)(x_view));
         y[0] = std::isfinite(value) ? value : DBL_MAX;
 
-        auto *terminate = g_de_terminate.load(std::memory_order_acquire);
+        nb::object *terminate = callbacks->terminate;
         if (terminate != nullptr && !terminate->is_none()) {
             ResultVector y_view(y, { size_t(1) });
             return nb::cast<bool>((*terminate)(x_view, y_view));

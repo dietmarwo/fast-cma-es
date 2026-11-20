@@ -23,6 +23,7 @@
 #include <cfloat>
 
 #include "pcg_random.hpp"
+#include "callback_context.hpp"
 
 using Clock = std::chrono::steady_clock;
 using std::chrono::time_point;
@@ -434,7 +435,8 @@ class evaluator {
 public:
 
     evaluator(Fitness *fit, int nobj, int workers) :
-            _fit(fit), _nobj(nobj), _workers(workers), _stop(false) {
+            _fit(fit), _nobj(nobj), _workers(workers), _stop(false),
+            _context(fcmaes::callback_context) {
         _requests = new blocking_queue<vec_id*>(2 * workers);
         _evaled = new blocking_queue<vec_id*>(2 * workers);
         _t0 = Clock::now();
@@ -461,6 +463,7 @@ public:
     }
 
     void execute(int thread_id) {
+        fcmaes::callback_context = _context;
         while (!_stop) {
             vec_id *vid = _requests->take();
             if (!_stop) {
@@ -511,6 +514,7 @@ private:
     int _nobj;
     int _workers;
     bool _stop;
+    const void *_context;
     blocking_queue<vec_id*> *_requests;
     blocking_queue<vec_id*> *_evaled;
     std::vector<evaluator_job> _jobs;

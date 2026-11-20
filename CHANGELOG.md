@@ -99,6 +99,16 @@ publishes that version to PyPI.
   number of evaluations and the stop criterion are unchanged; with
   `use_ranking=True`, `stop_fitness` is still compared with the rank value.
   Present in 2.0.0 and 2.1.0.
+- `cmaescpp.minimize` or `decpp.minimize` called from two Python threads at
+  the same time hung forever, and so did a CMA-ES objective that itself
+  calls `cmaescpp.minimize` (and a DE objective calling `decpp.minimize`).
+  Each of the two bindings stored the Python objective in one global
+  pointer guarded by a mutex that a call took while holding the GIL; the
+  running call needed the GIL for its next objective evaluation. Each call
+  now keeps its objective in its own per-call context, which also reaches
+  the worker threads of `workers > 1`, so such calls complete and each uses
+  its own objective. Results of a single call are unchanged. Present in
+  2.0.0 and 2.1.0.
 - Tutorial text and figures that disagreed:
   - Scheduling: the SBM BiteOpt section showed the single-thread `Bite1.png`; it now shows `sbmBite32.png`.
   - UAV: `uav_reward.png` was a screenshot of six image-viewer windows whose legends covered the leading bars. It is redrawn from the Multi-UAV benchmark CSVs with the same means.
