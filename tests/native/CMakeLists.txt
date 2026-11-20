@@ -1,4 +1,4 @@
-# Standalone tests for the header-only Pareto archive (no Python needed):
+# Standalone tests for the Pareto archive and jSO kernel (no Python needed):
 #   cmake -S tests/native -B build-native -DCMAKE_BUILD_TYPE=Debug -DFCMAES_SANITIZE=ON
 #   cmake --build build-native && ctest --test-dir build-native --output-on-failure
 cmake_minimum_required(VERSION 3.15)
@@ -11,7 +11,7 @@ option(FCMAES_SANITIZE "Build with AddressSanitizer and UndefinedBehaviorSanitiz
 set(FCMAES_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/../../_fcmaescpp/include)
 enable_testing()
 
-foreach(name test_pareto_kernel test_pareto_safety test_pareto_wrapper benchmark_pareto)
+foreach(name test_pareto_kernel test_pareto_safety test_pareto_wrapper benchmark_pareto test_jso_kernel)
   add_executable(${name} ${name}.cpp)
   target_include_directories(${name} PRIVATE ${FCMAES_INCLUDE})
   if(MSVC)
@@ -26,7 +26,10 @@ foreach(name test_pareto_kernel test_pareto_safety test_pareto_wrapper benchmark
   endif()
 endforeach()
 
+target_sources(test_jso_kernel PRIVATE ../../_fcmaescpp/jsooptimizer.cpp)
+
 add_test(NAME pareto_kernel COMMAND test_pareto_kernel)
 add_test(NAME pareto_safety COMMAND test_pareto_safety)
 add_test(NAME pareto_wrapper COMMAND test_pareto_wrapper)
 add_test(NAME pareto_benchmark_smoke COMMAND benchmark_pareto 20000)
+add_test(NAME jso_kernel COMMAND test_jso_kernel)

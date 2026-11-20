@@ -135,6 +135,7 @@ or a domain-specific approximation exists, as in `tutorials/Surrogate.adoc`.
      multimodal, or poorly characterized black box.
    - Start with native DE for robust bounded exploration, integer-decoded
      variables, and DE-to-CMA sequences.
+   - Try `optimizer.jso_cma` as another bounded continuous search sequence.
    - Use active CMA-ES when a useful guess exists, variables are continuous,
      and correlations or ill-conditioning matter.
    - Use CR-FM-NES for higher-dimensional continuous distribution search.
@@ -174,7 +175,7 @@ signature in the current module or generated API documentation.
 Use `fcmaes.optimizer` adapters with `retry` and `advretry`. `Sequence`
 passes the best point from one optimizer to the next. `Choice` selects one
 configured optimizer per run. Maintained constructors include `de_cma`,
-`de_cma_py`, `da_cma`, `de_crfmnes`, `crfmnes_bite`, `bite_cma`, and
+`de_cma_py`, `jso_cma`, `da_cma`, `de_crfmnes`, `crfmnes_bite`, `bite_cma`, and
 `cma_bite`.
 
 The objective callback boundary is important:
@@ -240,6 +241,23 @@ Without `x0`, DE initializes from the bounds. With `x0`, provide a compatible
 `input_sigma` if local initialization is intended. `DE_C` exposes
 `ask()`, `tell(ys)`, `population()`, and `result()`.
 
+### jSO
+
+`jso.minimize` and `jsocpp.minimize` optimize a scalar objective over a finite
+continuous box. They start uniformly, count every call against a hard limit,
+and shrink the population as evaluations are spent. Keep the budget fixed
+from construction. With `workers > 1`, either backend scores an ordered batch
+in Python processes. In external ask/tell, submit one fitness per returned
+row. On the last call the batch can be shorter than the current population.
+
+Use `Jso_cpp` or `Jso_python` for independent retry. `optimizer.jso_cma`
+spends about 40% of the nominal allocation in native jSO, then starts
+normalized CMA-ES from the jSO incumbent. `jso_popsize` controls the first
+stage and `popsize` controls CMA-ES. With unspecified deviations, the recipe
+uses 0.1 in normalized space. CMA-ES completes a generation, so the sequence
+can exceed its nominal allocation by up to `popsize - 1` calls. See
+[the jSO tutorial](tutorials/Jso.adoc).
+
 ### Native active CMA-ES
 
 `cmaescpp.minimize` defaults to population 31, 100,000 evaluations,
@@ -268,7 +286,7 @@ or 5), when the optimum lies on or outside the bounds, or when samples keep
 being clipped; there it avoids a step size that inflates until the run
 stops. It is available on `cmaescpp.minimize`, `cmaescpp.ACMA_C`,
 `cmaes.Cmaes` (ask/tell with `tell(ys)`), `Cma_cpp`, `Cma_python` and the
-sequences `de_cma`, `da_cma`, `bite_cma` and `cma_bite`. `cmaes.minimize`
+sequences `de_cma`, `jso_cma`, `da_cma`, `bite_cma` and `cma_bite`. `cmaes.minimize`
 accepts it without effect: it has always updated from the evaluated
 points. Compare both settings on bounded problems before committing to one.
 

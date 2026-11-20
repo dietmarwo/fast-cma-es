@@ -52,6 +52,14 @@ See the [full README](https://github.com/dietmarwo/fast-cma-es/blob/master/READM
 for the requirements, the [changelog](https://github.com/dietmarwo/fast-cma-es/blob/master/CHANGELOG.md) for what changed, and
 [RELEASING.md](https://github.com/dietmarwo/fast-cma-es/blob/master/RELEASING.md) for the release process.
 
+## jSO and jSO→CMA-ES
+
+Use `fcmaes.jso` for the Python implementation or `fcmaes.jsocpp` for the
+C++ backend. Both support bounded continuous optimization with a hard jSO
+evaluation cap, variable-length ask/tell batches, and parallel objective
+evaluation through Python processes. `fcmaes.optimizer.jso_cma` uses jSO
+to start CMA-ES. See [jSO usage and parameters](tutorials/Jso.adoc).
+
 ## Exact 2D Pareto archive
 
 `fcmaes.pareto.ParetoArchive2D` keeps all nondominated evaluations of a
