@@ -256,16 +256,20 @@ uses a multiprocessing batch evaluator; with delayed update enabled, native
 parallel callback behavior applies. Do not combine a full process pool with a
 simulator or BLAS library already using all cores.
 
-`repair_z=True` (the default) lets a sample that the bound repair moved onto
-the bounds enter the update with the `z` of its evaluated point. On problems
-whose samples keep hitting the bounds this avoids an early stop far from the
-optimum, but it has cost results on others. `repair_z=False` restores the
-update of fcmaes 2.1.0 and earlier. It is available on `cmaescpp.minimize`,
-`cmaescpp.ACMA_C`, `cmaes.Cmaes` (ask/tell with `tell(ys)`), `Cma_cpp`,
-`Cma_python` and the sequences `de_cma`, `da_cma`, `bite_cma` and `cma_bite`.
-`cmaes.minimize` accepts it without effect: it always updates from the
-evaluated points. Compare both settings on bounded problems before
-committing to one.
+`repair_z` (default `False`, the update of fcmaes 2.1.0) decides how a
+sample that the bound repair moved onto the bounds enters the update: with
+`False` with the `z` of the unrepaired sample, with `True` with the `z` of
+its evaluated point. `False` won more often in a study of 2,400 matched
+pairs on 12 application objectives (standalone bounded CMA-ES and as the
+second stage of DE or jSO, also at equal evaluations). Try `repair_z=True`
+when runs stop early far from the optimum with the step-size stop (status 3
+or 5), when the optimum lies on or outside the bounds, or when samples keep
+being clipped; there it avoids a step size that inflates until the run
+stops. It is available on `cmaescpp.minimize`, `cmaescpp.ACMA_C`,
+`cmaes.Cmaes` (ask/tell with `tell(ys)`), `Cma_cpp`, `Cma_python` and the
+sequences `de_cma`, `da_cma`, `bite_cma` and `cma_bite`. `cmaes.minimize`
+accepts it without effect: it has always updated from the evaluated
+points. Compare both settings on bounded problems before committing to one.
 
 ### CR-FM-NES
 

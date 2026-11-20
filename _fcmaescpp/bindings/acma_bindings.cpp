@@ -221,7 +221,7 @@ void bind_acma(nb::module_ &m) {
         "delayed_update"_a = true,
         "update_gap"_a = -1,
         "workers"_a = 1,
-        "repair_z"_a = true,
+        "repair_z"_a = false,
         "Execute the native ACMA solver through nanobind."
     );
 
@@ -269,7 +269,7 @@ void bind_acma(nb::module_ &m) {
             "normalize"_a = true,
             "delayed_update"_a = true,
             "update_gap"_a = -1,
-            "repair_z"_a = true
+            "repair_z"_a = false
         )
         .def("ask", [](acmaes::AcmaState &state) {
             return to_python_matrix(without_gil([&]() {

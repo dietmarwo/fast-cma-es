@@ -11,16 +11,34 @@ publishes that version to PyPI.
 
 - Links to the eight CRN/CFD simulator optimization lessons, distinguishing their native Rust/command execution from this package's in-process Python API.
 - [Prompt-driven optimization tutorials](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic) demonstrate the shared agent workflow with native Rust application workers. Python objectives continue to use this package in process; these tutorials do not add a worker to fast-cma-es.
-- CMA-ES option `repair_z` (default `True`) for the repaired-sample update
-  described under Fixed. `repair_z=False` restores the update of 2.1.0 and
-  earlier exactly, so both can be compared. Available on
-  `cmaescpp.minimize`, `cmaescpp.ACMA_C`, `cmaes.Cmaes`, `cmaes.minimize`,
-  `optimizer.Cma_cpp`, `optimizer.Cma_python` and the sequences
+- CMA-ES option `repair_z` (default `False`) for samples that the bound
+  repair moved onto the bounds. The mean follows their repaired (evaluated)
+  points either way. With `False`, the update of 2.1.0, the evolution paths
+  and the rank-mu / active covariance update use the random vector `z` of
+  the unrepaired sample; `True` recomputes `z` from the repaired point.
+  Available on `cmaescpp.minimize` (single-threaded and with `workers > 1,
+  delayed_update=False`), `cmaescpp.ACMA_C` and `cmaes.Cmaes` (ask and
+  `tell(ys)`), `optimizer.Cma_cpp`, `optimizer.Cma_python` and the sequences
   `optimizer.de_cma`, `da_cma`, `bite_cma` and `cma_bite`, e.g.
-  `advretry.minimize(..., optimizer=de_cma(1500, repair_z=False))`. It has
-  no effect on `cmaes.minimize`, `Cma_python`, `tell(ys, xs)`, `tell_one`
-  and the delayed-update paths, which derive `z` from the evaluated points
-  either way. The `tell(ys, xs)` fix of `ACMA_C` below is not optional.
+  `advretry.minimize(..., optimizer=de_cma(1500, repair_z=True))`.
+  `cmaes.minimize` (used by `Cma_python`), `tell(ys, xs)`, `tell_one` and the
+  delayed-update paths have always derived `z` from the evaluated points and
+  are not affected.
+  - **Default:** in 2,400 matched pairs on 12 application objectives (in
+    fcmaes-rust), `False` won more often for standalone bounded CMA-ES (217
+    wins against 152, 15 ties) and as the second stage of DE→CMA (178
+    against 118) and jSO→CMA (197 against 144), also at equal evaluations;
+    on a 171-variable truss jSO→CMA reached a median of 394.5 with `False`
+    against 420.4 with `True`. Coordinated DE→CMA retry leaned slightly
+    toward `True` (72 against 58), and `True` was clearly better where
+    samples keep being clipped and the step size inflates (a 118-variable
+    neural controller: median loss 0.137 against 1.13).
+  - **When to try `True`:** runs that stop early far from the optimum with
+    the step-size stop (status 3 or 5), optima on or outside the bounds, and
+    samples clipped throughout the run. On `sum(x)` and on a sphere with half
+    its optimum outside `[-1,1]^20` (popsize 16, 20,000 evaluations),
+    `cmaescpp.minimize` reaches -19.8..-20.0 (optimum -20) and 10.3..10.7
+    (optimum 10) with `True`, -14.2..-16.0 and 14.5..16.9 with `False`.
 
 ### Changed
 
@@ -33,34 +51,22 @@ publishes that version to PyPI.
 
 ### Fixed
 
-- CMA-ES on bounded problems: a sample outside the box was evaluated at its
-  point moved onto the bounds, and the mean followed these repaired points,
-  but the evolution paths and the rank-mu / active covariance update used the
-  random vector `z` of the unrepaired sample. On problems whose samples keep
-  hitting the bounds the step size grew until the run stopped (stop 3 or 5)
-  after about 1000 evaluations, far from the optimum. The `z` of a repaired
-  sample is now recomputed from its repaired point. Affected: `cmaescpp.minimize`
-  (single-threaded and with `workers > 1, delayed_update=False`),
-  `cmaescpp.ACMA_C.ask`/`tell(ys)` and `cmaes.Cmaes.ask`/`tell(ys)`;
-  `cmaes.minimize`, `tell(ys, xs)` of `cmaes.Cmaes` and the delayed-update
-  paths already derived `z` from the evaluated points. On `sum(x)` and on a
-  sphere with half its optimum outside `[-1,1]^20` (popsize 16, 20,000
-  evaluations), `cmaescpp.minimize` now reaches -19.8..-20.0 (optimum -20)
-  instead of -14.2..-16.0 and 10.3..10.7 (optimum 10) instead of 14.5..16.9.
+- CMA-ES active covariance update: it rescales the worst samples by ratios
+  of their `z` norms and divided by zero when a sample was told at exactly
+  the mean (`z = 0`), e.g. a sample clipped onto a mean that lies on a
+  bound, whose `z` is derived from its point. In the C++ backend this put
+  NaN into the covariance matrix and the run stopped (status 2): on one
+  variable in `[0,1]` started at 0 (sigma 0.15, popsize 31), `ACMA_C` with
+  `repair_z=True` or with `tell(ys, xs)` (which now updates from the points,
+  see below) stopped after 31 evaluations, and
+  `cmaescpp.minimize` with `repair_z=True` on an optimum at the start bound
+  after 62 to 93. Now the negative part is skipped in such a generation
+  (zero or non-finite norm); otherwise results are unchanged. The Python
+  backend replaced a zero norm by 1e-30, which kept the matrix finite but
+  divided by zero (RuntimeWarning) when all these norms were zero; it now
+  skips the same way, which changes results only in that case.
 - `cmaescpp.ACMA_C.tell(ys, xs)` right after an `ask()` updated from the
   `z` of the asked samples instead of the supplied points `xs`.
-- Behaviour change: CMA-ES results change on bounded problems whose samples
-  reach the bounds. Problems whose samples stay inside the box, and unbounded
-  problems, give bit-identical results. Advanced retry narrows the
-  bounds around good solutions and is affected. In a preliminary check of
-  the same change in fcmaes-rust (coordinated DE→CMA retry on the eight GTOP
-  problems, 300 retries, 7 to 8 seeds) the changed version spent 8% to 32%
-  fewer evaluations for the same number of retries, was better more often
-  on Cassini1 and Cassini2, and worse more often on Messenger (6 of 8
-  seeds) and Messenger full (5 of 7). Wider tests at equal evaluations are
-  pending. The change is optional: `repair_z=False` (see Added) turns it
-  off. It is marked `REPAIR-Z` in `_fcmaescpp/acmaesoptimizer.cpp` and
-  `fcmaes/cmaes.py`, each with one call site, which the option guards.
 - Tutorial text and figures that disagreed:
   - Scheduling: the SBM BiteOpt section showed the single-thread `Bite1.png`; it now shows `sbmBite32.png`.
   - UAV: `uav_reward.png` was a screenshot of six image-viewer windows whose legends covered the leading bars. It is redrawn from the Multi-UAV benchmark CSVs with the same means.

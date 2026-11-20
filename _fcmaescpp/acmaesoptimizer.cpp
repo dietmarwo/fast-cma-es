@@ -57,7 +57,7 @@ public:
     AcmaesOptimizer(long runid_, Fitness *fitfun_, int popsize_, int mu_,
             const vec &guess_, const vec &inputSigma_, int maxEvaluations_,
             double accuracy_, double stopfitness_, double stopTolHistFun_,
-            int update_gap_, long seed, bool repair_z_ = true) {
+            int update_gap_, long seed, bool repair_z_ = false) {
         // runid used for debugging / logging
         runid = runid_;
         // fitness function to minimize
@@ -131,8 +131,9 @@ public:
         chiN = sqrt(dim) * (1. - 1. / (4. * dim) + 1 / (21. * dim * dim));
         ccov1Sep = min(1., ccov1 * (dim + 1.5) / 3.);
         ccovmuSep = min(1. - ccov1, ccovmu * (dim + 1.5) / 3.);
-        // REPAIR-Z: recompute the z of samples repaired onto the bounds,
-        // see repairArz(). false restores the update of 2.1.0 and earlier.
+        // REPAIR-Z: option repair_z (default false, the update of 2.1.0 and
+        // earlier). true recomputes the z of samples repaired onto the
+        // bounds, see repairArz().
         repair_z = repair_z_;
         // lazy covariance update gap
         lazy_update_gap =
@@ -222,6 +223,22 @@ public:
             ivec arReverseIndex = arindex.reverse();
             mat arzneg = arz(Eigen::indexing::all, arReverseIndex.head(mu));
             vec arnorms = arzneg.colwise().norm();
+            // The negative update rescales the worst samples by ratios of
+            // their z norms, dividing by the smallest. A zero norm (a sample
+            // told at exactly the mean, e.g. one clipped onto a mean that
+            // lies on a bound, whose z is recomputed from its point) gives
+            // 0 * inf = NaN in Cneg, and a non-finite norm does the same;
+            // NaN in C ends the run (stop 2). In that generation the
+            // negative part is skipped: no Cneg, negccov = 0, so C gets the
+            // positive (rank-one and rank-mu) update only. With all norms
+            // finite and nonzero the code below runs unchanged.
+            if (!(arnorms.array() > 0.).all() || !arnorms.allFinite()) {
+                C = (C * oldFac) + roneu
+                        + (arpos * ccovmu
+                                * weights.replicate(1, dim).cwiseProduct(
+                                        arpos.transpose()));
+                return 0.;
+            }
             ivec idxnorms = sort_index(arnorms);
             vec arnormsSorted = arnorms(idxnorms);
             ivec idxReverse = idxnorms.reverse();
@@ -346,7 +363,7 @@ public:
                 }
             } else if (repair_z)
                 // REPAIR-Z: the one call that enables the repaired-sample
-                // update, guarded by the option repair_z (default true).
+                // update, guarded by the option repair_z (default false).
                 // With repair_z == false the update is that of 2.1.0 and
                 // earlier (z of the unrepaired samples).
                 repairArz();
@@ -367,7 +384,7 @@ public:
     // REPAIR-Z: this changes results on every problem whose samples reach
     // the bounds, including advanced retry, which narrows the bounds around
     // good solutions. It has one call site, in tell(), and is the option
-    // repair_z (default true; false skips it); see CHANGELOG.md.
+    // repair_z (default false, which skips it); see CHANGELOG.md.
     void repairArz() {
         for (int k = 0; k < popsize; k++) {
             if (!repaired[k])
@@ -587,7 +604,7 @@ private:
     pcg64 *rs;
     bool computeArz;
     // REPAIR-Z option: call repairArz() in tell() after ask_all()
-    bool repair_z = true;
+    bool repair_z = false;
     // columns of the last ask_all() population moved into the bounds
     std::vector<bool> repaired;
 };

@@ -1,10 +1,10 @@
 """CMA-ES on problems whose samples keep hitting the bounds.
 
-Samples outside the box are evaluated at their repaired (clamped) point. The
-update must use the z of the repaired point; with the z of the unrepaired
-sample the step size grew until the run stopped (stop 3 or 5) after about
-1000 evaluations, far from the optimum. ``repair_z=False`` restores that
-update for comparison.
+Samples outside the box are evaluated at their repaired (clamped) point. With
+``repair_z=True`` the update uses the z of the repaired point. With the
+default ``repair_z=False`` (the update of 2.1.0) it uses the z of the
+unrepaired sample; on these problems the step size then grows until the run
+stops (stop 3 or 5) after about 1000 evaluations, far from the optimum.
 """
 
 import numpy as np
@@ -80,8 +80,10 @@ def run_ask_tell(backend, fun, seed, max_evals=EVALS, **options):
 @pytest.mark.parametrize("fun,limit", [(linear, -18.5), (shifted_sphere, 12.5)],
                          ids=["linear", "shifted_sphere"])
 def test_minimize_reaches_the_bounded_optimum(backend, fun, limit):
+    # cmaes.minimize derives z from the evaluated points; repair_z does not
+    # change it.
     for seed in SEEDS:
-        y, nfev = run_minimize(backend, fun, seed)
+        y, nfev = run_minimize(backend, fun, seed, repair_z=True)
         assert y < limit, f"seed {seed}: y={y}, nfev={nfev}"
         assert nfev > 2000, f"seed {seed}: stopped early after {nfev}"
 
@@ -89,7 +91,7 @@ def test_minimize_reaches_the_bounded_optimum(backend, fun, limit):
 @pytest.mark.parametrize("backend", ["cpp", "py"])
 def test_ask_tell_reaches_the_bounded_optimum(backend):
     for seed in SEEDS:
-        es = make_es(backend, seed)
+        es = make_es(backend, seed, repair_z=True)
         best, nfev = np.inf, 0
         while nfev < EVALS:
             xs = es.ask()
@@ -135,7 +137,7 @@ def test_tell_with_points_after_ask_updates_from_the_points(backend):
         np.testing.assert_allclose(a, b, rtol=0, atol=1e-9)
 
 
-# repair_z=False restores the update with the z of the unrepaired samples.
+# repair_z=False (the default) updates with the z of the unrepaired samples.
 # Those runs stopped after 800 to 1200 evaluations (repaired z: 2300 to 4300)
 # at -13 to -16.4 on linear and 12.3 to 16.9 on the sphere (repaired z: about
 # -19.9 and 10.2 to 11.1). The limits keep a wide margin to both; y is
@@ -159,10 +161,10 @@ def test_without_repair_z_stops_early_far_from_the_optimum(entry, fun, limit):
 
 @pytest.mark.parametrize("entry", ["cpp_minimize", "cpp_ask_tell",
                                    "py_ask_tell"])
-def test_repair_z_defaults_to_true(entry):
+def test_repair_z_defaults_to_false(entry):
     # Same computation in the same order, so the results are identical.
     results = []
-    for options in ({}, {"repair_z": True}):
+    for options in ({}, {"repair_z": False}):
         if entry == "cpp_minimize":
             results.append(run_minimize("cpp", shifted_sphere, 1, **options))
         else:
@@ -182,13 +184,78 @@ def test_cma_wrappers_forward_repair_z(monkeypatch):
     monkeypatch.setattr(optimizer.cmaescpp, "minimize", fake_minimize)
     monkeypatch.setattr(optimizer.cmaes, "minimize", fake_minimize)
     bounds = Bounds([-1.0] * 2, [1.0] * 2)
-    opts = [optimizer.Cma_cpp(100), optimizer.Cma_cpp(100, repair_z=False),
-            optimizer.Cma_python(100), optimizer.Cma_python(100, repair_z=False),
+    opts = [optimizer.Cma_cpp(100), optimizer.Cma_cpp(100, repair_z=True),
+            optimizer.Cma_python(100), optimizer.Cma_python(100, repair_z=True),
             optimizer.de_cma(1500).optimizers[1],
-            optimizer.de_cma(1500, repair_z=False).optimizers[1],
-            optimizer.da_cma(1500, repair_z=False).optimizers[1],
-            optimizer.bite_cma(1500, repair_z=False).optimizers[1],
-            optimizer.cma_bite(1500, repair_z=False).optimizers[0]]
+            optimizer.de_cma(1500, repair_z=True).optimizers[1],
+            optimizer.da_cma(1500).optimizers[1],
+            optimizer.da_cma(1500, repair_z=True).optimizers[1],
+            optimizer.bite_cma(1500).optimizers[1],
+            optimizer.bite_cma(1500, repair_z=True).optimizers[1],
+            optimizer.cma_bite(1500).optimizers[0],
+            optimizer.cma_bite(1500, repair_z=True).optimizers[0]]
     for opt in opts:
         opt.minimize(linear, bounds, np.zeros(2), 0.3)
-    assert seen == [True, False, True, False, True, False, False, False, False]
+    assert seen == [False, True] * 6
+
+
+# A sample told at exactly the mean has z = 0. One variable on [0, 1] started
+# on the bound: samples below 0 are clipped onto the mean, and with
+# repair_z=True (ask/tell(ys)), with tell(ys, xs) and, once the mean lies on
+# the bound, in cmaescpp.minimize their z is recomputed as 0. The negative
+# covariance update divides by the z norms of the worst samples; before it
+# was guarded, C became NaN and the C++ runs stopped (stop 2) after 31 to 93
+# evaluations, at 7.5e-5 to 3.3e-2 on (x - 0.3)**2. Guarded, they run for
+# about 300 to 800 evaluations and reach about 1e-14 or better.
+B1 = Bounds([0.0], [1.0])
+
+
+def square03(x):
+    return float((x[0] - 0.3) ** 2)
+
+
+def first(x):
+    return float(x[0])  # optimum 0 at the start, on the lower bound
+
+
+@pytest.mark.parametrize("entry", ["cpp_minimize", "py_minimize",
+                                   "cpp_ask_tell", "cpp_ask_tell_xs",
+                                   "py_ask_tell", "py_ask_tell_xs"])
+def test_zero_z_norm_keeps_the_covariance_finite(entry):
+    fun = first if entry.endswith("minimize") else square03
+    for seed in SEEDS:
+        rg = Generator(PCG64DXSM(seed))
+        options = dict(input_sigma=0.15, popsize=31, max_evaluations=3100,
+                       rg=rg, repair_z=True)
+        if entry == "cpp_minimize":
+            r = cmaescpp.minimize(fun, B1, np.zeros(1), **options)
+            y, x, nfev = r.fun, r.x, r.nfev
+        elif entry == "py_minimize":
+            state = np.random.get_state()
+            try:
+                np.random.seed(seed)
+                r = cmaes.minimize(fun, B1, np.zeros(1), **options)
+            finally:
+                np.random.set_state(state)
+            y, x, nfev = r.fun, r.x, r.nfev
+        else:
+            if entry.startswith("cpp"):
+                es = cmaescpp.ACMA_C(1, B1, np.zeros(1), **options)
+            else:
+                sampler = Generator(PCG64DXSM(seed + 1000))
+                es = cmaes.Cmaes(B1, np.zeros(1), **options,
+                                 randn=lambda *shape: sampler.standard_normal(shape))
+            y, x, nfev = np.inf, None, 0
+            while nfev < 3100:
+                xs = es.ask()
+                ys = np.array([fun(x) for x in xs])
+                nfev += len(ys)
+                i = int(np.argmin(ys))
+                if ys[i] < y:
+                    y, x = ys[i], xs[i]
+                stop = es.tell(ys, xs) if entry.endswith("xs") else es.tell(ys)
+                if stop != 0:
+                    break
+        assert nfev > 150, f"seed {seed}: stopped after {nfev}, y={y}"
+        assert np.isfinite(y) and np.all(np.isfinite(x)), f"seed {seed}: {y} {x}"
+        assert y < 1e-8, f"seed {seed}: y={y}, nfev={nfev}"

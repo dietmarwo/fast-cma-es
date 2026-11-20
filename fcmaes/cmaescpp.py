@@ -68,13 +68,15 @@ def minimize(fun: Objective,
              normalize: Optional[bool] = True,
              delayed_update: Optional[bool] = True,
              update_gap: Optional[int] = None,
-             repair_z: bool = True) -> OptimizeResult:
+             repair_z: bool = False) -> OptimizeResult:
     """Minimize a scalar objective with the native ACMA implementation.
 
-    ``repair_z`` (default ``True``): a sample that the bound repair moved
-    onto the bounds enters the CMA-ES update with the ``z`` of its
-    evaluated (repaired) point. ``False`` uses the ``z`` of the unrepaired
-    sample, the update of fcmaes 2.1.0 and earlier. Affects bounded problems
+    ``repair_z`` (default ``False``): with ``False`` a sample that the bound
+    repair moved onto the bounds enters the CMA-ES update with the ``z`` of
+    the unrepaired sample, the update of fcmaes 2.1.0. ``True`` uses the
+    ``z`` of its evaluated (repaired) point; try it when runs stop early far
+    from the optimum (stop 3 or 5), when the optimum lies on or outside the
+    bounds, or when samples keep being clipped. Affects bounded problems
     whose samples reach the bounds; the delayed-update path
     (``workers > 1`` with ``delayed_update=True``) derives ``z`` from the
     evaluated points either way.
@@ -138,11 +140,11 @@ def minimize(fun: Objective,
 class ACMA_C:
     """Ask/tell interface of the native ACMA implementation.
 
-    ``repair_z`` (default ``True``): a sample of ``ask()`` that the bound
-    repair moved onto the bounds enters the update of ``tell(ys)`` with the
-    ``z`` of its repaired point. ``False`` uses the ``z`` of the unrepaired
-    sample, the update of fcmaes 2.1.0 and earlier. ``tell(ys, xs)`` derives
-    ``z`` from ``xs`` either way.
+    ``repair_z`` (default ``False``): with ``False`` a sample of ``ask()``
+    that the bound repair moved onto the bounds enters the update of
+    ``tell(ys)`` with the ``z`` of the unrepaired sample, the update of
+    fcmaes 2.1.0. ``True`` uses the ``z`` of its repaired point, see
+    ``minimize``. ``tell(ys, xs)`` derives ``z`` from ``xs`` either way.
     """
 
     def __init__(self,
@@ -160,7 +162,7 @@ class ACMA_C:
                  normalize: Optional[bool] = True,
                  delayed_update: Optional[bool] = True,
                  update_gap: Optional[int] = None,
-                 repair_z: bool = True) -> None:
+                 repair_z: bool = False) -> None:
         lower, upper, guess = _get_bounds(dim, bounds, x0, rg)
         popsize = 31 if popsize is None else popsize
         max_evaluations = 100000 if max_evaluations is None else max_evaluations

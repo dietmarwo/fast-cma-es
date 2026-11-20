@@ -160,10 +160,11 @@ def de_cma(max_evaluations: Optional[int] = 50000,
            cma_max_evals: Optional[int] = None,
            ints: Optional[ArrayLike] = None,
            workers: Optional[int]  = None,
-           repair_z: bool = True) -> Sequence:
+           repair_z: bool = False) -> Sequence:
     """Sequence differential evolution -> CMA-ES.
 
-    ``repair_z`` is passed to ``Cma_cpp``, see ``cmaescpp.minimize``."""
+    ``repair_z`` (default ``False``) is passed to ``Cma_cpp``, see
+    ``cmaescpp.minimize``."""
 
     de_evals = np.random.uniform(0.1, 0.5)
     if de_max_evals is None:
@@ -202,10 +203,11 @@ def da_cma(max_evaluations: Optional[int] = 50000,
            da_max_evals: Optional[int] = None,
            cma_max_evals: Optional[int] = None,
            stop_fitness: Optional[float] = -np.inf,
-           repair_z: bool = True) -> Sequence:
+           repair_z: bool = False) -> Sequence:
     """Sequence dual annealing -> CMA-ES.
 
-    ``repair_z`` is passed to ``Cma_cpp``, see ``cmaescpp.minimize``."""
+    ``repair_z`` (default ``False``) is passed to ``Cma_cpp``, see
+    ``cmaescpp.minimize``."""
 
     da_evals = np.random.uniform(0.1, 0.5)
     if da_max_evals is None:
@@ -262,10 +264,11 @@ def bite_cma(max_evaluations: Optional[int] = 50000,
             bite_max_evals: Optional[int] = None,
             cma_max_evals: Optional[int] = None,
             M: Optional[int] = 1,
-            repair_z: bool = True) -> Sequence:
+            repair_z: bool = False) -> Sequence:
     """Sequence Bite -> CMA-ES.
 
-    ``repair_z`` is passed to ``Cma_cpp``, see ``cmaescpp.minimize``."""
+    ``repair_z`` (default ``False``) is passed to ``Cma_cpp``, see
+    ``cmaescpp.minimize``."""
 
     bite_evals = np.random.uniform(0.1, 0.5)
     if bite_max_evals is None:
@@ -284,10 +287,11 @@ def cma_bite(max_evaluations: Optional[int] = 50000,
             cma_max_evals: Optional[int] = None,
             bite_max_evals: Optional[int] = None,
             M: Optional[int] = 1,
-            repair_z: bool = True) -> Sequence:
+            repair_z: bool = False) -> Sequence:
     """Sequence CMA-ES -> Bite.
 
-    ``repair_z`` is passed to ``Cma_cpp``, see ``cmaescpp.minimize``."""
+    ``repair_z`` (default ``False``) is passed to ``Cma_cpp``, see
+    ``cmaescpp.minimize``."""
 
     cma_evals = np.random.uniform(0.1, 0.5)
     if cma_max_evals is None:
@@ -422,8 +426,9 @@ class Cma_python(Optimizer):
                  update_gap: Optional[int] = None,
                  normalize: Optional[bool] = True,
                  serial_fun: Optional[bool] = True,
-                 repair_z: bool = True) -> None:
-        # repair_z: see cmaes.Cmaes; it does not change cmaes.minimize.
+                 repair_z: bool = False) -> None:
+        # repair_z (default False): see cmaes.Cmaes; it does not change
+        # cmaes.minimize.
 
         Optimizer.__init__(self, max_evaluations, 'cma py')
         self.popsize = popsize
@@ -472,9 +477,9 @@ class Cma_cpp(Optimizer):
                  normalize: Optional[bool] = True,
                  delayed_update: Optional[bool] = True,
                  stop_hist: Optional[int] = -1,
-                 repair_z: bool = True) -> None:
-        # repair_z: see cmaescpp.minimize; False restores the update of
-        # fcmaes 2.1.0 and earlier for samples repaired onto the bounds.
+                 repair_z: bool = False) -> None:
+        # repair_z: see cmaescpp.minimize; the default False is the update
+        # of fcmaes 2.1.0, True uses the z of samples repaired onto the bounds.
 
         Optimizer.__init__(self, max_evaluations, 'cma cpp')
         self.popsize = popsize

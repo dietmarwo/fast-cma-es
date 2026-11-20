@@ -48,7 +48,7 @@ def minimize(fun: Objective,
              normalize: Optional[bool] = True,
              update_gap: Optional[int] = None,
              serial_fun: bool = True,
-             repair_z: bool = True) -> OptimizeResult:
+             repair_z: bool = False) -> OptimizeResult:
     """Minimization of a scalar function of one or more variables using CMA-ES.
      
     Parameters
@@ -94,7 +94,8 @@ def minimize(fun: Objective,
     serial_fun : boolean, optional
         if true and workers <= 1, ``fun`` is wrapped to be called serially.
     repair_z : boolean, optional
-        Accepted for a signature uniform with ``cmaescpp.minimize``; it does
+        Default ``False``. Accepted for a signature uniform with
+        ``cmaescpp.minimize``; it does
         not change what this function computes. Its loop calls
         ``tell(ys, xs)``, which always derives ``z`` from the evaluated
         (repaired) points, and the ``workers > 1`` loop uses ``tell_one``,
@@ -129,11 +130,14 @@ def minimize(fun: Objective,
 class Cmaes(object):
     """Implements the cma-es ask/tell interactive interface.
 
-    ``repair_z`` (default ``True``): a sample of ``ask()`` that the bound
-    repair moved onto the bounds enters the update of ``tell(ys)`` with the
-    ``z`` of its repaired point. ``False`` uses the ``z`` of the unrepaired
-    sample, the update of fcmaes 2.1.0 and earlier. ``tell(ys, xs)`` and
-    ``tell_one`` derive ``z`` from the supplied points either way."""
+    ``repair_z`` (default ``False``): with ``False`` a sample of ``ask()``
+    that the bound repair moved onto the bounds enters the update of
+    ``tell(ys)`` with the ``z`` of the unrepaired sample, the update of
+    fcmaes 2.1.0. ``True`` uses the ``z`` of its repaired (evaluated) point;
+    try it when runs stop early far from the optimum, when the optimum lies
+    on or outside the bounds, or when samples keep being clipped.
+    ``tell(ys, xs)`` and ``tell_one`` derive ``z`` from the supplied points
+    either way."""
     
     def __init__(self, bounds: Optional[Bounds] = None,
                         x0: Optional[ArrayLike] = None,
@@ -150,13 +154,14 @@ class Cmaes(object):
                         normalize: Optional[bool] = True,
                         update_gap: Optional[int] = None,
                         fun: Optional[BatchObjective] = None,
-                        repair_z: bool = True
+                        repair_z: bool = False
                         ) -> None:
                         
     # runid used in is_terminate callback to identify a specific run at different iteration
         self.runid = runid
-    # REPAIR-Z: recompute the z of samples repaired onto the bounds in
-    # tell(ys), see _repair_arz. False restores the update of 2.1.0 and earlier.
+    # REPAIR-Z: option repair_z (default False, the update of 2.1.0). True
+    # recomputes the z of samples repaired onto the bounds in tell(ys), see
+    # _repair_arz.
         self.repair_z = repair_z
     # bounds and guess
         lower, upper, guess = _check_bounds(bounds, x0, rg)   
@@ -311,7 +316,7 @@ class Cmaes(object):
             if self.arz is None:
                 raise ValueError('either call ask before or define xs')
             # REPAIR-Z: the one call that enables the repaired-sample update,
-            # guarded by the option repair_z (default True). With
+            # guarded by the option repair_z (default False). With
             # repair_z=False the update is that of 2.1.0 and earlier (z of
             # the unrepaired samples).
             if self.repair_z:
@@ -405,8 +410,8 @@ class Cmaes(object):
 
     def _repair_arz(self) -> None:
         # REPAIR-Z: changes results on every problem whose samples reach the
-        # bounds. One call site, in tell(), skipped with repair_z=False; see
-        # CHANGELOG.md.
+        # bounds. One call site, in tell(), active only with repair_z=True
+        # (the default is False); see CHANGELOG.md.
         # Samples moved into the bounds by newArgs are told at their repaired
         # point, so their z is recomputed as D^-1 B^T (x - xmean) / sigma.
         # Otherwise the mean follows the repaired points while the evolution
@@ -601,9 +606,23 @@ class Cmaes(object):
             arReverseIndex = arindex[::-1]
             arzneg = arz[arReverseIndex[:self.mu]]
             arnorms = np.sqrt(np.einsum('ij->i', arzneg * arzneg))
+            # The negative update rescales the worst samples by ratios of
+            # their z norms, dividing by the smallest. A zero norm (a sample
+            # told at exactly the mean, e.g. one clipped onto a mean that
+            # lies on a bound) or a non-finite norm would put NaN or inf
+            # into C. In that generation the negative part is skipped: no
+            # Cneg, negccov = 0, so C gets the positive (rank-one and
+            # rank-mu) update only. This replaces substituting 1e-30 for a
+            # zero norm, which kept C finite but still applied the negative
+            # factor when all worst norms were zero. With all norms finite
+            # and nonzero the code below runs unchanged.
+            if not (np.all(arnorms > 0) and np.all(np.isfinite(arnorms))):
+                self.C = (self.C * oldFac) + roneu + \
+                    np.transpose(arpos * self.ccovmu) @ \
+                        np.transpose(self.weights * np.transpose(arpos))
+                return 0.
             idxnorms = arnorms.argsort()
             arnormsSorted = arnorms[idxnorms]
-            arnormsSorted[arnormsSorted==0] = 1e-30
             idxReverse = idxnorms[::-1]
             arnormsReverse = arnorms[idxReverse]
             arnorms = arnormsReverse / arnormsSorted
