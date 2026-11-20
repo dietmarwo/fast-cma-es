@@ -180,3 +180,84 @@ def test_sequence_retains_a_point_after_nonfinite_stages():
     seq = Sequence([Jso_cpp(max_evaluations=12), Jso_python(max_evaluations=12)])
     x, value, count = seq.minimize(bad_score, Bounds([0.0], [1.0]))
     assert count == 24 and 0 <= x[0] <= 1 and value == np.inf
+
+
+# The tests below fail when the search itself is broken, not only the API.
+# They hold for any random stream (no recorded values), so they also hold for
+# the C++ backend, whose stream depends on the C++ standard library.
+
+
+def test_equal_values_replace_parents_and_worse_values_do_not(solver):
+    """A trial replaces its parent when it is not worse (``<=``)."""
+    state = solver.Jso([(-1.0, 1.0)] * 3, popsize=8, max_evaluations=10**9,
+                       rg=np.random.default_rng(3))
+    state.tell(np.ones(len(state.ask())))
+    trials = state.ask()
+    state.tell(np.ones(8))
+    np.testing.assert_array_equal(state.population(), trials)
+    state.ask()
+    state.tell(np.full(8, 2.0))
+    np.testing.assert_array_equal(state.population(), trials)
+
+
+def test_population_follows_the_linear_reduction(solver):
+    initial, budget = 30, 1000
+    state = solver.Jso([(-1.0, 1.0)] * 4, popsize=initial, max_evaluations=budget,
+                       rg=np.random.default_rng(5))
+    rows = state.ask()
+    state.tell([sphere(x) for x in rows])
+    used, expected = initial, initial  # the initial batch is not reduced
+    while len(rows := state.ask()):
+        assert len(rows) == min(expected, budget - used)
+        state.tell([sphere(x) for x in rows])
+        used += len(rows)
+        expected = int(np.floor(initial + (4 - initial) * used / budget + 0.5))
+        assert state.popsize == expected
+    assert used == budget and expected == 4
+
+
+def test_out_of_box_mutants_move_halfway_to_the_bound(solver):
+    """With the optimum in a corner, many mutants leave the box. The repair
+    puts them halfway between the parent and the bound, so trials land on
+    the bound only by rare rounding (none in 60 calibration runs); clipping
+    puts more than 1,000 coordinates there."""
+    # A short run: the population stays far enough from the bound (above
+    # 1e-12 in 60 calibration runs) that no trial reaches it by rounding.
+    state = solver.Jso([(0.0, 1.0)] * 5, popsize=20, max_evaluations=600,
+                       rg=np.random.default_rng(7))
+    state.tell([np.sum(x) for x in state.ask()])
+    halved = on_bound = 0
+    while len(rows := state.ask()):
+        parents = state.population()[:len(rows)]
+        assert np.all(rows >= 0.0) and np.all(rows <= 1.0)
+        halved += np.count_nonzero(rows == 0.5 * parents)
+        on_bound += np.count_nonzero(rows == 0.0)
+        state.tell([np.sum(x) for x in rows])
+    assert halved > 100 and on_bound < 50
+
+
+def test_first_generation_crosses_most_coordinates(solver):
+    """Early crossover rates are drawn around 0.8 and 0.9 and floored at 0.7,
+    so about 80% of the coordinates of a trial come from the mutant."""
+    dim = 40
+    state = solver.Jso([(-1.0, 1.0)] * dim, popsize=40, max_evaluations=10**6,
+                       rg=np.random.default_rng(11))
+    state.tell([sphere(x) for x in state.ask()])
+    parents = state.population()
+    trials = state.ask()
+    changed = np.mean(trials != parents)
+    assert 0.7 < changed < 0.95
+
+
+def rosen(x):
+    return float(np.sum(100.0 * (x[1:] - x[:-1] ** 2) ** 2 + (1.0 - x[:-1]) ** 2))
+
+
+def test_solves_rosenbrock(solver):
+    """10-D Rosenbrock, 20,000 evaluations: in 80 calibration runs (40 per
+    backend) every run ended below 2e-4, with medians near 2e-7. Disabling
+    the memory update, the archive, the population reduction or the p-best
+    restriction raises the median above 1e-2."""
+    values = [solver.minimize(rosen, [(-5.0, 5.0)] * 10, max_evaluations=20_000,
+                              rg=np.random.default_rng(seed)).fun for seed in range(5)]
+    assert np.median(values) < 1e-3
