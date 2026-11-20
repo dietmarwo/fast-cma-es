@@ -167,7 +167,7 @@ public:
 
     mat ask(const vec &stdev, const vec &center) {
         int n = popsize / 2;
-        scaled_noises = normal(dim, n, *rs).array()
+        scaled_noises = normal(dim, n, *rs, gauss_01).array()
                 * stdev.replicate(1, n).array();
         mat x = mat(dim, popsize);
         mat x1 = center.replicate(1, n) + scaled_noises;
@@ -267,6 +267,8 @@ private:
     vec bestX;
     int stop;
     pcg64 *rs;
+    // normal distribution of this instance (keeps its own cached value)
+    std::normal_distribution<> gauss_01;
     mat popX;
     mat scaled_noises;
     vec popY;

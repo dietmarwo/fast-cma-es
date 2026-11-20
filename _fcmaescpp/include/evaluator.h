@@ -93,15 +93,20 @@ static void noop_callback_par(int popsize, int dim, double *x, double *y) {
 static std::uniform_real_distribution<> distr_01 =
         std::uniform_real_distribution<>(0, 1);
 
-static std::normal_distribution<> gauss_01 = std::normal_distribution<>(0, 1);
+// std::normal_distribution caches the second value of each generated pair.
+// The normal samplers below take the distribution object from the caller, so
+// that every optimizer instance owns its own cache next to its own generator.
+// A shared cache would make a run depend on earlier runs and on other threads.
 
-static Eigen::MatrixXd normal(int dx, int dy, pcg64 &rs) {
+static Eigen::MatrixXd normal(int dx, int dy, pcg64 &rs,
+        std::normal_distribution<> &gauss_01) {
     return Eigen::MatrixXd::NullaryExpr(dx, dy, [&]() {
         return gauss_01(rs);
     });
 }
 
-static Eigen::MatrixXd normalVec(int dim, pcg64 &rs) {
+static Eigen::MatrixXd normalVec(int dim, pcg64 &rs,
+        std::normal_distribution<> &gauss_01) {
     return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
         return gauss_01(rs);
     });
@@ -127,12 +132,14 @@ static int randInt(pcg64 &rs, int max) {
     return (int) (max * distr_01(rs));
 }
 
-static double normreal(pcg64 &rs, double mu, double sdev) {
+static double normreal(pcg64 &rs, std::normal_distribution<> &gauss_01,
+        double mu, double sdev) {
     return gauss_01(rs) * sdev + mu;
 }
 
-static vec normalVec(const vec &mean, const vec &sdev, int dim, pcg64 &rs) {
-    vec nv = normalVec(dim, rs);
+static vec normalVec(const vec &mean, const vec &sdev, int dim, pcg64 &rs,
+        std::normal_distribution<> &gauss_01) {
+    vec nv = normalVec(dim, rs, gauss_01);
     return (nv.array() * sdev.array()).matrix() + mean;
 }
 

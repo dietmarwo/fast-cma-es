@@ -301,7 +301,7 @@ public:
 
     mat ask_all() { // undecoded
         // generate popsize offspring.
-        arz = normal(dim, popsize, *rs);
+        arz = normal(dim, popsize, *rs, gauss_01);
         mat xs(dim, popsize);
         for (int k = 0; k < popsize; k++) {
             vec delta = (BD * arz.col(k)) * sigma;
@@ -340,7 +340,7 @@ public:
 
     vec ask() {
         // ask for one new argument vector.
-        vec arz1 = normalVec(dim, *rs);
+        vec arz1 = normalVec(dim, *rs, gauss_01);
         vec delta = (BD * arz1) * sigma;
         vec arx1 = fitfun->getClosestFeasibleNormed(xmean + delta);
         computeArz = true;
@@ -359,7 +359,7 @@ public:
                     arz = (BD.inverse()
                             * ((arx - xmean.replicate(1, popsize)) / sigma));
                 } catch (std::exception &e) {
-                    arz = normal(dim, popsize, *rs);
+                    arz = normal(dim, popsize, *rs, gauss_01);
                 }
             } else if (repair_z)
                 // REPAIR-Z: the one call that enables the repaired-sample
@@ -602,6 +602,8 @@ private:
     int stop;
     int told = 0;
     pcg64 *rs;
+    // normal distribution of this instance (keeps its own cached value)
+    std::normal_distribution<> gauss_01;
     bool computeArz;
     // REPAIR-Z option: call repairArz() in tell() after ask_all()
     bool repair_z = false;

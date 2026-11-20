@@ -39,13 +39,16 @@ class Fitness;
 
 static uniform_real_distribution<> distr_01 = std::uniform_real_distribution<>(
         0, 1);
-static normal_distribution<> gauss_01 = std::normal_distribution<>(0, 1);
 
 static vec zeros(int n) {
     return Eigen::MatrixXd::Zero(n, 1);
 }
 
-static Eigen::MatrixXd normalVec(int dim, pcg64 &rs) {
+// std::normal_distribution caches the second value of each generated pair.
+// DARunner owns the distribution object next to its generator and passes it
+// on, so that a run does not depend on earlier runs or on other threads.
+static Eigen::MatrixXd normalVec(int dim, pcg64 &rs,
+        normal_distribution<> &gauss_01) {
     return Eigen::MatrixXd::NullaryExpr(dim, 1, [&]() {
         return gauss_01(rs);
     });
@@ -244,9 +247,11 @@ class VisitingDistribution {
 
 public:
 
-    VisitingDistribution(int dim, double visiting_param_, pcg64 *rs_) {
+    VisitingDistribution(int dim, double visiting_param_, pcg64 *rs_,
+            normal_distribution<> *gauss_01_) {
         _visiting_param = visiting_param_;
         rs = rs_;
+        gauss_01 = gauss_01_;
 
         // these are invariant numbers unless visiting_param changes
         double factor2 = exp(
@@ -313,8 +318,8 @@ public:
     vec visit_fn(double temperature, int dim) {
 
         //Formula Visita from p. 405 of reference [2]
-        vec x = normalVec(dim, *rs);
-        vec y = normalVec(dim, *rs);
+        vec x = normalVec(dim, *rs, *gauss_01);
+        vec y = normalVec(dim, *rs, *gauss_01);
         ;
 
         double factor1 = exp(log(temperature) / (_visiting_param - 1.0));
@@ -335,6 +340,7 @@ public:
 private:
 
     pcg64 *rs;
+    normal_distribution<> *gauss_01;
     double _visiting_param;
     double _factor4_p;
     double _factor6;
@@ -370,9 +376,10 @@ public:
         current_location = { };
     }
 
-    void reset(Fitness *owf, pcg64 *rs, const vec &x0) {
+    void reset(Fitness *owf, pcg64 *rs, normal_distribution<> *gauss_01,
+            const vec &x0) {
         if (x0.size() == 0)
-            current_location = normalVec(dim, *rs);
+            current_location = normalVec(dim, *rs, *gauss_01);
         else
             current_location = vec(x0);
         bool init_error = true;
@@ -570,9 +577,10 @@ public:
         use_local_search = use_local_search_;
         // Initialization of the energy state
         es = new EnergyState(owf->lower.size());
-        es->reset(owf, rs, x0_);
+        es->reset(owf, rs, &gauss_01, x0_);
         // VisitingDistribution instance
-        vd = new VisitingDistribution(owf->lower.size(), qv, rs);
+        vd = new VisitingDistribution(owf->lower.size(), qv, rs,
+                &gauss_01);
         // Markov chain instance
         sc = new StrategyChain(qa, vd, owf, rs, es);
     }
@@ -597,7 +605,7 @@ public:
                     return;
                 // Need a re-annealing process?
                 if (temperature < temperature_restart) {
-                    es->reset(owf, rs, emptyVec);
+                    es->reset(owf, rs, &gauss_01, emptyVec);
                     break;
                 }
                 // starting strategy chain
@@ -635,6 +643,8 @@ private:
     double temperature_restart = 0.1;
     Fitness *owf;
     pcg64 *rs;
+    // normal distribution of this run (keeps its own cached value)
+    normal_distribution<> gauss_01;
     EnergyState *es;
     StrategyChain *sc;
     VisitingDistribution *vd;

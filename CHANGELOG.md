@@ -69,6 +69,25 @@ publishes that version to PyPI.
   skips the same way, which changes results only in that case.
 - `cmaescpp.ACMA_C.tell(ys, xs)` right after an `ask()` updated from the
   `z` of the asked samples instead of the supplied points `xs`.
+- C++ optimizers: a run with a fixed seed could give a different result
+  depending on what ran before it in the same process. The normal samplers
+  shared one `std::normal_distribution` object per source file (a
+  namespace-scope `static` in `evaluator.h` and one in `daoptimizer.cpp`,
+  present since at least 2.0.0). That object caches the second value of each
+  generated pair, so after a run with an odd number of normal draws the next
+  run started with the cached value of the earlier run instead of a value
+  from its own seed. Ask/tell objects stepped alternately or in different
+  Python threads affected each other the same way (in threads also a data
+  race). Each optimizer instance now owns its normal distribution. Affected:
+  CMA-ES (`cmaescpp.minimize`, `ACMA_C`), DE with `x0` and `input_sigma`
+  (`decpp.minimize`, `DE_C`), CR-FM-NES (`crfmnescpp.minimize`,
+  `CRFMNES_C`), PGPE (`pgpecpp.minimize`, `PGPE_C`) and the optimizer
+  sequences built on them. Dual Annealing draws normal values in pairs, so
+  its single-threaded results were not affected; it gets its own
+  distribution too. BiteOpt and MODE do not use the shared object. The
+  first run in a fresh process gives the same results as before; a later
+  run with the same seed reproduces the first instead of depending on the
+  runs before it.
 - Tutorial text and figures that disagreed:
   - Scheduling: the SBM BiteOpt section showed the single-thread `Bite1.png`; it now shows `sbmBite32.png`.
   - UAV: `uav_reward.png` was a screenshot of six image-viewer windows whose legends covered the leading bars. It is redrawn from the Multi-UAV benchmark CSVs with the same means.
