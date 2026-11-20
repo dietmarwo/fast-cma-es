@@ -140,7 +140,10 @@ implementations; the algorithms are the same.
      multimodal, or poorly characterized black box.
    - Start with native DE for robust bounded exploration, integer-decoded
      variables, and DE-to-CMA sequences.
-   - Try `optimizer.jso_cma` as another bounded continuous search sequence.
+   - Try `optimizer.jso_cma` as another bounded continuous search sequence with
+     `retry`. With `advretry` keep `de_cma`: in a coordinated-retry test on
+     eight GTOP problems `jso_cma` was better on none and significantly worse
+     on two.
    - Use active CMA-ES when a useful guess exists, variables are continuous,
      and correlations or ill-conditioning matter.
    - Use CR-FM-NES for higher-dimensional continuous distribution search.

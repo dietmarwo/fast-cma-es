@@ -49,6 +49,10 @@ publishes that version to PyPI.
 
 ### Changed
 
+- The jSO tutorial and `ai-context.md` state the result of the coordinated-retry
+  test in fcmaes-rust: with `advretry`, `jso_cma` was better than `de_cma` on
+  none of eight GTOP problems and significantly worse on Sagas and Messenger
+  full ([table](https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/algorithm-portfolio.md#why-jso-is-in)).
 - The READMEs and `ai-context.md` link the
   [algorithm portfolio of fcmaes-rust](https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/algorithm-portfolio.md), which records how the scalar
   algorithms were selected and the measurements behind each decision.
