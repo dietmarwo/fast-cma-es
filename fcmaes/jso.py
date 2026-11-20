@@ -113,9 +113,15 @@ def _minimize(state, fun, workers):
 
 
 def _lehmer(values, weights):
-    """Fitness-weighted Lehmer mean with finite scaling of the weights."""
-    num = float(np.dot(weights, values * values))
-    den = float(np.dot(weights, values))
+    """Fitness-weighted Lehmer mean with finite scaling of the weights.
+
+    The sums are exactly rounded (``math.fsum``). ``np.dot`` goes through
+    BLAS, whose result can depend on the memory alignment of its arguments,
+    so that the same seed would not always repeat a run.
+    """
+    weighted = weights * values
+    num = math.fsum(weighted * values)
+    den = math.fsum(weighted)
     return num / den if den > 0 else None
 
 
