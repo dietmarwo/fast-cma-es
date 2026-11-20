@@ -101,12 +101,12 @@ public:
         stopfitness = stopfitness_;
         iterations = 0;
         bestY = DBL_MAX;
-        bestScore = DBL_MAX;
         stop = 0;
         rs = new pcg64(seed_);
-        optimizer = new ADAM(guess_, b1_, b2_, eps_, center_learning_rate_,
-                decay_coef_);
         center = fitfun->encode(guess_);
+        // ADAM updates the center in the encoded coordinates of fitfun.
+        optimizer = new ADAM(center, b1_, b2_, eps_, center_learning_rate_,
+                decay_coef_);
         stdev = inputSigma_;
         lr_decay_steps = lr_decay_steps_;
 
@@ -202,20 +202,18 @@ public:
     // ys are the objective values of the points in popX.
     int tell(vec ys) {
         popY = process_scores(-ys);
-        // The stop test uses the processed score, which is the rank value
-        // if use_ranking is set.
-        double bY = -popY.maxCoeff();
-        if (bestScore > bY) {
-            bestScore = bY;
-            if (bestScore < stopfitness)
-                stop = 1;
-        }
+        bool improved = false;
         for (int p = 0; p < popsize; p++) {
             if (ys[p] < bestY) {
                 bestY = ys[p];
                 bestX = popX.col(p);
+                improved = true;
             }
         }
+        // The stop test uses the best objective value, also if use_ranking
+        // is set.
+        if (improved && bestY < stopfitness)
+            stop = 1;
         compute_reinforce_update(popY, scaled_noises, stdev);
         optimizer->update(((int) iterations) / lr_decay_steps, -grad_center);
         iterations += 1;
@@ -274,7 +272,6 @@ private:
     double stopfitness;
     int iterations;
     double bestY;
-    double bestScore;
     vec bestX;
     int stop;
     pcg64 *rs;
