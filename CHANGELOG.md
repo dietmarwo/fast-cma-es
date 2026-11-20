@@ -25,14 +25,16 @@ publishes that version to PyPI.
   delayed-update paths have always derived `z` from the evaluated points and
   are not affected.
   - **Default:** in 2,400 matched pairs on 12 application objectives (in
-    fcmaes-rust), `False` won more often for standalone bounded CMA-ES (217
-    wins against 152, 15 ties) and as the second stage of DE→CMA (178
-    against 118) and jSO→CMA (197 against 144), also at equal evaluations;
-    on a 171-variable truss jSO→CMA reached a median of 394.5 with `False`
-    against 420.4 with `True`. Coordinated DE→CMA retry leaned slightly
-    toward `True` (72 against 58), and `True` was clearly better where
-    samples keep being clipped and the step size inflates (a 118-variable
-    neural controller: median loss 0.137 against 1.13).
+    fcmaes-rust, at about 63,000 evaluations per run), `False` won more
+    often for standalone bounded CMA-ES (222 wins against 149, 13 ties), as
+    the second stage of DE→CMA (217 against 62) and jSO→CMA (205 against
+    75), at exactly equal work (166 against 49) and in coordinated DE→CMA
+    retry (74 against 43). At a quarter of that budget coordinated retry
+    had leaned toward `True` (72 against 58). On a 171-variable truss
+    jSO→CMA reached a median of 394.5 with `False` against 420.4 with
+    `True`. `True` was clearly better where samples keep being clipped and
+    the step size inflates (a 118-variable neural controller: median loss
+    0.137 against 1.13).
   - **When to try `True`:** runs that stop early far from the optimum with
     the step-size stop (status 3 or 5), optima on or outside the bounds, and
     samples clipped throughout the run. On `sum(x)` and on a sphere with half
