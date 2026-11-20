@@ -105,14 +105,14 @@ public:
 
     vec sample() {
         if (useNormal)
-            return fitfun->getClosestFeasible(mean + (normalVec(dim, *rs).array() * sigma.array()).matrix());
+            return fitfun->getClosestFeasible(mean + (normalVec(dim, *rs, gauss_01).array() * sigma.array()).matrix());
         else
             return fitfun->sample(*rs);
     }
 
     double sample_i(int i) {
         if (useNormal)
-            return fitfun->getClosestFeasible_i(i, normreal(*rs, mean[i], sigma[i]));
+            return fitfun->getClosestFeasible_i(i, normreal(*rs, gauss_01, mean[i], sigma[i]));
         else
             return fitfun->sample_i(i, *rs);
     }
@@ -421,6 +421,8 @@ private:
     double F;
     double CR;
     pcg64 *rs;
+    // normal distribution of this instance (keeps its own cached value)
+    std::normal_distribution<> gauss_01;
     mat popX;
     mat popX0;
     mat askedX;

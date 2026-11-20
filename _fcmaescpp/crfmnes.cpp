@@ -59,7 +59,7 @@ public:
         rs = new pcg64(seed);
 
         stop = 0;
-        v = normalVec(dim, *rs) / sqrt(dim);
+        v = normalVec(dim, *rs, gauss_01) / sqrt(dim);
         D = constant(dim, 1);
         w_rank_hat = ((log(sequence(1, lamb, 1).array()) * -1.) + log(mu + 1)).cwiseMax(0);
         w_rank = (w_rank_hat / w_rank_hat.sum()).array() - (1. / lamb);
@@ -140,7 +140,7 @@ public:
     }
 
     mat ask() {
-        mat zhalf = normal(dim, mu, *rs);
+        mat zhalf = normal(dim, mu, *rs, gauss_01);
         for (int i = 0; i < lamb; i++) {
             if (i < mu) z.col(i) = zhalf.col(i);
             else z.col(i) = -zhalf.col(i-mu);
@@ -318,6 +318,8 @@ private:
     int mu;
     bool use_constraint_violation;
     pcg64 *rs;
+    // normal distribution of this instance (keeps its own cached value)
+    std::normal_distribution<> gauss_01;
     vec v;
     vec D;
     double penalty_coef;
