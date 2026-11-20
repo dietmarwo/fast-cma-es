@@ -104,9 +104,10 @@ public:
         bestScore = DBL_MAX;
         stop = 0;
         rs = new pcg64(seed_);
-        optimizer = new ADAM(guess_, b1_, b2_, eps_, center_learning_rate_,
-                decay_coef_);
         center = fitfun->encode(guess_);
+        // ADAM updates the center in the encoded coordinates of fitfun.
+        optimizer = new ADAM(center, b1_, b2_, eps_, center_learning_rate_,
+                decay_coef_);
         stdev = inputSigma_;
         lr_decay_steps = lr_decay_steps_;
 
