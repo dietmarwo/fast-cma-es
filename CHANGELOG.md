@@ -104,6 +104,38 @@ publishes that version to PyPI.
   first run in a fresh process gives the same results as before; a later
   run with the same seed reproduces the first instead of depending on the
   runs before it.
+- PGPE result: `pgpecpp.minimize` (and `optimizer.Pgpe_cpp`) returned an `x`
+  that was never evaluated, usually uninitialized memory (e.g. values like
+  `4.7e-315` or `6.9e-310`), and with the default `use_ranking=True` a `fun`
+  that was a rank value (e.g. `-0.4375` for popsize 16), not an objective
+  value. `PGPE_C.result()` with `use_ranking=True` returned the same rank
+  value as `fun` and the best point of the first generation as `x`. Both now
+  return the best evaluated point (decoded, inside the bounds) and its
+  objective value, with and without ranking. The evaluated points, the
+  number of evaluations and the stop criterion are unchanged; with
+  `use_ranking=True`, `stop_fitness` is still compared with the rank value.
+  Present in 2.0.0 and 2.1.0.
+- `cmaescpp.minimize` or `decpp.minimize` called from two Python threads at
+  the same time hung forever, and so did a CMA-ES objective that itself
+  calls `cmaescpp.minimize` (and a DE objective calling `decpp.minimize`).
+  Each of the two bindings stored the Python objective in one global
+  pointer guarded by a mutex that a call took while holding the GIL; the
+  running call needed the GIL for its next objective evaluation. Each call
+  now keeps its objective in its own per-call context, which also reaches
+  the worker threads of `workers > 1`, so such calls complete and each uses
+  its own objective. Results of a single call are unchanged. Present in
+  2.0.0 and 2.1.0.
+- `cmaescpp.minimize` and `decpp.minimize` with `workers > 1` read freed
+  memory: the queue between the optimizer and its evaluator threads
+  returned a reference to an element it had just removed (a
+  heap-use-after-free that AddressSanitizer reports in every such run). On
+  Linux this went unnoticed; on Windows two such calls running at the same
+  time crashed with an access violation or heap corruption. The queue now
+  returns a copy. The evaluation counter, the terminate flag and the stop
+  flag of the evaluator, written by several evaluator threads, are atomic
+  (ThreadSanitizer reported data races on them). Results of
+  single-threaded calls are unchanged. The queue code is the same in
+  2.0.0 and 2.1.0.
 - Tutorial text and figures that disagreed:
   - Scheduling: the SBM BiteOpt section showed the single-thread `Bite1.png`; it now shows `sbmBite32.png`.
   - UAV: `uav_reward.png` was a screenshot of six image-viewer windows whose legends covered the leading bars. It is redrawn from the Multi-UAV benchmark CSVs with the same means.

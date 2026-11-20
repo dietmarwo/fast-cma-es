@@ -9,6 +9,7 @@
 #define EVALUATOR_HPP_
 
 #include <Eigen/Core>
+#include <atomic>
 #include <iostream>
 #include <algorithm>
 #include <queue>
@@ -23,6 +24,7 @@
 #include <cfloat>
 
 #include "pcg_random.hpp"
+#include "callback_context.hpp"
 
 using Clock = std::chrono::steady_clock;
 using std::chrono::time_point;
@@ -63,11 +65,12 @@ public:
 
     // Retrieves and removes the head of this queue,
     // waiting if necessary until an element becomes available.
-    inline const T& take() {
+    // Returns a copy: pop() destroys the element and can free its storage.
+    inline T take() {
         std::unique_lock<std::mutex> lock(_mutex);
         while (_queue.size() == 0)
             _not_empty.wait(lock);
-        T &front = _queue.front();
+        T front = std::move(_queue.front());
         _queue.pop();
         _not_full.notify_one();
         return front;
@@ -223,7 +226,8 @@ public:
 
     vec eval(const vec &X) {
         std::vector<double> res(_nobj);
-        _terminate = _terminate || _func(_dim, X.data(), res.data());
+        if (!_terminate && _func(_dim, X.data(), res.data()))
+            _terminate = true;
         for (int i = 0; i < _nobj; i++) {
             if (std::isnan(res[i]) || !std::isfinite(res[i]))
                 res[i] = 1E99;
@@ -235,7 +239,8 @@ public:
 
     vec eval(const double *const p) {
         std::vector<double> res(_nobj);
-        _terminate = _terminate || _func(_dim, p, res.data());
+        if (!_terminate && _func(_dim, p, res.data()))
+            _terminate = true;
         for (int i = 0; i < _nobj; i++) {
             if (std::isnan(res[i]) || !std::isfinite(res[i]))
                 res[i] = 1E99;
@@ -360,15 +365,21 @@ public:
             return X;
     }
 
-    void values(const mat &popX, vec &ys) {
+    // evaluatedX, if given, receives the points passed to the objective
+    // (decoded and clipped to the bounds), one per column.
+    void values(const mat &popX, vec &ys, mat *evaluatedX = nullptr) {
         int popsize = popX.cols();
         int n = popX.rows();
         std::vector<double> pargs(popsize * n);
         std::vector<double> res(popsize);
+        if (evaluatedX != nullptr)
+            evaluatedX->resize(n, popsize);
         for (int p = 0; p < popsize; p++) {
             vec x = getClosestFeasible(decode(popX.col(p)));
             for (int i = 0; i < n; i++)
                 pargs[p * n + i] = x(i);
+            if (evaluatedX != nullptr)
+                evaluatedX->col(p) = x;
         }
         _func_par(popsize, n, pargs.data(), res.data());
         for (int p = 0; p < popX.cols(); p++)
@@ -409,8 +420,9 @@ private:
     vec _scale;
     vec _typx;
     bool _normalize;
-    bool _terminate;
-    long _evaluationCounter;
+    // written by the evaluator threads of a run with workers > 1
+    std::atomic<bool> _terminate;
+    std::atomic<long> _evaluationCounter;
 };
 
 struct vec_id {
@@ -428,7 +440,8 @@ class evaluator {
 public:
 
     evaluator(Fitness *fit, int nobj, int workers) :
-            _fit(fit), _nobj(nobj), _workers(workers), _stop(false) {
+            _fit(fit), _nobj(nobj), _workers(workers), _stop(false),
+            _context(fcmaes::callback_context) {
         _requests = new blocking_queue<vec_id*>(2 * workers);
         _evaled = new blocking_queue<vec_id*>(2 * workers);
         _t0 = Clock::now();
@@ -455,6 +468,7 @@ public:
     }
 
     void execute(int thread_id) {
+        fcmaes::callback_context = _context;
         while (!_stop) {
             vec_id *vid = _requests->take();
             if (!_stop) {
@@ -504,7 +518,8 @@ private:
     Fitness *_fit;
     int _nobj;
     int _workers;
-    bool _stop;
+    std::atomic<bool> _stop;
+    const void *_context;
     blocking_queue<vec_id*> *_requests;
     blocking_queue<vec_id*> *_evaled;
     std::vector<evaluator_job> _jobs;
