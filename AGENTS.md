@@ -3,7 +3,7 @@
 This repository is **fcmaes**, a Python 3.10+ library of gradient-free
 optimizers with a C++17 backend exposed through nanobind:
 
-- scalar: BiteOpt, DE, CMA-ES, CR-FM-NES, PGPE, Dual Annealing, and parallel
+- scalar: BiteOpt, DE, jSO, CMA-ES, CR-FM-NES, PGPE, Dual Annealing, and parallel
   retry;
 - multi-objective: MODE and the exact two-objective archive `fcmaes.pareto`;
 - quality diversity: MAP-Elites and the Diversifier.
@@ -32,7 +32,7 @@ python -m pip install pytest                     # the tests' only extra depende
 cd .. && python -m pytest fast-cma-es/tests -q   # outside the checkout, so the installed extension is imported
 ```
 
-Native archive tests (CMake, GCC or Clang):
+Native archive and jSO tests (CMake, GCC or Clang):
 
 ```bash
 cmake -S tests/native -B build-native -DCMAKE_BUILD_TYPE=Release

@@ -87,6 +87,8 @@ The tutorials in this directory cover many optimization domains. Together they s
 
 == Miscellaneous
 
+- https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Jso.adoc[jSO and CMA-ES] Use the Python or C++ jSO implementation and hand its incumbent to CMA-ES.
+
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Subset.adoc[Subset selection] Select an optimal subset.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/Clustering.adoc[Clustering] Out-of-the-box clustering.
 - https://github.com/dietmarwo/fast-cma-es/blob/master/tutorials/ODE.adoc[ODE] Use differential equation solvers.

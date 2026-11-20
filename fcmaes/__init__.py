@@ -16,6 +16,8 @@ __all__ = [
     'de',
     'dacpp',
     'decpp',
+    'jso',
+    'jsocpp',
     'diversifier',
     'bitecpp',
     'retry',

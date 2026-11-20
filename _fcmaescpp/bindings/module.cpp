@@ -6,6 +6,7 @@
 #include "de_bindings.hpp"
 #include "gil_utils.hpp"
 #include "gtop_bindings.hpp"
+#include "jso_bindings.hpp"
 #include "mode_bindings.hpp"
 #include "ndarray_utils.hpp"
 #include "pgpe_bindings.hpp"
@@ -50,6 +51,7 @@ NB_MODULE(_fcmaes_ext, m) {
     fcmaes::bindings::bind_da(m);
     fcmaes::bindings::bind_de(m);
     fcmaes::bindings::bind_gtop(m);
+    fcmaes::bindings::bind_jso(m);
     fcmaes::bindings::bind_mode(m);
     fcmaes::bindings::bind_pgpe(m);
     fcmaes::bindings::bind_pareto(m);
