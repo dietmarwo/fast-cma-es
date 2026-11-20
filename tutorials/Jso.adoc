@@ -92,8 +92,14 @@ over ten problems, jSO→CMA-ES ranked about level with DE→CMA-ES (mean rank
 3.7 against 3.9 among twelve solvers), with a different profile: it was
 significantly better on GTOC1 and Tandem and worse on Cassini1, Sagas and
 Messenger full. jSO alone lost most comparisons. DE→CMA-ES stays the
-default sequence, and jSO→CMA-ES is a second candidate. How the two
-sequences compare in coordinated retry (`advretry`) is not known yet.
+default sequence, and jSO→CMA-ES is a second candidate.
+
+In coordinated retry (`advretry`) keep DE→CMA-ES. A separate test in
+fcmaes-rust ran both sequences inside coordinated retry on eight GTOP
+problems with 20 seeds each: jSO→CMA-ES was significantly better on none
+and significantly worse on Sagas and Messenger full. Coordinated retry
+hands each run a start point and step sizes, which DE uses and jSO does
+not. The test used the Rust implementations; the algorithms are the same.
 
 `optimizer.Jso_cpp` and `optimizer.Jso_python` can be passed to scalar
 `retry.minimize`. `optimizer.jso_cma` composes native jSO with active
