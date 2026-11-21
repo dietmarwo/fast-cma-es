@@ -208,7 +208,7 @@ public:
             const ivec &arindex, const mat &xold) {
         double negccov = 0;
         if (ccov1 + ccovmu > 0) {
-            mat arpos = (bestArx - xold.replicate(1, mu)) * (1. / sigma); // mu difference vectors
+            mat arpos = (bestArx - xold.replicate(1, mu)) * (1. / sigmaOld); // mu difference vectors
             mat roneu = pc * pc.transpose() * ccov1;
             // minor correction if hsig==false
             double oldFac = hsig ? 0 : ccov1 * cc * (2. - cc);
@@ -407,6 +407,7 @@ public:
         mat zmean = bestArz * weights;
         bool hsig = updateEvolutionPaths(zmean, xold);
         // adapt step size sigma
+        sigmaOld = sigma;
         sigma *= exp(min(1.0, (normps / chiN - 1.) * cs / damps));
         double bestFitness = fitness(arindex(0));
         double worstFitness = fitness(arindex(arindex.size() - 1));
@@ -581,6 +582,7 @@ private:
     double ccov1Sep;
     double ccovmuSep;
     double lazy_update_gap = 0;
+    double sigmaOld = 1;
     vec xmean;
     vec pc;
     vec ps;
