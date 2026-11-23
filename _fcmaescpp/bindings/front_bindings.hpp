@@ -1,3 +1,4 @@
+// Copyright (c) Dietmar Wolz. MIT license; see the repository LICENSE.
 #pragma once
 #include "common.hpp"
 

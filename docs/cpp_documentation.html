@@ -338,9 +338,9 @@
           <div class="directory-tag">_fcmaescpp/bindings/</div>
           <h3>The nanobind bindings</h3>
           <p class="summary">These files build the Python extension module <code>fcmaes._fcmaes_ext</code> that every native wrapper in <code>fcmaes/</code> uses.</p>
-          <p><code>module.cpp</code> defines the module and calls one <code>bind_*</code> function per file: <code>acma_bindings.cpp</code>, <code>bite_bindings.cpp</code>, <code>crfmnes_bindings.cpp</code>, <code>da_bindings.cpp</code>, <code>de_bindings.cpp</code>, <code>mode_bindings.cpp</code> and <code>pgpe_bindings.cpp</code> bind the optimizers above; <code>gtop_bindings.cpp</code> binds the GTOP space-mission benchmarks of <code>gtop.cpp</code> used by <code>fcmaes/astro.py</code>; and <code>pareto_bindings.cpp</code> binds the exact two-objective archive of <code>include/paretoarchive.hpp</code> as <code>ParetoArchive2D</code>. The helpers <code>common.hpp</code>, <code>ndarray_utils.hpp</code> and <code>gil_utils.hpp</code> convert NumPy arrays and release the GIL around native work.</p>
+          <p><code>module.cpp</code> defines the module and calls one <code>bind_*</code> function per file: <code>acma_bindings.cpp</code>, <code>bite_bindings.cpp</code>, <code>crfmnes_bindings.cpp</code>, <code>da_bindings.cpp</code>, <code>de_bindings.cpp</code>, <code>mode_bindings.cpp</code> and <code>pgpe_bindings.cpp</code> bind the optimizers above; <code>gtop_bindings.cpp</code> binds the GTOP space-mission benchmarks of <code>gtop.cpp</code> used by <code>fcmaes/astro.py</code>; <code>pareto_bindings.cpp</code> binds the exact two-objective archive of <code>include/paretoarchive.hpp</code> as <code>ParetoArchive2D</code>; and <code>front_bindings.cpp</code> binds the box indexes, the strict N-D archive, archive-gated DE and IGD (<code>BordaBoxIndex</code>, <code>GridBoxIndex</code>, <code>ParetoArchiveND</code>, <code>ArchiveDE</code>, <code>front_igd</code>). The helpers <code>common.hpp</code>, <code>ndarray_utils.hpp</code>, <code>owned_ndarray.hpp</code> and <code>gil_utils.hpp</code> convert NumPy arrays and release the GIL around native work.</p>
           <ul>
-            <li>Main pieces: <code>NB_MODULE(_fcmaes_ext, m)</code>, one-call <code>optimize_*</code> functions, stateful classes (<code>ACMA</code>, <code>Bite</code>, <code>CRFMNES</code>, <code>DE</code>, <code>MODE</code>, <code>PGPE</code>, <code>ParetoArchive2D</code>).</li>
+            <li>Main pieces: <code>NB_MODULE(_fcmaes_ext, m)</code>, one-call <code>optimize_*</code> functions, stateful classes (<code>ACMA</code>, <code>Bite</code>, <code>CRFMNES</code>, <code>DE</code>, <code>MODE</code>, <code>PGPE</code>, <code>ParetoArchive2D</code>, <code>ParetoArchiveND</code>, <code>ArchiveDE</code>, and the box indexes).</li>
             <li>How it fits: the only boundary between Python and the native code since 2.0, which replaced the earlier <code>ctypes</code> loading of exported C functions.</li>
             <li>Python side: imported through <code>fcmaes/_native.py</code>.</li>
           </ul>
@@ -348,7 +348,7 @@
 
         <section id="headers-group">
           <h2>Headers In <code>_fcmaescpp/include/</code></h2>
-          <p>The headers fall into three camps. <code>evaluator.h</code> is repository-specific glue. <code>LBFGS.h</code> and <code>LBFGSB.h</code> are bundled numerical solver headers. <code>paretofront2d.h</code> and <code>paretoarchive.hpp</code> hold the exact two-objective Pareto archive. The rest are the BiteOpt family and its supporting classes.</p>
+          <p>The headers fall into three camps. <code>evaluator.h</code> is repository-specific glue. <code>LBFGS.h</code> and <code>LBFGSB.h</code> are bundled numerical solver headers. <code>paretofront2d.h</code> and <code>paretoarchive.hpp</code> hold the exact two-objective Pareto archive; <code>archivede.hpp</code>, <code>rankbox.hpp</code> and <code>frontdistance.hpp</code> the archive-gated DE, the box indexes and IGD. The rest are the BiteOpt family and its supporting classes.</p>
         </section>
 
         <section id="evaluator-h">
@@ -526,6 +526,23 @@
           </div>
         </section>
 
+        <section id="archivede-h">
+          <div class="directory-tag">_fcmaescpp/include/ and _fcmaescpp/</div>
+          <h3><code>archivede.hpp</code>, <code>archivede.cpp</code>, <code>rankbox.hpp</code> and <code>frontdistance.hpp</code></h3>
+          <p class="summary">Archive-gated differential evolution with an exact strict Pareto archive, rank-space box indexes, and the inverted generational distance (not yet in a PyPI release).</p>
+          <p><code>archivede::State</code> runs DE/rand/1/bin (F = 0.5, CR = 0.3) through ask/tell and admits an offspring to survivor selection only if it enters <code>archivede::Archive</code>, the exact front of all evaluations with duplicates and payloads. Both are derived from <code>archive_de.cpp</code> in the BiteOpt repository and are compiled into the <code>fcmaes_backend</code> target. <code>rankbox::BordaBoxIndex</code> and <code>rankbox::GridBoxIndex</code> (header-only, derived from two C++ programs: a sparse rank grid by Aleksey Vaneev and a Borda rank-band selector) report the rows of a fixed point set inside closed boxes. <code>front_distance::igd(front, nfront, reference, nref, dim)</code> computes the exact IGD with a sorted 2D scan or a 3D k-d tree.</p>
+          <ul>
+            <li>How it fits: independent of the other optimizers; fcmaes-rust has the same tools and returns the same results.</li>
+            <li>Python side: <code>fcmaes.archivede</code>, <code>fcmaes.rankindex</code>, <code>fcmaes.pareto.ParetoArchiveND</code> and <code>fcmaes.pareto.igd</code>; see <code>docs/native_front_tools.md</code>.</li>
+          </ul>
+          <div class="refs">
+            <strong>References from the source</strong>
+            <ul>
+              <li><a href="https://github.com/avaneev/biteopt">https://github.com/avaneev/biteopt</a></li>
+            </ul>
+          </div>
+        </section>
+
         <footer>
           <h2>How To Navigate The Native Code</h2>
           <p>If you want to understand the project-specific part of the backend, start with <code>evaluator.h</code> and then read one algorithm file plus its Python wrapper. A good pair is <code>deoptimizer.cpp</code> with <code>fcmaes/decpp.py</code>, or <code>acmaesoptimizer.cpp</code> with <code>fcmaes/cmaescpp.py</code>. If your goal is to understand why the BiteOpt side looks different, read <code>biteaux.h</code> first and then <code>biteopt.h</code>.</p>
@@ -560,6 +577,7 @@
           <li><a href="#smaesopt-h"><code>smaesopt.h</code></a></li>
           <li><a href="#spheropt-h"><code>spheropt.h</code></a></li>
           <li><a href="#paretofront2d-h"><code>paretofront2d.h</code></a></li>
+          <li><a href="#archivede-h"><code>archivede.hpp</code></a></li>
         </ul>
       </aside>
     </div>

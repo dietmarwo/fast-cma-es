@@ -123,17 +123,20 @@ def test_strict_archive_exact_line_migration_signed_zero_and_error_contract():
 def test_igd_exact_search_matches_cartesian_oracle(d, n):
     rg = np.random.default_rng(d+n)
     r, f = rg.normal(size=(32, d)), rg.normal(size=(n, d))
-    assert igd(r, f) == pytest.approx(cdist(r, f).min(axis=1).mean(), rel=2e-15)
+    assert igd(f, r) == pytest.approx(cdist(r, f).min(axis=1).mean(), rel=2e-15)
     if d == 2:
         f = np.column_stack((np.arange(n), -np.arange(n)))
-        assert igd(r, f) == pytest.approx(cdist(r, f).min(axis=1).mean(), rel=2e-15)
-    assert np.isinf(igd(r, np.empty((0, d))))
+        assert igd(f, r) == pytest.approx(cdist(r, f).min(axis=1).mean(), rel=2e-15)
+    assert np.isinf(igd(np.empty((0, d)), r))
     with pytest.raises(ValueError):
-        igd(np.empty((0, d)), f)
+        igd(f, np.empty((0, d)))
     with pytest.raises(ValueError):
-        igd(r, np.zeros((1, d + 1)))
-    assert igd([[0., 0.]], [[1e-250, 0.]]) == 1e-250
-    assert igd([[0., 0.]], [[1e250, 0.]]) == 1e250
+        igd(np.zeros((1, d + 1)), r)
+    assert igd([[1e-250, 0.]], [[0., 0.]]) == 1e-250
+    assert igd([[1e250, 0.]], [[0., 0.]]) == 1e250
+    # The front comes first, as in fcmaes_rust.igd: here IGD and GD differ.
+    assert igd([[0., 0.]], [[0., 0.], [3., 4.]]) == 2.5
+    assert igd([[0., 0.], [3., 4.]], [[0., 0.]]) == 0.0
 
 
 def objective(x):
@@ -142,8 +145,8 @@ def objective(x):
 
 def test_extreme_coordinates_in_mean_distance_and_decision_bounds():
     limit = np.finfo(float).max
-    assert igd([[-limit], [limit]], [[limit]]) == limit
-    assert np.isinf(igd([[-limit]], [[limit]]))
+    assert igd([[limit]], [[-limit], [limit]]) == limit
+    assert np.isinf(igd([[limit]], [[-limit]]))
     state = archivede.ArchiveDE(1, [(-limit, limit)], popsize=4, max_evaluations=4, seed=5)
     xs = state.ask()
     assert np.isfinite(xs).all() and np.ptp(xs / limit) > 0
@@ -194,3 +197,22 @@ def test_row_batch_and_process_objectives_agree():
         np.testing.assert_array_equal(a, c)
     with pytest.raises(ValueError):
         archivede.minimize(objective, vectorized=True, workers=2, **kw)
+
+
+@pytest.mark.parametrize("n", [40, 300])
+def test_ties_keep_row_order_and_match_the_documented_order(n):
+    values = np.array([[-0.0, 0.0, 1.5, -2.0, 1.0][i % 5] for i in range(n)])
+    want = np.argsort(values + 0.0, kind="stable")
+    lo, hi = [-np.inf], [np.inf]
+    np.testing.assert_array_equal(BordaBoxIndex(values[:, None]).query(lo, hi), want)
+    np.testing.assert_array_equal(GridBoxIndex(values[:, None], 1.0 / n).query(lo, hi), want)
+
+
+def test_seeded_runs_repeat_and_tell_takes_ys():
+    def run():
+        s = archivede.ArchiveDE(2, [(0., 1.)] * 3, popsize=8, max_evaluations=40, seed=3)
+        while len(xs := s.ask()):
+            s.tell(ys=np.column_stack((xs[:, 0], 1. - xs[:, 0] + xs[:, 1:].sum(axis=1))))
+        return s.front()
+    for a, b in zip(run(), run()):
+        np.testing.assert_array_equal(a, b)

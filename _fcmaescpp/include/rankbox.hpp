@@ -1,5 +1,35 @@
-// Rank-space box indexes adapted from the supplied Borda and grid selectors.
-// The grid algorithm is copyright (c) 2026 Aleksey Vaneev.
+/**
+ * @file rankbox.hpp
+ * Exact closed-box queries over a fixed point set in component-wise rank space.
+ *
+ * Derived from two C++ programs that are not part of the published BiteOpt
+ * repository (https://github.com/avaneev/biteopt): grid_point_index.cpp, the
+ * sparse uniform grid in rank space (Copyright (c) 2026 Aleksey Vaneev), and
+ * borda_box_query.cpp, the Borda rank-band selector (no author notice). The
+ * fcmaes adaptations by Dietmar Wolz add input validation, a shared rank
+ * construction with a deterministic tie order, and the library interface.
+ *
+ * Original code: Copyright (c) 2026 Aleksey Vaneev.
+ * fcmaes adaptations: Copyright (c) 2026 Dietmar Wolz.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
 #pragma once
 
 #include <algorithm>
@@ -25,6 +55,17 @@ struct Ranks {
     std::vector<std::vector<double>> columns;
     std::vector<Order> orders, by_id;
 
+    // Monotone integer key of a finite coordinate; both zeros share one key.
+    static std::uint64_t key(double v) {
+        static_assert(sizeof(double) == sizeof(std::uint64_t) &&
+                      std::numeric_limits<double>::is_iec559);
+        std::uint64_t bits = 0;
+        if (v != 0.)
+            std::memcpy(&bits, &v, sizeof(bits));
+        constexpr std::uint64_t sign = UINT64_C(1) << 63;
+        return (bits & sign) ? ~bits : (bits ^ sign);
+    }
+
     Ranks(const double* points, std::size_t n, std::size_t d) {
         if (!d || n > std::numeric_limits<Id>::max() || n > SIZE_MAX / d || (n && !points))
             throw std::invalid_argument("invalid point matrix dimensions");
@@ -34,63 +75,44 @@ struct Ranks {
         columns.resize(d);
         orders.resize(d);
         by_id.resize(d);
+        // Each axis is sorted by coordinate; equal coordinates, including -0.0
+        // and 0.0, keep ascending row order. The order is therefore the same on
+        // every platform and in the Rust indexes of fcmaes-rust.
+        struct Item {
+            std::uint64_t key;
+            Id id;
+        };
+        std::vector<Item> entries(n), scratch(n);
         for (std::size_t j = 0; j < d; ++j) {
             auto& ids = orders[j];
             ids.resize(n);
             auto value = [&](Id id) { return points[std::size_t(id) * d + j]; };
-            // Distinct binary64 coordinates sort as monotone unsigned integer keys.
-            // Match the source std::sort tie permutations on duplicate-bearing axes.
-            bool distinct = false;
-            if (n >= 256) {
-                std::array<double, 64> sample;
-                for (std::size_t i = 0; i < sample.size(); ++i)
-                    sample[i] = value(static_cast<Id>(i));
-                std::sort(sample.begin(), sample.end());
-                if (std::adjacent_find(sample.begin(), sample.end()) == sample.end()) {
-                    struct Item {
-                        std::uint64_t key;
-                        Id id;
-                    };
-                    std::vector<Item> entries(n), scratch(n);
-                    constexpr std::uint64_t sign = UINT64_C(1) << 63;
-                    for (std::size_t i = 0; i < n; ++i) {
-                        const auto v = value(static_cast<Id>(i));
-                        std::uint64_t bits;
-                        static_assert(sizeof(v) == sizeof(bits) &&
-                                      std::numeric_limits<double>::is_iec559);
-                        std::memcpy(&bits, &v, sizeof(bits));
-                        entries[i] = {(bits & sign) ? ~bits : (bits ^ sign), static_cast<Id>(i)};
+            for (std::size_t i = 0; i < n; ++i)
+                entries[i] = {key(value(static_cast<Id>(i))), static_cast<Id>(i)};
+            if (n < 256) {
+                std::stable_sort(entries.begin(), entries.end(),
+                                 [](const Item& a, const Item& b) { return a.key < b.key; });
+            } else {
+                // Stable LSD radix sort on 11-bit digits.
+                for (unsigned shift = 0; shift < 64; shift += 11) {
+                    std::array<std::size_t, 2048> cursor{};
+                    for (const auto& e : entries)
+                        ++cursor[(e.key >> shift) & 2047];
+                    if (std::find(cursor.begin(), cursor.end(), n) != cursor.end())
+                        continue;
+                    std::size_t off = 0;
+                    for (auto& c : cursor) {
+                        auto count = c;
+                        c = off;
+                        off += count;
                     }
-                    for (unsigned shift = 0; shift < 64; shift += 11) {
-                        std::array<std::size_t, 2048> cursor{};
-                        for (const auto& e : entries)
-                            ++cursor[(e.key >> shift) & 2047];
-                        if (std::find(cursor.begin(), cursor.end(), n) != cursor.end())
-                            continue;
-                        std::size_t off = 0;
-                        for (auto& c : cursor) {
-                            auto count = c;
-                            c = off;
-                            off += count;
-                        }
-                        for (const auto& e : entries)
-                            scratch[cursor[(e.key >> shift) & 2047]++] = e;
-                        entries.swap(scratch);
-                    }
-                    distinct = true;
-                    for (std::size_t i = 0; i < n; ++i) {
-                        ids[i] = entries[i].id;
-                        if (i && value(ids[i]) == value(ids[i - 1])) {
-                            distinct = false;
-                            break;
-                        }
-                    }
+                    for (const auto& e : entries)
+                        scratch[cursor[(e.key >> shift) & 2047]++] = e;
+                    entries.swap(scratch);
                 }
             }
-            if (!distinct) {
-                std::iota(ids.begin(), ids.end(), Id(0));
-                std::sort(ids.begin(), ids.end(), [&](Id a, Id b) { return value(a) < value(b); });
-            }
+            for (std::size_t i = 0; i < n; ++i)
+                ids[i] = entries[i].id;
             auto& ranks = by_id[j];
             auto& column = columns[j];
             ranks.resize(n);

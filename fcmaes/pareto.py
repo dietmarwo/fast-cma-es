@@ -165,17 +165,21 @@ class ParetoArchiveND:
         return self._native.front()
 
     def clear(self) -> None:
+        """Remove all rows, keeping the objective count and payload length."""
         self._native.clear()
 
 
-def igd(reference: ArrayLike, front: ArrayLike) -> float:
-    """Mean Euclidean distance from each reference row to its nearest supplied front row.
+def igd(front: ArrayLike, reference: ArrayLike) -> float:
+    """Inverted generational distance of an approximation ``front``.
 
-    Both arguments are finite matrices of equal positive width. The reference
+    The mean Euclidean distance from each row of ``reference`` to its nearest
+    row of ``front``. The front comes first, as in ``fcmaes_rust.igd``;
+    swapping the arguments computes the generational distance instead. Both
+    arguments are finite matrices of equal positive width. The reference
     must contain at least one row. An empty front has infinite IGD.
     """
-    reference = np.require(reference, dtype=np.float64, requirements=["C", "A"])
     front = np.require(front, dtype=np.float64, requirements=["C", "A"])
+    reference = np.require(reference, dtype=np.float64, requirements=["C", "A"])
     if reference.ndim != 2 or front.ndim != 2:
-        raise ValueError("reference and front must be matrices")
-    return _front_igd(reference, front)
+        raise ValueError("front and reference must be matrices")
+    return _front_igd(front, reference)

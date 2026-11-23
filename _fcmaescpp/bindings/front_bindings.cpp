@@ -1,3 +1,4 @@
+// Copyright (c) Dietmar Wolz. MIT license; see the repository LICENSE.
 #include "front_bindings.hpp"
 #include "archivede.hpp"
 #include "frontdistance.hpp"
@@ -139,20 +140,20 @@ void bind_front_tools(nb::module_& m) {
              })
         .def(
             "tell", [](State& s, F64Matrix y) { s.tell(y.data(), y.shape(0), y.shape(1)); },
-            "values"_a.noconvert())
+            "ys"_a.noconvert())
         .def("front", [](const State& s) { return snapshot(s.front(), s.dim(), s.nobj()); })
         .def("population", [](const State& s) { return snapshot(s.population(), s.dim(), s.nobj()); })
         .def_prop_ro("nfev", &State::nfev);
     m.def(
         "front_igd",
-        [](F64Matrix reference, F64Matrix front) {
+        [](F64Matrix front, F64Matrix reference) {
             if (reference.shape(1) != front.shape(1))
                 throw std::invalid_argument("objective dimensions must match");
             return without_gil([&] {
-                return front_distance::igd(reference.data(), reference.shape(0), front.data(),
-                                           front.shape(0), reference.shape(1));
+                return front_distance::igd(front.data(), front.shape(0), reference.data(),
+                                           reference.shape(0), reference.shape(1));
             });
         },
-        "reference"_a.noconvert(), "front"_a.noconvert());
+        "front"_a.noconvert(), "reference"_a.noconvert());
 }
 } // namespace fcmaes::bindings

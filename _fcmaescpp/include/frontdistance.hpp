@@ -1,3 +1,4 @@
+// Copyright (c) Dietmar Wolz. MIT license; see the repository LICENSE.
 // Exact inverted generational distance for minimization fronts.
 #pragma once
 
@@ -76,7 +77,9 @@ inline double extreme_mean(const double* reference, std::size_t nref, const doub
 }
 } // namespace detail
 
-inline double igd(const double* reference, std::size_t nref, const double* front, std::size_t nfront,
+// Mean Euclidean distance from each reference row to its nearest front row.
+// The approximation front comes first, as in fcmaes-rust's igd(front, reference).
+inline double igd(const double* front, std::size_t nfront, const double* reference, std::size_t nref,
                   std::size_t dim) {
     if (!dim || !nref || !reference || (nfront && !front) || nref > SIZE_MAX / dim ||
         nfront > SIZE_MAX / dim)

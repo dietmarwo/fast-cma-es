@@ -139,6 +139,11 @@ implementations; the algorithms are the same.
      typically for two cheap objectives.
    - With exactly two objectives, record every evaluated batch in
      `pareto.ParetoArchive2D` to keep the exact front over all evaluations.
+   - For bounded continuous decisions without constraints, when the front of
+     all evaluations matters more than a final population, try
+     `archivede.minimize` (unreleased; see "Archive-gated DE and N-D
+     archive"). Record any optimizer's evaluations in
+     `pareto.ParetoArchiveND` for three or more objectives.
 4. For one scalar objective:
    - Start with native BiteOpt for a difficult bounded, nonsmooth,
      multimodal, or poorly characterized black box.
@@ -212,6 +217,7 @@ The objective callback boundary is important:
 | PGPE (`pgpecpp`) | Very high-dimensional mirrored sampling, noisy objectives, policy search | Diagonal distribution does not learn a full covariance matrix | Even population 32; ranking enabled for one-shot `minimize` |
 | Dual Annealing (`dacpp`) | Low/moderate-dimensional global exploration with optional refinement | No population ask/tell interface | Keep local search for deterministic smooth-enough objectives |
 | BiteOpt (`bitecpp`) | Hard bounded black boxes, nonsmoothness, multimodality, little tuning | Constraints need penalties or repair; batched ask/tell changes feedback timing | Automatic population and `M=1` first |
+| Archive-gated DE (`archivede`, unreleased) | Unconstrained bounded multi-objective search that returns the exact front of all evaluations | No constraints, fixed `F=0.5` and `CR=0.3`, no integer handling | Population 100; compare against MODE on the same budget |
 | MODE (`modecpp`) | Constrained multi-objective Pareto search | Objective rows and constraint conventions must be exact | Population 64–200 first, NSGA-II update (DE update for `ints`), evaluate complete populations |
 | Weighted MO retry (`moretry`) | Independent scalarizations with any scalar optimizer | Sensitive to objective scaling and weight ranges | Tens or hundreds of retries; normalize objectives |
 | CVT MAP-Elites (`mapelites`) | Quality-diversity over meaningful descriptors | Requires fixed descriptor bounds and enough evaluations for coverage | Pilot with hundreds of niches before increasing capacity |
@@ -511,6 +517,36 @@ objective columns; points above the reference are skipped (`add` returns
 shared between processes, so collect evaluations in the parent. See
 `docs/pareto_archive.md` and `examples/pareto_mode.py`.
 
+### Archive-gated DE and N-D archive
+
+These are in the repository but not yet in a PyPI release.
+
+`archivede.minimize(fun, nobj, bounds, *, popsize=100,
+max_evaluations=100_000, seed=None, gate=True, tiered=True, workers=1,
+vectorized=False)` runs DE/rand/1/bin (`F=0.5`,
+`CR=0.3`) on bounded continuous decisions and returns `(xs, ys)`: every
+strictly nondominated evaluation of the run, duplicates included. An
+offspring enters survivor selection only if it enters that archive; survivors
+are objective champions plus a greedy spread in rank space. It has no
+constraint handling: fold constraints into the objectives or use MODE.
+`archivede.ArchiveDE` is the ask/tell form (`ask()`, `tell(ys)`, `front()`,
+`population()`); the budget is a hard cap.
+
+`pareto.ParetoArchiveND(nobj, payload_dim=0)` keeps every strictly
+nondominated row of any objective count, with duplicates and their payloads,
+and records evaluations of any optimizer. Unlike `ParetoArchive2D` it has no
+reference point and no hypervolume.
+
+`pareto.igd(front, reference)` is the inverted generational distance of an
+approximation `front` to a sampled reference front. The front comes first, as
+in `fcmaes_rust.igd`.
+
+`rankindex.BordaBoxIndex(points)` and `rankindex.GridBoxIndex(points,
+query_volume)` index a fixed point set and return the row IDs inside closed
+axis-aligned boxes (`query`, or `query_batch` for many boxes). See
+`docs/native_front_tools.md`. fcmaes-rust has the same tools; both packages
+return the same results, and the same `ArchiveDE` run for the same seed.
+
 ### Weighted multi-objective retry
 
 `moretry.minimize` samples one weight per output value inside
@@ -800,7 +836,9 @@ Before declaring success:
   success/feasibility rate.
 - For multi-objective runs, report feasible Pareto points and an appropriate
   front-quality measure, not only one selected point. For two objectives,
-  `ParetoArchive2D.hypervolume()` is exact; report its reference point.
+  `ParetoArchive2D.hypervolume()` is exact; report its reference point. With
+  a known reference front, `pareto.igd(front, reference)` measures the
+  distance to it; report how the reference was sampled.
 - For QD runs, report capacity, occupied niches, coverage, best fitness,
   descriptor ranges, and holdout niche migration for noisy problems.
 - Test scaling with workers 1 and N before claiming parallel speedup.
@@ -830,7 +868,9 @@ Before declaring success:
   objectives in Rust. It adds CMA-ES IPOP/BIPOP restarts, CMA-MAE emitters, an
   experimental source-only GP surrogate for expensive simulations, and
   job-API workers. CR-FM-NES, PGPE, MODE, CVT MAP-Elites with a CMA-ES
-  emitter, the CMA-ME-style `diversifier`, and `ParetoArchive2D` exist here.
+  emitter, the CMA-ME-style `diversifier`, `ParetoArchive2D`, and the
+  unreleased `archivede`, `ParetoArchiveND`, rank indexes and `igd` exist
+  here.
 - [optimization-jobs](https://github.com/dietmarwo/optimization-jobs) holds
   the shared job API, the `optimization-run` runner, and the `optimization-mcp`
   MCP server through which agents run durable jobs on fcmaes-rust,
@@ -860,15 +900,20 @@ Before declaring success:
 - `fcmaes/mode.py`: Python MODE implementation, modifiers, feasibility, and
   Pareto utilities.
 - `fcmaes/pareto.py`, `docs/pareto_archive.md`, and `examples/pareto_mode.py`:
-  exact 2-D Pareto archive, its semantics, and a constrained MODE recording.
+  exact 2-D Pareto archive, its semantics, and a constrained MODE recording;
+  also the N-D archive `ParetoArchiveND` and `igd`.
+- `fcmaes/archivede.py`, `fcmaes/rankindex.py`, and
+  `docs/native_front_tools.md`: archive-gated DE, rank-space box indexes,
+  and their C++ headers (`archivede.hpp`, `rankbox.hpp`, `frontdistance.hpp`).
 - `fcmaes/mapelites.py`: CVT MAP-Elites archive and emitters.
 - `fcmaes/diversifier.py`: archive improvement with scalar solvers.
 - `fcmaes/evaluator.py`: persistent multiprocessing evaluators and callback
   safety behavior.
 - `fcmaes/_fcmaes_ext.pyi`: native extension signatures.
 - `tests/test_wheel_smoke.py`: deterministic installed-wheel smoke coverage.
-- `tests/test_mode_regression.py`, `tests/test_pareto.py`, and `tests/native`:
-  MODE regression, Pareto archive, and standalone C++ archive tests.
+- `tests/test_mode_regression.py`, `tests/test_pareto.py`,
+  `tests/test_front_tools.py`, and `tests/native`: MODE regression, Pareto
+  archive, front tool, and standalone C++ tests.
 - `tutorials/README.adoc`: tutorial index and retry output explanation.
 - `tutorials/Introduction.adoc`: practical optimizer selection and trajectory
   examples.

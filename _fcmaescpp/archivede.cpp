@@ -1,5 +1,8 @@
-// Archive gate, rank-sum ranking and rank-space spread from archive_de.cpp.
-// Copyright (c) 2026 Aleksey Vaneev. See the repository MIT license.
+// Archive gate, rank-sum ranking and rank-space spread, derived from
+// archive_de.cpp in Aleksey Vaneev's BiteOpt repository (commit e8d6785).
+// Original code: Copyright (c) 2026 Aleksey Vaneev.
+// fcmaes adaptations: Copyright (c) 2026 Dietmar Wolz.
+// MIT license; see the notice in include/archivede.hpp.
 #include "archivede.hpp"
 #include <algorithm>
 #include <cmath>
@@ -33,6 +36,16 @@ bool exact_sum(double a, double b, double sum) {
     if (std::abs(a) < std::abs(b))
         std::swap(a, b);
     return std::isfinite(sum) && sum - a == b;
+}
+
+// std::generate_canonical<double, 53> on two 32-bit words, low word first, as
+// libstdc++ computes it. Written out so that every standard library gives the
+// same stream; fcmaes-rust's ArchiveDe draws the same numbers.
+double unit(std::mt19937& rng) {
+    const double low = static_cast<double>(rng());
+    const double high = static_cast<double>(rng());
+    const double r = (low + high * 4294967296.) / 18446744073709551616.;
+    return r < 1. ? r : std::nextafter(1., 0.);
 }
 
 std::size_t matrix_size(std::size_t rows, std::size_t cols) {
@@ -258,7 +271,6 @@ const Point& State::ask() {
         return physical_;
     const auto n = static_cast<std::size_t>(std::min<std::uint64_t>(budget_ - evaluations_, popsize_));
     auto rng = rng_;
-    std::uniform_real_distribution<double> uniform(0., 1.);
     Population pending(n, Point(dim()));
     Point physical;
     physical.reserve(matrix_size(n, dim()));
@@ -266,7 +278,7 @@ const Point& State::ask() {
         auto& u = pending[i];
         if (parents_.empty()) {
             for (auto& v : u)
-                v = uniform(rng);
+                v = unit(rng);
         } else {
             std::size_t a, b, c;
             do {
@@ -281,7 +293,7 @@ const Point& State::ask() {
             const auto forced = rng() % dim();
             for (std::size_t j = 0; j < dim(); ++j) {
                 const auto v = parents_[a][j] + 0.5 * (parents_[b][j] - parents_[c][j]);
-                u[j] = (uniform(rng) < 0.3 || j == forced) ? std::clamp(v, 0., 1.) : parents_[i][j];
+                u[j] = (unit(rng) < 0.3 || j == forced) ? std::clamp(v, 0., 1.) : parents_[i][j];
             }
         }
         const auto x = decode(u);

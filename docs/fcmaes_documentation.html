@@ -167,7 +167,7 @@
       <div class="map-grid">
         <div class="map-card"><strong>Single-objective optimizers</strong><br><span class="meta"><code>cmaes.py</code>, <code>de.py</code>, <code>crfmnes.py</code> and the <code>*cpp.py</code> wrappers.</span></div>
         <div class="map-card"><strong>Meta-algorithms</strong><br><span class="meta"><code>retry.py</code>, <code>advretry.py</code>, <code>multiretry.py</code>, <code>moretry.py</code>.</span></div>
-        <div class="map-card"><strong>Multi-objective search</strong><br><span class="meta"><code>mode.py</code> and <code>modecpp.py</code>, weighted-sum retry in <code>moretry.py</code>, and the exact two-objective archive in <code>pareto.py</code>.</span></div>
+        <div class="map-card"><strong>Multi-objective search</strong><br><span class="meta"><code>mode.py</code> and <code>modecpp.py</code>, weighted-sum retry in <code>moretry.py</code>, archive-gated DE in <code>archivede.py</code>, and the exact Pareto archives in <code>pareto.py</code>.</span></div>
         <div class="map-card"><strong>Quality-diversity</strong><br><span class="meta"><code>mapelites.py</code> and <code>diversifier.py</code>.</span></div>
         <div class="map-card"><strong>Execution helpers</strong><br><span class="meta"><code>evaluator.py</code>, <code>optimizer.py</code>, <code>journal.py</code>.</span></div>
         <div class="map-card"><strong>Benchmarks and tests</strong><br><span class="meta"><code>astro.py</code>, <code>testfun.py</code>, <code>test_cma.py</code>.</span></div>
@@ -198,6 +198,17 @@
             <li>Relation to the rest of the repo: built on <code>retry.py</code> ideas and on optimizer objects from <code>optimizer.py</code>.</li>
           </ul>
           <p>The default workflow combines differential evolution and CMA-ES, but the real point is the storage layer. If you want to understand how the library turns a sequence of local or semi-global runs into a coordinated search, this is one of the key modules.</p>
+        </section>
+
+        <section id="archivede-py">
+          <h3><code>archivede.py</code></h3>
+          <p class="summary">Archive-gated differential evolution that returns the exact Pareto front of all evaluations (not yet in a PyPI release).</p>
+          <p><code>minimize(fun, nobj, bounds, ...)</code> and the ask/tell class <code>ArchiveDE</code> wrap the native state of <code>archivede.cpp</code>, derived from <code>archive_de.cpp</code> in Aleksey Vaneev's BiteOpt repository. DE/rand/1/bin with F = 0.5 and CR = 0.3 runs on bounded continuous decisions; an offspring enters survivor selection only if it enters the strict N-D archive, and survivors are objective champions plus a greedy spread in rank space. The objective can be a row function, a vectorized batch function, or run in a process pool. There is no constraint handling.</p>
+          <ul>
+            <li>Main concepts: <code>ArchiveDE.ask</code>/<code>tell(ys)</code>, <code>front()</code> (every nondominated evaluation, duplicates included), <code>population()</code>, a hard evaluation cap.</li>
+            <li>Role in the package: an unconstrained alternative to MODE when the front of all evaluations matters; fcmaes-rust's <code>ArchiveDE</code> performs the same run for the same seed.</li>
+            <li>Relation to other files: its archive is <code>pareto.ParetoArchiveND</code>; see <code>docs/native_front_tools.md</code>.</li>
+          </ul>
         </section>
 
         <section id="astro-py">
@@ -433,11 +444,11 @@
 
         <section id="pareto-py">
           <h3><code>pareto.py</code></h3>
-          <p class="summary">This module keeps the exact Pareto front of two minimized objectives over everything evaluated, with its hypervolume updated on every insertion.</p>
+          <p class="summary">This module keeps the exact Pareto front of minimized objectives over everything evaluated: with an incremental hypervolume for two objectives, and for any objective count.</p>
           <p><code>ParetoArchive2D(reference, payload_dim)</code> wraps the native archive (<code>paretofront2d.h</code>, derived from BiteOpt's <code>bitehv2.h</code>). <code>add(y, x)</code> and <code>add_batch(ys, xs)</code> insert objective pairs with optional payloads such as decision vectors; <code>front()</code> returns the archived points and payloads, <code>hypervolume()</code> the exact dominated area inside the reference box. Points beyond the reference are not archived, and non-finite objectives raise <code>ValueError</code>. It does not change an optimizer: record a run's feasible evaluations in it, for example every population told to MODE.</p>
           <ul>
             <li>Main concepts: exact non-dominated set, incremental hypervolume, payloads, batch insertion.</li>
-            <li>Role in the package: the front of all evaluations, where MODE returns only its final population; for three or more objectives use <code>moretry.pareto</code> on stored rows.</li>
+            <li>Role in the package: the front of all evaluations, where MODE returns only its final population. <code>ParetoArchiveND(nobj, payload_dim)</code> (not yet in a PyPI release) keeps every strictly nondominated row of any objective count, duplicates and payloads included, without a reference point; <code>igd(front, reference)</code> measures the distance of a front to a reference front.</li>
             <li>Relation to other files: independent of the optimizers; see <code>docs/pareto_archive.md</code> and <code>examples/pareto_mode.py</code>.</li>
           </ul>
           <p>Use it when the report needs the best front over all evaluations or an exact hypervolume trace during the run.</p>
@@ -465,6 +476,17 @@
             <li>Relation to other files: reuses <code>retry.Store</code> rather than reimplementing storage and sorting logic.</li>
           </ul>
           <p>This file is specialized, but it is one of the clearer examples of the project adapting its meta-algorithms to an external optimization ecosystem.</p>
+        </section>
+
+        <section id="rankindex-py">
+          <h3><code>rankindex.py</code></h3>
+          <p class="summary">Immutable native indexes that report the rows of a fixed point set inside closed axis-aligned boxes (not yet in a PyPI release).</p>
+          <p><code>BordaBoxIndex(points)</code> and <code>GridBoxIndex(points, query_volume)</code> wrap <code>rankbox.hpp</code>. Both work in component-wise rank space and return original row IDs; <code>query</code> answers one box, <code>query_batch</code> many boxes with offsets and per-query work counters. Equal coordinates keep row order, so the result order is the same on every platform and in fcmaes-rust.</p>
+          <ul>
+            <li>Main concepts: closed boxes with inclusive and infinite endpoints, Borda rank-band filtering, a sparse rank grid sized by the expected query volume.</li>
+            <li>Role in the package: a standalone tool; no optimizer uses it.</li>
+            <li>Relation to other files: see <code>docs/native_front_tools.md</code>.</li>
+          </ul>
         </section>
 
         <section id="retry-py">
@@ -509,6 +531,7 @@
         <ul class="toc">
           <li><a href="#init-py"><code>__init__.py</code></a></li>
           <li><a href="#advretry-py"><code>advretry.py</code></a></li>
+          <li><a href="#archivede-py"><code>archivede.py</code></a></li>
           <li><a href="#astro-py"><code>astro.py</code></a></li>
           <li><a href="#bitecpp-py"><code>bitecpp.py</code></a></li>
           <li><a href="#cmaes-py"><code>cmaes.py</code></a></li>
@@ -530,6 +553,7 @@
           <li><a href="#pareto-py"><code>pareto.py</code></a></li>
           <li><a href="#pgpecpp-py"><code>pgpecpp.py</code></a></li>
           <li><a href="#pygmoretry-py"><code>pygmoretry.py</code></a></li>
+          <li><a href="#rankindex-py"><code>rankindex.py</code></a></li>
           <li><a href="#retry-py"><code>retry.py</code></a></li>
           <li><a href="#test-cma-py"><code>test_cma.py</code></a></li>
           <li><a href="#testfun-py"><code>testfun.py</code></a></li>

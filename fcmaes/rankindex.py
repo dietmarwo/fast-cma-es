@@ -1,4 +1,12 @@
-"""Immutable native rank-space indexes for closed, axis-aligned box queries."""
+# Copyright (c) Dietmar Wolz. MIT license; see the repository LICENSE.
+"""Immutable native rank-space indexes for closed, axis-aligned box queries.
+
+The native indexes (``_fcmaescpp/include/rankbox.hpp``) are derived from two
+C++ programs: a sparse rank grid by Aleksey Vaneev and a Borda rank-band
+selector. The header of ``rankbox.hpp`` holds the notices. Ranks sort each axis by coordinate, and
+equal coordinates keep ascending row order. fcmaes-rust's indexes return the
+same IDs in the same order.
+"""
 from __future__ import annotations
 
 from typing import NamedTuple
@@ -40,7 +48,7 @@ class BordaBoxIndex(_BoxIndex):
     """Static Borda rank index. Reports IDs in the shortest axis's rank order.
 
     Input is a finite (points, dimensions) matrix. The index owns its data.
-    Ties are included in full. Within a tie the native sort determines order.
+    Ties are included in full; equal coordinates are ordered by row ID.
     """
     stat_names = ("axis_candidates", "score_candidates")
 

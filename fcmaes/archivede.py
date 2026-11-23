@@ -1,8 +1,13 @@
+# Copyright (c) Dietmar Wolz. MIT license; see the repository LICENSE.
 """Archive-gated, rank-space differential evolution on bounded continuous problems.
 
-The native C++ state implements DE/rand/1/bin (F=0.5, CR=0.3). Python
-evaluates objectives. The returned archive retains each nondominated
-duplicate, including its corresponding decision vector.
+The native C++ state (``_fcmaescpp/archivede.cpp``, derived from
+``archive_de.cpp`` in Aleksey Vaneev's BiteOpt repository,
+https://github.com/avaneev/biteopt, MIT license) implements DE/rand/1/bin
+(F=0.5, CR=0.3) without constraint handling. Python evaluates objectives.
+The returned archive retains each nondominated duplicate, including its
+corresponding decision vector. With the same seed, fcmaes-rust's
+``ArchiveDE`` performs the same run.
 """
 from __future__ import annotations
 
@@ -53,12 +58,12 @@ class ArchiveDE:
         """Return a copy of the pending decision matrix, or (0, dim) when finished."""
         return self._native.ask()
 
-    def tell(self, values) -> None:
+    def tell(self, ys) -> None:
         """Submit all asked objective rows in order. Invalid values leave the batch pending."""
-        values = np.require(values, dtype=np.float64, requirements=["C", "A"])
-        if values.ndim != 2:
+        ys = np.require(ys, dtype=np.float64, requirements=["C", "A"])
+        if ys.ndim != 2:
             raise ValueError("expected a matrix of objective rows")
-        self._native.tell(values)
+        self._native.tell(ys)
 
     def population(self) -> tuple[np.ndarray, np.ndarray]:
         """Return independent copies (xs, ys) of the evaluated breeding population."""

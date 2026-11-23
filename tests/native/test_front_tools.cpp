@@ -54,7 +54,26 @@ int main() {
     require(state.nfev() == 19 && state.ask().empty(), "hard evaluation cap");
     require(state.front().rows == 19 && state.population().rows == 8, "archive and population");
     const double r[] = {0, 0, 1, 1}, f[] = {0, 0};
-    require(std::abs(front_distance::igd(r, 2, f, 1, 2) - std::sqrt(2.) / 2) < 1e-15, "IGD");
+    require(std::abs(front_distance::igd(f, 1, r, 2, 2) - std::sqrt(2.) / 2) < 1e-15, "IGD");
     const double m = std::numeric_limits<double>::max(), extreme[] = {-m, m};
-    require(front_distance::igd(extreme, 2, &m, 1, 1) == m, "finite mean of extreme distances");
+    require(front_distance::igd(&m, 1, extreme, 2, 1) == m, "finite mean of extreme distances");
+
+    // Ties keep row order on both sort paths (below and above 256 rows), with
+    // -0.0 equal to 0.0. fcmaes-rust's indexes use the same order.
+    for (std::size_t n : {40u, 300u}) {
+        std::vector<double> column(n);
+        const double cycle[] = {-0.0, 0.0, 1.5, -2.0, 1.0};
+        for (std::size_t i = 0; i < n; ++i)
+            column[i] = cycle[i % 5];
+        std::vector<rankbox::Id> want(n);
+        for (std::size_t i = 0; i < n; ++i)
+            want[i] = static_cast<rankbox::Id>(i);
+        std::stable_sort(want.begin(), want.end(),
+                         [&](rankbox::Id a, rankbox::Id b) { return column[a] < column[b]; });
+        const double lo = -std::numeric_limits<double>::infinity(), hi = -lo;
+        const rankbox::BordaBoxIndex tied(column.data(), n, 1);
+        require(tied.query(&lo, &hi).ids == want, "Borda tie order");
+        const rankbox::GridBoxIndex cells(column.data(), n, 1, 1. / double(n));
+        require(cells.query(&lo, &hi).ids == want, "grid tie order");
+    }
 }

@@ -10,11 +10,19 @@ publishes that version to PyPI.
 ### Added
 
 - Native Borda and grid box queries in `fcmaes.rankindex`, including batched
-  row-ID results and per-query work counts.
+  row-ID results and per-query work counts. Equal coordinates keep row order,
+  so results are the same on every platform and in fcmaes-rust.
 - `fcmaes.archivede` for archive-gated, bounded multi-objective differential
-  evolution with ask/tell and scalar, vectorized or process-parallel Python
-  objectives. `fcmaes.pareto` also exposes its duplicate-preserving N-D
-  archive and inverted generational distance as standalone operations.
+  evolution (DE/rand/1/bin, F = 0.5, CR = 0.3, no constraints) with ask/tell
+  and scalar, vectorized or process-parallel Python objectives. It returns the
+  exact front of all evaluations; with the same seed, fcmaes-rust's
+  `ArchiveDE` performs the same run. `fcmaes.pareto` also exposes its
+  duplicate-preserving N-D archive (`ParetoArchiveND`) and
+  `igd(front, reference)`, with the argument order of `fcmaes_rust.igd`.
+- The native code of both is derived from Aleksey Vaneev's C++
+  (`archive_de.cpp` from BiteOpt, and a rank grid and a Borda selector); the
+  headers of `archivede.hpp` and `rankbox.hpp` hold the notices. Documented in
+  `docs/native_front_tools.md`, `ai-context.md` and the API pages.
 
 ## [2.2.0] - 2026-11-20
 
