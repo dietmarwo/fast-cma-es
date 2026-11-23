@@ -1,5 +1,5 @@
 # Copyright (c) Dietmar Wolz. MIT license; see the repository LICENSE.
-"""Exact 2D Pareto archive with incremental hypervolume.
+"""Pareto archives, incremental two-objective hypervolume, and front distance.
 
 The native archive (``_fcmaescpp/include/paretofront2d.h``) is derived from
 ``bitehv2.h`` in Aleksey Vaneev's BiteOpt repository,
@@ -15,6 +15,19 @@ import numpy as np
 from numpy.typing import ArrayLike
 
 from fcmaes._fcmaes_ext import ParetoArchive2D as _Archive
+from fcmaes._fcmaes_ext import ParetoArchiveND as _StrictArchive
+from fcmaes._fcmaes_ext import front_igd as _front_igd
+
+
+def _payload_batch(xs, rows, width):
+    if xs is None:
+        if rows and width:
+            raise ValueError("payloads are required when payload_dim > 0")
+        return np.empty((rows, width), dtype=np.float64)
+    payloads = np.require(xs, dtype=np.float64, requirements=["C", "A"])
+    if payloads.ndim != 2:
+        raise ValueError("payloads must be a matrix")
+    return payloads
 
 
 class ParetoArchive2D:
@@ -87,14 +100,7 @@ class ParetoArchive2D:
         values = np.ascontiguousarray(ys, dtype=np.float64)
         if values.ndim != 2 or values.shape[1] != 2:
             raise ValueError("objectives must have shape (rows, 2)")
-        if xs is None:
-            if self.payload_dim and len(values):
-                raise ValueError("payloads are required when payload_dim > 0")
-            payloads = np.empty((len(values), self.payload_dim), dtype=np.float64)
-        else:
-            payloads = np.ascontiguousarray(xs, dtype=np.float64)
-            if payloads.ndim != 2:
-                raise ValueError("payloads must be a matrix")
+        payloads = _payload_batch(xs, len(values), self.payload_dim)
         return self._native.add_batch(values, payloads)
 
     def front(self) -> Tuple[np.ndarray, np.ndarray]:
@@ -109,3 +115,71 @@ class ParetoArchive2D:
     def clear(self) -> None:
         """Remove all points, keeping the reference and payload length."""
         self._native.clear()
+
+
+class ParetoArchiveND:
+    """Strict minimization front in nobj dimensions, with optional fixed-width payloads.
+
+    Equal nondominated rows coexist. Inputs are finite objectives with no
+    reference bound. Snapshots follow objective-sum order and then arrival
+    order within equal rounded sums.
+    """
+    def __init__(self, nobj: int, payload_dim: int = 0):
+        nobj, payload_dim = operator.index(nobj), operator.index(payload_dim)
+        if nobj < 1 or payload_dim < 0:
+            raise ValueError("nobj must be positive and payload_dim nonnegative")
+        self._native = _StrictArchive(nobj, payload_dim)
+
+    @property
+    def nobj(self) -> int:
+        return self._native.nobj
+
+    @property
+    def payload_dim(self) -> int:
+        return self._native.payload_dim
+
+    @property
+    def size(self) -> int:
+        return self._native.size
+
+    def __len__(self) -> int:
+        return self.size
+
+    def add(self, y, x=None) -> bool:
+        """Return whether this row entered the archive at the time it was added."""
+        values = np.require(y, dtype=np.float64, requirements=["C", "A"])
+        payload = np.empty(0) if x is None else np.require(x, dtype=np.float64, requirements=["C", "A"])
+        if values.ndim != 1 or payload.ndim != 1:
+            raise ValueError("objectives and payload must be vectors")
+        return self._native.add(values, payload)
+
+    def add_batch(self, ys, xs=None) -> np.ndarray:
+        """Return a boolean admission mask in arrival order. A bad numeric row retains the valid prefix."""
+        values = np.require(ys, dtype=np.float64, requirements=["C", "A"])
+        if values.ndim != 2 or values.shape[1] != self.nobj:
+            raise ValueError("objectives must have shape (rows, nobj)")
+        return self._native.add_batch(values, _payload_batch(xs, len(values), self.payload_dim))
+
+    def front(self) -> Tuple[np.ndarray, np.ndarray]:
+        """Return independent (payloads, objectives) matrices in archive order."""
+        return self._native.front()
+
+    def clear(self) -> None:
+        """Remove all rows, keeping the objective count and payload length."""
+        self._native.clear()
+
+
+def igd(front: ArrayLike, reference: ArrayLike) -> float:
+    """Inverted generational distance of an approximation ``front``.
+
+    The mean Euclidean distance from each row of ``reference`` to its nearest
+    row of ``front``. The front comes first, as in ``fcmaes_rust.igd``;
+    swapping the arguments computes the generational distance instead. Both
+    arguments are finite matrices of equal positive width. The reference
+    must contain at least one row. An empty front has infinite IGD.
+    """
+    front = np.require(front, dtype=np.float64, requirements=["C", "A"])
+    reference = np.require(reference, dtype=np.float64, requirements=["C", "A"])
+    if reference.ndim != 2 or front.ndim != 2:
+        raise ValueError("front and reference must be matrices")
+    return _front_igd(front, reference)

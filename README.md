@@ -69,6 +69,13 @@ Its native code is derived from `bitehv2.h` in Aleksey Vaneev's
 [BiteOpt](https://github.com/avaneev/biteopt) repository. See
 [usage and a MODE example](docs/pareto_archive.md).
 
+## Native rank queries and archive-gated DE
+
+`fcmaes.rankindex` reports the input rows inside a box. `fcmaes.archivede`
+minimizes Python objectives and returns the Pareto front of all evaluations.
+See [Python and C++ usage](docs/native_front_tools.md) for batch queries,
+archive updates, hypervolume and ask/tell.
+
 ## Third-party integration
 
 [OptunaHub's FastCmaesSampler](https://hub.optuna.org/samplers/fcmaes/), by

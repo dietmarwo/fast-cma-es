@@ -5,7 +5,9 @@ optimizers with a C++17 backend exposed through nanobind:
 
 - scalar: BiteOpt, DE, jSO, CMA-ES, CR-FM-NES, PGPE, Dual Annealing, and parallel
   retry;
-- multi-objective: MODE and the exact two-objective archive `fcmaes.pareto`;
+- multi-objective: MODE, archive-gated DE (`fcmaes.archivede`), the exact
+  two-objective and N-D archives and `igd` in `fcmaes.pareto`;
+- rank-space box queries over a fixed point set: `fcmaes.rankindex`;
 - quality diversity: MAP-Elites and the Diversifier.
 
 ## Read first

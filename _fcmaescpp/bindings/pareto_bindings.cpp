@@ -1,37 +1,9 @@
 // Copyright (c) Dietmar Wolz. MIT license; see the repository LICENSE.
 #include "pareto_bindings.hpp"
-#include "ndarray_utils.hpp"
+#include "owned_ndarray.hpp"
 #include "paretoarchive.hpp"
-#include <memory>
 
 namespace fcmaes::bindings {
-namespace {
-using Matrix = nb::ndarray<const double, nb::numpy, nb::shape<-1, -1>,
-                            nb::c_contig, nb::device::cpu>;
-using OwnedMatrix = nb::ndarray<nb::numpy, double, nb::shape<-1, -1>, nb::c_contig>;
-using Mask = nb::ndarray<nb::numpy, bool, nb::shape<-1>, nb::c_contig>;
-
-OwnedMatrix owned_matrix(std::vector<double> values, std::size_t rows, std::size_t cols) {
-    // nanobind requires a non-null data pointer even for zero-sized shapes.
-    if (values.empty()) values.resize(1);
-    auto storage = std::make_unique<std::vector<double>>(std::move(values));
-    nb::capsule owner(storage.get(), [](void* p) noexcept {
-        delete static_cast<std::vector<double>*>(p);
-    });
-    auto* data = storage->data();
-    storage.release();
-    return OwnedMatrix(data, {rows, cols}, owner);
-}
-
-Mask owned_mask(const std::vector<unsigned char>& values) {
-    auto storage = std::make_unique<bool[]>(values.size());
-    for (std::size_t i = 0; i < values.size(); ++i) storage[i] = values[i] != 0;
-    nb::capsule owner(storage.get(), [](void* p) noexcept { delete[] static_cast<bool*>(p); });
-    auto* data = storage.release();
-    return Mask(data, {values.size()}, owner);
-}
-}  // namespace
-
 void bind_pareto(nb::module_ &m) {
     nb::class_<fcmaes::ParetoArchive2D>(m, "ParetoArchive2D")
         .def("__init__", [](fcmaes::ParetoArchive2D* self, F64Vector reference, int payload_dim) {
@@ -44,7 +16,7 @@ void bind_pareto(nb::module_ &m) {
             if (y.size() != 2) throw std::invalid_argument("objectives must have length 2");
             return archive.add(y.data(), x.data(), x.size());
         }, "y"_a.noconvert(), "x"_a.noconvert())
-        .def("add_batch", [](fcmaes::ParetoArchive2D& archive, Matrix ys, Matrix xs) {
+        .def("add_batch", [](fcmaes::ParetoArchive2D& archive, F64Matrix ys, F64Matrix xs) {
             if (ys.shape(1) != 2) throw std::invalid_argument("objectives must have shape (rows, 2)");
             return owned_mask(archive.add_batch(ys.data(), xs.data(), ys.shape(0),
                                                xs.shape(0), xs.shape(1)));

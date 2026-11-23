@@ -4,6 +4,7 @@
 #include "crfmnes_bindings.hpp"
 #include "da_bindings.hpp"
 #include "de_bindings.hpp"
+#include "front_bindings.hpp"
 #include "gil_utils.hpp"
 #include "gtop_bindings.hpp"
 #include "jso_bindings.hpp"
@@ -55,4 +56,5 @@ NB_MODULE(_fcmaes_ext, m) {
     fcmaes::bindings::bind_mode(m);
     fcmaes::bindings::bind_pgpe(m);
     fcmaes::bindings::bind_pareto(m);
+    fcmaes::bindings::bind_front_tools(m);
 }
