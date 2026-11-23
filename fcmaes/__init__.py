@@ -27,6 +27,8 @@ __all__ = [
     'mode',
     'modecpp',
     'pareto',
+    'rankindex',
+    'archivede',
     'pgpecpp',
     'moretry',
     'pygmoretry',

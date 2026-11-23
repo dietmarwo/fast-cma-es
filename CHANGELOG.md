@@ -7,6 +7,15 @@ publishes that version to PyPI.
 
 ## [Unreleased]
 
+### Added
+
+- Native Borda and grid box queries in `fcmaes.rankindex`, including batched
+  row-ID results and per-query work counts.
+- `fcmaes.archivede` for archive-gated, bounded multi-objective differential
+  evolution with ask/tell and scalar, vectorized or process-parallel Python
+  objectives. `fcmaes.pareto` also exposes its duplicate-preserving N-D
+  archive and inverted generational distance as standalone operations.
+
 ## [2.2.0] - 2026-11-20
 
 Behaviour changes: PGPE (`pgpecpp`, `PGPE_C`, `Pgpe_cpp` and the

@@ -81,6 +81,7 @@ if(NOT Eigen3_FOUND)
 endif()
 
 add_library(fcmaes_backend STATIC
+  _fcmaescpp/archivede.cpp
   _fcmaescpp/acmaesoptimizer.cpp
   _fcmaescpp/biteoptimizer.cpp
   _fcmaescpp/crfmnes.cpp
@@ -100,6 +101,7 @@ target_include_directories(fcmaes_backend PUBLIC
 
 nanobind_add_module(_fcmaes_ext NOMINSIZE
   _fcmaescpp/bindings/module.cpp
+  _fcmaescpp/bindings/front_bindings.cpp
   _fcmaescpp/bindings/acma_bindings.cpp
   _fcmaescpp/bindings/bite_bindings.cpp
   _fcmaescpp/bindings/crfmnes_bindings.cpp
