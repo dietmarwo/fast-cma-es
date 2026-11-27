@@ -504,10 +504,12 @@ private:
         const auto* row = cellRanks_.data() + std::size_t(range.begin) * d_;
         if (d_ == 4) {
             for (auto p = range.begin; p < range.end; ++p, row += 4) {
-                if ((row[0] - axes[0].lower <= axes[0].width) &
-                    (row[1] - axes[1].lower <= axes[1].width) &
-                    (row[2] - axes[2].lower <= axes[2].width) &
-                    (row[3] - axes[3].lower <= axes[3].width))
+                // Four comparisons without a branch between them.
+                const unsigned inside = unsigned(row[0] - axes[0].lower <= axes[0].width)
+                                        & unsigned(row[1] - axes[1].lower <= axes[1].width)
+                                        & unsigned(row[2] - axes[2].lower <= axes[2].width)
+                                        & unsigned(row[3] - axes[3].lower <= axes[3].width);
+                if (inside)
                     found.push_back(grid_.ids[p]);
             }
             return;
