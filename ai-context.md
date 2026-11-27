@@ -187,7 +187,9 @@ the application owns batching, remote execution, accelerators, or a simulator
 pool. Preserve candidate order between `ask()` and `tell()`.
 
 With `cmaescpp.minimize(..., vectorized=True, workers=1)`, the objective
-takes candidate rows and returns one scalar per candidate. The same option
+takes candidate rows and returns one scalar per candidate; `crfmnescpp`,
+`pgpecpp` and `jsocpp` accept the same option, and their runs equal those of
+the scalar objective call for call. The same option
 in `modecpp.minimize` expects one row of objectives followed by constraints
 per candidate. Native DE's serial entry can cap actual callbacks with
 `strict_budget=True`. Its delayed worker path reserves evaluation slots.
@@ -363,6 +365,9 @@ reproducing the one-shot wrapper's behavior.
 ### Dual Annealing
 
 `dacpp.minimize` defaults to 100,000 evaluations and local search enabled.
+Since 2.3.0 the finite-difference probes of the local search count against
+`max_evaluations`; earlier releases made up to 21 times the requested calls
+at small budgets, so a budget tuned on them may need raising.
 Use finite bounds. Local finite-difference refinement is inappropriate for
 very noisy or sharply discontinuous objectives; disable `use_local_search` in
 that case.

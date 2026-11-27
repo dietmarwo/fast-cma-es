@@ -183,3 +183,40 @@ def test_igd_on_flat_data_with_distant_references():
     reference = 100. + rng.random((300, 8))
     expected = cdist(reference, front).min(axis=1).mean()
     assert igd(front, reference) == pytest.approx(expected, rel=2e-15)
+
+
+def _strict_archive_by_definition(ys):
+    front, mask = [], []
+    for y in ys:
+        if any(np.all(f <= y) and np.any(f < y) for f in front):
+            mask.append(False)
+            continue
+        front = [f for f in front if not (np.all(y <= f) and np.any(y < f))]
+        front.append(y)
+        mask.append(True)
+    return np.array(mask), len(front)
+
+
+@pytest.mark.parametrize("nobj", [3, 4, 5, 8, 12])
+@pytest.mark.parametrize("stream", ["near sums", "equal sums", "uniform", "ties", "worsening"])
+def test_strict_archive_matches_the_definition_for_every_kernel(nobj, stream):
+    # Three objectives use the unrolled kernel, four and more the branch-free
+    # one; sums equal to rounding switch to the coordinate index after 128
+    # entries, and the later wide rows switch back.
+    rng = np.random.default_rng(nobj)
+    u = rng.random((400, nobj))
+    simplex = u / u.sum(axis=1, keepdims=True)
+    ys = {
+        "near sums": simplex + 1e-3*rng.random((400, nobj)),
+        "equal sums": np.vstack([simplex[:300], 3*u[300:] - 1]),
+        "uniform": u,
+        "ties": np.round(u*3)/3,
+        "worsening": simplex*np.linspace(1, 2, 400)[:, None],
+    }[stream]
+    archive = ParetoArchiveND(nobj)
+    mask = np.concatenate([archive.add_batch(ys[:250]),
+                           [archive.add(y) for y in ys[250:260]],
+                           archive.add_batch(ys[260:])])
+    expected, size = _strict_archive_by_definition(ys)
+    np.testing.assert_array_equal(mask, expected)
+    assert len(archive) == size

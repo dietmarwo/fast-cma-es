@@ -15,13 +15,37 @@
 
 namespace fcmaes::archivede {
 namespace {
-bool dominates(const double* a, const double* b, std::size_t n) {
-    if (n == 3) {
+// Strict dominance kernels. An archive scan compares one point with
+// thousands of entries, so it picks its kernel once (with_kernel) and the
+// compiler inlines it into the loop. Choosing per pair cost about a tenth
+// of the scan time. On fronts of 4,096 mutually nondominated points the
+// branch-free form wins from four objectives on, but with four it loses on
+// streams of mostly dominated points, where an early exit ends most tests
+// after one comparison. It is used from five. The unrolled three-objective
+// form equals the early exit in a scan and is faster for the single
+// witness test that rejects most dominated points.
+struct DominatesEarlyExit {
+    bool operator()(const double* a, const double* b, std::size_t n) const {
+        bool strict = false;
+        for (std::size_t k = 0; k < n; ++k) {
+            if (a[k] > b[k])
+                return false;
+            strict |= a[k] < b[k];
+        }
+        return strict;
+    }
+};
+
+struct DominatesThree {
+    bool operator()(const double* a, const double* b, std::size_t) const {
         if (a[0] > b[0] || a[1] > b[1] || a[2] > b[2])
             return false;
         return a[0] < b[0] || a[1] < b[1] || a[2] < b[2];
     }
-    if (n >= 8) {
+};
+
+struct DominatesBranchFree {
+    bool operator()(const double* a, const double* b, std::size_t n) const {
         unsigned worse = 0, better = 0;
         for (std::size_t j = 0; j < n; ++j) {
             worse |= a[j] > b[j];
@@ -29,13 +53,19 @@ bool dominates(const double* a, const double* b, std::size_t n) {
         }
         return !worse && better;
     }
-    bool strict = false;
-    for (std::size_t k = 0; k < n; ++k) {
-        if (a[k] > b[k])
-            return false;
-        strict |= a[k] < b[k];
-    }
-    return strict;
+};
+
+template<class Scan>
+auto with_kernel(std::size_t objectives, Scan scan) {
+    if (objectives >= 5)
+        return scan(DominatesBranchFree());
+    if (objectives == 3)
+        return scan(DominatesThree());
+    return scan(DominatesEarlyExit());
+}
+
+bool dominates(const double* a, const double* b, std::size_t n) {
+    return with_kernel(n, [&](auto kernel) { return kernel(a, b, n); });
 }
 
 void finite(const double* values, std::size_t count) {
@@ -329,18 +359,25 @@ bool Archive::add(const double* y, std::size_t objectives, const double* x, std:
                                       [](const Entry& e, double v) { return e.sum < v; });
         auto upper = std::upper_bound(lower, entries_.end(), sum,
                                       [](double v, const Entry& e) { return v < e.sum; });
-        for (auto it = entries_.begin(); it != upper; ++it) {
-            if (dominates(it->y.data(), y, nobj_)) {
-                witness_ = it->y;
-                return false;
-            }
+        const Entry* dominator = with_kernel(nobj_, [&](auto kernel) -> const Entry* {
+            for (auto it = entries_.begin(); it != upper; ++it)
+                if (kernel(it->y.data(), y, nobj_))
+                    return &*it;
+            return nullptr;
+        });
+        if (dominator) {
+            witness_ = dominator->y;
+            return false;
         }
         const auto offset = lower - entries_.begin();
         entries_.insert(upper, make_entry());
         // Equal rounded sums can contain strictly dominated points, even with finite inputs.
-        entries_.erase(std::remove_if(entries_.begin() + offset, entries_.end(),
-                                      [&](const Entry& p) { return dominates(y, p.y.data(), nobj_); }),
-                       entries_.end());
+        with_kernel(nobj_, [&](auto kernel) {
+            entries_.erase(std::remove_if(entries_.begin() + offset, entries_.end(),
+                                          [&](const Entry& p) { return kernel(y, p.y.data(), nobj_); }),
+                           entries_.end());
+            return 0;
+        });
     }
     ++serial_;
     return true;
