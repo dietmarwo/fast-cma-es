@@ -12,7 +12,8 @@ publishes that version to PyPI.
 ### Changed behavior to expect
 
 These follow from the fixes below. The measurements are in
-[docs/performance-120/REVIEW.md](docs/performance-120/REVIEW.md).
+[docs/performance-120/REVIEW.md](docs/performance-120/REVIEW.md) and
+[docs/performance-200/REVIEW.md](docs/performance-200/REVIEW.md).
 
 - **CMA-ES runs longer and ends closer to the optimum.** The history of
   generation bests used by two stop criteria held copies of one value, so a
@@ -44,8 +45,53 @@ These follow from the fixes below. The measurements are in
 - The Diversifier's BiteOpt emitter uses `Bite_C` ask/tell, starts from the
   best point of the preceding emitter in a sequence, and returns the best
   real objective point of its stage.
-- A CMA-ES result has `success=False` when the native run reports a
-  negative stop code.
+- A CMA-ES, CR-FM-NES or PGPE result has `success=False` when the native
+  run reports a negative stop code.
+- **Dual Annealing with local search stops at `max_evaluations`.** The
+  finite-difference probes of the local search were not counted: of 216
+  seeded runs 51 exceeded the budget, at a budget of 33 by up to a factor
+  of 21. Runs that relied on the uncounted calls reach worse values at the
+  same setting (38 of those 51); raise `max_evaluations` to the calls that
+  were made in fact.
+- **CR-FM-NES and PGPE stop at `max_evaluations`** instead of finishing the
+  generation (up to `popsize - 1` calls fewer), and CR-FM-NES no longer
+  reports a value worse than one it evaluated (55 of 432 seeded runs).
+  jSO and ArchiveDE runs are unchanged.
+
+### Remaining native optimizers and front tools
+
+Review and measurements:
+[docs/performance-200/REVIEW.md](docs/performance-200/REVIEW.md).
+
+- CR-FM-NES returns the best evaluated physical point and its objective value.
+  Box-violation penalties still determine the distribution update.
+- CR-FM-NES and PGPE count the final partial batch against the requested
+  budget and update the result with any improvement in that batch.
+- Dual Annealing charges local-search probes and initial retries to the
+  evaluation budget. The result reports attempted annealing iterations in
+  `nit`, which was always 0.
+- The C++ CR-FM-NES, PGPE and jSO wrappers accept an optional matrix
+  objective with `vectorized=True` and a single worker. The matrix is
+  composed of physical points and belongs to the callback. The runs equal
+  those of the scalar objective call for call. jSO counts every row of an
+  evaluated matrix. An exception or a wrong result shape in the matrix
+  objective ends CR-FM-NES and PGPE with `status=-1` and `success=False`,
+  as for their scalar objectives; jSO raises.
+- `ParetoArchiveND` indexes one coordinate while all objective sums of the
+  front agree to rounding (128 units in the last place), as on an exact
+  plane such as a converged DTLZ1 front. Inserting 4,096 such points takes
+  1 ms instead of 64 to 72 ms. Sums that differ by more, even by 1e-9,
+  use the general scan. Admission masks and fronts are those of 2.2.0.
+- The general `ParetoArchiveND` scan chooses its dominance kernel once per
+  scan and uses a branch-free one from five objectives. Fronts of 4,096
+  mutually nondominated points with five to eight objectives insert 1.5 to
+  1.7 times faster than in 2.2.0; three and four objectives are level.
+- `igd` uses a sorted search in one dimension (54 times faster at 4,096
+  front points) and indexed searches in four and eight dimensions (6 and
+  2.5 times), and rescales uniformly extreme coordinates (44 times). Values
+  agree with 2.2.0 to a relative 3e-15.
+- Native rank queries reduce work when filtering blocks of candidates and
+  looking up sparse grid cells. Results are unchanged.
 
 ### Optimizer performance and correctness
 

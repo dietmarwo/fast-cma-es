@@ -17,6 +17,7 @@
 #include <random>
 #include "daoptimizer.hpp"
 #include <LBFGSB.h>
+#include <memory>
 #include "pcg_random.hpp"
 
 #ifndef M_PI
@@ -76,6 +77,8 @@ static vec expv(vec v) {
 
 double minLBFGS(Fitness *fitfun, vec &X0_, int maxIterations);
 
+struct EvaluationLimit {};
+
 class Fitness {
 
 public:
@@ -95,16 +98,17 @@ public:
 
     vec getClosestFeasible(const vec &X) const {
         if (lower.size() > 0) {
-            return X.cwiseMin(1.0).cwiseMax(-1.0);
+            return X.cwiseMin(1.0).cwiseMax(0.0);
         }
         return X;
     }
 
     double eval(const vec &X) {
+        if (maxEvalReached())
+            throw EvaluationLimit{};
         int n = X.size();
-        double res = func(n, X.data());
-        evaluationCounter++;
-        return res;
+        ++evaluationCounter;
+        return func(n, X.data());
     }
 
     double value(const vec &X) {
@@ -142,7 +146,7 @@ public:
 
     vec encode(const vec &X) const {
         if (lower.size() > 0)
-            return (X - lower).array() / scale.array();
+            return (scale.array() == 0.).select(0., (X - lower).array() / scale.array());
         else
             return X;
     }
@@ -186,31 +190,19 @@ public:
     double operator()(const vec &x, vec &grad) {
         if (!x.allFinite())
             return DBL_MAX;
-        double eps = 1E-6;
-        vec arg = vec(dim);
-        for (int i = 0; i < dim; i++)
-            arg[i] = x(i);
-        for (int i = 0; i < dim; i++) {
-            vec x1 = vec(arg);
-            vec x2 = vec(arg);
-            double e1 = eps;
-            double e2 = eps;
-            x1[i] += eps;
-            if (x1[i] > 1) {
-                x1[i] = 1;
-                e1 = 1 - arg[i];
-            }
-            x2[i] -= eps;
-            if (x2[i] < 0) {
-                x2[i] = 0;
-                e2 = arg[i];
-            }
-            double f1 = func->value(x1);
-            double f2 = func->value(x2);
-            grad[i] = (f1 - f2) / (e1 + e2);
+        constexpr double eps = 1E-6;
+        vec probe = x;
+        for (int i = 0; i < dim; ++i) {
+            const double e1 = x[i]+eps > 1. ? 1.-x[i] : eps;
+            const double e2 = x[i]-eps < 0. ? x[i] : eps;
+            probe[i] = std::min(x[i]+eps,1.);
+            const double f1 = func->value(probe);
+            probe[i] = std::max(x[i]-eps,0.);
+            const double f2 = func->value(probe);
+            probe[i] = x[i];
+            grad[i] = (f1-f2)/(e1+e2);
         }
-        double f = func->value(arg);
-        return f;
+        return func->value(x);
     }
 };
 
@@ -231,7 +223,10 @@ double minLBFGS(Fitness *fitfun, vec &X0, int maxIterations) {
     int niter;
     try {
         niter = solver.minimize(fun, x, fx, lb, ub);
-    } catch (std::exception &e) {
+    } catch (const EvaluationLimit &) {
+        // The objective wrapper already recorded the best completed probe.
+        return DBL_MAX;
+    } catch (const std::exception &) {
         //cout << e.what() << endl;
         return DBL_MAX;
     }
@@ -284,11 +279,9 @@ public:
                     visits[i] = -TAIL_LIMIT * lower_sample;
             }
             vec x_visit = visits + x;
-            vec a = x_visit;
-            vec b = vec(dim);
             for (int i = 0; i < dim; i++) {
-                b[i] = fmod(a[i], 1) + 1;
-                x_visit[i] = fmod(b[i], 1);
+                const double wrapped = fmod(x_visit[i], 1) + 1;
+                x_visit[i] = fmod(wrapped, 1);
                 if (abs(x_visit[i]) < MIN_VISIT_BOUND)
                     x_visit[i] += 1.e-10;
             }
@@ -382,25 +375,15 @@ public:
             current_location = normalVec(dim, *rs, *gauss_01);
         else
             current_location = vec(x0);
-        bool init_error = true;
-        int reinit_counter = 0;
-        while (init_error) {
+        for (int attempt = 0; !owf->maxEvalReached(); ++attempt) {
             current_energy = owf->value(current_location);
-            if (current_energy >= BIG_VALUE || isnan(current_energy)) {
-                if (reinit_counter >= MAX_REINIT_COUNT) {
-                    init_error = false;
-                    throw naneexc;
-                }
-                current_location = uniformVec(dim, *rs);
-                reinit_counter++;
-            } else
-                init_error = false;
-            // If first time reset, initialize ebest and xbest
-            if (ebest == DBL_MAX && xbest.size() == 0) {
-                ebest = current_energy;
-                xbest = vec(current_location);
-            }
-            // Otherwise, keep them in case of reannealing reset
+            if (xbest.size() == 0 || current_energy < ebest)
+                update_best(current_energy, current_location);
+            if (current_energy < BIG_VALUE || owf->maxEvalReached())
+                return;
+            if (attempt == MAX_REINIT_COUNT)
+                throw naneexc;
+            current_location = uniformVec(dim, *rs);
         }
     }
 
@@ -502,18 +485,17 @@ public:
         // based on Markov chain results
         // If energy has been improved or no improvement since too long,
         // performing a local search with the best Markov chain location
-        int dim = state->xbest.size();
         if (state_improved) {
             // Global energy has improved, let's see if LS improved further
-            vec x = vec(dim);
+            vec x = state->xbest;
             double e = ofw->local_search(state->xbest, state->ebest, x);
             if (e < state->ebest) {
                 not_improved_idx = 0;
                 state->update_best(e, x);
                 state->update_current(e, x);
-                if (ofw->maxEvalReached())
-                    return;
             }
+            if (ofw->maxEvalReached())
+                return;
         }
         // Check probability of a need to perform a LS even if no improvment
         bool do_ls = false;
@@ -529,7 +511,7 @@ public:
         if (not_improved_idx >= not_improved_max_idx)
             do_ls = true;
         if (do_ls) {
-            vec x = vec(dim);
+            vec x = xmin;
             double e = ofw->local_search(xmin, state->ebest, x);
             xmin = vec(x);
             emin = e;
@@ -573,42 +555,35 @@ public:
         if (x0_.size() > 0 && x0_.size() != owf->lower.size())
             throw sizeeexc;
         //Initialization of RandomState for reproducible runs if seed provided
-        rs = new pcg64(seed_);
+        rs = std::make_unique<pcg64>(seed_);
         use_local_search = use_local_search_;
         // Initialization of the energy state
-        es = new EnergyState(owf->lower.size());
-        es->reset(owf, rs, &gauss_01, x0_);
+        es = std::make_unique<EnergyState>(owf->lower.size());
+        es->reset(owf, rs.get(), &gauss_01, x0_);
         // VisitingDistribution instance
-        vd = new VisitingDistribution(owf->lower.size(), qv, rs,
-                &gauss_01);
-        // Markov chain instance
-        sc = new StrategyChain(qa, vd, owf, rs, es);
-    }
-
-    ~DARunner() {
-        delete rs;
-        delete vd;
-        delete sc;
-        delete es;
+        vd = std::make_unique<VisitingDistribution>(
+                owf->lower.size(), qv, rs.get(), &gauss_01);
+        sc = std::make_unique<StrategyChain>(qa, vd.get(), owf, rs.get(), es.get());
     }
 
     void search() {
         iter = 0;
         double t1 = exp((qv - 1) * log(2.0)) - 1.0;
-        for (;;) {
-            for (int i = 0; i < maxsteps; i++) {
+        while (!owf->maxEvalReached()) {
+            for (int i = 0; i < maxsteps && !owf->maxEvalReached(); ++i) {
                 // Compute temperature for this step
                 double s = i + 2.0;
                 double t2 = exp((qv - 1) * log(s)) - 1.0;
                 double temperature = temperature_start * t1 / t2;
-                if (iter++ >= maxsteps)
+                if (iter >= maxsteps)
                     return;
                 // Need a re-annealing process?
                 if (temperature < temperature_restart) {
-                    es->reset(owf, rs, &gauss_01, emptyVec);
+                    es->reset(owf, rs.get(), &gauss_01, emptyVec);
                     break;
                 }
                 // starting strategy chain
+                ++iter;
                 sc->run(i, temperature);
                 if (owf->maxEvalReached())
                     return;
@@ -620,6 +595,8 @@ public:
             }
         }
     }
+
+    int iterations() const { return iter; }
 
     vec bestX() {
         return es->xbest;
@@ -642,25 +619,13 @@ private:
     // re-annealing temperature_start
     double temperature_restart = 0.1;
     Fitness *owf;
-    pcg64 *rs;
-    // normal distribution of this run (keeps its own cached value)
+    std::unique_ptr<pcg64> rs;
     normal_distribution<> gauss_01;
-    EnergyState *es;
-    StrategyChain *sc;
-    VisitingDistribution *vd;
+    std::unique_ptr<EnergyState> es;
+    std::unique_ptr<VisitingDistribution> vd;
+    std::unique_ptr<StrategyChain> sc;
     int iter = 0;
 };
-
-double minimize(Fitness *fun, vec &x0, long seed, bool use_local_search,
-        vec &X) {
-    DARunner gr = DARunner(fun, x0, seed, use_local_search);
-    gr.search();
-    int dim = x0.size();
-    vec bx = gr.bestX();
-    for (int i = 0; i < dim; i++)
-        X[i] = bx[i];
-    return gr.bestY();
-}
 
 DaResult optimize_da(long runid, callback_type func, int dim, int seed,
         const double *init, const double *lower, const double *upper,
@@ -682,15 +647,15 @@ DaResult optimize_da(long runid, callback_type func, int dim, int seed,
         maxEvals = 1E7;
     Fitness fitfun(func, &lower_limit, &upper_limit, maxEvals);
 
-    vec X = zeros(dim);
-    vec enc = fitfun.encode(guess);
-    double bestY = minimize(&fitfun, enc, seed, use_local_search, X);
+    vec encoded = fitfun.encode(guess);
+    DARunner runner(&fitfun, encoded, seed, use_local_search);
+    runner.search();
 
     DaResult result;
-    result.x = fitfun.decode(X);
-    result.y = bestY;
+    result.x = fitfun.decode(fitfun.getClosestFeasible(runner.bestX()));
+    result.y = runner.bestY();
     result.evaluations = fitfun.getEvaluations();
-    result.iterations = 0;
+    result.iterations = runner.iterations();
     result.stop = 0;
     return result;
 }

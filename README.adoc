@@ -99,7 +99,7 @@ https://github.com/dietmarwo/fast-cma-es/blob/master/examples/prophet_opt.py[pro
 == Changes in version 2.3.0:
 
 The full list, with earlier versions, is in https://github.com/dietmarwo/fast-cma-es/blob/master/CHANGELOG.md[CHANGELOG.md].
-The measurements behind this list are in https://github.com/dietmarwo/fast-cma-es/blob/master/docs/performance-120/REVIEW.md[the review of the optimizer campaign].
+The measurements behind this list are in the reviews of the two optimizer campaigns, https://github.com/dietmarwo/fast-cma-es/blob/master/docs/performance-120/REVIEW.md[first] and https://github.com/dietmarwo/fast-cma-es/blob/master/docs/performance-200/REVIEW.md[second].
 
 - CMA-ES no longer stops early: the history of generation bests behind two
 stop criteria held copies of one value. Expect longer runs and better final
@@ -107,13 +107,18 @@ values (39% more evaluations on 225 seeded runs, none worse).
 - MAP-Elites runs its CMA-ES emitter, which failed silently in 2.2.0. One
 default iteration of one worker now costs up to 62,200 evaluations instead
 of 200; `cma_params={'cma_generations': 0}` gives the former cost.
-- Evaluation budgets are exact in delayed CMA-ES, parallel DE and the
-Diversifier, and DE reports the best point it evaluated.
+- Evaluation budgets are exact in delayed CMA-ES, parallel DE, the
+Diversifier, CR-FM-NES, PGPE and Dual Annealing with local search, which
+made up to 21 times the requested calls. DE and CR-FM-NES report the best
+point they evaluated.
 - A failing MAP-Elites or Diversifier worker process raises in the caller.
 - MODE ask/tell is 4 to 5 times faster at a population of 256 with two
 objectives; results are unchanged.
-- New options: `vectorized=True` in `cmaescpp.minimize` and
-`modecpp.minimize`, `strict_budget=True` in `decpp.minimize`, `seed` in the
+- `ParetoArchiveND` and `igd` are faster: up to 60 times on fronts whose
+objective sums agree to rounding, and 2.5 to 54 times for `igd` in one, four
+and eight dimensions. Results are unchanged.
+- New options: `vectorized=True` in the `minimize` of `cmaescpp`,
+`crfmnescpp`, `pgpecpp`, `jsocpp` and `modecpp`, `strict_budget=True` in `decpp.minimize`, `seed` in the
 QD entry points, `inline=True`, `batch_fitness` and `batch_size` in the
 Diversifier, `persistent_workers=True` in MAP-Elites.
 - `fcmaes.rankindex` (Borda and grid box queries) and `fcmaes.archivede`

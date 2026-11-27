@@ -69,6 +69,10 @@ private:
     std::size_t nobj_, payload_dim_;
     std::uint64_t serial_ = 0;
     bool exact_line_;
+    bool narrow_sums_ = false;
+    std::size_t next_sum_check_ = 128;
+    double sum_lower_ = 0., sum_upper_ = 0.;
+    std::size_t narrow_axis_ = 0;
     std::vector<Entry> entries_;
     std::multimap<double, Entry> skyline_;
     Point witness_;
@@ -89,7 +93,7 @@ public:
 
 private:
     Point decode(const Point& unit) const;
-    Point lower_, upper_;
+    Point lower_, upper_, widths_;
     std::size_t popsize_;
     std::uint64_t budget_, evaluations_ = 0;
     bool gate_, tiered_;

@@ -21,6 +21,13 @@ auto owned_array(std::vector<T> values, const std::array<std::size_t, N>& shape)
     return nb::ndarray<nb::numpy, T, nb::ndim<N>, nb::c_contig>(data, N, shape.data(), owner);
 }
 
+template<class T, std::size_t N>
+auto owned_buffer(std::unique_ptr<T[]> storage, const std::array<std::size_t, N>& shape) {
+    nb::capsule owner(storage.get(), [](void* p) noexcept { delete[] static_cast<T*>(p); });
+    auto* data = storage.release();
+    return nb::ndarray<nb::numpy, T, nb::ndim<N>, nb::c_contig>(data, N, shape.data(), owner);
+}
+
 inline auto owned_matrix(std::vector<double> values, std::size_t rows, std::size_t cols) {
     return owned_array(std::move(values), std::array<std::size_t, 2>{rows, cols});
 }

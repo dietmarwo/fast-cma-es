@@ -104,8 +104,12 @@ void State::generate(std::size_t count) {
     const std::size_t n = popsize();
     const double progress = static_cast<double>(evaluations_) / params_.max_evaluations;
     const double p = params_.p_max - (params_.p_max - params_.p_min) * progress;
-    const auto order = ranked(fitness_);
     const auto top = std::max<std::size_t>(2, rounded(p * n));
+    std::vector<std::size_t> order(n);
+    std::iota(order.begin(),order.end(),std::size_t{0});
+    std::partial_sort(order.begin(),order.begin()+top,order.end(),[&](auto a, auto b) {
+        return fitness_[a] == fitness_[b] ? a < b : fitness_[a] < fitness_[b];
+    });
     const double fw = progress < 0.2 ? 0.7 : (progress < 0.4 ? 0.8 : 1.2);
     pending_.reserve(count);
     trial_f_.resize(count);
@@ -138,11 +142,14 @@ void State::generate(std::size_t count) {
         const Point &donor = r2 < n ? pop_[r2] : archive_[r2 - n];
         const auto forced = draw(dim());
         const Point &parent = pop_[i];
+        const double attraction = fw * f;
+        const auto* attractor = pop_[pbest].data();
+        const auto* base = pop_[r1].data();
         Point trial = parent;
         for (std::size_t j = 0; j < dim(); ++j) {
             if (j == forced || uniform() <= cr) {
-                const double value = parent[j] + (fw * f) * (pop_[pbest][j] - parent[j])
-                    + f * (pop_[r1][j] - donor[j]);
+                const double value = parent[j] + attraction * (attractor[j] - parent[j])
+                    + f * (base[j] - donor[j]);
                 trial[j] = repair(value, parent[j], lower_[j], upper_[j]);
             }
         }

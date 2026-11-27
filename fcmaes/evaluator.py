@@ -187,6 +187,20 @@ class _fitness(object):
         else:
             return X
          
+def _vectorized_objective(fun: BatchObjective, workers: Optional[int]) -> BatchObjective:
+    if workers is not None and workers > 1:
+        raise ValueError("vectorized objectives require one worker")
+
+    def evaluate(xs: ArrayLike) -> np.ndarray:
+        # Give the caller ownership independent of the native callback view.
+        values = np.asarray(fun(xs.copy()), dtype=np.float64)
+        if values.shape != (len(xs),):
+            raise ValueError("vectorized objective must return one value per row")
+        return np.ascontiguousarray(values)
+
+    return evaluate
+
+
 def serial(fun: Objective) -> BatchObjective:
     """Convert an objective function for serial execution for cmaes.minimize.
     

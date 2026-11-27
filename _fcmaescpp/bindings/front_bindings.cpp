@@ -45,10 +45,9 @@ template <class Index> void box_methods(nb::class_<Index>& cls) {
                     offsets.reserve(rows + 1);
                     stats.reserve(rows * width);
                     for (std::size_t i = 0; i < rows; ++i) {
-                        auto out = index.query(lo.data() + i * dim, hi.data() + i * dim);
-                        auto counts = counters(out);
+                        const auto out = index.query(lo.data() + i * dim, hi.data() + i * dim, &ids);
+                        const auto counts = counters(out);
                         stats.insert(stats.end(), counts.begin(), counts.end());
-                        ids.insert(ids.end(), out.ids.begin(), out.ids.end());
                         offsets.push_back(ids.size());
                     }
                 });

@@ -46,7 +46,7 @@ public:
         v = zeros(dim);
         b1 = b1_;
         b2 = b2_;
-        eps = constant(dim, eps_);
+        eps = eps_;
         center_lr = center_learning_rate_;
         decay_coef = decay_coef_;
     }
@@ -55,13 +55,10 @@ public:
 
         m = (1 - b1) * g + b1 * m;  // First moment estimate.
         v = (1 - b2) * g.array().square().matrix() + b2 * v; // Second moment estimate.
-        vec mhat = m.array()
-                * constant(dim, 1. / (1. - pow(b1, i + 1))).array(); // Bias correction.
-        vec vhat = v.array()
-                * constant(dim, 1. / (1. - pow(b2, i + 1))).array();
-        vec delta = step_size(i)
-                * (mhat.array()
-                        * (vhat.cwiseSqrt() + eps).cwiseInverse().array());
+        const double m_bias = 1. / (1. - pow(b1, i + 1));
+        const double v_bias = 1. / (1. - pow(b2, i + 1));
+        vec delta = step_size(i) * ((m.array() * m_bias)
+            * ((v.array() * v_bias).sqrt() + eps).inverse());
         x -= delta;
     }
 
@@ -77,7 +74,7 @@ private:
     int dim;
     double b1;
     double b2;
-    vec eps;
+    double eps;
     double center_lr;
     double decay_coef;
 };
@@ -101,6 +98,7 @@ public:
         stopfitness = stopfitness_;
         iterations = 0;
         bestY = DBL_MAX;
+        bestX = guess_;
         stop = 0;
         rs = new pcg64(seed_);
         center = fitfun->encode(guess_);
@@ -166,22 +164,14 @@ public:
         return (stdev + lr * grad).cwiseMax(min_allowed).cwiseMin(max_allowed);
     }
 
-    mat ask(const vec &stdev, const vec &center) {
-        int n = popsize / 2;
-        scaled_noises = normal(dim, n, *rs, gauss_01).array()
-                * stdev.replicate(1, n).array();
-        mat x = mat(dim, popsize);
-        mat x1 = center.replicate(1, n) + scaled_noises;
-        mat x2 = center.replicate(1, n) - scaled_noises;
-        for (int p = 0; p < n; p++) {
-            x.col(2 * p) = x1.col(p);
-            x.col(2 * p + 1) = x2.col(p);
+    mat ask() {
+        sample_scaled_noise();
+        mat x(dim, popsize);
+        for (int p = 0; p < popsize / 2; ++p) {
+            x.col(2 * p) = center + scaled_noises.col(p);
+            x.col(2 * p + 1) = center - scaled_noises.col(p);
         }
         return x;
-    }
-
-    mat ask() {
-        return ask(stdev, center);
     }
 
     void init() {
@@ -192,28 +182,31 @@ public:
     }
 
     mat ask_decode() {
-        mat xs = ask(stdev, center);
-        for (int p = 0; p < popsize; p++)
-            popX.col(p) = fitfun->decode(
-                    fitfun->getClosestFeasibleNormed(xs.col(p)));
+        sample_scaled_noise();
+        for (int p = 0; p < popsize / 2; ++p) {
+            popX.col(2 * p) = fitfun->decode(
+                fitfun->getClosestFeasibleNormed(center + scaled_noises.col(p)));
+            popX.col(2 * p + 1) = fitfun->decode(
+                fitfun->getClosestFeasibleNormed(center - scaled_noises.col(p)));
+        }
         return popX;
     }
 
-    // ys are the objective values of the points in popX.
-    int tell(vec ys) {
-        popY = process_scores(-ys);
-        bool improved = false;
-        for (int p = 0; p < popsize; p++) {
-            if (ys[p] < bestY) {
-                bestY = ys[p];
-                bestX = popX.col(p);
-                improved = true;
+    void record_best(const vec &values, const mat &evaluated) {
+        for (Eigen::Index p = 0; p < values.size(); ++p) {
+            if (values[p] < bestY) {
+                bestY = values[p];
+                bestX = evaluated.col(p);
             }
         }
-        // The stop test uses the best objective value, also if use_ranking
-        // is set.
-        if (improved && bestY < stopfitness)
+        if (bestY < stopfitness)
             stop = 1;
+    }
+
+    // ys are the objective values of the points in popX.
+    int tell(const vec &ys) {
+        popY = process_scores(-ys);
+        record_best(ys, popX);
         compute_reinforce_update(popY, scaled_noises, stdev);
         optimizer->update(((int) iterations) / lr_decay_steps, -grad_center);
         iterations += 1;
@@ -224,8 +217,8 @@ public:
     }
 
     // xs are the evaluated points, in the order of ys.
-    int tell(const vec &ys, const mat &xs) {
-        popX = xs;
+    int tell(const vec &ys, mat &xs) {
+        popX.swap(xs);
         return tell(ys);
     }
 
@@ -262,6 +255,17 @@ public:
     }
 
 private:
+    void sample_scaled_noise() {
+        const int pairs = popsize / 2;
+        scaled_noises.resize(dim, pairs);
+        for (int p = 0; p < pairs; ++p) {
+            auto column = scaled_noises.col(p);
+            for (int j = 0; j < dim; ++j)
+                column[j] = gauss_01(*rs);
+            column.array() *= stdev.array();
+        }
+    }
+
     long runid;
     Fitness *fitfun;
     ADAM *optimizer;
@@ -412,16 +416,25 @@ PgpeResult optimize_pgpe(
             center_learning_rate, stdev_learning_rate, stdev_max_change, b1, b2,
             eps, decay_coef);
     try {
+        mat evaluated;
         while (fitfun.evaluations() < maxEvals && !fitfun.terminate()
                 && opt.getStop() == 0) {
             mat xs = opt.ask();
-            vec ys(popsize);
-            mat evaluated;
-            fitfun.values(xs, ys, &evaluated);
-            opt.tell(ys, evaluated);
+            const int count = std::min(opt.getPopsize(), maxEvals - fitfun.evaluations());
+            vec ys(count);
+            if (count == opt.getPopsize()) {
+                fitfun.values(xs, ys, &evaluated);
+                opt.tell(ys, evaluated);
+            } else {
+                fitfun.values(xs.leftCols(count), ys, &evaluated);
+                opt.record_best(ys, evaluated);
+                break;
+            }
         }
-    } catch (std::exception &e) {
-        cout << e.what() << endl;
+    } catch (const std::exception &) {
+        auto result = make_result(opt, fitfun);
+        result.stop = -1;
+        return result;
     }
     return make_result(opt, fitfun);
 }

@@ -82,7 +82,7 @@ public:
         no_of_evals = 0;
         z = mat(dim, lamb);
         f_best = INFINITY;
-        x_best = vec(dim);
+        x_best = m_;
     };
 
     virtual ~CrfmnesOptimizer() {
@@ -90,17 +90,24 @@ public:
     }
 
     void doOptimize() {
-        // -------------------- Generation Loop --------------------------------
-        for (iterations = 1; fitfun->evaluations() < maxEvaluations && !fitfun->terminate();
-                iterations++) {
-            // generate and evaluate lamb offspring
+        iterations = 0;
+        vec evs;
+        while (fitfun->evaluations() < maxEvaluations && !fitfun->terminate()) {
             try {
-                mat xs = ask();
-                vec evs(lamb);
-                fitfun->values(xs, evs);
-                tell(evs);
-            } catch (std::exception &e) {
-                 stop = -1;
+                const mat &xs = ask();
+                const int count = std::min(lamb, maxEvaluations - fitfun->evaluations());
+                evs.resize(count);
+                if (count == lamb) {
+                    fitfun->values(xs, evs);
+                    tell(evs);
+                    ++iterations;
+                } else {
+                    fitfun->values(xs.leftCols(count), evs);
+                    record_best(evs);
+                    break;
+                }
+            } catch (const std::exception &) {
+                stop = -1;
             }
             if (stop != 0)
                 return;
@@ -139,7 +146,7 @@ public:
         return lamb;
     }
 
-    mat ask() {
+    const mat &ask() {
         mat zhalf = normal(dim, mu, *rs, gauss_01);
         for (int i = 0; i < lamb; i++) {
             if (i < mu) z.col(i) = zhalf.col(i);
@@ -153,7 +160,21 @@ public:
         return x;
     }
 
-    void tell(vec &evs) {
+    // The penalty determines adaptation ranks. The result identifies an
+    // actual objective evaluation in physical coordinates.
+    void record_best(const vec &values) {
+        for (Eigen::Index i = 0; i < values.size(); ++i) {
+            if (std::isfinite(values[i]) && values[i] < DBL_MAX && values[i] < f_best) {
+                f_best = values[i];
+                x_best = fitfun->getClosestFeasible(fitfun->decode(x.col(i)));
+            }
+        }
+        if (f_best < stopfitness)
+            stop = 1;
+    }
+
+    void tell(const vec &evs) {
+        record_best(evs);
         evals_no_sort = vec(evs);
         for (int k = 0; k < lamb; k++) {
             if (!isfinite(evals_no_sort[k]))
@@ -166,21 +187,11 @@ public:
             sorted_indices = sort_indices_by(evals_no_sort + violations, z);
         } else
             sorted_indices = sort_indices_by(evals_no_sort, z);
-        int best_eval_id = sorted_indices[0];
-        double f_best_ = evals_no_sort[best_eval_id];
-
         z = mat(z)(Eigen::indexing::all, sorted_indices);
         y = mat(y)(Eigen::indexing::all, sorted_indices);
         x = mat(x)(Eigen::indexing::all, sorted_indices);
         no_of_evals += lamb;
         g += 1;
-        if (f_best_ < f_best) {
-            f_best = f_best_;
-            x_best = fitfun->decode(xs_no_sort.col(best_eval_id));
-            if (f_best < stopfitness)
-                stop = 1;
-            //cout << f_best << endl;
-        }
         // This operation assumes that if the solution is infeasible, infinity comes in as input.
         double lambF = 0;
         for (int k = 0; k < lamb; k++)
@@ -188,13 +199,14 @@ public:
         // evolution path p_sigma
         ps = (1 - cs) * ps + sqrt(cs * (2. - cs) * mueff) * (z * w_rank);
         double ps_norm = ps.norm();
-        // distance weight
-        vec w_tmp(lamb);
-        for (int k = 0; k < lamb; k++)
-            w_tmp[k] = w_rank_hat[k] * w_dist_hat(z.col(k), lambF);
-        vec weights_dist = (w_tmp / w_tmp.sum()).array() - 1. / lamb;
-        // switching weights and learning rate
-        vec weights = ps_norm >= chiN ? weights_dist : w_rank;
+        vec weights = w_rank;
+        if (ps_norm >= chiN) {
+            vec distance(lamb);
+            const double scale = alpha_dist(lambF);
+            for (int k = 0; k < lamb; ++k)
+                distance[k] = w_rank_hat[k] * cexp(scale * z.col(k).norm());
+            weights = (distance / distance.sum()).array() - 1. / lamb;
+        }
         double eta_sigma = ps_norm >= chiN ? eta_move_sigma :
                 (ps_norm >= 0.1 * chiN ? eta_stag_sigma(lambF) : eta_conv_sigma(lambF));
         // update pc, m
@@ -242,8 +254,7 @@ public:
                                     - (vbar * ip_svbarbar.transpose()).array());  // dim x lamb+1
         // update v, D
         vec exw(lamb+1);
-        for (int k = 0; k < lamb; k++)
-            exw[k] = eta_B(lambF) * weights[k];
+        exw.head(lamb) = eta_B(lambF) * weights;
         exw[lamb] = c1(lambF);
 
         v = v.array() + (t * exw).array() / normv;
@@ -268,7 +279,6 @@ private:
     double c1(double lambF) { return c1_cma * (dim - 5) / 6 * (lambF / lamb); }
     double eta_B(double lambF) { return tanh((min(0.02 * lambF, 3 * log(dim)) + 5) / (0.23 * dim + 25)); }
     double alpha_dist(double lambF) { return h_inv * min(1., sqrt(((double)lamb) / dim)) * sqrt(((double)lambF) / lamb); }
-    double w_dist_hat(mat z, double lambF) { return cexp(alpha_dist(lambF) * z.norm()); }
     double eta_stag_sigma(double lambF) { return tanh((0.024 * lambF + 0.7 * dim + 20.) / (dim + 12.)); }
     double eta_conv_sigma(double lambF) { return 2. * tanh((0.025 * lambF + 0.75 * dim + 10.) / (dim + 4.)); }
     double f(double a) { return  ((1. + a * a) * cexp(a * a / 2.) / 0.24) - 10. - dim; }
@@ -288,7 +298,7 @@ private:
         return n;
     }
 
-    ivec sort_indices_by(const vec &evals, mat z) {
+    ivec sort_indices_by(const vec &evals, const mat &z) {
         int lam = evals.size();
         ivec sorted_indices = sort_index(evals);
         vec sorted_evals = evals(sorted_indices);
@@ -427,9 +437,8 @@ public:
     }
 
     int tell(const vec &ys) {
-        vec values = ys;
-        opt->tell(values);
-        evaluations += static_cast<int>(values.size());
+        opt->tell(ys);
+        evaluations += static_cast<int>(ys.size());
         iterations += 1;
         return opt->getStop();
     }
