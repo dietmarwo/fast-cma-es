@@ -28,7 +28,7 @@ patch, and the reviewed tree. All comparisons use the public wrappers.
 | Check | Delivered | Here |
 | --- | --- | --- |
 | Python tests on the installed package | 343 | 343 with 2.3.0 merged; 368 after this review |
-| Sanitizer, Clang and wheel checks | pass | not repeated |
+| Native CTest targets | 6, with sanitizers and with Clang | 6 with GCC; with Clang 18 and `-Werror` the delivered header fails to compile, see finding 5 |
 | 30 paired timings per case | 52 cases | wrapper-level timings below |
 
 ### Seeded runs of the optimizers
@@ -120,7 +120,13 @@ Best of three rounds on one pinned core.
    now stops at the budget; CR-FM-NES and PGPE stop up to a population
    short of what they did; `success` follows the stop code. All three are
    now under "Changed behavior to expect".
-5. **A failing matrix objective is silent in CR-FM-NES and PGPE.** An
+5. **The patch did not compile in the repository's Clang job.** The
+   four-axis test of `GridBoxIndex` combined four comparisons with a
+   bitwise `&` on Boolean operands, which Clang rejects under `-Werror`
+   (`-Wbitwise-instead-of-logical`). The report's Clang build did not use
+   the native test flags. The operands are now `unsigned`; the test is
+   still branch-free.
+6. **A failing matrix objective is silent in CR-FM-NES and PGPE.** An
    exception or a wrong result shape ends the run with `status=-1`,
    `nfev=0` and no message, while jSO raises. This follows the wrappers'
    existing handling of scalar objectives and a delivered test pins it, so
