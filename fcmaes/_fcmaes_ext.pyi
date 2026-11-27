@@ -56,7 +56,7 @@ def optimize_de(fun, dim: int, lower, upper, guess, sigma, ints, *, seed: int,
                 popsize: int = 31, F: float = 0.5, CR: float = 0.9,
                 min_sigma: float = 0.0, min_mutate: float = 0.1,
                 max_mutate: float = 0.5, workers: int = 1,
-                terminate=None): ...
+                terminate=None, strict_budget: bool = False): ...
 def optimize_pgpe(batch_fun, guess, lower, upper, sigma, *, seed: int,
                   runid: int = 0, max_evaluations: int = 100000,
                   stop_fitness: float = ..., popsize: int = 32,

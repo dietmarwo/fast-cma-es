@@ -85,8 +85,14 @@ def minimize(fun: Objective,
              x0: Optional[ArrayLike] = None,
              input_sigma: SigmaArg = None,
              min_sigma: Optional[float] = 0,
-             runid: Optional[int] = 0) -> OptimizeResult:
-    """Minimize a scalar objective with the native DE implementation."""
+             runid: Optional[int] = 0,
+             strict_budget: bool = False) -> OptimizeResult:
+    """Minimize a scalar objective with the native DE implementation.
+
+    Set strict_budget to cap serial callbacks at max_evaluations. The legacy
+    serial policy finishes the current generation. Parallel runs reserve one
+    budget slot for each submitted callback.
+    """
 
     dim, lower, upper = _check_bounds(bounds, dim)
     popsize = 31 if popsize is None else popsize
@@ -128,6 +134,7 @@ def minimize(fun: Objective,
             max_mutate=max_mutate,
             workers=workers,
             terminate=is_terminate,
+            strict_budget=bool(strict_budget),
         )
         return _result_from_native(result)
     except Exception:

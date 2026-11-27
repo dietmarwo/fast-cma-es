@@ -104,11 +104,7 @@ public:
         currentBatchSize = CBiteOptDeepAT::ask(rnd, requested);
 
         mat xs(dim, currentBatchSize);
-        for (int i = 0; i < currentBatchSize; i++) {
-            xs.col(i) = Eigen::Map<const vec, Eigen::Unaligned>(
-                getAskValues(i), dim
-            );
-        }
+        getAskValuesBuf(xs.data());
         return xs;
     }
 
@@ -118,11 +114,7 @@ public:
         if (ys.size() != currentBatchSize)
             throw std::invalid_argument("ys must match the current batch size");
 
-        std::vector<double> costs(currentBatchSize);
-        for (int i = 0; i < currentBatchSize; i++)
-            costs[i] = ys[i];
-
-        CBiteOptDeepAT::tell(rnd, costs.data());
+        CBiteOptDeepAT::tell(rnd, ys.data());
         iterations += currentBatchSize;
         evaluations += currentBatchSize;
         currentBatchSize = 0;
@@ -131,12 +123,15 @@ public:
     }
 
     void doOptimize() {
-        while (evaluations < maxEvaluations && stop == 0) {
+        while (evaluations < maxEvaluations && stop == 0 && !fitfun->terminate()) {
             const int asked = CBiteOptDeepAT::ask(rnd, 1);
             if (asked <= 0)
                 break;
 
-            double cost = fitfun->eval(getAskValues(0))(0);
+            double cost;
+            fitfun->evaluateScalar(getAskValues(0), cost);
+            if (!std::isfinite(cost))
+                cost = 1E99;
             CBiteOptDeepAT::tell(rnd, &cost);
 
             iterations++;

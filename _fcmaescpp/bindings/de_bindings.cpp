@@ -1,7 +1,7 @@
 #include "de_bindings.hpp"
 
 #include "gil_utils.hpp"
-#include "ndarray_utils.hpp"
+#include "owned_ndarray.hpp"
 
 #include <cfloat>
 #include <cmath>
@@ -9,6 +9,7 @@
 #include <stdexcept>
 
 #include "callback_context.hpp"
+#include <limits>
 #include "deoptimizer.hpp"
 
 namespace fcmaes::bindings {
@@ -74,21 +75,8 @@ ResultVector to_python_vector(Vec &&values) {
     return ResultVector(x->data(), { static_cast<size_t>(x->size()) }, owner);
 }
 
-ResultMatrix to_python_matrix(const Mat &population) {
-    auto *rows = new RowMat(population.cols(), population.rows());
-    for (Eigen::Index p = 0; p < population.cols(); p++)
-        rows->row(p) = population.col(p).transpose();
-    nb::capsule owner(rows, [](void *ptr) noexcept {
-        delete static_cast<RowMat *>(ptr);
-    });
-    return ResultMatrix(
-        rows->data(),
-        {
-            static_cast<size_t>(rows->rows()),
-            static_cast<size_t>(rows->cols()),
-        },
-        owner
-    );
+ResultMatrix to_python_matrix(Mat matrix) {
+    return owned_population(std::move(matrix));
 }
 
 nb::tuple to_python_result(differential_evolution::DeResult result) {
@@ -106,7 +94,7 @@ bool de_callback_trampoline(int dim, const double *x, double *y) {
         static_cast<const DeCallbacks *>(fcmaes::callback_context);
     nb::callable *objective = callbacks == nullptr ? nullptr : callbacks->objective;
     if (objective == nullptr) {
-        y[0] = DBL_MAX;
+        y[0] = std::numeric_limits<double>::infinity();
         return false;
     }
 
@@ -114,7 +102,7 @@ bool de_callback_trampoline(int dim, const double *x, double *y) {
         nb::gil_scoped_acquire acquire;
         F64Vector x_view(x, { static_cast<size_t>(dim) });
         double value = nb::cast<double>((*objective)(x_view));
-        y[0] = std::isfinite(value) ? value : DBL_MAX;
+        y[0] = std::isfinite(value) ? value : std::numeric_limits<double>::infinity();
 
         nb::object *terminate = callbacks->terminate;
         if (terminate != nullptr && !terminate->is_none()) {
@@ -123,7 +111,7 @@ bool de_callback_trampoline(int dim, const double *x, double *y) {
         }
         return false;
     } catch (const std::exception &) {
-        y[0] = DBL_MAX;
+        y[0] = std::numeric_limits<double>::infinity();
         return false;
     }
 }
@@ -138,7 +126,7 @@ void bind_de(nb::module_ &m) {
            long runid, int max_evaluations, double keep, double stop_fitness,
            int popsize, double F, double CR, double min_sigma,
            double min_mutate, double max_mutate, int workers,
-           nb::object terminate) {
+           nb::object terminate, bool strict_budget) {
             validate_problem(dim, lower, upper, guess, sigma, ints);
 
             nb::callable objective_ref = fun;
@@ -166,7 +154,7 @@ void bind_de(nb::module_ &m) {
                     CR,
                     min_mutate,
                     max_mutate,
-                    workers
+                    workers, strict_budget
                 );
             });
             return to_python_result(std::move(result));
@@ -191,6 +179,7 @@ void bind_de(nb::module_ &m) {
         "max_mutate"_a = 0.5,
         "workers"_a = 1,
         "terminate"_a = nb::none(),
+        "strict_budget"_a = false,
         "Execute the native DE solver through nanobind."
     );
 

@@ -101,7 +101,7 @@ public:
 
 		if( DoInitEvals )
 		{
-			const ptype* const Params = getCurParams();
+			const ptype* const Params = PopParams[ CurPopPos + idx ];
 
 			for( i = 0; i < ParamCount; i++ )
 			{
@@ -214,14 +214,13 @@ public:
 			}
 		}
 
+		double* const values = sv;
 		for( i = 0; i < ParamCount; i++ )
 		{
 			TmpParams[ i ] = wrapParam( rnd, TmpParams[ i ]);
-			NewValues[ i ] = getRealValue( TmpParams, i );
+			values[ i ] = getRealValue( TmpParams, i );
 		}
-
 		memcpy( sp, TmpParams, ParamCount * sizeof( ptype ));
-		memcpy( sv, NewValues, ParamCount * sizeof( double ));
 		memcpy( AskSelBuf + idx * MaxApplySels, ApplySels,
 			ApplySelsCount * sizeof( CBiteSelBase* ));
 
@@ -279,7 +278,7 @@ public:
 			ApplySelsCount * sizeof( CBiteSelBase* ));
 
 		memcpy( TmpParams, sp, ParamCount * sizeof( ptype ));
-		memcpy( NewValues, sv, ParamCount * sizeof( double ));
+
 
 		NewCost = fc;
 
@@ -300,7 +299,7 @@ public:
 		}
 		else
 		{
-			updateBestCost( NewCost, NewValues, p );
+			updateBestCost( NewCost, sv, p );
 			applySelsIncr( rnd, 1.0 - p * CurPopSizeI );
 
 			StallCount = 0;
@@ -409,7 +408,6 @@ public:
 		, LowerBounds( NULL )
 		, UpperBounds( NULL )
 		, CurBatchSize( 0 )
-		, CandOptIdx( NULL )
 		, SortOrder( NULL )
 		, SortCosts( NULL )
 		, MaxBatch( 0 )
@@ -553,12 +551,11 @@ public:
 			}
 		}
 
-		const int curOptIdx = getOptIndex( CurOpt );
+		BatchProposer = CurOpt;
 
 		for( int i = 0; i < batchSize; i++ )
 		{
 			CurOpt -> askOne( rnd, i );
-			CandOptIdx[ i ] = curOptIdx;
 			CurBatchSize++;
 		}
 
@@ -583,33 +580,22 @@ public:
 			return;
 		}
 
-		for( int i = 0; i < CurBatchSize; i++ )
-		{
-			SortOrder[ i ] = i;
-			SortCosts[ i ] = sanitizeCost( costs[ i ]);
+		for (int i = 0; i < CurBatchSize; ++i) {
+			SortOrder[i] = i;
+			SortCosts[i] = sanitizeCost(costs[i]);
 		}
-
-		const double* const sc = SortCosts;
-		std::sort( SortOrder, SortOrder + CurBatchSize,
-			[ sc ]( const int a, const int b )
-			{
-				if( sc[ a ] < sc[ b ] )
-				{
-					return( true );
-				}
-
-				if( sc[ b ] < sc[ a ] )
-				{
-					return( false );
-				}
-
-				return( a < b );
-			});
+		const auto less = [this](int a, int b) {
+			if (SortCosts[a] != SortCosts[b])
+				return SortCosts[a] < SortCosts[b];
+			return a < b;
+		};
+		if (CurBatchSize > 1)
+			std::sort(SortOrder, SortOrder + CurBatchSize, less);
 
 		for( int si = 0; si < CurBatchSize; si++ )
 		{
 			const int i = SortOrder[ si ];
-			CBiteOptWrapAT* const opt = Opts[ CandOptIdx[ i ]];
+			CBiteOptWrapAT* const opt = BatchProposer;
 			CBiteOptAT* const PO = ( OptCount == 1 ?
 				(CBiteOptAT*) opt : (CBiteOptAT*) PushOpt );
 
@@ -666,7 +652,7 @@ public:
 
 	const double* getAskValues( const int i ) const
 	{
-		return( Opts[ CandOptIdx[ i ]] -> getAskValues( i ));
+		return( BatchProposer -> getAskValues( i ));
 	}
 
 	/**
@@ -748,7 +734,7 @@ protected:
 	double* UpperBounds;
 
 	int CurBatchSize;
-	int* CandOptIdx;
+	CBiteOptWrapAT* BatchProposer = nullptr;
 	int* SortOrder;
 	double* SortCosts;
 	int MaxBatch;
@@ -757,19 +743,6 @@ private:
 	static double sanitizeCost( const double cost )
 	{
 		return( cost == cost ? cost : 1e300 );
-	}
-
-	int getOptIndex( const CBiteOptWrapAT* const opt ) const
-	{
-		for( int i = 0; i < OptCount; i++ )
-		{
-			if( Opts[ i ] == opt )
-			{
-				return( i );
-			}
-		}
-
-		return( 0 );
 	}
 
 	void ensureBatchBuffers( const int batchSize )
@@ -786,11 +759,9 @@ private:
 			Opts[ i ] -> initAskBuffers( MaxBatch );
 		}
 
-		delete[] CandOptIdx;
 		delete[] SortOrder;
 		delete[] SortCosts;
 
-		CandOptIdx = new int[ MaxBatch ];
 		SortOrder = new int[ MaxBatch ];
 		SortCosts = new double[ MaxBatch ];
 	}
@@ -810,13 +781,11 @@ private:
 
 		delete[] LowerBounds;
 		delete[] UpperBounds;
-		delete[] CandOptIdx;
 		delete[] SortOrder;
 		delete[] SortCosts;
 
 		LowerBounds = NULL;
 		UpperBounds = NULL;
-		CandOptIdx = NULL;
 		SortOrder = NULL;
 		SortCosts = NULL;
 		BestOpt = NULL;

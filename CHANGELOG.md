@@ -7,6 +7,35 @@ publishes that version to PyPI.
 
 ## [Unreleased]
 
+### Optimizer performance and correctness
+
+- Native CMA-ES delayed updates decode points once, honor the evaluation
+  budget and retain the best completed point, including partial generations.
+  Fitness history now advances correctly. Supplied-point updates use the
+  eigensystem directly to recover z.
+- BiteOpt's batch initialization proposes each unevaluated population member
+  once and feedback avoids redundant buffer copies.
+- Native DE tracks the best observed objective independently of its mutation
+  anchor. Delayed results retain their original candidate and obey the
+  requested budget. Pass `strict_budget=True` to cap serial callbacks inside a
+  generation. Batch proposal, integer-mask and pending-trial work use fewer
+  allocations.
+- Native MODE computes exact one- and two-objective front levels using sorted
+  sweeps. Generic dominance checks stop on a proven incomparable pair.
+- `cmaescpp.minimize` and `modecpp.minimize` accept `vectorized=True` for
+  single-worker population objectives.
+- MAP-Elites can initialize an archive and start its native CMA emitter.
+  Archive updates keep the winning point, descriptor, score and counters
+  consistent across processes. Grid lookup has a native fallback when Numba
+  is unavailable. Pass `persistent_workers=True` to reuse worker processes
+  across outer iterations.
+- MAP-Elites and Diversifier accept a root `seed` and report child-process
+  failures. Diversifier enforces a shared callback budget and accepts
+  `inline=True` for one worker. Its native emitters accept an optional
+  `batch_fitness` in `opt_params`. For BiteOpt set `batch_size` in
+  `opt_params` to use batched archive feedback.
+
+
 ### Added
 
 - Native Borda and grid box queries in `fcmaes.rankindex`, including batched

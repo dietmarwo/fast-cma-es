@@ -47,6 +47,7 @@
 #include <random>
 #include <queue>
 #include <tuple>
+#include <numeric>
 #include "evaluator.h"
 #include "modeoptimizer.hpp"
 
@@ -169,21 +170,13 @@ public:
         return offspring;
     }
 
-    vec nextX(int p) {
+    void nextXInto(int p, Eigen::Ref<vec> out) {
         if (p == 0) {
-            iterations++;
-        }
-        if (nsga_update) {
-            vec x = vX.col(vp);
-            vp = (vp + 1) % popsize;
-            return x;
-        }
-        // use DE update strategy.
-        if (p == 0) {
+            ++iterations;
             CR = iterations % 2 == 0 ? 0.5 * CR0 : CR0;
             F = iterations % 2 == 0 ? 0.5 * F0 : F0;
         }
-        vec xp = popX.col(p);
+        const auto xp = popX.col(p);
         int r1, r2, r3;
         do {
             r1 = randInt(*rs,popsize);
@@ -195,20 +188,29 @@ public:
                 // sample from whole population
                  r3 = randInt(*rs,popsize);
         } while (r3 == p || r3 == r1 || r3 == r2 || r2 == p || r2 == r1 || r1 == p);
-        vec x1 = popX.col(r1);
-        vec x2 = popX.col(r2);
-        vec x3 = popX.col(r3);
-        vec x = x3 + (x1 - x2) * F;
+        const auto x1 = popX.col(r1);
+        const auto x2 = popX.col(r2);
+        const auto x3 = popX.col(r3);
+        out = x3 + (x1 - x2) * F;
         int r = randInt(*rs,dim);
         for (int j = 0; j < dim; j++)
             if (j != r && rand01(*rs) > CR)
-                x[j] = xp[j];
-        modify(x);
-        x = fitfun->getClosestFeasible(x);
+                out[j] = xp[j];
+        modify(out);
+        for (int j = 0; j < dim; ++j)
+            out[j] = fitfun->getClosestFeasible_i(j, out[j]);
+    }
+
+    vec nextSbx(int p) {
+        if (p == 0) {
+            iterations++;
+        }
+        vec x = vX.col(vp);
+        vp = (vp + 1) % popsize;
         return x;
     }
 
-    void modify(vec &x) {
+    void modify(Eigen::Ref<vec> x) {
         if (isInt == NULL)
             return;
         double n_ints = 0;
@@ -259,6 +261,51 @@ public:
     // pressure whenever the first front is small.)
     vec pareto_levels(const mat &y) {
         int n = y.cols(), m = y.rows();
+        if (m == 2 && y.allFinite()) {
+            std::vector<int> order(n), tree(n+1, 0);
+            std::vector<double> seconds(n);
+            std::iota(order.begin(), order.end(), 0);
+            for (int i = 0; i < n; ++i)
+                seconds[i] = y(1, i);
+            std::sort(seconds.begin(), seconds.end());
+            seconds.erase(std::unique(seconds.begin(), seconds.end()), seconds.end());
+            std::sort(order.begin(), order.end(), [&](int a, int b) {
+                return y(0,a) != y(0,b) ? y(0,a) < y(0,b) : y(1,a) < y(1,b);
+            });
+            // A prefix maximum over objective 2 gives the longest chain
+            // of strict dominators. Insert identical pairs as one group.
+            vec depth(n);
+            int deepest = 0;
+            for (int i = 0; i < n;) {
+                const int head = order[i];
+                const int pos = std::lower_bound(seconds.begin(), seconds.end(), y(1, head))
+                                - seconds.begin() + 1;
+                int prev = 0;
+                for (int j = pos; j > 0; j -= j & -j)
+                    prev = std::max(prev, tree[j]);
+                int j = i;
+                do {
+                    depth[order[j++]] = prev + 1;
+                } while (j < n && y(0, order[j]) == y(0, head) &&
+                                  y(1, order[j]) == y(1, head));
+                deepest = std::max(deepest, prev + 1);
+                for (int k = pos; k <= n; k += k & -k)
+                    tree[k] = std::max(tree[k], prev + 1);
+                i = j;
+            }
+            return (deepest - depth.array()).matrix();
+        }
+        if (m == 1 && y.allFinite()) {
+            const ivec order = sort_index(y.row(0).transpose());
+            vec depth(n);
+            int level = 0;
+            for (int i = 0; i < n; ++i) {
+                if (i > 0 && y(0, order[i]) != y(0, order[i-1]))
+                    ++level;
+                depth[order[i]] = level;
+            }
+            return (level - depth.array()).matrix();
+        }
         std::vector<std::vector<int>> dominates(n);
         std::vector<int> count(n, 0), rank(n, 0), front;
         for (int p = 0; p < n; p++) {
@@ -269,6 +316,8 @@ public:
                     if (y(j, q) > y(j, p)) q_le = false;
                     if (y(j, p) < y(j, q)) p_lt = true;
                     if (y(j, q) < y(j, p)) q_lt = true;
+                    if (!p_le && !q_le)
+                        break;
                 }
                 if (p_le && p_lt) {
                     dominates[p].push_back(q);
@@ -361,6 +410,8 @@ public:
             else
                 hasInfeasable = true;
         }
+        if (!hasInfeasable && yobj.allFinite())
+            return pareto_levels(yobj);
         vec csum = ranks(ycon, eps);
         if (hasFeasable)
             csum += objranks(yobj);
@@ -404,65 +455,54 @@ public:
     }
 
     void pop_update() {
-        mat x0 = popX;
-        mat y0 = popY;
+        mat ordered_x, ordered_y;
         if (nobj == 1) {
-            ivec yi = sort_index(popY.row(0)).reverse();
-            x0 = popX(Eigen::indexing::all, yi);
-            y0 = popY(Eigen::indexing::all, yi);
+            const ivec order = sort_index(popY.row(0)).reverse();
+            ordered_x = popX(Eigen::indexing::all, order);
+            ordered_y = popY(Eigen::indexing::all, order);
         }
-        vec domination = pareto(y0);
-        std::vector<vec> x;
-        std::vector<vec> y;
-        int maxdom = (int) domination.maxCoeff();
-        for (int dom = maxdom; dom >= 0; dom--) {
-            std::vector<int> level;
-            for (int i = 0; i < domination.size(); i++)
-                if (domination(i) == dom)
-                    level.push_back(i);
-            if (level.size() == 0)
-            	continue;
-            ivec domlevel = Eigen::Map<ivec, Eigen::Unaligned>(level.data(),
-                    level.size());
-            mat domx = x0(Eigen::indexing::all, domlevel);
-            mat domy = y0(Eigen::indexing::all, domlevel);
-            if ((int) (x.size() + domlevel.size()) <= popsize) {
-                // whole level fits
-                for (int i = 0; i < domy.cols(); i++) {
-                    x.push_back(domx.col(i));
-                    y.push_back(domy.col(i));
-                }
-            } else {
-                if (domy.cols() > 1) {
-                    vec cd = crowd_dist(domy);
-                    ivec si = sort_index(cd).reverse();
-                    for (int i = 0; i < si.size(); i++) {
-                        if (((int) x.size()) >= popsize)
-                            break;
-                        x.push_back(domx.col(si(i)));
-                        y.push_back(domy.col(si(i)));
-                    }
-                } else {
-                    x.push_back(domx.col(0));
-                    y.push_back(domy.col(0));
-//                    std::cerr << "XXXXXXXX " << level.size()  << " " << domy.col(0) << std::endl;
-                }
-                break; // we have filled popsize members
+        const mat &x = nobj == 1 ? ordered_x : popX;
+        const mat &y = nobj == 1 ? ordered_y : popY;
+        const vec domination = pareto(y);
+        const int highest = static_cast<int>(domination.maxCoeff());
+        std::vector<int> selected;
+        selected.reserve(popsize);
+        std::vector<std::vector<int>> buckets(highest + 1);
+        for (int i = 0; i < domination.size(); ++i)
+            buckets[static_cast<int>(domination[i])].push_back(i);
+        for (int front = highest; front >= 0 && static_cast<int>(selected.size()) < popsize; --front) {
+            const auto &level = buckets[front];
+            if (level.empty())
+                continue;
+            const int remaining = popsize - static_cast<int>(selected.size());
+            if (static_cast<int>(level.size()) <= remaining) {
+                selected.insert(selected.end(), level.begin(), level.end());
+                continue;
             }
+            const Eigen::Map<const ivec> indices(level.data(), level.size());
+            mat split = y(Eigen::indexing::all, indices);
+            const vec distance = crowd_dist(split);
+            const ivec order = sort_index(distance).reverse();
+            for (int i = 0; i < remaining; ++i)
+                selected.push_back(level[order[i]]);
         }
-        for (int i = 0; i < popsize; i++) {
-            popX.col(i) = x[i];
-            popY.col(i) = y[i];
-        }
+        const Eigen::Map<const ivec> order(selected.data(), selected.size());
+        survivor_x = x(Eigen::indexing::all, order);
+        survivor_y = y(Eigen::indexing::all, order);
+        popX.leftCols(popsize) = survivor_x;
+        popY.leftCols(popsize) = survivor_y;
         if (nsga_update)
-        	vX = variation(popX.leftCols(popsize));
-
+            vX = variation(popX.leftCols(popsize));
     }
+
+    mat survivor_x, survivor_y;
 
     mat ask() {
        for (int p = 0; p < popsize; p++) {
-           vec x = nextX(p);
-           popX.col(popsize + p) = x;
+           if (!nsga_update)
+               nextXInto(p, popX.col(popsize + p));
+           else
+               popX.col(popsize + p) = nextSbx(p);
        }
        return popX.rightCols(popsize);
     }
@@ -474,7 +514,7 @@ public:
        }
     }
 
-    int tell(mat ys) {
+    int tell(const Eigen::Ref<const mat> &ys) {
        for (int p = 0; p < popsize; p++)
             popY.col(popsize + p) = ys.col(p);
 //            std::cout << p << " x " << popX.col(popsize + p).transpose() << std::endl;
@@ -483,7 +523,7 @@ public:
        return stop;
     }
 
-    int tell(mat ys, bool nsga_update_, double pareto_update_) {
+    int tell(const Eigen::Ref<const mat> &ys, bool nsga_update_, double pareto_update_) {
         nsga_update = nsga_update_;
         pareto_update = pareto_update_;
         return tell(ys);
@@ -622,11 +662,11 @@ public:
         return opt_->ask();
     }
 
-    int tell(const mat &ys) {
+    int tell(const Eigen::Ref<const mat> &ys) {
         return opt_->tell(ys);
     }
 
-    int tell_switch(const mat &ys, bool nsga_update, double pareto_update) {
+    int tell_switch(const Eigen::Ref<const mat> &ys, bool nsga_update, double pareto_update) {
         return opt_->tell(ys, nsga_update, pareto_update);
     }
 
@@ -689,11 +729,11 @@ mat ModeState::ask() {
     return impl_->ask();
 }
 
-int ModeState::tell(const mat &ys) {
+int ModeState::tell(const Eigen::Ref<const mat> &ys) {
     return impl_->tell(ys);
 }
 
-int ModeState::tell_switch(const mat &ys, bool nsga_update,
+int ModeState::tell_switch(const Eigen::Ref<const mat> &ys, bool nsga_update,
                            double pareto_update) {
     return impl_->tell_switch(ys, nsga_update, pareto_update);
 }

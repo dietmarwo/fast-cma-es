@@ -22,6 +22,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cfloat>
+#include <limits>
 
 #include "pcg_random.hpp"
 #include "callback_context.hpp"
@@ -224,6 +225,17 @@ public:
         return _terminate;
     }
 
+    // Returns false when an earlier callback requested termination.
+    bool evaluateScalar(const double *x, double &y) {
+        y = std::numeric_limits<double>::infinity();
+        if (_terminate)
+            return false;
+        ++_evaluationCounter;
+        if (_func(_dim, x, &y))
+            _terminate = true;
+        return true;
+    }
+
     vec eval(const vec &X) {
         std::vector<double> res(_nobj);
         if (!_terminate && _func(_dim, X.data(), res.data()))
@@ -248,6 +260,10 @@ public:
         _evaluationCounter++;
         vec rvec = Eigen::Map<vec, Eigen::Unaligned>(res.data(), _nobj);
         return rvec;
+    }
+
+    bool decodeRequired() const {
+        return _normalize;
     }
 
     vec getClosestFeasible(const vec &X) const {
@@ -375,11 +391,15 @@ public:
         if (evaluatedX != nullptr)
             evaluatedX->resize(n, popsize);
         for (int p = 0; p < popsize; p++) {
-            vec x = getClosestFeasible(decode(popX.col(p)));
-            for (int i = 0; i < n; i++)
-                pargs[p * n + i] = x(i);
+            Eigen::Map<vec> out(pargs.data() + p*n, n);
+            if (_normalize)
+                out = 0.5 * (popX.col(p).array() * _scale.array()).matrix() + _typx;
+            else
+                out = popX.col(p);
+            if (_lower.size() > 0)
+                out = out.cwiseMin(_upper).cwiseMax(_lower);
             if (evaluatedX != nullptr)
-                evaluatedX->col(p) = x;
+                evaluatedX->col(p) = out;
         }
         _func_par(popsize, n, pargs.data(), res.data());
         for (int p = 0; p < popX.cols(); p++)
@@ -425,105 +445,85 @@ private:
     std::atomic<long> _evaluationCounter;
 };
 
-struct vec_id {
+// Each submitted slot has one owner until its completion is popped. A
+// worker evaluates the slot in place, so an out-of-order result can never
+// overwrite another request and detached tickets need no heap allocation.
+class ScalarEvaluator {
 public:
-
-    vec_id(const vec &v, int id) :
-            _id(id), _v(v) {
-    }
-
-    int _id;
-    vec _v;
-};
-
-class evaluator {
-public:
-
-    evaluator(Fitness *fit, int nobj, int workers) :
-            _fit(fit), _nobj(nobj), _workers(workers), _stop(false),
-            _context(fcmaes::callback_context) {
-        _requests = new blocking_queue<vec_id*>(2 * workers);
-        _evaled = new blocking_queue<vec_id*>(2 * workers);
-        _t0 = Clock::now();
-        if (_workers <= 0)
-            _workers = std::thread::hardware_concurrency();
-        for (int thread_id = 0; thread_id < _workers; thread_id++) {
-            _jobs.push_back(evaluator_job(thread_id, this));
-        }
-    }
-
-    ~evaluator() {
-        join();
-        delete _requests;
-        delete _evaled;
-    }
-
-    void evaluate(vec &x, int id) {
-        _requests->put(new vec_id(x, id));
-    }
-
-    // needs to be deleted
-    vec_id* result() {
-        return _evaled->take();
-    }
-
-    void execute(int thread_id) {
-        fcmaes::callback_context = _context;
-        while (!_stop) {
-            vec_id *vid = _requests->take();
-            if (!_stop) {
-                try {
-                    vec x = _fit->getClosestFeasible(_fit->decode(vid->_v));
-                    vid->_v = _fit->eval(x);
-                } catch (std::exception &e) {
-                    std::cout << e.what() << std::endl;
-                    vid->_v = constant(_nobj, DBL_MAX);
-                }
-                _evaled->put(vid);
-            } else
-                delete vid;
-        }
-    }
-
-    void join() {
-        _stop = true;
-        vec x(0);
-        // to release all locks
-        for (auto &job : _jobs) {
-            _requests->put(new vec_id(x, 0));
-        }
-        for (auto &job : _jobs) {
-            job.join();
-        }
-    }
-
-private:
-
-    class evaluator_job {
-
-    public:
-        evaluator_job(int id, evaluator *exec) {
-            _thread = std::thread(&evaluator::execute, exec, id);
-        }
-
-        void join() {
-            if (_thread.joinable())
-                _thread.join();
-        }
-
-    private:
-        std::thread _thread;
+    struct Slot {
+        vec x;
+        vec decoded;
+        int target = 0;
+        double y = std::numeric_limits<double>::infinity();
+        bool evaluated = false;
     };
 
-    Fitness *_fit;
-    int _nobj;
-    int _workers;
-    std::atomic<bool> _stop;
-    const void *_context;
-    blocking_queue<vec_id*> *_requests;
-    blocking_queue<vec_id*> *_evaled;
-    std::vector<evaluator_job> _jobs;
-    time_point<Clock> _t0;
+    ScalarEvaluator(Fitness &fit, int workers)
+        : fit(fit), requests(workers), completed(workers), slots(workers),
+          context(fcmaes::callback_context) {
+        threads.reserve(workers);
+        try {
+            for (int i = 0; i < workers; ++i)
+                threads.emplace_back([this] { work(); });
+        } catch (...) {
+            shutdown();
+            throw;
+        }
+    }
+
+    ~ScalarEvaluator() { shutdown(); }
+
+    void submit(int id, vec x, int target = 0) {
+        Slot &slot = slots[id];
+        slot.x = std::move(x);
+        slot.target = target;
+        requests.put(id);
+    }
+
+    int take() { return completed.take(); }
+    const Slot &slot(int id) const { return slots[id]; }
+
+private:
+    void work() {
+        fcmaes::callback_context = context;
+        for (int id = requests.take(); id >= 0; id = requests.take()) {
+            Slot &slot = slots[id];
+            slot.evaluated = false;
+            if (!stopping) {
+                try {
+                    if (fit.decodeRequired()) {
+                        slot.decoded = fit.getClosestFeasible(fit.decode(slot.x));
+                        slot.evaluated = fit.evaluateScalar(slot.decoded.data(), slot.y);
+                    } else {
+                        // The DE result must match the point the callback saw.
+                        slot.x = fit.getClosestFeasible(slot.x);
+                        slot.evaluated = fit.evaluateScalar(slot.x.data(), slot.y);
+                    }
+                } catch (...) {
+                    slot.y = std::numeric_limits<double>::infinity();
+                }
+            }
+            completed.put(id);
+        }
+    }
+
+    void shutdown() {
+        stopping = true;
+        // At most one completion per slot can be queued. Workers can finish
+        // without a consumer even when an optimizer exits with work pending.
+        for (size_t i = 0; i < threads.size(); ++i)
+            requests.put(-1);
+        for (auto &thread : threads)
+            thread.join();
+    }
+
+    Fitness &fit;
+    blocking_queue<int> requests;
+    blocking_queue<int> completed;
+    std::vector<Slot> slots;
+    const void *context;
+    std::vector<std::thread> threads;
+    std::atomic<bool> stopping{false};
 };
 
 #endif /* EVALUATOR_HPP_ */

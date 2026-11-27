@@ -68,8 +68,18 @@ def minimize(mofun: MultiObjective,
              max_mutate: Optional[float] = 0.5,
              rg: Optional[Generator] = Generator(PCG64DXSM()),
              store: Optional[store] = None,
-             runid: Optional[int] = 0) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
-    """Minimize a multi-objective function using the native MODE implementation."""
+             runid: Optional[int] = 0,
+             vectorized: bool = False) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    """Minimize a multi-objective function using the native MODE implementation.
+
+    With vectorized=True, the objective accepts a candidate matrix and
+    returns one objective/constraint row per candidate. Use workers=1;
+    when a guess is supplied, provide both its points and their costs.
+    """
+    if vectorized and workers is not None and workers > 1:
+        raise ValueError("vectorized MODE expects workers=1")
+    if vectorized and guess is not None and not isinstance(guess, tuple):
+        raise ValueError("provide (xs, ys) as the guess with vectorized MODE")
 
     try:
         mode_c = MODE_C(
@@ -78,7 +88,7 @@ def minimize(mofun: MultiObjective,
         )
         mode_c.set_guess(guess, mofun, rg)
         if workers is None or workers <= 1:
-            xs, ys = mode_c.minimize_ser(mofun, max_evaluations)
+            xs, ys = mode_c.minimize_ser(mofun, max_evaluations, vectorized)
         else:
             xs, ys = mode_c.minimize_par(mofun, max_evaluations, workers)
         if store is not None:
@@ -295,7 +305,8 @@ class MODE_C:
 
     def minimize_ser(self,
                      fun: MultiObjective,
-                     max_evaluations: Optional[int] = 100000
+                     max_evaluations: Optional[int] = 100000,
+                     vectorized: bool = False
                      ) -> Tuple[np.ndarray, np.ndarray]:
         max_evaluations = 100000 if max_evaluations is None else max_evaluations
         evals = 0
@@ -304,7 +315,10 @@ class MODE_C:
         ys = np.empty((self.popsize, self.nobj + self.ncon), dtype=np.float64)
         while stop == 0 and evals < max_evaluations:
             xs = self.ask()
-            ys = np.ascontiguousarray([fun(x) for x in xs], dtype=np.float64)
+            ys = np.ascontiguousarray(fun(xs) if vectorized else [fun(x) for x in xs],
+                                      dtype=np.float64)
+            if ys.shape != (self.popsize, self.nobj + self.ncon):
+                raise ValueError("MODE objective returned the wrong shape")
             stop = self.tell(ys)
             evals += self.popsize
         return xs, ys

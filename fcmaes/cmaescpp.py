@@ -49,7 +49,7 @@ def _result_from_native(result: NativeResult) -> OptimizeResult:
         nfev=evals,
         nit=iterations,
         status=stop,
-        success=True,
+        success=stop >= 0,
     )
 
 
@@ -68,8 +68,12 @@ def minimize(fun: Objective,
              normalize: Optional[bool] = True,
              delayed_update: Optional[bool] = True,
              update_gap: Optional[int] = None,
-             repair_z: bool = False) -> OptimizeResult:
+             repair_z: bool = False,
+             vectorized: bool = False) -> OptimizeResult:
     """Minimize a scalar objective with the native ACMA implementation.
+
+    With vectorized=True the callback accepts a two-dimensional candidate
+    batch and returns one cost per row. Use workers=1 for this mode.
 
     ``repair_z`` (default ``False``): with ``False`` a sample that the bound
     repair moved onto the bounds enters the CMA-ES update with the ``z`` of
@@ -97,7 +101,9 @@ def minimize(fun: Objective,
     rg = Generator(PCG64DXSM()) if rg is None else rg
     mu = int(popsize / 2)
 
-    batch_fun = None
+    if vectorized and workers > 1:
+        raise ValueError("vectorized CMA-ES expects workers=1")
+    batch_fun = fun if vectorized else None
     try:
         if workers > 1 and not delayed_update:
             batch_fun = parallel(fun, workers)
@@ -133,7 +139,7 @@ def minimize(fun: Objective,
             success=False,
         )
     finally:
-        if batch_fun is not None:
+        if batch_fun is not None and not vectorized:
             batch_fun.stop()
 
 

@@ -184,6 +184,20 @@ The corresponding stateful `Bite_C`, `DE_C`, `ACMA_C`, `CRFMNES_C`,
 the application owns batching, remote execution, accelerators, or a simulator
 pool. Preserve candidate order between `ask()` and `tell()`.
 
+With `cmaescpp.minimize(..., vectorized=True, workers=1)`, the objective
+takes candidate rows and returns one scalar per candidate. The same option
+in `modecpp.minimize` expects one row of objectives followed by constraints
+per candidate. Native DE's serial entry can cap actual callbacks with
+`strict_budget=True`. Its delayed worker path reserves evaluation slots.
+
+For a repeatable single-worker QD run, pass `seed` to `diversifier.minimize`
+or `mapelites.optimize_map_elites`. With multiple processes, elite updates
+still depend on scheduling. Diversifier accepts `inline=True` for one worker.
+Set `batch_fitness` in its native emitter options to a callable returning
+a vector of objective scores and a matrix of descriptors. A `BITE_CPP`
+emitter can also request a wider `batch_size`. MAP-Elites can reuse worker
+processes and callback state with `persistent_workers=True`.
+
 The Python `de`, `cmaes`, `crfmnes`, and `mode` modules remain useful for
 experimentation, inspection, custom modifiers, and comparisons. Do not mix
 Python and C++ APIs just because class names look similar; verify the exact

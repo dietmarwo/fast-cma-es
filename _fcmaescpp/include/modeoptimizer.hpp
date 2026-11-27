@@ -25,8 +25,8 @@ public:
     ModeState &operator=(const ModeState &) = delete;
 
     mat ask();
-    int tell(const mat &ys);
-    int tell_switch(const mat &ys, bool nsga_update, double pareto_update);
+    int tell(const Eigen::Ref<const mat> &ys);
+    int tell_switch(const Eigen::Ref<const mat> &ys, bool nsga_update, double pareto_update);
     int set_population(const mat &xs, const mat &ys);
     mat population();
     int dim() const;
