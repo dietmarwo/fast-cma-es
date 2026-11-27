@@ -7,6 +7,44 @@ publishes that version to PyPI.
 
 ## [Unreleased]
 
+### Changed behavior to expect
+
+These follow from the fixes below. The measurements are in
+[docs/performance-120/REVIEW.md](docs/performance-120/REVIEW.md).
+
+- **CMA-ES runs longer and ends closer to the optimum.** The history of
+  generation bests used by two stop criteria held copies of one value, so a
+  run stopped as soon as a few consecutive bests agreed. On 225 seeded
+  serial runs the fixed history used 39% more evaluations, improved the
+  result in 145 and worsened none. Runs that ended at `max_evaluations`
+  before still do. On objectives with many equal values the trajectory
+  itself changes, because the flat-fitness step-size rule reads the same
+  history.
+- **MAP-Elites now runs its CMA-ES emitter.** In 2.2.0 the emitter failed in
+  every iteration, silently, and only the variation phase ran. With default
+  parameters one iteration of one worker now costs up to 62,200 evaluations
+  instead of 200. Pass `cma_params={'cma_generations': 0}` for the former
+  cost, or set `cma_generations`, `maxiters` and `popsize`.
+- **Worker failures raise.** An exception in a MAP-Elites or Diversifier
+  worker process, such as an unknown solver name or an objective that
+  raises, now ends the call with `RuntimeError`. Before, the call returned
+  the archive as far as it had come.
+- **Budgets are exact.** Delayed CMA-ES, parallel DE and the Diversifier
+  made up to a generation or a batch more calls than `max_evaluations` /
+  `max_evals`; they now stop at the limit.
+- **DE reports the best point it evaluated.** The reported value could be
+  worse than a value the objective had returned (4 of 180 seeded serial
+  runs, 18 of 96 parallel ones).
+- **`Bite_C` with `batch_size` above 1 proposes other points** than before,
+  because its first batches no longer repeat population members.
+  `bitecpp.minimize` and `batch_size=1` give the same runs as 2.2.0, as do
+  serial DE and MODE.
+- The Diversifier's BiteOpt emitter uses `Bite_C` ask/tell, starts from the
+  best point of the preceding emitter in a sequence, and returns the best
+  real objective point of its stage.
+- A CMA-ES result has `success=False` when the native run reports a
+  negative stop code.
+
 ### Optimizer performance and correctness
 
 - Native CMA-ES delayed updates decode points once, honor the evaluation

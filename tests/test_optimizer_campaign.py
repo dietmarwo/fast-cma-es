@@ -224,3 +224,43 @@ def test_cvt_seed_and_archive_centers_survive_cache_and_reload(tmp_path, monkeyp
     np.testing.assert_array_equal(c.get_cs(), a.get_cs())
     ds = a.get_occupied_data()[1]
     np.testing.assert_array_equal(c.index_of_niches(ds), a.index_of_niches(ds))
+
+
+def _cma_stop_generation(flat_from, flat_generations, generations=60):
+    """Tell CMA-ES generation bests that fall by one, except for a flat stretch."""
+    dim, popsize = 3, 6
+    es = cmaescpp.ACMA_C(dim, box(dim), x0=[0.2]*dim, popsize=popsize,
+                         rg=np.random.default_rng(5))
+    level = 1000.0
+    for generation in range(generations):
+        xs = np.asarray(es.ask())
+        if not flat_from <= generation < flat_from + flat_generations:
+            level -= 1.0
+        # Ranks follow a sphere, so the search state stays ordinary.
+        ys = np.empty(popsize)
+        ys[np.argsort(np.sum(xs**2, axis=1))] = level + np.arange(popsize)
+        stop = es.tell(ys)
+        if stop != 0:
+            return generation, stop
+    return None, 0
+
+
+def test_cma_history_stop_needs_a_full_window_of_equal_bests():
+    # The history holds 10 + int(30*dim/popsize) = 25 generation bests. Before
+    # the shift was fixed every entry was a copy of the newest one, and five
+    # equal bests stopped the run.
+    assert _cma_stop_generation(20, 5) == (None, 0)
+    assert _cma_stop_generation(20, 20) == (None, 0)
+    assert _cma_stop_generation(20, 30) == (44, 5)
+
+
+def test_map_elites_runs_its_cma_emitter_unless_it_is_switched_off():
+    args = dict(bounds=box(4), qd_bounds=box(2), niche_num=32, samples_per_niche=4,
+                iterations=2, workers=1, seed=7,
+                me_params=dict(generations=3, chunk_size=8))
+    quiet, emitting = SphereQD(), SphereQD()
+    mapelites.optimize_map_elites(quiet, cma_params=dict(cma_generations=0), **args)
+    assert quiet.count.value == 2*3*8
+    mapelites.optimize_map_elites(emitting, cma_params=dict(cma_generations=2, popsize=8,
+                                                             maxiters=3), **args)
+    assert 2*3*8 < emitting.count.value <= 2*(3*8 + 2*3*8)

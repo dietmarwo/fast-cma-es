@@ -602,7 +602,7 @@ The descriptor must match `qd_bounds`. A typical workflow is:
 
 `mapelites.optimize_map_elites` defaults to 4,000 niches, 20 CVT samples per
 niche, all CPU processes, and 100 iterations. Those defaults can be expensive:
-pilot with fewer niches and a measured evaluation budget. In two descriptor
+pilot with fewer niches and a measured evaluation budget. One iteration of one worker makes `generations * chunk_size` variation calls (200 by default) and then up to `cma_generations * maxiters * popsize` CMA-ES emitter calls (62,000 by default; in 2.2.0 the emitter did not run). Set `cma_params={'cma_generations': 0}` for variation only. In two descriptor
 dimensions, inspect whether grid indexing (`samples_per_niche=0`) or CVT
 centers fit the intended geometry. Capacity controls both resolution and
 memory.
