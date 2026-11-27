@@ -4,7 +4,7 @@ Last reviewed 2026-10-20 against `master` at `a028f25`. Release 2.1.0
 contains the MODE fixes of #31 and the exact 2-D Pareto archive of #32;
 2.0.3 and earlier predate both. Release 2.2.0 adds jSO (`fcmaes.jso`,
 `fcmaes.jsocpp`, `optimizer.jso_cma`) and the CMA-ES option `repair_z`, and
-fixes PGPE results and seeded reproducibility of the C++ optimizers. In another checkout, check `pyproject.toml`, the module
+fixes PGPE results and seeded reproducibility of the C++ optimizers. Release 2.3.0 fixes the CMA-ES history stop, budgets and reported bests of the worker paths and the MAP-Elites CMA-ES emitter, speeds up MODE, and adds `fcmaes.rankindex`, `fcmaes.archivede`, `vectorized`, `strict_budget` and seeded QD runs. In another checkout, check `pyproject.toml`, the module
 signatures, and `tests` before relying on a claim.
 
 This file is operational context for an AI that must design and implement an
@@ -41,7 +41,9 @@ CMake option `FCMAES_FETCH_EIGEN=ON` downloads Eigen instead. Repository
 intentionally excluded from the source distribution. `fcmaes.pareto` and the
 corrected MODE need fcmaes 2.1.0 or later (`pip install "fcmaes>=2.1"`);
 jSO, `repair_z` and the PGPE fixes need 2.2.0 or later
-(`pip install "fcmaes>=2.2"`).
+(`pip install "fcmaes>=2.2"`); the options and fixes of the optimizer
+campaign, `rankindex` and `archivede` need 2.3.0 or later
+(`pip install "fcmaes>=2.3"`).
 Changes after the latest release need a source build of `master`:
 `python -m pip install git+https://github.com/dietmarwo/fast-cma-es`, adding
 `--config-settings=cmake.define.FCMAES_FETCH_EIGEN=ON` without a local Eigen.
