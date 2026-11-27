@@ -32,4 +32,20 @@ inline auto owned_mask(const std::vector<unsigned char>& values) {
     auto* data = storage.release();
     return nb::ndarray<nb::numpy, bool, nb::shape<-1>, nb::c_contig>(data, {values.size()}, owner);
 }
+// Each Eigen column is contiguous and represents one candidate row.
+inline auto owned_population(Mat values) {
+    auto storage = std::make_unique<Mat>(std::move(values));
+    auto *data = storage->data();
+    const auto rows = static_cast<size_t>(storage->cols());
+    const auto cols = static_cast<size_t>(storage->rows());
+    nb::capsule owner(storage.get(), [](void *ptr) noexcept {
+        delete static_cast<Mat *>(ptr);
+    });
+    storage.release();
+    static const double empty = 0.;
+    using Population = nb::ndarray<nb::numpy, const double, nb::shape<-1, -1>,
+                                   nb::c_contig, nb::device::cpu>;
+    return Population(data ? data : &empty, {rows, cols}, owner);
+}
+
 } // namespace fcmaes::bindings

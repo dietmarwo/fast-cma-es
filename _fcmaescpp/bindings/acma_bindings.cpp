@@ -1,7 +1,7 @@
 #include "acma_bindings.hpp"
 
 #include "gil_utils.hpp"
-#include "ndarray_utils.hpp"
+#include "owned_ndarray.hpp"
 
 #include <cfloat>
 #include <cmath>
@@ -85,21 +85,8 @@ ResultVector to_python_vector(Vec &&values) {
     return ResultVector(x->data(), { static_cast<size_t>(x->size()) }, owner);
 }
 
-ResultMatrix to_python_matrix(const Mat &population) {
-    auto *rows = new RowMat(population.cols(), population.rows());
-    for (Eigen::Index p = 0; p < population.cols(); p++)
-        rows->row(p) = population.col(p).transpose();
-    nb::capsule owner(rows, [](void *ptr) noexcept {
-        delete static_cast<RowMat *>(ptr);
-    });
-    return ResultMatrix(
-        rows->data(),
-        {
-            static_cast<size_t>(rows->rows()),
-            static_cast<size_t>(rows->cols()),
-        },
-        owner
-    );
+ResultMatrix to_python_matrix(Mat matrix) {
+    return owned_population(std::move(matrix));
 }
 
 nb::tuple to_python_result(acmaes::AcmaResult result) {

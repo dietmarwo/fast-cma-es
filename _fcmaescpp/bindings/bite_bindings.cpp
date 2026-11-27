@@ -1,7 +1,7 @@
 #include "bite_bindings.hpp"
 
 #include "gil_utils.hpp"
-#include "ndarray_utils.hpp"
+#include "owned_ndarray.hpp"
 
 #include <cmath>
 #include <cfloat>
@@ -68,21 +68,8 @@ void validate_bounds(F64Vector guess, F64Vector lower, F64Vector upper) {
         throw std::invalid_argument("upper must match guess size");
 }
 
-ResultMatrix to_python_matrix(const Mat &population) {
-    auto *rows = new RowMat(population.cols(), population.rows());
-    for (Eigen::Index p = 0; p < population.cols(); p++)
-        rows->row(p) = population.col(p).transpose();
-    nb::capsule owner(rows, [](void *ptr) noexcept {
-        delete static_cast<RowMat *>(ptr);
-    });
-    return ResultMatrix(
-        rows->data(),
-        {
-            static_cast<size_t>(rows->rows()),
-            static_cast<size_t>(rows->cols()),
-        },
-        owner
-    );
+ResultMatrix to_python_matrix(Mat matrix) {
+    return owned_population(std::move(matrix));
 }
 
 }  // namespace

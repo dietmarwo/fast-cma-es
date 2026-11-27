@@ -140,11 +140,12 @@ void bind_mode(nb::module_ &m) {
             }));
         })
         .def("tell", [](mode_optimizer::ModeState &state, F64Matrix ys) {
-            return without_gil([&]() {
-                return state.tell(
-                    as_value_matrix(ys, state.nobj() + state.ncon())
-                );
-            });
+            const int ny = state.nobj() + state.ncon();
+            if (static_cast<int>(ys.shape(1)) != ny)
+                throw std::invalid_argument("ys must have shape (popsize, nobj + ncon)");
+            const Eigen::Map<const mode_optimizer::mat> values(
+                ys.data(), ny, static_cast<Eigen::Index>(ys.shape(0)));
+            return without_gil([&]() { return state.tell(values); });
         }, "ys"_a.noconvert())
         .def("tell_switch",
              [](mode_optimizer::ModeState &state, F64Matrix ys,

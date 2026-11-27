@@ -24,7 +24,7 @@ DeResult optimize_de(
     const double *upper, const double *init, const double *sigma,
     double min_sigma, bool *ints, int max_evals, double keep,
     double stop_fitness, int popsize, double F, double CR,
-    double min_mutate, double max_mutate, int workers
+    double min_mutate, double max_mutate, int workers, bool strict_budget = false
 );
 
 class DeState {

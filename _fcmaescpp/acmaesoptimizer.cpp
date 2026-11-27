@@ -272,9 +272,8 @@ public:
                 && (std::fmod(iterations,
                         1. / (ccov1 + ccovmu + negccov) / dim / 10.)) < 1.) {
             // to achieve O(N^2) enforce symmetry to prevent complex numbers
-            mat triC = C.triangularView<Eigen::Upper>();
-            mat triC1 = C.triangularView<Eigen::StrictlyUpper>();
-            C = triC + triC1.transpose();
+            for (int j = 0; j < dim; ++j)
+                C.col(j).tail(dim-j-1) = C.row(j).tail(dim-j-1).transpose();
             Eigen::SelfAdjointEigenSolver<mat> sades;
             sades.compute(C);
             // diagD defines the scaling
@@ -356,8 +355,12 @@ public:
             xmean = fitfun->getClosestFeasibleNormed(xmean);
             if (computeArz) {
                 try {
-                    arz = (BD.inverse()
-                            * ((arx - xmean.replicate(1, popsize)) / sigma));
+                    if ((diagD.array() > 0.).all() && diagD.allFinite()) {
+                        arz.noalias() = B.transpose() * ((arx.colwise() - xmean) / sigma);
+                        arz.array().colwise() /= diagD.col(0).array();
+                    } else {
+                        arz = BD.inverse() * ((arx.colwise() - xmean) / sigma);
+                    }
                 } catch (std::exception &e) {
                     arz = normal(dim, popsize, *rs, gauss_01);
                 }
@@ -468,7 +471,7 @@ public:
             sigma *= ::exp(0.2 + cs / damps);
         }
         // store best in history
-        for (int i = 1; i < fitnessHistory.size(); i++)
+        for (Eigen::Index i = fitnessHistory.size() - 1; i > 0; --i)
             fitnessHistory[i] = fitnessHistory[i - 1];
         fitnessHistory[0] = bestFitness;
     }
@@ -493,31 +496,42 @@ public:
     }
 
     int do_optimize_delayed_update(int workers) {
-         iterations = 0;
-         fitfun->resetEvaluations();
-         evaluator eval(fitfun, 1, workers);
-         std::vector<vec> evals_x(workers);
-         // fill eval queue with initial population
-         for (int i = 0; i < workers; i++) {
-             vec x = ask();
-             vec xdec = fitfun->decode(x);
-             eval.evaluate(xdec, i);
-             evals_x[i] = x; // encoded
-         }
-         while (fitfun->evaluations() < maxEvaluations) {
-             vec_id* vid = eval.result();
-             vec y = vec(vid->_v);
-             int p = vid->_id;
-             delete vid;
-             vec x = evals_x[p];
-             tell(y(0), x); // tell evaluated encoded x
-             if (fitfun->evaluations() >= maxEvaluations || stop != 0)
-                 break;
-             x = ask();
-             eval.evaluate(x, p);
-             evals_x[p] = x;
-         }
-         return fitfun->evaluations();
+        iterations = 0;
+        fitfun->resetEvaluations();
+        const int window = std::min(workers, maxEvaluations);
+        ScalarEvaluator evaluator(*fitfun, window);
+        int submitted = window;
+        int pending = window;
+        for (int id = 0; id < window; ++id)
+            evaluator.submit(id, ask()); // The worker decodes exactly once.
+
+        double best_completed = bestValue;
+        vec best_completed_x;
+        while (pending > 0) {
+            const int id = evaluator.take();
+            const auto &finished = evaluator.slot(id);
+            --pending;
+            if (finished.evaluated) {
+                if (isfinite(finished.y) && finished.y < best_completed) {
+                    best_completed = finished.y;
+                    best_completed_x = finished.x;
+                }
+                if (stop == 0)
+                    tell(finished.y, finished.x);
+                if (isfinite(stopfitness) && best_completed < stopfitness)
+                    stop = 1;
+            }
+            if (stop == 0 && submitted < maxEvaluations && !fitfun->terminate()) {
+                evaluator.submit(id, ask());
+                ++pending;
+                ++submitted;
+            }
+        }
+        if (best_completed < bestValue) {
+            bestValue = best_completed;
+            bestX = fitfun->decode(best_completed_x);
+        }
+        return fitfun->evaluations();
     }
 
     vec getBestX() const {
@@ -769,6 +783,9 @@ AcmaResult optimize_acma(
             evaluations = opt.doOptimize();
     } catch (std::exception &e) {
         cout << e.what() << endl;
+        AcmaResult failure = make_result(opt, fitfun);
+        failure.stop = -1;
+        return failure;
     }
     AcmaResult result = make_result(opt, fitfun);
     result.evaluations = evaluations;

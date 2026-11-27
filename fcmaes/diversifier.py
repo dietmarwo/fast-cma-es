@@ -26,13 +26,12 @@ about the associated solutions.
 import numpy as np
 np.set_printoptions(legacy='1.25')
 from numpy.random import Generator, PCG64DXSM, SeedSequence
-from multiprocessing import Process
 from scipy.optimize import Bounds
 from fcmaes.optimizer import dtime, de_cma, Optimizer
 import multiprocessing as mp
 import ctypes as ct
 from time import perf_counter
-from fcmaes.mapelites import Archive, update_archive, rng
+from fcmaes.mapelites import Archive, update_archive, rng, run_workers
 from fcmaes import advretry
 from fcmaes.evaluator import is_debug_active
 from loguru import logger
@@ -54,6 +53,8 @@ def minimize(qd_fitness: QDFitness,
             archive: Optional[Archive] = None,
             opt_params: Optional[OptParams] = {},
             use_stats: Optional[bool] = False,
+            seed: Optional[int] = None,
+            inline: bool = False,
             ) -> Archive:
 
     """Wraps an fcmaes optmizer/solver by hijacking its tell function.
@@ -96,11 +97,19 @@ def minimize(qd_fitness: QDFitness,
         'sigma' -  initial distribution sigma, default = rg.uniform(0.03, 0.3)**2)
         'mean' - initial distribution mean, default=rg.uniform(bounds.lb, bounds.ub))
         'max_evals' - maximal number of evaluations per run, default = 50000
-        'stall_criterion' - how many iterations without progress allowed, default = 50 iterations
+        'stall_criterion' - how many iterations without progress allowed.
+        'batch_size' - proposal width for BITE_CPP, default = 1.
+        'batch_fitness' - optional matrix callback for native solver emitters.
+            It takes candidate rows and returns (scores, descriptors).
         If a list/tuple/array of parameters are given, the corresponding solvers are called in a
         sequence.
     use_stats : bool, optional
         If True, archive accumulates statistics of the solutions
+    seed : int, optional
+        Root seed for initialization, CVT centers and workers. Seeded
+        single-worker runs replay exactly for deterministic objectives.
+    inline : bool, optional
+        Run a single worker in the caller's process.
 
     Returns
     -------
@@ -110,18 +119,23 @@ def minimize(qd_fitness: QDFitness,
     if max_evals is None:
         max_evals = workers*50000
     dim = len(bounds.lb)
+    initial_seed, center_seed, worker_seed = SeedSequence(seed).spawn(3)
     if archive is None:
-        archive = Archive(dim, qd_bounds, niche_num, use_stats)
-        archive.init_niches(samples_per_niche)
-        # initialize archive with random values
-        archive.xs_view[:] = rng.uniform(bounds.lb, bounds.ub, (niche_num, dim))
+        archive = Archive(dim, qd_bounds, niche_num, use_stats=use_stats)
+        archive.init_niches(samples_per_niche, seed=(
+            None if seed is None else int(center_seed.generate_state(1)[0])
+        ))
+        initial_rng = rng if seed is None else Generator(PCG64DXSM(initial_seed))
+        archive.xs_view[:] = initial_rng.uniform(bounds.lb, bounds.ub, (niche_num, dim))
     t0 = perf_counter()
     qd_fitness.archive = archive # attach archive for logging
-    minimize_parallel_(archive, qd_fitness, bounds, workers, opt_params, max_evals)
+    minimize_parallel_(archive, qd_fitness, bounds, workers, opt_params, max_evals, worker_seed, inline)
     if is_debug_active():
-        ys = np.sort(archive.get_ys())[:min(100, archive.capacity)] # best fitness values
-        logger.debug(f'best {min(ys):.3f} worst {max(ys):.3f} ' +
-                 f'mean {np.mean(ys):.3f} stdev {np.std(ys):.3f} time {dtime(t0)} s')
+        ys = np.sort(archive.get_ys())[:100]
+        ys = ys[np.isfinite(ys)]
+        if ys.size:
+            logger.debug(f'best {ys[0]:.3f} worst {ys[-1]:.3f} '
+                         f'mean {ys.mean():.3f} stdev {ys.std():.3f} time {dtime(t0)} s')
     return archive
 
 def apply_advretry(fitness: Callable[[ArrayLike], float],
@@ -209,20 +223,38 @@ def apply_advretry(fitness: Callable[[ArrayLike], float],
         logger.debug(f'best {min(ys):.3f} worst {max(ys):.3f} ' +
                  f'mean {np.mean(ys):.3f} stdev {np.std(ys):.3f} time {dtime(t0)} s')
 
+def reserve_evaluations(evals, requested, limit):
+    # The worker loops also accept an unsynchronized local counter.
+    if not hasattr(evals, "get_lock"):
+        count = min(requested, limit - evals.value)
+        evals.value += count
+        return count
+    with evals.get_lock():
+        count = min(requested, limit - evals.value)
+        evals.value += count
+        return count
+
+
 def minimize_parallel_(archive: Archive,
                        fitness: QDFitness,
                        bounds: Bounds,
                        workers: int,
                        opt_params: Any,
-                       max_evals: int) -> None:
-    sg = SeedSequence()
-    rgs = [Generator(PCG64DXSM(s)) for s in sg.spawn(workers)]
-    evals = mp.RawValue(ct.c_long, 0)
-    proc=[Process(target=run_minimize_,
-            args=(archive, fitness, bounds, rgs[p],
-                  opt_params, p, workers, evals, max_evals)) for p in range(workers)]
-    for p in proc: p.start()
-    for p in proc: p.join()
+                       max_evals: int,
+                       seed: Optional[SeedSequence] = None,
+                       inline: bool = False) -> None:
+    seed = SeedSequence() if seed is None else seed
+    streams = [Generator(PCG64DXSM(s)) for s in seed.spawn(workers)]
+    evals = mp.Value(ct.c_long, 0)
+    if inline:
+        if workers != 1:
+            raise ValueError("inline Diversifier expects workers=1")
+        run_minimize_(archive, fitness, bounds, streams[0], opt_params, 0, 1, evals, max_evals)
+        return
+    run_workers(run_minimize_, (
+        (archive, fitness, bounds, streams[p], opt_params, p, workers, evals, max_evals)
+        for p in range(workers)
+    ))
 
 def run_minimize_(archive: Archive,
                   fitness: QDFitness,
@@ -232,7 +264,9 @@ def run_minimize_(archive: Archive,
                   p: int,
                   workers: int,
                   evals: Any,
-                  max_evals: int) -> None:
+                  max_evals: int,
+                  cancelled: Optional[Any] = None) -> None:
+    archive.create_views()
     with threadpoolctl.threadpool_limits(limits=1, user_api="blas"):
         if isinstance(opt_params, (list, tuple, np.ndarray)):
             default_workers = int(workers/2) if len(opt_params) > 1 else workers
@@ -240,23 +274,25 @@ def run_minimize_(archive: Archive,
                 if 'elites' == params.get('solver'):
                     elites_workers = params.get('workers', default_workers)
                     if p < elites_workers:
-                        run_map_elites_(archive, fitness, bounds, rg, evals, max_evals, params)
+                        run_map_elites_(archive, fitness, bounds, rg, evals, max_evals,
+                                        params, cancelled)
                         return
-        while evals.value < max_evals: # call solvers in loop
+        if isinstance(opt_params, (list, tuple, np.ndarray)) and all(
+                params.get('solver') == 'elites' for params in opt_params):
+            return
+        while evals.value < max_evals and (cancelled is None or not cancelled.is_set()):
             best_x = None
             if isinstance(opt_params, (list, tuple, np.ndarray)):
                 for params in opt_params: # call in sequence
+                    if evals.value >= max_evals or (cancelled is not None and cancelled.is_set()):
+                        break
                     if 'elites' == params.get('solver'):
                         continue # ignore in loop
-                    if best_x is None:
-                        # selecting a niche elite is no improvement over random x0
-                        x0 = None#, _, _ = archive.random_xs_one(select_n, rg)
-                        best_x = minimize_(archive, fitness, bounds, rg, evals, max_evals, params,
-                                           x0 = x0)
-                    else:
-                        best_x = minimize_(archive, fitness, bounds, rg, evals, max_evals, params, x0 = best_x)
+                    best_x = minimize_(archive, fitness, bounds, rg, evals, max_evals,
+                                       params, x0=best_x, cancelled=cancelled)
             else:
-                minimize_(archive, fitness, bounds, rg, evals, max_evals, opt_params)
+                minimize_(archive, fitness, bounds, rg, evals, max_evals, opt_params,
+                          cancelled=cancelled)
 
 from fcmaes.mapelites import variation_,  iso_dd_
 
@@ -266,15 +302,18 @@ def run_map_elites_(archive: Archive,
                     rg: Generator,
                     evals: Any,
                     max_evals: int,
-                    opt_params: OptParams = {}) -> None:
+                    opt_params: OptParams = {},
+                    cancelled: Optional[Any] = None) -> None:
     popsize = opt_params.get('popsize', 32)
     use_sbx = opt_params.get('use_sbx', True)
+    if popsize < (2 if use_sbx else 1):
+        raise ValueError('invalid population size for MAP-Elites emitter')
     dis_c = opt_params.get('dis_c', 20)
     dis_m = opt_params.get('dis_m', 20)
     iso_sigma = opt_params.get('iso_sigma', 0.01)
     line_sigma = opt_params.get('line_sigma', 0.2)
     select_n = archive.capacity
-    while evals.value < max_evals:
+    while evals.value < max_evals and (cancelled is None or not cancelled.is_set()):
         if use_sbx:
             pop = archive.random_xs(select_n, popsize, rg)
             xs = variation_(pop, bounds.lb, bounds.ub, rg, dis_c, dis_m)
@@ -282,14 +321,17 @@ def run_map_elites_(archive: Archive,
             x1 = archive.random_xs(select_n, popsize, rg)
             x2 = archive.random_xs(select_n, popsize, rg)
             xs = iso_dd_(x1, x2, bounds.lb, bounds.ub, rg, iso_sigma, line_sigma)
+        count = reserve_evaluations(evals, len(xs), max_evals)
+        if count == 0:
+            return
+        xs = xs[:count]
         yds = [fitness(x) for x in xs]
-        evals.value += popsize
         descs = np.array([yd[1] for yd in yds])
         niches = archive.index_of_niches(descs)
         for i in range(len(yds)):
             archive.set(niches[i], yds[i], xs[i])
         archive.argsort()
-        select_n = archive.get_occupied()
+        select_n = archive.get_occupied() or archive.capacity
 
 def minimize_(archive: Archive,
               fitness: QDFitness,
@@ -298,38 +340,53 @@ def minimize_(archive: Archive,
               evals: Any,
               max_evals: int,
               opt_params: OptParams,
-              x0: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
-    if 'BITE_CPP' == opt_params.get('solver'):
-        return run_bite_(archive, fitness, bounds, rg, evals, max_evals, opt_params, x0 = None)
-    else:
-        es = get_solver_(bounds, opt_params, rg, x0)
-        stall_criterion = opt_params.get('stall_criterion', 20)
-        max_evals_iter = opt_params.get('max_evals', 50000)
-        max_iters = int(max_evals_iter/es.popsize)
-        old_ys = None
-        last_improve = 0
-        best_x = None
-        best_y = np.inf
-        for iter in range(max_iters):
-            xs = es.ask()
-            ys, real_ys = update_archive(archive, xs, fitness)
-            evals.value += es.popsize
-            # update best real fitness
-            yi = np.argmin(real_ys)
-            ybest = real_ys[yi]
-            if ybest < best_y:
-                best_y = ybest
-                best_x = xs[yi]
-            if not old_ys is None:
-                if (np.sort(ys) < old_ys).any():
-                    last_improve = iter
-            if last_improve + stall_criterion < iter:
-                break
-            stop = es.tell(ys)
-            if stop != 0 or evals.value >= max_evals:
-                break
-            old_ys = np.sort(ys)
-        return best_x # real best solution
+              x0: Optional[np.ndarray] = None,
+              cancelled: Optional[Any] = None) -> Optional[np.ndarray]:
+    if opt_params.get('solver') == 'BITE_CPP':
+        return run_bite_(archive, fitness, bounds, rg, evals, max_evals,
+                         opt_params, x0, cancelled)
+
+    es = get_solver_(bounds, opt_params, rg, x0)
+    stall_criterion = opt_params.get('stall_criterion', 20)
+    remaining = opt_params.get('max_evals', 50000)
+    if remaining <= 0:
+        raise ValueError('emitter max_evals must be positive')
+    old_ys = None
+    last_improve = 0
+    best_x = None
+    best_y = np.inf
+    iteration = 0
+    while remaining > 0 and evals.value < max_evals:
+        if cancelled is not None and cancelled.is_set():
+            break
+        xs = es.ask()
+        if xs is None or len(xs) == 0:
+            raise RuntimeError('emitter returned no candidates')
+        count = reserve_evaluations(evals, min(remaining, len(xs)), max_evals)
+        if count == 0:
+            break
+        ys, real_ys = update_archive(archive, xs[:count], fitness,
+                                     batch_fitness=opt_params.get('batch_fitness'))
+        remaining -= count
+        yi = np.argmin(real_ys)
+        if real_ys[yi] < best_y:
+            best_y = real_ys[yi]
+            best_x = xs[yi]
+        if count < len(xs):
+            break  # Only a full generation can be told to this solver.
+        sorted_ys = np.sort(ys)
+        if old_ys is not None and (sorted_ys < old_ys).any():
+            last_improve = iteration
+        if last_improve + stall_criterion < iteration:
+            break
+        stop = es.tell(ys)
+        if stop < 0:
+            raise RuntimeError('emitter rejected its objective values')
+        if stop != 0:
+            break
+        old_ys = sorted_ys
+        iteration += 1
+    return best_x
 
 from fcmaes import cmaes, cmaescpp, crfmnescpp, pgpecpp, decpp, crfmnes, de, bitecpp
 
@@ -340,24 +397,45 @@ def run_bite_(archive: Archive,
               evals: Any,
               max_evals: int,
               opt_params: OptParams,
-              x0: Optional[np.ndarray] = None) -> np.ndarray:
-    # BiteOpt doesn't support ask/tell, so we have to "patch" fitness. Note that Voronoi
-    # tesselation is more expensive if called for single behavior vectors and not for batches.
+              x0: Optional[np.ndarray] = None,
+              cancelled: Optional[Any] = None) -> Optional[np.ndarray]:
+    budget = opt_params.get('max_evals', 50000)
+    if budget <= 0:
+        raise ValueError('emitter max_evals must be positive')
+    # Keep single-candidate feedback as the default. Larger batches use the
+    # archive snapshot from before their first update.
+    batch_size = opt_params.get('batch_size', 1)
+    if batch_size <= 0:
+        raise ValueError('emitter batch_size must be positive')
+    es = bitecpp.Bite_C(len(bounds.lb), bounds, x0=x0, M=1, batch_size=batch_size,
+                        stall_criterion=opt_params.get('stall_criterion', 20),
+                        max_evaluations=budget, rg=rg)
+    best_x = None
+    best_y = np.inf
+    while evals.value < max_evals and (cancelled is None or not cancelled.is_set()):
+        xs = es.ask()
+        if xs is None:
+            raise RuntimeError('Bite emitter failed to propose candidates')
+        if not len(xs):
+            break
+        count = reserve_evaluations(evals, len(xs), max_evals)
+        if count == 0:
+            break
+        scores, values = update_archive(archive, xs[:count], fitness,
+                                        batch_fitness=opt_params.get('batch_fitness'))
+        i = np.argmin(values)
+        if values[i] < best_y:
+            best_y = values[i]
+            best_x = xs[i]
+        if count != len(xs):
+            break
+        stop = es.tell(scores)
+        if stop < 0:
+            raise RuntimeError('Bite emitter rejected its objective values')
+        if stop != 0:
+            break
+    return best_x
 
-    def fit(x: ArrayLike) -> float:
-        if evals.value >= max_evals:
-            return np.inf
-        evals.value += 1
-        ys, _ = update_archive(archive, [x], fitness)
-        return ys[0]
-
-    max_evals_iter = opt_params.get('max_evals', 50000)
-    stall_criterion = opt_params.get('stall_criterion', 20)
-    #popsize = opt_params.get('popsize', 0)
-    ret = bitecpp.minimize(fit, bounds, x0 = x0, M = 1,
-                           stall_criterion = stall_criterion,
-                           max_evaluations = max_evals_iter, rg = rg)
-    return ret.x
 
 def get_solver_(bounds: Bounds,
                 opt_params: OptParams,

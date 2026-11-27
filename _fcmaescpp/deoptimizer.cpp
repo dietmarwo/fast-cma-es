@@ -37,6 +37,7 @@
 #include <random>
 #include <queue>
 #include <tuple>
+#include <stdexcept>
 #include "deoptimizer.hpp"
 #include "evaluator.h"
 
@@ -61,6 +62,8 @@ public:
         dim = dim_;
         // Population size
         popsize = popsize_ > 0 ? popsize_ : 15 * dim;
+        if (popsize < 4)
+            throw std::invalid_argument("DE requires at least four population members");
         // maximal number of evaluations allowed.
         maxEvaluations = maxEvaluations_ > 0 ? maxEvaluations_ : 50000;
         // keep best young after each iteration.
@@ -79,6 +82,10 @@ public:
         // Indicating which parameters are discrete integer values. If defined these parameters will be
         // rounded to the next integer and some additional mutation of discrete parameters are performed.
         isInt = isInt_;
+        if (isInt)
+            for (int i = 0; i < dim; ++i)
+                if (isInt[i])
+                    integer_indices.push_back(i);
         // DE population update parameter used in connection with isInt. Determines
         // the mutation rate for discrete parameters.
         min_mutate = min_mutate_ > 0 ? min_mutate_ : 0.1;
@@ -128,7 +135,15 @@ public:
         }
     }
 
-    vec nextX(int p, const vec &xp, const vec &xb) {
+    vec nextX(int p) {
+        vec out(dim);
+        nextXInto(p, out);
+        return out;
+    }
+
+    void nextXInto(int p, Eigen::Ref<vec> nextx) {
+        const auto xp = popX.col(p);
+        const auto xb = popX.col(bestI);
         if (p == 0) {
             iterations++;
             CR = iterations % 2 == 0 ? 0.5 * CR0 : CR0;
@@ -143,16 +158,15 @@ public:
         do {
             r2 = rndInt(popsize);
         } while (r2 == p || r2 == bestI || r2 == r1);
-        vec x1 = popX.col(r1);
-        vec x2 = popX.col(r2);
-        vec x = xb + (x1 - x2) * F;
-        int r = rndInt(dim);
-        for (int j = 0; j < dim; j++)
-            if (j != r && rnd01() > CR)
-                x[j] = xp[j];
-        vec nextx = fitfun->getClosestFeasible(x);
+        const auto x1 = popX.col(r1);
+        const auto x2 = popX.col(r2);
+        const int r = rndInt(dim);
+        for (int j = 0; j < dim; ++j) {
+            const double proposed = (j != r && rnd01() > CR) ?
+                xp[j] : xb[j] + (x1[j] - x2[j]) * F;
+            nextx[j] = fitfun->getClosestFeasible_i(j, proposed);
+        }
         modify(nextx);
-        return nextx;
     }
 
     vec next_improve(const vec &xb, const vec &x, const vec &xi) {
@@ -161,58 +175,57 @@ public:
         return nextx;
     }
 
-    void modify(vec &x) {
+    void modify(Eigen::Ref<vec> x) {
         if (isInt == NULL)
             return;
-        double n_ints = 0;
-        for (int i = 0; i < dim; i++)
-            if (isInt[i]) n_ints++;
-        double to_mutate = min_mutate + rnd01()*(max_mutate - min_mutate);
-        for (int i = 0; i < dim; i++) {
-            if (isInt[i]) {
-                if (rnd01() < to_mutate/n_ints)
-                    x[i] = (int)sample_i(i); // resample
-            }
-        }
+        const double to_mutate = min_mutate + rnd01() * (max_mutate - min_mutate);
+        if (integer_indices.empty())
+            return;
+        const double probability = to_mutate / integer_indices.size();
+        for (int i : integer_indices)
+            if (rnd01() < probability)
+                x[i] = (int)sample_i(i);
     }
 
     vec ask(int &p) {
         // ask for one new argument vector.
-        if (improvesX.empty()) {
+        if (improves.empty()) {
             p = pos;
-            vec x = nextX(p, popX.col(p), popX.col(bestI));
+            vec x = nextX(p);
             pos = (pos + 1) % popsize;
             return x;
         } else {
-            p = improvesP.front();
-            vec x = improvesX.front();
-            improvesP.pop();
-            improvesX.pop();
-            return x;
+            auto item = std::move(improves.front());
+            improves.pop();
+            p = item.first;
+            return std::move(item.second);
+        }
+    }
+
+    void observe(double y, const Eigen::Ref<const vec> &x) {
+        if (isfinite(y) && (!hasBest || y < bestY)) {
+            hasBest = true;
+            bestY = y;
+            bestX = x;
+            if (isfinite(stopfitness) && bestY < stopfitness)
+                stop = 1;
         }
     }
 
     int tell(double y, const vec &x, int p) {
+        observe(y, x);
         //tell function value for a argument list retrieved by ask_one().
         if (isfinite(y) && y < popY[p]) {
             if (iterations > 1) {
                 // temporal locality
-                improvesP.push(p);
-                improvesX.push(next_improve(popX.col(bestI), x, popX0.col(p)));
+                improves.emplace(p, next_improve(popX.col(bestI), x, popX0.col(p)));
             }
             popX0.col(p) = popX.col(p);
             popX.col(p) = x;
             popY[p] = y;
             popIter[p] = iterations;
-            if (y < popY[bestI]) {
+            if (y < popY[bestI])
                 bestI = p;
-                if (y < bestY) {
-                    bestY = y;
-                    bestX = x;
-                    if (isfinite(stopfitness) && bestY < stopfitness)
-                        stop = 1;
-                }
-            }
         } else {
             // reinitialize individual
             if (keep * rnd01() < iterations - popIter[p]) {
@@ -225,10 +238,15 @@ public:
 
     mat askAll() {
        for (int i = 0; i < popsize;) {
-           int p;
-           vec x = ask(p);
-           askedP[i] = p;
-           askedX.col(i) = x;
+           if (improves.empty()) {
+               askedP[i] = pos;
+               nextXInto(pos, askedX.col(i));
+               pos = (pos + 1) % popsize;
+           } else {
+               int p;
+               askedX.col(i) = ask(p);
+               askedP[i] = p;
+           }
            i++;
        }
        return askedX;
@@ -242,7 +260,7 @@ public:
        return stop;
     }
 
-    void doOptimize() {
+    void doOptimize(bool strict_budget) {
 
         // -------------------- Generation Loop --------------------------------
         for (iterations = 1; fitfun->evaluations() < maxEvaluations
@@ -254,9 +272,11 @@ public:
             CR = iterations % 2 == 0 ? 0.5 * CR0 : CR0;
             F = iterations % 2 == 0 ? 0.5 * F0 : F0;
 
-            for (int p = 0; p < popsize; p++) {
-                vec xp = popX.col(p);
-                vec xb = popX.col(bestI);
+            for (int p = 0; p < popsize && !fitfun->terminate(); p++) {
+                if (strict_budget && fitfun->evaluations() >= maxEvaluations)
+                    return;
+                const auto xp = popX.col(p);
+                const auto xb = popX.col(bestI);
                 int r1, r2;
                 do {
                     r1 = rndInt(popsize);
@@ -264,10 +284,11 @@ public:
                 do {
                     r2 = rndInt(popsize);
                 } while (r2 == p || r2 == bestI || r2 == r1);
-                vec x1 = popX.col(r1);
-                vec x2 = popX.col(r2);
+                const auto x1 = popX.col(r1);
+                const auto x2 = popX.col(r2);
                 int r = rndInt(dim);
-                vec x = vec(xp);
+                auto &x = trial_x;
+                x = xp;
                 for (int j = 0; j < dim; j++) {
                     if (j == r || rnd01() < CR) {
                         x[j] = xb[j] + F * (x1[j] - x2[j]);
@@ -276,30 +297,34 @@ public:
                     }
                 }
                 modify(x);
-                double y = fitfun->eval(x)(0);
+                double y;
+                fitfun->evaluateScalar(x.data(), y);
                 if (isfinite(y) && y < popY[p]) {
                     // temporal locality
-                    vec x2 = next_improve(xb, x, xp);
-                    double y2 = fitfun->eval(x2)(0);
-                    if (isfinite(y2) && y2 < y) {
-                        y = y2;
-                        x = x2;
+                    if (!fitfun->terminate() &&
+                            (!strict_budget || fitfun->evaluations() < maxEvaluations)) {
+                        auto &trial = second_x;
+                        trial = fitfun->getClosestFeasible(xb + ((x - xp) * F0));
+                        modify(trial);
+                        double trial_y;
+                        fitfun->evaluateScalar(trial.data(), trial_y);
+                        if (isfinite(trial_y) && trial_y < y) {
+                            y = trial_y;
+                            x.swap(trial);
+                        }
                     }
                     popX.col(p) = x;
                     popY(p) = y;
                     popIter[p] = iterations;
-                    if (y < popY[bestI]) {
+                    if (y < popY[bestI])
                         bestI = p;
-                        if (y < bestY) {
-                            bestY = y;
-                            bestX = x;
-                            if (isfinite(stopfitness) && bestY < stopfitness) {
-                                stop = 1;
-                                return;
-                            }
-                        }
-                    }
+                    observe(y, x);
+                    if (stop != 0)
+                        return;
                 } else {
+                    observe(y, x);
+                    if (stop != 0)
+                        return;
                     // reinitialize individual
                     if (keep * rnd01() < iterations - popIter[p]) {
                         popX.col(p) = sample();
@@ -311,44 +336,35 @@ public:
     }
 
     void do_optimize_delayed_update(int workers) {
-         iterations = 0;
-         fitfun->resetEvaluations();
-         workers = std::min(workers, popsize); // workers <= popsize
-         evaluator eval(fitfun, 1, workers);
-         int evals_size = popsize*10;
-         std::vector<vec> evals_x(evals_size);
-         std::vector<int> evals_p(evals_size);
-         int cp = 0;
+        iterations = 0;
+        fitfun->resetEvaluations();
+        const int window = std::min({workers, popsize, maxEvaluations});
+        ScalarEvaluator evaluator(*fitfun, window);
+        int submitted = 0;
+        int pending = 0;
+        auto submit = [&](int id) {
+            int target;
+            vec x = ask(target);
+            evaluator.submit(id, std::move(x), target);
+            ++submitted;
+            ++pending;
+        };
+        for (int id = 0; id < window; ++id)
+            submit(id);
 
-         // fill eval queue with initial population
-         for (int i = 0; i < workers; i++) {
-             int p;
-             vec x = ask(p);
-             eval.evaluate(x, cp);
-             evals_x[cp] = x;
-             evals_p[cp] = p;
-             cp = (cp + 1) % evals_size;
-         }
-         while (fitfun->evaluations() < maxEvaluations && !fitfun->terminate()) {
-             vec_id* vid = eval.result();
-             vec y = vec(vid->_v);
-             int id = vid->_id;
-             delete vid;
-             vec x = evals_x[id];
-             int p = evals_p[id];
-             tell(y(0), x, p); // tell evaluated x
-             if (isfinite(stopfitness) && bestY < stopfitness) {
-                 stop = 1;
-                 break;
-             }
-             if (fitfun->evaluations() >= maxEvaluations)
-                 break;
-             x = ask(p);
-             eval.evaluate(x, cp);
-             evals_x[cp] = x;
-             evals_p[cp] = p;
-             cp = (cp + 1) % evals_size;
-         }
+        while (pending > 0) {
+            const int id = evaluator.take();
+            const auto &finished = evaluator.slot(id);
+            --pending;
+            if (finished.evaluated) {
+                if (stop == 0)
+                    tell(finished.y, finished.x, finished.target);
+                else
+                    observe(finished.y, finished.x);
+            }
+            if (stop == 0 && !fitfun->terminate() && submitted < maxEvaluations)
+                submit(id);
+        }
     }
 
     void init() {
@@ -413,6 +429,9 @@ private:
     double stopfitness;
     int iterations;
     double bestY;
+    std::vector<int> integer_indices;
+    vec trial_x, second_x;
+    bool hasBest = false;
     vec bestX;
     int bestI;
     int stop;
@@ -429,8 +448,7 @@ private:
     ivec askedP;
     vec popY;
     vec popIter;
-    queue<vec> improvesX;
-    queue<int> improvesP;
+    std::queue<std::pair<int, vec>> improves;
     int pos;
     double min_mutate;
     double max_mutate;
@@ -566,7 +584,7 @@ DeResult optimize_de(
         const double *upper, const double *init, const double *sigma,
         double min_sigma, bool *ints, int max_evals, double keep,
         double stopfitness, int popsize, double F, double CR,
-        double min_mutate, double max_mutate, int workers) {
+        double min_mutate, double max_mutate, int workers, bool strict_budget) {
     vec guess, lower_limit, upper_limit, input_sigma;
     initialize_problem(dim, init, lower, upper, sigma, guess, lower_limit,
                        upper_limit, input_sigma, min_sigma);
@@ -577,7 +595,7 @@ DeResult optimize_de(
             input_sigma, min_sigma);
     try {
         if (workers <= 1)
-            opt.doOptimize();
+            opt.doOptimize(strict_budget);
         else
             opt.do_optimize_delayed_update(workers);
     } catch (std::exception &e) {
