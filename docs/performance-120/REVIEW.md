@@ -8,7 +8,8 @@ patch (SHA-256
 unchanged to `361904d` (fcmaes 2.2.0 plus the native front tools); that is
 the first commit of the pull request. [RESULTS.md](RESULTS.md) is the
 delivered report, left as delivered; [PLAN.md](PLAN.md) is the plan it
-worked from. [`archive.sha256`](archive.sha256) lists the archive's 76
+worked from, with a comment line added at each end so that GitHub Pages
+does not read the braces of its embedded C++ as template syntax. [`archive.sha256`](archive.sha256) lists the archive's 76
 files; its measurements and replay scripts are not imported.
 
 **The correctness fixes are real, the speedups reproduce, and nothing

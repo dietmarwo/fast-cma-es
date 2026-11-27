@@ -7,6 +7,8 @@ publishes that version to PyPI.
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-27
+
 ### Changed behavior to expect
 
 These follow from the fixes below. The measurements are in
