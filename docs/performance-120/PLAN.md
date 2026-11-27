@@ -1,3 +1,4 @@
+<!-- {% raw %} -->
 # fast-cma-es performance baseline and 120-experiment plan
 
 **Benchmark date:** 27 November 2026. **Source:** `master` at `361904d747bbaebfe0d065978fd4e285fdc0fbc0`, package metadata 2.2.0. This report contains **20 proposed experiments for each of six tracks**. The measurements below are from the unchanged checkout. A Release build, 427 recorded workload runs, 61 warm-up runs and separate correctness probes underpin the plan. [Pinned source](https://github.com/dietmarwo/fast-cma-es/blob/361904d747bbaebfe0d065978fd4e285fdc0fbc0/README.md) · [build configuration](https://github.com/dietmarwo/fast-cma-es/blob/361904d747bbaebfe0d065978fd4e285fdc0fbc0/CMakeLists.txt)
@@ -1280,4 +1281,4 @@ DIV-CMA_CPP,107,1024,161.53232800206752,0.2578125,51.63539731717456
 ```
 
 </details>
-
+<!-- {% endraw %} -->
