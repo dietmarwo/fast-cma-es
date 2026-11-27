@@ -410,8 +410,12 @@ public:
     vec violations(const mat &X, double penalty_coef) {
         vec violations = zeros(X.cols());
         if (_lower.size() > 0) {
+            vec x(X.rows());
             for (int i = 0; i < X.cols(); i++) {
-                vec x = decode(X.col(i));
+                if (_normalize)
+                    x = 0.5 * (X.col(i).array() * _scale.array()).matrix() + _typx;
+                else
+                    x = X.col(i);
                 violations[i] = penalty_coef
                         * ((_lower - x).cwiseMax(0).sum()
                                 + (x - _upper).cwiseMax(0).sum());

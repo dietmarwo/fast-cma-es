@@ -191,10 +191,11 @@ public:
 
     std::size_t dim() const { return columns_.size(); }
 
-    BordaResult query(const double* lo, const double* hi) const {
+    BordaResult query(const double* lo, const double* hi, std::vector<Id>* sink = nullptr) const {
         if (!lo || !hi)
             throw std::invalid_argument("box bounds must be non-null");
         BordaResult out;
+        auto& found = sink ? *sink : out.ids;
         std::vector<detail::Span> spans(dim());
         std::size_t axis = 0;
         std::uint64_t low = 0, high = 0;
@@ -217,7 +218,7 @@ public:
             if (j != axis && std::size_t(spans[j].width) + 1 != ids.size())
                 active.push_back(j);
         if (active.empty()) {
-            out.ids.assign(ids.begin() + begin, ids.begin() + end);
+            found.insert(found.end(), ids.begin() + begin, ids.begin() + end);
             return out;
         }
         std::visit(
@@ -230,10 +231,13 @@ public:
                         const auto* col = layout[axis][j].data() + p;
                         for (std::size_t i = 0; i < count; ++i)
                             hit[i] &= (Id(col[i]) - spans[j].lo <= spans[j].width);
+                        if (std::none_of(hit.begin(), hit.begin() + count,
+                                         [](unsigned char flag) { return flag != 0; }))
+                            break;
                     }
                     for (std::size_t i = 0; i < count; ++i)
                         if (hit[i])
-                            out.ids.push_back(ids[p + i]);
+                            found.push_back(ids[p + i]);
                 }
             },
             cross_);
@@ -299,11 +303,27 @@ struct SparseRankGrid {
                 ids[cursor[pointKey[id]]++] = static_cast<std::uint32_t>(id);
         } else {
             std::iota(ids.begin(), ids.end(), 0u);
-            std::sort(ids.begin(), ids.end(), [&](std::uint32_t a, std::uint32_t b) {
-                if (pointKey[a] != pointKey[b])
-                    return pointKey[a] < pointKey[b];
-                return a < b;
-            });
+            if (n < 256) {
+                std::stable_sort(ids.begin(), ids.end(),
+                    [&](Id a, Id b) { return pointKey[a] < pointKey[b]; });
+            } else {
+                // Stable key sort retains ascending input IDs inside a cell.
+                std::vector<Id> scratch(n);
+                for (unsigned shift = 0; shift < 64 && (maxKey >> shift); shift += 8) {
+                    std::array<std::size_t, 256> cursor{};
+                    for (auto id : ids)
+                        ++cursor[(pointKey[id] >> shift) & 255];
+                    std::size_t offset = 0;
+                    for (auto& count : cursor) {
+                        const auto size = count;
+                        count = offset;
+                        offset += size;
+                    }
+                    for (auto id : ids)
+                        scratch[cursor[(pointKey[id] >> shift) & 255]++] = id;
+                    ids.swap(scratch);
+                }
+            }
             std::size_t begin = 0;
             while (begin < n) {
                 const auto key = pointKey[ids[begin]];
@@ -314,12 +334,33 @@ struct SparseRankGrid {
                 ranges.push_back({static_cast<std::uint32_t>(begin), static_cast<std::uint32_t>(end)});
                 begin = end;
             }
+            // Bound the binary search with a directory on high key bits.
+            if (keys.size() >= 256) {
+                while ((maxKey >> bucket_shift_) >= 4096)
+                    ++bucket_shift_;
+                const std::size_t count = (maxKey >> bucket_shift_) + 2;
+                directory_.resize(count);
+                std::size_t pos = 0;
+                for (std::size_t i = 0; i < count; ++i) {
+                    while (pos < keys.size() && (keys[pos] >> bucket_shift_) < i)
+                        ++pos;
+                    directory_[i] = static_cast<Id>(pos);
+                }
+            }
         }
     }
 
     std::size_t lowerCell(std::uint64_t key) const {
         if (!firstOccupied.empty())
             return firstOccupied[key];
+        if (!directory_.empty()) {
+            const auto slot = key >> bucket_shift_;
+            if (slot >= directory_.size() - 1)
+                return keys.size();
+            const auto begin = keys.begin() + directory_[slot];
+            const auto end = keys.begin() + directory_[slot + 1];
+            return std::lower_bound(begin, end, key) - keys.begin();
+        }
         return static_cast<std::size_t>(std::lower_bound(keys.begin(), keys.end(), key) - keys.begin());
     }
 
@@ -334,7 +375,8 @@ struct SparseRankGrid {
     }
 
 private:
-    std::vector<std::uint32_t> firstOccupied;
+    std::vector<std::uint32_t> firstOccupied, directory_;
+    unsigned bucket_shift_=0;
 };
 
 class GridBoxIndex {
@@ -364,10 +406,11 @@ public:
     std::size_t dim() const { return d_; }
     const SparseRankGrid& grid() const { return grid_; }
 
-    QueryStats query(const double* lo, const double* hi) const {
+    QueryStats query(const double* lo, const double* hi, std::vector<Id>* sink=nullptr) const {
         if (!lo || !hi)
             throw std::invalid_argument("box bounds must be non-null");
         QueryStats stats;
+        auto& found=sink ? *sink : stats.ids;
         std::vector<Axis> axes(d_);
         bool coversAll = true;
         double prefixes = 1;
@@ -396,7 +439,7 @@ public:
             for (const auto& axis : axes)
                 stats.touchedCells *= std::uint64_t(axis.last) - axis.first + 1;
             stats.fullCells = stats.nonemptyCells = static_cast<double>(grid_.keys.size());
-            stats.ids = grid_.ids;
+            found.insert(found.end(),grid_.ids.begin(),grid_.ids.end());
             return stats;
         }
         // Cap traversal when the theoretical number of empty prefixes is huge.
@@ -415,10 +458,10 @@ public:
                     full = full && axes[j].full(cell);
                 }
                 if (inside)
-                    appendCell(i, full, axes, stats);
+                    appendCell(i, full, axes, stats, found);
             }
         } else {
-            visitRuns(axes, 0, 0, true, stats);
+            visitRuns(axes, 0, 0, true, stats, found);
         }
         return stats;
     }
@@ -431,12 +474,12 @@ private:
     };
 
     void visitRuns(const std::vector<Axis>& axes, std::size_t j, std::uint64_t prefix, bool prefixFull,
-                   QueryStats& stats) const {
+                   QueryStats& stats,std::vector<Id>& found) const {
         const auto& axis = axes[j];
         const auto base = prefix * grid_.resolution;
         if (j + 1 < d_) {
             for (auto c = axis.first; c <= axis.last; ++c)
-                visitRuns(axes, j + 1, base + c, prefixFull && axis.full(c), stats);
+                visitRuns(axes, j + 1, base + c, prefixFull && axis.full(c), stats, found);
             return;
         }
         stats.touchedCells += std::uint64_t(axis.last) - axis.first + 1;
@@ -444,27 +487,37 @@ private:
         for (auto i = grid_.lowerCell(base + axis.first);
              i < grid_.keys.size() && grid_.keys[i] <= lastKey; ++i) {
             const auto c = static_cast<std::uint32_t>(grid_.keys[i] - base);
-            appendCell(i, prefixFull && axis.full(c), axes, stats);
+            appendCell(i, prefixFull && axis.full(c), axes, stats, found);
         }
     }
 
-    void appendCell(std::size_t i, bool full, const std::vector<Axis>& axes, QueryStats& stats) const {
+    void appendCell(std::size_t i, bool full, const std::vector<Axis>& axes, QueryStats& stats, std::vector<Id>& found) const {
         ++stats.nonemptyCells;
         const auto range = grid_.ranges[i];
         if (full) {
             ++stats.fullCells;
-            stats.ids.insert(stats.ids.end(), grid_.ids.begin() + range.begin,
+            found.insert(found.end(), grid_.ids.begin() + range.begin,
                              grid_.ids.begin() + range.end);
             return;
         }
         stats.pointTests += range.end - range.begin;
         const auto* row = cellRanks_.data() + std::size_t(range.begin) * d_;
+        if (d_ == 4) {
+            for (auto p = range.begin; p < range.end; ++p, row += 4) {
+                if ((row[0] - axes[0].lower <= axes[0].width) &
+                    (row[1] - axes[1].lower <= axes[1].width) &
+                    (row[2] - axes[2].lower <= axes[2].width) &
+                    (row[3] - axes[3].lower <= axes[3].width))
+                    found.push_back(grid_.ids[p]);
+            }
+            return;
+        }
         for (auto p = range.begin; p < range.end; ++p, row += d_) {
             std::size_t j = 0;
             while (j < d_ && row[j] - axes[j].lower <= axes[j].width)
                 ++j;
             if (j == d_)
-                stats.ids.push_back(grid_.ids[p]);
+                found.push_back(grid_.ids[p]);
         }
     }
 

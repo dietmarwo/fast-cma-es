@@ -5,6 +5,7 @@
 // MIT license; see the notice in include/archivede.hpp.
 #include "archivede.hpp"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <iterator>
 #include <limits>
@@ -15,6 +16,19 @@
 namespace fcmaes::archivede {
 namespace {
 bool dominates(const double* a, const double* b, std::size_t n) {
+    if (n == 3) {
+        if (a[0] > b[0] || a[1] > b[1] || a[2] > b[2])
+            return false;
+        return a[0] < b[0] || a[1] < b[1] || a[2] < b[2];
+    }
+    if (n >= 8) {
+        unsigned worse = 0, better = 0;
+        for (std::size_t j = 0; j < n; ++j) {
+            worse |= a[j] > b[j];
+            better |= a[j] < b[j];
+        }
+        return !worse && better;
+    }
     bool strict = false;
     for (std::size_t k = 0; k < n; ++k) {
         if (a[k] > b[k])
@@ -30,6 +44,25 @@ void finite(const double* values, std::size_t count) {
     for (std::size_t i = 0; i < count; ++i)
         if (!std::isfinite(values[i]))
             throw std::invalid_argument("objectives must be finite");
+}
+
+// Directed bounds on the mathematical sum of finite coordinates. If any
+// intermediate overflows, leave the conventional archive scan in charge.
+std::pair<double,double> sum_interval(const double* y, std::size_t dim) {
+    double lo = y[0], hi = y[0];
+    for (std::size_t j = 1; j < dim; ++j) {
+        lo = std::nextafter(lo + y[j], -std::numeric_limits<double>::infinity());
+        hi = std::nextafter(hi + y[j], std::numeric_limits<double>::infinity());
+    }
+    return {lo, hi};
+}
+
+constexpr std::size_t max_indexed_objectives = 8;
+
+bool narrow_interval(double lo, double hi) {
+    const double allowance = 128 * std::numeric_limits<double>::epsilon()
+                             * std::max({1., std::abs(lo), std::abs(hi)});
+    return std::isfinite(lo) && std::isfinite(hi) && hi - lo <= allowance;
 }
 
 bool exact_sum(double a, double b, double sum) {
@@ -58,37 +91,53 @@ std::vector<std::size_t> select(const Population& values, std::size_t np, bool t
     const std::size_t count = values.size(), objectives = values.front().size();
     std::vector<std::size_t> order(count);
     std::vector<std::uint64_t> scores(count);
-    Population ranks(count, Point(objectives));
+    Population ranks;
+    std::vector<unsigned char> used;
+    std::vector<std::size_t> keep;
+    if (tiered) {
+        ranks.resize(count, Point(objectives));
+        used.resize(count);
+        keep.reserve(np);
+    }
     for (std::size_t j = 0; j < objectives; ++j) {
         std::iota(order.begin(), order.end(), std::size_t{0});
         std::stable_sort(order.begin(), order.end(),
                          [&](auto a, auto b) { return values[a][j] < values[b][j]; });
-        for (std::size_t i = 0; i < count; ++i) {
+        for (std::size_t i = 0; i < count; ++i)
             scores[order[i]] += i;
-            ranks[order[i]][j] = double(i);
+        if (tiered) {
+            const auto champion = *std::find_if(order.begin(), order.end(),
+                                                [&](auto id) { return !used[id]; });
+            used[champion] = 1;
+            keep.push_back(champion);
+            for (std::size_t i = 0; i < count; ++i)
+                ranks[order[i]][j] = double(i);
         }
     }
     std::iota(order.begin(), order.end(), std::size_t{0});
-    std::stable_sort(order.begin(), order.end(), [&](auto a, auto b) { return scores[a] < scores[b]; });
+    if (count < 128) {
+        std::stable_sort(order.begin(),order.end(),[&](auto a,auto b) { return scores[a]<scores[b]; });
+    } else {
+        const auto maxscore = *std::max_element(scores.begin(),scores.end());
+        std::vector<std::size_t> scratch(count);
+        for (unsigned shift=0; shift<64 && (maxscore >> shift)!=0; shift+=8) {
+            std::array<std::size_t,256> counts{};
+            for (auto id:order) ++counts[(scores[id]>>shift)&255];
+            std::size_t next=0;
+            for (auto& c:counts) { const auto old=c; c=next; next+=old; }
+            for (auto id:order) scratch[counts[(scores[id]>>shift)&255]++]=id;
+            order.swap(scratch);
+        }
+    }
     if (!tiered) {
         order.resize(np);
         return order;
     }
 
-    std::vector<unsigned char> used(count);
-    std::vector<std::size_t> keep;
-    keep.reserve(np);
     auto take = [&](std::size_t id) {
         keep.push_back(id);
         used[id] = 1;
     };
-    for (std::size_t j = 0; j < objectives; ++j) {
-        auto best = count;
-        for (std::size_t i = 0; i < count; ++i)
-            if (!used[i] && (best == count || values[i][j] < values[best][j]))
-                best = i;
-        take(best);
-    }
     struct Candidate {
         std::size_t id;
         double nearest;
@@ -145,6 +194,8 @@ void Archive::clear() {
     witness_.clear();
     serial_ = 0;
     exact_line_ = nobj_ == 2;
+    narrow_sums_ = false;
+    next_sum_check_ = 128;
 }
 
 bool Archive::add(const double* y, std::size_t objectives, const double* x, std::size_t width) {
@@ -170,6 +221,84 @@ bool Archive::add(const double* y, std::size_t objectives, const double* x, std:
         skyline_.swap(tree);
         entries_.clear();
         exact_line_ = false;
+    }
+    if (nobj_ > 2 && nobj_ <= max_indexed_objectives && entries_.size() >= next_sum_check_) {
+        next_sum_check_ = entries_.size() > SIZE_MAX / 2 ? SIZE_MAX : entries_.size() * 2;
+        const double low_sum = std::min(entries_.front().sum, sum);
+        const double high_sum = std::max(entries_.back().sum, sum);
+        if (narrow_interval(low_sum, high_sum)) {
+            auto [lo, hi] = sum_interval(y, nobj_);
+            std::array<double, max_indexed_objectives> lower, upper;
+            std::copy_n(y, nobj_, lower.begin());
+            std::copy_n(y, nobj_, upper.begin());
+            for (const auto& entry : entries_) {
+                const auto [a, b] = sum_interval(entry.y.data(), nobj_);
+                lo = std::min(lo, a);
+                hi = std::max(hi, b);
+                for (std::size_t j = 0; j < nobj_; ++j) {
+                    lower[j] = std::min(lower[j], entry.y[j]);
+                    upper[j] = std::max(upper[j], entry.y[j]);
+                }
+            }
+            std::size_t axis = 0;
+            for (std::size_t j = 1; j < nobj_; ++j)
+                if (upper[j] - lower[j] > upper[axis] - lower[axis])
+                    axis = j;
+            const double spread = upper[axis] - lower[axis];
+            if (narrow_interval(lo, hi) && spread > 64 * (hi - lo)) {
+                decltype(skyline_) index;
+                for (const auto& entry : entries_)
+                    index.emplace(entry.y[axis], entry);
+                skyline_.swap(index);
+                entries_.clear();
+                sum_lower_ = lo;
+                sum_upper_ = hi;
+                narrow_axis_ = axis;
+                narrow_sums_ = true;
+            }
+        }
+    }
+    if (narrow_sums_) {
+        const auto [point_lo, point_hi] = sum_interval(y, nobj_);
+        const double lo = std::min(sum_lower_, point_lo), hi = std::max(sum_upper_, point_hi);
+        if (!narrow_interval(lo, hi)) {
+            // Build the original sum-ordered representation on the side.
+            decltype(entries_) sorted;
+            sorted.reserve(skyline_.size());
+            for (const auto& pair : skyline_)
+                sorted.push_back(pair.second);
+            std::sort(sorted.begin(), sorted.end(), [](const Entry& a, const Entry& b) {
+                return a.sum != b.sum ? a.sum < b.sum : a.serial < b.serial;
+            });
+            entries_.swap(sorted);
+            skyline_.clear();
+            narrow_sums_ = false;
+            next_sum_check_ = std::max<std::size_t>(128, entries_.size());
+        } else {
+            const double infinity = std::numeric_limits<double>::infinity();
+            const double band = std::nextafter(hi - lo, infinity);
+            // When a dominates b, every coordinate difference b[j] - a[j]
+            // is at most sum(b) - sum(a). The band bounds both directions.
+            const auto first = skyline_.lower_bound(std::nextafter(y[narrow_axis_] - band, -infinity));
+            const auto last = skyline_.upper_bound(std::nextafter(y[narrow_axis_] + band, infinity));
+            for (auto it = first; it != last; ++it) {
+                if (dominates(it->second.y.data(), y, nobj_)) {
+                    witness_ = it->second.y;
+                    return false;
+                }
+            }
+            auto added = skyline_.emplace_hint(last, y[narrow_axis_], make_entry());
+            for (auto it = first; it != last;) {
+                if (it != added && dominates(y, it->second.y.data(), nobj_))
+                    it = skyline_.erase(it);
+                else
+                    ++it;
+            }
+            sum_lower_ = lo;
+            sum_upper_ = hi;
+            ++serial_;
+            return true;
+        }
     }
     if (nobj_ == 2) {
         auto first = skyline_.lower_bound(y[0]);
@@ -251,15 +380,18 @@ State::State(Point lower, Point upper, std::size_t nobj, std::size_t np, std::ui
         throw std::invalid_argument("popsize must be at least four and greater than nobj");
     if (!dim() || dim() != upper_.size() || dim() > std::numeric_limits<std::uint32_t>::max())
         throw std::invalid_argument("bounds must be matching nonempty vectors");
-    for (std::size_t j = 0; j < dim(); ++j)
+    widths_.resize(dim());
+    for (std::size_t j = 0; j < dim(); ++j) {
         if (!std::isfinite(lower_[j]) || !std::isfinite(upper_[j]) || lower_[j] > upper_[j])
             throw std::invalid_argument("bounds must be finite and ordered");
+        widths_[j] = upper_[j] - lower_[j];
+    }
 }
 
 Point State::decode(const Point& unit) const {
     Point x(dim());
     for (std::size_t j = 0; j < dim(); ++j) {
-        const auto lo = lower_[j], hi = upper_[j], width = hi - lo, t = unit[j];
+        const auto lo = lower_[j], hi = upper_[j], width = widths_[j], t = unit[j];
         const auto value = std::isfinite(width) ? lo + t * width : (1. - t) * lo + t * hi;
         x[j] = t == 1. ? hi : std::clamp(value, lo, hi);
     }

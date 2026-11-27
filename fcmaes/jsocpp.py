@@ -62,13 +62,22 @@ class Jso:
 
 def minimize(fun, bounds, popsize=0, max_evaluations=100_000,
              stop_fitness=-np.inf, workers=None, rg=None, runid=0, *,
-             min_popsize=4, memory_size=5, p_max=0.25, p_min=0.125, archive_rate=1.0):
+             min_popsize=4, memory_size=5, p_max=0.25, p_min=0.125, archive_rate=1.0, vectorized=False):
     """Minimize with native jSO and optional process-parallel evaluation.
 
     The evaluation cap, target stops, and failure handling match
-    ``fcmaes.jso.minimize``.
+    ``fcmaes.jso.minimize`` for scalar objectives. With vectorized=True,
+    fun takes a matrix and returns one score per candidate. This mode uses
+    one worker and counts every evaluated row of a batch before a target stop.
     """
     state = Jso(bounds, popsize, max_evaluations, stop_fitness, rg, runid,
                 min_popsize=min_popsize, memory_size=memory_size, p_max=p_max,
                 p_min=p_min, archive_rate=archive_rate)
+    if vectorized:
+        if workers is not None and workers > 1:
+            raise ValueError("vectorized objectives require one worker")
+        while len(xs := state.ask()):
+            if state.tell(fun(xs)):
+                break
+        return state.result()
     return _minimize(state, fun, workers)

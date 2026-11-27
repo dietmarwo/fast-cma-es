@@ -20,7 +20,7 @@ from typing import Callable, Optional, Tuple, Union
 
 from fcmaes._fcmaes_ext import CRFMNES as _CRFMNES
 from fcmaes._fcmaes_ext import optimize_crfmnes
-from fcmaes.evaluator import _check_bounds, _get_bounds, parallel, serial
+from fcmaes.evaluator import _vectorized_objective, _check_bounds, _get_bounds, parallel, serial
 
 Objective = Callable[[ArrayLike], float]
 BatchObjective = Callable[[ArrayLike], np.ndarray]
@@ -36,7 +36,7 @@ def _result_tuple_to_result(values: NativeResult) -> OptimizeResult:
         nfev=evals,
         nit=iterations,
         status=stop,
-        success=True,
+        success=stop >= 0,
     )
 
 
@@ -66,8 +66,14 @@ def minimize(
     normalize: Optional[bool] = False,
     use_constraint_violation: Optional[bool] = True,
     penalty_coef: Optional[float] = 1e5,
+    *, vectorized: bool = False,
 ) -> OptimizeResult:
-    """Minimization using the nanobind-backed C++ CR-FM-NES implementation."""
+    """Minimization using the nanobind-backed C++ CR-FM-NES implementation.
+
+    With vectorized=True, fun accepts a matrix of physical points and
+    returns one scalar per row. Use a single worker. The final batch can
+    be shorter than popsize when the evaluation budget is reached.
+    """
 
     lower, upper, guess = _check_bounds(bounds, x0, rg)
     if popsize is None:
@@ -87,7 +93,10 @@ def minimize(
         lower = np.ascontiguousarray(lower, dtype=np.float64)
         upper = np.ascontiguousarray(upper, dtype=np.float64)
 
-    batch_fun, parfun = _prepare_batch_fun(fun, workers)
+    if vectorized:
+        batch_fun, parfun = _vectorized_objective(fun, workers), None
+    else:
+        batch_fun, parfun = _prepare_batch_fun(fun, workers)
     try:
         return _result_tuple_to_result(
             optimize_crfmnes(

@@ -7,6 +7,24 @@ publishes that version to PyPI.
 
 ## [Unreleased]
 
+### Remaining native optimizers and front tools
+
+- CR-FM-NES returns the best evaluated physical point and its objective value.
+  Box-violation penalties still determine the distribution update.
+- CR-FM-NES and PGPE count the final partial batch against the requested
+  budget and update the result with any improvement in that batch.
+- Dual Annealing charges local-search probes and initial retries to the
+  evaluation budget. The result reports attempted annealing iterations.
+- The C++ CR-FM-NES, PGPE and jSO wrappers accept an optional matrix
+  objective with `vectorized=True` and a single worker. The matrix is
+  composed of physical points. jSO counts every row of an evaluated matrix.
+- The strict Pareto archive can use objective-coordinate ranges to prune
+  comparisons on fronts with nearly equal sums. Exact dominance and
+  duplicate semantics are preserved. IGD has indexed searches for additional
+  dimensions and rescales uniformly extreme coordinates before searching.
+- Native rank queries reduce work when filtering blocks of candidates and
+  looking up sparse grid cells.
+
 ### Changed behavior to expect
 
 These follow from the fixes below. The measurements are in

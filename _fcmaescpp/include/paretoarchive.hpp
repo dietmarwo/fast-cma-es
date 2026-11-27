@@ -38,25 +38,30 @@ public:
     std::vector<unsigned char> add_batch(const double* points, const double* payloads,
                                          std::size_t rows, std::size_t payload_rows,
                                          std::size_t payload_width) {
-        if (rows != payload_rows || payload_width != payload_dim_)
-            throw std::invalid_argument("payload batch shape must be (rows, payload_dim)");
-        if (rows && (!points || (payload_dim_ && !payloads)))
-            throw std::invalid_argument("nonempty batch requires objective/payload buffers");
         std::vector<unsigned char> accepted;
-        accepted.reserve(rows);
-        for (std::size_t row = 0; row < rows; ++row) {
-            try {
-                accepted.push_back(add(points + 2 * row,
-                    payload_dim_ ? payloads + payload_dim_ * row : nullptr, payload_width));
-            } catch (const std::invalid_argument& e) {
-                throw std::invalid_argument("row " + std::to_string(row) + ": " + e.what()
-                    + "; earlier rows retained");
-            } catch (const std::overflow_error& e) {
-                throw std::overflow_error("row " + std::to_string(row) + ": " + e.what()
-                    + "; earlier rows retained");
-            }
-        }
+        add_rows(points, payloads, rows, payload_rows, payload_width,
+                 [&](std::size_t, bool inserted) { accepted.push_back(inserted); },
+                 [&] { accepted.reserve(rows); });
         return accepted;
+    }
+
+    void add_batch_into(const double* points, const double* payloads, std::size_t rows,
+                        std::size_t payload_rows, std::size_t payload_width, bool* output) {
+        if (rows && !output)
+            throw std::invalid_argument("nonempty batch requires an admission mask");
+        add_rows(points, payloads, rows, payload_rows, payload_width,
+                 [&](std::size_t i, bool inserted) { output[i] = inserted; }, [] {});
+    }
+
+    void write_snapshot(double* values, double* payload) const {
+        front_.forEachPoint([&](double a, double b, const std::vector<double>& x) {
+            *values++ = a;
+            *values++ = b;
+            if (payload_dim_) {
+                std::copy(x.begin(), x.end(), payload);
+                payload += payload_dim_;
+            }
+        });
     }
 
     Snapshot snapshot() const {
@@ -78,6 +83,28 @@ public:
     double hypervolume() const { return front_.hypervolume(); }
 
 private:
+    template<class Write, class Prepare>
+    void add_rows(const double* points, const double* payloads, std::size_t rows,
+                  std::size_t payload_rows, std::size_t payload_width, Write output, Prepare prepare) {
+        if (rows != payload_rows || payload_width != payload_dim_)
+            throw std::invalid_argument("payload batch shape must be (rows, payload_dim)");
+        if (rows && (!points || (payload_dim_ && !payloads)))
+            throw std::invalid_argument("nonempty batch requires objective/payload buffers");
+        prepare();
+        for (std::size_t row = 0; row < rows; ++row) {
+            try {
+                output(row, front_.addPoint(points[2 * row], points[2 * row + 1],
+                    payload_dim_ ? payloads + payload_dim_ * row : nullptr, static_cast<int>(payload_dim_)));
+            } catch (const std::invalid_argument& e) {
+                throw std::invalid_argument("row " + std::to_string(row) + ": " + e.what()
+                    + "; earlier rows retained");
+            } catch (const std::overflow_error& e) {
+                throw std::overflow_error("row " + std::to_string(row) + ": " + e.what()
+                    + "; earlier rows retained");
+            }
+        }
+    }
+
     std::size_t payload_dim_;
     ParetoFront2D front_;
 };

@@ -18,14 +18,21 @@ void bind_pareto(nb::module_ &m) {
         }, "y"_a.noconvert(), "x"_a.noconvert())
         .def("add_batch", [](fcmaes::ParetoArchive2D& archive, F64Matrix ys, F64Matrix xs) {
             if (ys.shape(1) != 2) throw std::invalid_argument("objectives must have shape (rows, 2)");
-            return owned_mask(archive.add_batch(ys.data(), xs.data(), ys.shape(0),
-                                               xs.shape(0), xs.shape(1)));
+            const auto n = ys.shape(0);
+            auto mask = std::unique_ptr<bool[]>(new bool[std::max<std::size_t>(1, n)]);
+            archive.add_batch_into(ys.data(), xs.data(), n, xs.shape(0), xs.shape(1), mask.get());
+            return owned_buffer(std::move(mask), std::array<std::size_t, 1>{n});
         }, "ys"_a.noconvert(), "xs"_a.noconvert())
         .def("front", [](const fcmaes::ParetoArchive2D& archive) {
-            auto snapshot = archive.snapshot();
+            const auto rows = archive.size(), width = archive.payload_dim();
+            if (rows > SIZE_MAX / std::max<std::size_t>(2, width))
+                throw std::length_error("archive snapshot exceeds array size");
+            auto payloads = std::unique_ptr<double[]>(new double[std::max<std::size_t>(1, rows * width)]);
+            auto objectives = std::unique_ptr<double[]>(new double[std::max<std::size_t>(1, rows * 2)]);
+            archive.write_snapshot(objectives.get(), payloads.get());
             return nb::make_tuple(
-                owned_matrix(std::move(snapshot.payloads), snapshot.rows, archive.payload_dim()),
-                owned_matrix(std::move(snapshot.objectives), snapshot.rows, 2));
+                owned_buffer(std::move(payloads), std::array<std::size_t, 2>{rows, width}),
+                owned_buffer(std::move(objectives), std::array<std::size_t, 2>{rows, 2}));
         })
         .def("clear", &fcmaes::ParetoArchive2D::clear)
         .def("hypervolume", &fcmaes::ParetoArchive2D::hypervolume)

@@ -18,7 +18,7 @@ from typing import Callable, Optional, Tuple, Union
 
 from fcmaes._fcmaes_ext import PGPE as _PGPE
 from fcmaes._fcmaes_ext import optimize_pgpe
-from fcmaes.evaluator import _check_bounds, _get_bounds, parallel, serial
+from fcmaes.evaluator import _vectorized_objective, _check_bounds, _get_bounds, parallel, serial
 
 Objective = Callable[[ArrayLike], float]
 BatchObjective = Callable[[ArrayLike], np.ndarray]
@@ -34,7 +34,7 @@ def _result_tuple_to_result(values: NativeResult) -> OptimizeResult:
         nfev=evals,
         nit=iterations,
         status=stop,
-        success=True,
+        success=stop >= 0,
     )
 
 
@@ -79,8 +79,14 @@ def minimize(
     b2: Optional[float] = 0.999,
     eps: Optional[float] = 1e-8,
     decay_coef: Optional[float] = 1.0,
+    *, vectorized: bool = False,
 ) -> OptimizeResult:
-    """Minimization using the nanobind-backed C++ PGPE implementation."""
+    """Minimization using the nanobind-backed C++ PGPE implementation.
+
+    With vectorized=True, fun accepts a matrix of physical points and
+    returns one scalar per row. Use a single worker. The final batch can
+    be shorter than popsize when the evaluation budget is reached.
+    """
 
     lower, upper, guess = _check_bounds(bounds, x0, rg)
     dim = guess.size
@@ -98,7 +104,10 @@ def minimize(
         lower = np.ascontiguousarray(lower, dtype=np.float64)
         upper = np.ascontiguousarray(upper, dtype=np.float64)
 
-    batch_fun, parfun = _prepare_batch_fun(fun, workers)
+    if vectorized:
+        batch_fun, parfun = _vectorized_objective(fun, workers), None
+    else:
+        batch_fun, parfun = _prepare_batch_fun(fun, workers)
     try:
         return _result_tuple_to_result(
             optimize_pgpe(
